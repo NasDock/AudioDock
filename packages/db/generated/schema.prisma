@@ -254,3 +254,40 @@ model Folder {
   type     TrackType @default(MUSIC)
   tracks   Track[]
 }
+
+model TtsUserConfig {
+  id         Int      @id @default(autoincrement())
+  engineName String   @map("engine_name")
+  configJson String   @map("config_json")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("tts_user_config")
+}
+
+model TtsTask {
+  id                String           @id @default(uuid())
+  bookName          String           @map("book_name")
+  author            String
+  filePath          String           @default("") @map("file_path")
+  totalChapters     Int              @map("total_chapters")
+  completedChapters Int              @default(0) @map("completed_chapters")
+  status            String           @default("pending")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  options           String? // Store as JSON string
+  chapters          TtsChapterTask[]
+
+  @@map("tts_task")
+}
+
+model TtsChapterTask {
+  id         Int     @id @default(autoincrement())
+  taskId     String  @map("task_id")
+  task       TtsTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  index      Int
+  title      String
+  status     String  @default("pending")
+  errorMsg   String? @map("error_msg")
+  outputPath String? @map("output_path")
+
+  @@map("tts_chapter_task")
+}

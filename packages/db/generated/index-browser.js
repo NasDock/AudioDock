@@ -254,6 +254,35 @@ exports.Prisma.FolderScalarFieldEnum = {
   type: 'type'
 };
 
+exports.Prisma.TtsUserConfigScalarFieldEnum = {
+  id: 'id',
+  engineName: 'engineName',
+  configJson: 'configJson',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.TtsTaskScalarFieldEnum = {
+  id: 'id',
+  bookName: 'bookName',
+  author: 'author',
+  filePath: 'filePath',
+  totalChapters: 'totalChapters',
+  completedChapters: 'completedChapters',
+  status: 'status',
+  createdAt: 'createdAt',
+  options: 'options'
+};
+
+exports.Prisma.TtsChapterTaskScalarFieldEnum = {
+  id: 'id',
+  taskId: 'taskId',
+  index: 'index',
+  title: 'title',
+  status: 'status',
+  errorMsg: 'errorMsg',
+  outputPath: 'outputPath'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -288,7 +317,10 @@ exports.Prisma.ModelName = {
   SearchRecord: 'SearchRecord',
   Device: 'Device',
   Playlist: 'Playlist',
-  Folder: 'Folder'
+  Folder: 'Folder',
+  TtsUserConfig: 'TtsUserConfig',
+  TtsTask: 'TtsTask',
+  TtsChapterTask: 'TtsChapterTask'
 };
 
 /**

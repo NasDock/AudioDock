@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sqlmodel
+aiofiles
+aiohttp
+mutagen
+chardet
+edge-tts
+cryptography
+pyarmor
+python-multipart
+jinja2

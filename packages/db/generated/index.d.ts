@@ -88,6 +88,21 @@ export type Playlist = $Result.DefaultSelection<Prisma.$PlaylistPayload>
  * 
  */
 export type Folder = $Result.DefaultSelection<Prisma.$FolderPayload>
+/**
+ * Model TtsUserConfig
+ * 
+ */
+export type TtsUserConfig = $Result.DefaultSelection<Prisma.$TtsUserConfigPayload>
+/**
+ * Model TtsTask
+ * 
+ */
+export type TtsTask = $Result.DefaultSelection<Prisma.$TtsTaskPayload>
+/**
+ * Model TtsChapterTask
+ * 
+ */
+export type TtsChapterTask = $Result.DefaultSelection<Prisma.$TtsChapterTaskPayload>
 
 /**
  * Enums
@@ -392,6 +407,36 @@ export class PrismaClient<
     * ```
     */
   get folder(): Prisma.FolderDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.ttsUserConfig`: Exposes CRUD operations for the **TtsUserConfig** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more TtsUserConfigs
+    * const ttsUserConfigs = await prisma.ttsUserConfig.findMany()
+    * ```
+    */
+  get ttsUserConfig(): Prisma.TtsUserConfigDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.ttsTask`: Exposes CRUD operations for the **TtsTask** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more TtsTasks
+    * const ttsTasks = await prisma.ttsTask.findMany()
+    * ```
+    */
+  get ttsTask(): Prisma.TtsTaskDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.ttsChapterTask`: Exposes CRUD operations for the **TtsChapterTask** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more TtsChapterTasks
+    * const ttsChapterTasks = await prisma.ttsChapterTask.findMany()
+    * ```
+    */
+  get ttsChapterTask(): Prisma.TtsChapterTaskDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -846,7 +891,10 @@ export namespace Prisma {
     SearchRecord: 'SearchRecord',
     Device: 'Device',
     Playlist: 'Playlist',
-    Folder: 'Folder'
+    Folder: 'Folder',
+    TtsUserConfig: 'TtsUserConfig',
+    TtsTask: 'TtsTask',
+    TtsChapterTask: 'TtsChapterTask'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -865,7 +913,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "track" | "album" | "artist" | "userTrackLike" | "userTrackHistory" | "userAlbumLike" | "userAlbumHistory" | "userAudiobookLike" | "userAudiobookHistory" | "user" | "systemSetting" | "searchRecord" | "device" | "playlist" | "folder"
+      modelProps: "track" | "album" | "artist" | "userTrackLike" | "userTrackHistory" | "userAlbumLike" | "userAlbumHistory" | "userAudiobookLike" | "userAudiobookHistory" | "user" | "systemSetting" | "searchRecord" | "device" | "playlist" | "folder" | "ttsUserConfig" | "ttsTask" | "ttsChapterTask"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1979,6 +2027,228 @@ export namespace Prisma {
           }
         }
       }
+      TtsUserConfig: {
+        payload: Prisma.$TtsUserConfigPayload<ExtArgs>
+        fields: Prisma.TtsUserConfigFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.TtsUserConfigFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsUserConfigPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.TtsUserConfigFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsUserConfigPayload>
+          }
+          findFirst: {
+            args: Prisma.TtsUserConfigFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsUserConfigPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.TtsUserConfigFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsUserConfigPayload>
+          }
+          findMany: {
+            args: Prisma.TtsUserConfigFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsUserConfigPayload>[]
+          }
+          create: {
+            args: Prisma.TtsUserConfigCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsUserConfigPayload>
+          }
+          createMany: {
+            args: Prisma.TtsUserConfigCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.TtsUserConfigCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsUserConfigPayload>[]
+          }
+          delete: {
+            args: Prisma.TtsUserConfigDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsUserConfigPayload>
+          }
+          update: {
+            args: Prisma.TtsUserConfigUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsUserConfigPayload>
+          }
+          deleteMany: {
+            args: Prisma.TtsUserConfigDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.TtsUserConfigUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.TtsUserConfigUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsUserConfigPayload>[]
+          }
+          upsert: {
+            args: Prisma.TtsUserConfigUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsUserConfigPayload>
+          }
+          aggregate: {
+            args: Prisma.TtsUserConfigAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateTtsUserConfig>
+          }
+          groupBy: {
+            args: Prisma.TtsUserConfigGroupByArgs<ExtArgs>
+            result: $Utils.Optional<TtsUserConfigGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.TtsUserConfigCountArgs<ExtArgs>
+            result: $Utils.Optional<TtsUserConfigCountAggregateOutputType> | number
+          }
+        }
+      }
+      TtsTask: {
+        payload: Prisma.$TtsTaskPayload<ExtArgs>
+        fields: Prisma.TtsTaskFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.TtsTaskFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsTaskPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.TtsTaskFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsTaskPayload>
+          }
+          findFirst: {
+            args: Prisma.TtsTaskFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsTaskPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.TtsTaskFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsTaskPayload>
+          }
+          findMany: {
+            args: Prisma.TtsTaskFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsTaskPayload>[]
+          }
+          create: {
+            args: Prisma.TtsTaskCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsTaskPayload>
+          }
+          createMany: {
+            args: Prisma.TtsTaskCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.TtsTaskCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsTaskPayload>[]
+          }
+          delete: {
+            args: Prisma.TtsTaskDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsTaskPayload>
+          }
+          update: {
+            args: Prisma.TtsTaskUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsTaskPayload>
+          }
+          deleteMany: {
+            args: Prisma.TtsTaskDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.TtsTaskUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.TtsTaskUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsTaskPayload>[]
+          }
+          upsert: {
+            args: Prisma.TtsTaskUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsTaskPayload>
+          }
+          aggregate: {
+            args: Prisma.TtsTaskAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateTtsTask>
+          }
+          groupBy: {
+            args: Prisma.TtsTaskGroupByArgs<ExtArgs>
+            result: $Utils.Optional<TtsTaskGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.TtsTaskCountArgs<ExtArgs>
+            result: $Utils.Optional<TtsTaskCountAggregateOutputType> | number
+          }
+        }
+      }
+      TtsChapterTask: {
+        payload: Prisma.$TtsChapterTaskPayload<ExtArgs>
+        fields: Prisma.TtsChapterTaskFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.TtsChapterTaskFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsChapterTaskPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.TtsChapterTaskFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsChapterTaskPayload>
+          }
+          findFirst: {
+            args: Prisma.TtsChapterTaskFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsChapterTaskPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.TtsChapterTaskFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsChapterTaskPayload>
+          }
+          findMany: {
+            args: Prisma.TtsChapterTaskFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsChapterTaskPayload>[]
+          }
+          create: {
+            args: Prisma.TtsChapterTaskCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsChapterTaskPayload>
+          }
+          createMany: {
+            args: Prisma.TtsChapterTaskCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.TtsChapterTaskCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsChapterTaskPayload>[]
+          }
+          delete: {
+            args: Prisma.TtsChapterTaskDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsChapterTaskPayload>
+          }
+          update: {
+            args: Prisma.TtsChapterTaskUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsChapterTaskPayload>
+          }
+          deleteMany: {
+            args: Prisma.TtsChapterTaskDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.TtsChapterTaskUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.TtsChapterTaskUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsChapterTaskPayload>[]
+          }
+          upsert: {
+            args: Prisma.TtsChapterTaskUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TtsChapterTaskPayload>
+          }
+          aggregate: {
+            args: Prisma.TtsChapterTaskAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateTtsChapterTask>
+          }
+          groupBy: {
+            args: Prisma.TtsChapterTaskGroupByArgs<ExtArgs>
+            result: $Utils.Optional<TtsChapterTaskGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.TtsChapterTaskCountArgs<ExtArgs>
+            result: $Utils.Optional<TtsChapterTaskCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -2078,6 +2348,9 @@ export namespace Prisma {
     device?: DeviceOmit
     playlist?: PlaylistOmit
     folder?: FolderOmit
+    ttsUserConfig?: TtsUserConfigOmit
+    ttsTask?: TtsTaskOmit
+    ttsChapterTask?: TtsChapterTaskOmit
   }
 
   /* Types for Logging */
@@ -2516,6 +2789,37 @@ export namespace Prisma {
    */
   export type FolderCountOutputTypeCountTracksArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: TrackWhereInput
+  }
+
+
+  /**
+   * Count Type TtsTaskCountOutputType
+   */
+
+  export type TtsTaskCountOutputType = {
+    chapters: number
+  }
+
+  export type TtsTaskCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    chapters?: boolean | TtsTaskCountOutputTypeCountChaptersArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * TtsTaskCountOutputType without action
+   */
+  export type TtsTaskCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsTaskCountOutputType
+     */
+    select?: TtsTaskCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * TtsTaskCountOutputType without action
+   */
+  export type TtsTaskCountOutputTypeCountChaptersArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: TtsChapterTaskWhereInput
   }
 
 
@@ -19955,6 +20259,3298 @@ export namespace Prisma {
 
 
   /**
+   * Model TtsUserConfig
+   */
+
+  export type AggregateTtsUserConfig = {
+    _count: TtsUserConfigCountAggregateOutputType | null
+    _avg: TtsUserConfigAvgAggregateOutputType | null
+    _sum: TtsUserConfigSumAggregateOutputType | null
+    _min: TtsUserConfigMinAggregateOutputType | null
+    _max: TtsUserConfigMaxAggregateOutputType | null
+  }
+
+  export type TtsUserConfigAvgAggregateOutputType = {
+    id: number | null
+  }
+
+  export type TtsUserConfigSumAggregateOutputType = {
+    id: number | null
+  }
+
+  export type TtsUserConfigMinAggregateOutputType = {
+    id: number | null
+    engineName: string | null
+    configJson: string | null
+    updatedAt: Date | null
+  }
+
+  export type TtsUserConfigMaxAggregateOutputType = {
+    id: number | null
+    engineName: string | null
+    configJson: string | null
+    updatedAt: Date | null
+  }
+
+  export type TtsUserConfigCountAggregateOutputType = {
+    id: number
+    engineName: number
+    configJson: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type TtsUserConfigAvgAggregateInputType = {
+    id?: true
+  }
+
+  export type TtsUserConfigSumAggregateInputType = {
+    id?: true
+  }
+
+  export type TtsUserConfigMinAggregateInputType = {
+    id?: true
+    engineName?: true
+    configJson?: true
+    updatedAt?: true
+  }
+
+  export type TtsUserConfigMaxAggregateInputType = {
+    id?: true
+    engineName?: true
+    configJson?: true
+    updatedAt?: true
+  }
+
+  export type TtsUserConfigCountAggregateInputType = {
+    id?: true
+    engineName?: true
+    configJson?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type TtsUserConfigAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which TtsUserConfig to aggregate.
+     */
+    where?: TtsUserConfigWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TtsUserConfigs to fetch.
+     */
+    orderBy?: TtsUserConfigOrderByWithRelationInput | TtsUserConfigOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: TtsUserConfigWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TtsUserConfigs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TtsUserConfigs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned TtsUserConfigs
+    **/
+    _count?: true | TtsUserConfigCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: TtsUserConfigAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: TtsUserConfigSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: TtsUserConfigMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: TtsUserConfigMaxAggregateInputType
+  }
+
+  export type GetTtsUserConfigAggregateType<T extends TtsUserConfigAggregateArgs> = {
+        [P in keyof T & keyof AggregateTtsUserConfig]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateTtsUserConfig[P]>
+      : GetScalarType<T[P], AggregateTtsUserConfig[P]>
+  }
+
+
+
+
+  export type TtsUserConfigGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: TtsUserConfigWhereInput
+    orderBy?: TtsUserConfigOrderByWithAggregationInput | TtsUserConfigOrderByWithAggregationInput[]
+    by: TtsUserConfigScalarFieldEnum[] | TtsUserConfigScalarFieldEnum
+    having?: TtsUserConfigScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: TtsUserConfigCountAggregateInputType | true
+    _avg?: TtsUserConfigAvgAggregateInputType
+    _sum?: TtsUserConfigSumAggregateInputType
+    _min?: TtsUserConfigMinAggregateInputType
+    _max?: TtsUserConfigMaxAggregateInputType
+  }
+
+  export type TtsUserConfigGroupByOutputType = {
+    id: number
+    engineName: string
+    configJson: string
+    updatedAt: Date
+    _count: TtsUserConfigCountAggregateOutputType | null
+    _avg: TtsUserConfigAvgAggregateOutputType | null
+    _sum: TtsUserConfigSumAggregateOutputType | null
+    _min: TtsUserConfigMinAggregateOutputType | null
+    _max: TtsUserConfigMaxAggregateOutputType | null
+  }
+
+  type GetTtsUserConfigGroupByPayload<T extends TtsUserConfigGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<TtsUserConfigGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof TtsUserConfigGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], TtsUserConfigGroupByOutputType[P]>
+            : GetScalarType<T[P], TtsUserConfigGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type TtsUserConfigSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    engineName?: boolean
+    configJson?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["ttsUserConfig"]>
+
+  export type TtsUserConfigSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    engineName?: boolean
+    configJson?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["ttsUserConfig"]>
+
+  export type TtsUserConfigSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    engineName?: boolean
+    configJson?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["ttsUserConfig"]>
+
+  export type TtsUserConfigSelectScalar = {
+    id?: boolean
+    engineName?: boolean
+    configJson?: boolean
+    updatedAt?: boolean
+  }
+
+  export type TtsUserConfigOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "engineName" | "configJson" | "updatedAt", ExtArgs["result"]["ttsUserConfig"]>
+
+  export type $TtsUserConfigPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "TtsUserConfig"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      engineName: string
+      configJson: string
+      updatedAt: Date
+    }, ExtArgs["result"]["ttsUserConfig"]>
+    composites: {}
+  }
+
+  type TtsUserConfigGetPayload<S extends boolean | null | undefined | TtsUserConfigDefaultArgs> = $Result.GetResult<Prisma.$TtsUserConfigPayload, S>
+
+  type TtsUserConfigCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<TtsUserConfigFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: TtsUserConfigCountAggregateInputType | true
+    }
+
+  export interface TtsUserConfigDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['TtsUserConfig'], meta: { name: 'TtsUserConfig' } }
+    /**
+     * Find zero or one TtsUserConfig that matches the filter.
+     * @param {TtsUserConfigFindUniqueArgs} args - Arguments to find a TtsUserConfig
+     * @example
+     * // Get one TtsUserConfig
+     * const ttsUserConfig = await prisma.ttsUserConfig.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends TtsUserConfigFindUniqueArgs>(args: SelectSubset<T, TtsUserConfigFindUniqueArgs<ExtArgs>>): Prisma__TtsUserConfigClient<$Result.GetResult<Prisma.$TtsUserConfigPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one TtsUserConfig that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {TtsUserConfigFindUniqueOrThrowArgs} args - Arguments to find a TtsUserConfig
+     * @example
+     * // Get one TtsUserConfig
+     * const ttsUserConfig = await prisma.ttsUserConfig.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends TtsUserConfigFindUniqueOrThrowArgs>(args: SelectSubset<T, TtsUserConfigFindUniqueOrThrowArgs<ExtArgs>>): Prisma__TtsUserConfigClient<$Result.GetResult<Prisma.$TtsUserConfigPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first TtsUserConfig that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsUserConfigFindFirstArgs} args - Arguments to find a TtsUserConfig
+     * @example
+     * // Get one TtsUserConfig
+     * const ttsUserConfig = await prisma.ttsUserConfig.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends TtsUserConfigFindFirstArgs>(args?: SelectSubset<T, TtsUserConfigFindFirstArgs<ExtArgs>>): Prisma__TtsUserConfigClient<$Result.GetResult<Prisma.$TtsUserConfigPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first TtsUserConfig that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsUserConfigFindFirstOrThrowArgs} args - Arguments to find a TtsUserConfig
+     * @example
+     * // Get one TtsUserConfig
+     * const ttsUserConfig = await prisma.ttsUserConfig.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends TtsUserConfigFindFirstOrThrowArgs>(args?: SelectSubset<T, TtsUserConfigFindFirstOrThrowArgs<ExtArgs>>): Prisma__TtsUserConfigClient<$Result.GetResult<Prisma.$TtsUserConfigPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more TtsUserConfigs that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsUserConfigFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all TtsUserConfigs
+     * const ttsUserConfigs = await prisma.ttsUserConfig.findMany()
+     * 
+     * // Get first 10 TtsUserConfigs
+     * const ttsUserConfigs = await prisma.ttsUserConfig.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const ttsUserConfigWithIdOnly = await prisma.ttsUserConfig.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends TtsUserConfigFindManyArgs>(args?: SelectSubset<T, TtsUserConfigFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TtsUserConfigPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a TtsUserConfig.
+     * @param {TtsUserConfigCreateArgs} args - Arguments to create a TtsUserConfig.
+     * @example
+     * // Create one TtsUserConfig
+     * const TtsUserConfig = await prisma.ttsUserConfig.create({
+     *   data: {
+     *     // ... data to create a TtsUserConfig
+     *   }
+     * })
+     * 
+     */
+    create<T extends TtsUserConfigCreateArgs>(args: SelectSubset<T, TtsUserConfigCreateArgs<ExtArgs>>): Prisma__TtsUserConfigClient<$Result.GetResult<Prisma.$TtsUserConfigPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many TtsUserConfigs.
+     * @param {TtsUserConfigCreateManyArgs} args - Arguments to create many TtsUserConfigs.
+     * @example
+     * // Create many TtsUserConfigs
+     * const ttsUserConfig = await prisma.ttsUserConfig.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends TtsUserConfigCreateManyArgs>(args?: SelectSubset<T, TtsUserConfigCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many TtsUserConfigs and returns the data saved in the database.
+     * @param {TtsUserConfigCreateManyAndReturnArgs} args - Arguments to create many TtsUserConfigs.
+     * @example
+     * // Create many TtsUserConfigs
+     * const ttsUserConfig = await prisma.ttsUserConfig.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many TtsUserConfigs and only return the `id`
+     * const ttsUserConfigWithIdOnly = await prisma.ttsUserConfig.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends TtsUserConfigCreateManyAndReturnArgs>(args?: SelectSubset<T, TtsUserConfigCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TtsUserConfigPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a TtsUserConfig.
+     * @param {TtsUserConfigDeleteArgs} args - Arguments to delete one TtsUserConfig.
+     * @example
+     * // Delete one TtsUserConfig
+     * const TtsUserConfig = await prisma.ttsUserConfig.delete({
+     *   where: {
+     *     // ... filter to delete one TtsUserConfig
+     *   }
+     * })
+     * 
+     */
+    delete<T extends TtsUserConfigDeleteArgs>(args: SelectSubset<T, TtsUserConfigDeleteArgs<ExtArgs>>): Prisma__TtsUserConfigClient<$Result.GetResult<Prisma.$TtsUserConfigPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one TtsUserConfig.
+     * @param {TtsUserConfigUpdateArgs} args - Arguments to update one TtsUserConfig.
+     * @example
+     * // Update one TtsUserConfig
+     * const ttsUserConfig = await prisma.ttsUserConfig.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends TtsUserConfigUpdateArgs>(args: SelectSubset<T, TtsUserConfigUpdateArgs<ExtArgs>>): Prisma__TtsUserConfigClient<$Result.GetResult<Prisma.$TtsUserConfigPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more TtsUserConfigs.
+     * @param {TtsUserConfigDeleteManyArgs} args - Arguments to filter TtsUserConfigs to delete.
+     * @example
+     * // Delete a few TtsUserConfigs
+     * const { count } = await prisma.ttsUserConfig.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends TtsUserConfigDeleteManyArgs>(args?: SelectSubset<T, TtsUserConfigDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more TtsUserConfigs.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsUserConfigUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many TtsUserConfigs
+     * const ttsUserConfig = await prisma.ttsUserConfig.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends TtsUserConfigUpdateManyArgs>(args: SelectSubset<T, TtsUserConfigUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more TtsUserConfigs and returns the data updated in the database.
+     * @param {TtsUserConfigUpdateManyAndReturnArgs} args - Arguments to update many TtsUserConfigs.
+     * @example
+     * // Update many TtsUserConfigs
+     * const ttsUserConfig = await prisma.ttsUserConfig.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more TtsUserConfigs and only return the `id`
+     * const ttsUserConfigWithIdOnly = await prisma.ttsUserConfig.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends TtsUserConfigUpdateManyAndReturnArgs>(args: SelectSubset<T, TtsUserConfigUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TtsUserConfigPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one TtsUserConfig.
+     * @param {TtsUserConfigUpsertArgs} args - Arguments to update or create a TtsUserConfig.
+     * @example
+     * // Update or create a TtsUserConfig
+     * const ttsUserConfig = await prisma.ttsUserConfig.upsert({
+     *   create: {
+     *     // ... data to create a TtsUserConfig
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the TtsUserConfig we want to update
+     *   }
+     * })
+     */
+    upsert<T extends TtsUserConfigUpsertArgs>(args: SelectSubset<T, TtsUserConfigUpsertArgs<ExtArgs>>): Prisma__TtsUserConfigClient<$Result.GetResult<Prisma.$TtsUserConfigPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of TtsUserConfigs.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsUserConfigCountArgs} args - Arguments to filter TtsUserConfigs to count.
+     * @example
+     * // Count the number of TtsUserConfigs
+     * const count = await prisma.ttsUserConfig.count({
+     *   where: {
+     *     // ... the filter for the TtsUserConfigs we want to count
+     *   }
+     * })
+    **/
+    count<T extends TtsUserConfigCountArgs>(
+      args?: Subset<T, TtsUserConfigCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], TtsUserConfigCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a TtsUserConfig.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsUserConfigAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends TtsUserConfigAggregateArgs>(args: Subset<T, TtsUserConfigAggregateArgs>): Prisma.PrismaPromise<GetTtsUserConfigAggregateType<T>>
+
+    /**
+     * Group by TtsUserConfig.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsUserConfigGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends TtsUserConfigGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: TtsUserConfigGroupByArgs['orderBy'] }
+        : { orderBy?: TtsUserConfigGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, TtsUserConfigGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetTtsUserConfigGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the TtsUserConfig model
+   */
+  readonly fields: TtsUserConfigFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for TtsUserConfig.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__TtsUserConfigClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the TtsUserConfig model
+   */
+  interface TtsUserConfigFieldRefs {
+    readonly id: FieldRef<"TtsUserConfig", 'Int'>
+    readonly engineName: FieldRef<"TtsUserConfig", 'String'>
+    readonly configJson: FieldRef<"TtsUserConfig", 'String'>
+    readonly updatedAt: FieldRef<"TtsUserConfig", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * TtsUserConfig findUnique
+   */
+  export type TtsUserConfigFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsUserConfig
+     */
+    select?: TtsUserConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsUserConfig
+     */
+    omit?: TtsUserConfigOmit<ExtArgs> | null
+    /**
+     * Filter, which TtsUserConfig to fetch.
+     */
+    where: TtsUserConfigWhereUniqueInput
+  }
+
+  /**
+   * TtsUserConfig findUniqueOrThrow
+   */
+  export type TtsUserConfigFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsUserConfig
+     */
+    select?: TtsUserConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsUserConfig
+     */
+    omit?: TtsUserConfigOmit<ExtArgs> | null
+    /**
+     * Filter, which TtsUserConfig to fetch.
+     */
+    where: TtsUserConfigWhereUniqueInput
+  }
+
+  /**
+   * TtsUserConfig findFirst
+   */
+  export type TtsUserConfigFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsUserConfig
+     */
+    select?: TtsUserConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsUserConfig
+     */
+    omit?: TtsUserConfigOmit<ExtArgs> | null
+    /**
+     * Filter, which TtsUserConfig to fetch.
+     */
+    where?: TtsUserConfigWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TtsUserConfigs to fetch.
+     */
+    orderBy?: TtsUserConfigOrderByWithRelationInput | TtsUserConfigOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for TtsUserConfigs.
+     */
+    cursor?: TtsUserConfigWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TtsUserConfigs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TtsUserConfigs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of TtsUserConfigs.
+     */
+    distinct?: TtsUserConfigScalarFieldEnum | TtsUserConfigScalarFieldEnum[]
+  }
+
+  /**
+   * TtsUserConfig findFirstOrThrow
+   */
+  export type TtsUserConfigFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsUserConfig
+     */
+    select?: TtsUserConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsUserConfig
+     */
+    omit?: TtsUserConfigOmit<ExtArgs> | null
+    /**
+     * Filter, which TtsUserConfig to fetch.
+     */
+    where?: TtsUserConfigWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TtsUserConfigs to fetch.
+     */
+    orderBy?: TtsUserConfigOrderByWithRelationInput | TtsUserConfigOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for TtsUserConfigs.
+     */
+    cursor?: TtsUserConfigWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TtsUserConfigs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TtsUserConfigs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of TtsUserConfigs.
+     */
+    distinct?: TtsUserConfigScalarFieldEnum | TtsUserConfigScalarFieldEnum[]
+  }
+
+  /**
+   * TtsUserConfig findMany
+   */
+  export type TtsUserConfigFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsUserConfig
+     */
+    select?: TtsUserConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsUserConfig
+     */
+    omit?: TtsUserConfigOmit<ExtArgs> | null
+    /**
+     * Filter, which TtsUserConfigs to fetch.
+     */
+    where?: TtsUserConfigWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TtsUserConfigs to fetch.
+     */
+    orderBy?: TtsUserConfigOrderByWithRelationInput | TtsUserConfigOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing TtsUserConfigs.
+     */
+    cursor?: TtsUserConfigWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TtsUserConfigs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TtsUserConfigs.
+     */
+    skip?: number
+    distinct?: TtsUserConfigScalarFieldEnum | TtsUserConfigScalarFieldEnum[]
+  }
+
+  /**
+   * TtsUserConfig create
+   */
+  export type TtsUserConfigCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsUserConfig
+     */
+    select?: TtsUserConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsUserConfig
+     */
+    omit?: TtsUserConfigOmit<ExtArgs> | null
+    /**
+     * The data needed to create a TtsUserConfig.
+     */
+    data: XOR<TtsUserConfigCreateInput, TtsUserConfigUncheckedCreateInput>
+  }
+
+  /**
+   * TtsUserConfig createMany
+   */
+  export type TtsUserConfigCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many TtsUserConfigs.
+     */
+    data: TtsUserConfigCreateManyInput | TtsUserConfigCreateManyInput[]
+  }
+
+  /**
+   * TtsUserConfig createManyAndReturn
+   */
+  export type TtsUserConfigCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsUserConfig
+     */
+    select?: TtsUserConfigSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsUserConfig
+     */
+    omit?: TtsUserConfigOmit<ExtArgs> | null
+    /**
+     * The data used to create many TtsUserConfigs.
+     */
+    data: TtsUserConfigCreateManyInput | TtsUserConfigCreateManyInput[]
+  }
+
+  /**
+   * TtsUserConfig update
+   */
+  export type TtsUserConfigUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsUserConfig
+     */
+    select?: TtsUserConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsUserConfig
+     */
+    omit?: TtsUserConfigOmit<ExtArgs> | null
+    /**
+     * The data needed to update a TtsUserConfig.
+     */
+    data: XOR<TtsUserConfigUpdateInput, TtsUserConfigUncheckedUpdateInput>
+    /**
+     * Choose, which TtsUserConfig to update.
+     */
+    where: TtsUserConfigWhereUniqueInput
+  }
+
+  /**
+   * TtsUserConfig updateMany
+   */
+  export type TtsUserConfigUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update TtsUserConfigs.
+     */
+    data: XOR<TtsUserConfigUpdateManyMutationInput, TtsUserConfigUncheckedUpdateManyInput>
+    /**
+     * Filter which TtsUserConfigs to update
+     */
+    where?: TtsUserConfigWhereInput
+    /**
+     * Limit how many TtsUserConfigs to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * TtsUserConfig updateManyAndReturn
+   */
+  export type TtsUserConfigUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsUserConfig
+     */
+    select?: TtsUserConfigSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsUserConfig
+     */
+    omit?: TtsUserConfigOmit<ExtArgs> | null
+    /**
+     * The data used to update TtsUserConfigs.
+     */
+    data: XOR<TtsUserConfigUpdateManyMutationInput, TtsUserConfigUncheckedUpdateManyInput>
+    /**
+     * Filter which TtsUserConfigs to update
+     */
+    where?: TtsUserConfigWhereInput
+    /**
+     * Limit how many TtsUserConfigs to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * TtsUserConfig upsert
+   */
+  export type TtsUserConfigUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsUserConfig
+     */
+    select?: TtsUserConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsUserConfig
+     */
+    omit?: TtsUserConfigOmit<ExtArgs> | null
+    /**
+     * The filter to search for the TtsUserConfig to update in case it exists.
+     */
+    where: TtsUserConfigWhereUniqueInput
+    /**
+     * In case the TtsUserConfig found by the `where` argument doesn't exist, create a new TtsUserConfig with this data.
+     */
+    create: XOR<TtsUserConfigCreateInput, TtsUserConfigUncheckedCreateInput>
+    /**
+     * In case the TtsUserConfig was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<TtsUserConfigUpdateInput, TtsUserConfigUncheckedUpdateInput>
+  }
+
+  /**
+   * TtsUserConfig delete
+   */
+  export type TtsUserConfigDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsUserConfig
+     */
+    select?: TtsUserConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsUserConfig
+     */
+    omit?: TtsUserConfigOmit<ExtArgs> | null
+    /**
+     * Filter which TtsUserConfig to delete.
+     */
+    where: TtsUserConfigWhereUniqueInput
+  }
+
+  /**
+   * TtsUserConfig deleteMany
+   */
+  export type TtsUserConfigDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which TtsUserConfigs to delete
+     */
+    where?: TtsUserConfigWhereInput
+    /**
+     * Limit how many TtsUserConfigs to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * TtsUserConfig without action
+   */
+  export type TtsUserConfigDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsUserConfig
+     */
+    select?: TtsUserConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsUserConfig
+     */
+    omit?: TtsUserConfigOmit<ExtArgs> | null
+  }
+
+
+  /**
+   * Model TtsTask
+   */
+
+  export type AggregateTtsTask = {
+    _count: TtsTaskCountAggregateOutputType | null
+    _avg: TtsTaskAvgAggregateOutputType | null
+    _sum: TtsTaskSumAggregateOutputType | null
+    _min: TtsTaskMinAggregateOutputType | null
+    _max: TtsTaskMaxAggregateOutputType | null
+  }
+
+  export type TtsTaskAvgAggregateOutputType = {
+    totalChapters: number | null
+    completedChapters: number | null
+  }
+
+  export type TtsTaskSumAggregateOutputType = {
+    totalChapters: number | null
+    completedChapters: number | null
+  }
+
+  export type TtsTaskMinAggregateOutputType = {
+    id: string | null
+    bookName: string | null
+    author: string | null
+    filePath: string | null
+    totalChapters: number | null
+    completedChapters: number | null
+    status: string | null
+    createdAt: Date | null
+    options: string | null
+  }
+
+  export type TtsTaskMaxAggregateOutputType = {
+    id: string | null
+    bookName: string | null
+    author: string | null
+    filePath: string | null
+    totalChapters: number | null
+    completedChapters: number | null
+    status: string | null
+    createdAt: Date | null
+    options: string | null
+  }
+
+  export type TtsTaskCountAggregateOutputType = {
+    id: number
+    bookName: number
+    author: number
+    filePath: number
+    totalChapters: number
+    completedChapters: number
+    status: number
+    createdAt: number
+    options: number
+    _all: number
+  }
+
+
+  export type TtsTaskAvgAggregateInputType = {
+    totalChapters?: true
+    completedChapters?: true
+  }
+
+  export type TtsTaskSumAggregateInputType = {
+    totalChapters?: true
+    completedChapters?: true
+  }
+
+  export type TtsTaskMinAggregateInputType = {
+    id?: true
+    bookName?: true
+    author?: true
+    filePath?: true
+    totalChapters?: true
+    completedChapters?: true
+    status?: true
+    createdAt?: true
+    options?: true
+  }
+
+  export type TtsTaskMaxAggregateInputType = {
+    id?: true
+    bookName?: true
+    author?: true
+    filePath?: true
+    totalChapters?: true
+    completedChapters?: true
+    status?: true
+    createdAt?: true
+    options?: true
+  }
+
+  export type TtsTaskCountAggregateInputType = {
+    id?: true
+    bookName?: true
+    author?: true
+    filePath?: true
+    totalChapters?: true
+    completedChapters?: true
+    status?: true
+    createdAt?: true
+    options?: true
+    _all?: true
+  }
+
+  export type TtsTaskAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which TtsTask to aggregate.
+     */
+    where?: TtsTaskWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TtsTasks to fetch.
+     */
+    orderBy?: TtsTaskOrderByWithRelationInput | TtsTaskOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: TtsTaskWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TtsTasks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TtsTasks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned TtsTasks
+    **/
+    _count?: true | TtsTaskCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: TtsTaskAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: TtsTaskSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: TtsTaskMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: TtsTaskMaxAggregateInputType
+  }
+
+  export type GetTtsTaskAggregateType<T extends TtsTaskAggregateArgs> = {
+        [P in keyof T & keyof AggregateTtsTask]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateTtsTask[P]>
+      : GetScalarType<T[P], AggregateTtsTask[P]>
+  }
+
+
+
+
+  export type TtsTaskGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: TtsTaskWhereInput
+    orderBy?: TtsTaskOrderByWithAggregationInput | TtsTaskOrderByWithAggregationInput[]
+    by: TtsTaskScalarFieldEnum[] | TtsTaskScalarFieldEnum
+    having?: TtsTaskScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: TtsTaskCountAggregateInputType | true
+    _avg?: TtsTaskAvgAggregateInputType
+    _sum?: TtsTaskSumAggregateInputType
+    _min?: TtsTaskMinAggregateInputType
+    _max?: TtsTaskMaxAggregateInputType
+  }
+
+  export type TtsTaskGroupByOutputType = {
+    id: string
+    bookName: string
+    author: string
+    filePath: string
+    totalChapters: number
+    completedChapters: number
+    status: string
+    createdAt: Date
+    options: string | null
+    _count: TtsTaskCountAggregateOutputType | null
+    _avg: TtsTaskAvgAggregateOutputType | null
+    _sum: TtsTaskSumAggregateOutputType | null
+    _min: TtsTaskMinAggregateOutputType | null
+    _max: TtsTaskMaxAggregateOutputType | null
+  }
+
+  type GetTtsTaskGroupByPayload<T extends TtsTaskGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<TtsTaskGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof TtsTaskGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], TtsTaskGroupByOutputType[P]>
+            : GetScalarType<T[P], TtsTaskGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type TtsTaskSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    bookName?: boolean
+    author?: boolean
+    filePath?: boolean
+    totalChapters?: boolean
+    completedChapters?: boolean
+    status?: boolean
+    createdAt?: boolean
+    options?: boolean
+    chapters?: boolean | TtsTask$chaptersArgs<ExtArgs>
+    _count?: boolean | TtsTaskCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["ttsTask"]>
+
+  export type TtsTaskSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    bookName?: boolean
+    author?: boolean
+    filePath?: boolean
+    totalChapters?: boolean
+    completedChapters?: boolean
+    status?: boolean
+    createdAt?: boolean
+    options?: boolean
+  }, ExtArgs["result"]["ttsTask"]>
+
+  export type TtsTaskSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    bookName?: boolean
+    author?: boolean
+    filePath?: boolean
+    totalChapters?: boolean
+    completedChapters?: boolean
+    status?: boolean
+    createdAt?: boolean
+    options?: boolean
+  }, ExtArgs["result"]["ttsTask"]>
+
+  export type TtsTaskSelectScalar = {
+    id?: boolean
+    bookName?: boolean
+    author?: boolean
+    filePath?: boolean
+    totalChapters?: boolean
+    completedChapters?: boolean
+    status?: boolean
+    createdAt?: boolean
+    options?: boolean
+  }
+
+  export type TtsTaskOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "bookName" | "author" | "filePath" | "totalChapters" | "completedChapters" | "status" | "createdAt" | "options", ExtArgs["result"]["ttsTask"]>
+  export type TtsTaskInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    chapters?: boolean | TtsTask$chaptersArgs<ExtArgs>
+    _count?: boolean | TtsTaskCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type TtsTaskIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type TtsTaskIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+
+  export type $TtsTaskPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "TtsTask"
+    objects: {
+      chapters: Prisma.$TtsChapterTaskPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      bookName: string
+      author: string
+      filePath: string
+      totalChapters: number
+      completedChapters: number
+      status: string
+      createdAt: Date
+      options: string | null
+    }, ExtArgs["result"]["ttsTask"]>
+    composites: {}
+  }
+
+  type TtsTaskGetPayload<S extends boolean | null | undefined | TtsTaskDefaultArgs> = $Result.GetResult<Prisma.$TtsTaskPayload, S>
+
+  type TtsTaskCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<TtsTaskFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: TtsTaskCountAggregateInputType | true
+    }
+
+  export interface TtsTaskDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['TtsTask'], meta: { name: 'TtsTask' } }
+    /**
+     * Find zero or one TtsTask that matches the filter.
+     * @param {TtsTaskFindUniqueArgs} args - Arguments to find a TtsTask
+     * @example
+     * // Get one TtsTask
+     * const ttsTask = await prisma.ttsTask.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends TtsTaskFindUniqueArgs>(args: SelectSubset<T, TtsTaskFindUniqueArgs<ExtArgs>>): Prisma__TtsTaskClient<$Result.GetResult<Prisma.$TtsTaskPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one TtsTask that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {TtsTaskFindUniqueOrThrowArgs} args - Arguments to find a TtsTask
+     * @example
+     * // Get one TtsTask
+     * const ttsTask = await prisma.ttsTask.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends TtsTaskFindUniqueOrThrowArgs>(args: SelectSubset<T, TtsTaskFindUniqueOrThrowArgs<ExtArgs>>): Prisma__TtsTaskClient<$Result.GetResult<Prisma.$TtsTaskPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first TtsTask that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsTaskFindFirstArgs} args - Arguments to find a TtsTask
+     * @example
+     * // Get one TtsTask
+     * const ttsTask = await prisma.ttsTask.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends TtsTaskFindFirstArgs>(args?: SelectSubset<T, TtsTaskFindFirstArgs<ExtArgs>>): Prisma__TtsTaskClient<$Result.GetResult<Prisma.$TtsTaskPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first TtsTask that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsTaskFindFirstOrThrowArgs} args - Arguments to find a TtsTask
+     * @example
+     * // Get one TtsTask
+     * const ttsTask = await prisma.ttsTask.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends TtsTaskFindFirstOrThrowArgs>(args?: SelectSubset<T, TtsTaskFindFirstOrThrowArgs<ExtArgs>>): Prisma__TtsTaskClient<$Result.GetResult<Prisma.$TtsTaskPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more TtsTasks that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsTaskFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all TtsTasks
+     * const ttsTasks = await prisma.ttsTask.findMany()
+     * 
+     * // Get first 10 TtsTasks
+     * const ttsTasks = await prisma.ttsTask.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const ttsTaskWithIdOnly = await prisma.ttsTask.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends TtsTaskFindManyArgs>(args?: SelectSubset<T, TtsTaskFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TtsTaskPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a TtsTask.
+     * @param {TtsTaskCreateArgs} args - Arguments to create a TtsTask.
+     * @example
+     * // Create one TtsTask
+     * const TtsTask = await prisma.ttsTask.create({
+     *   data: {
+     *     // ... data to create a TtsTask
+     *   }
+     * })
+     * 
+     */
+    create<T extends TtsTaskCreateArgs>(args: SelectSubset<T, TtsTaskCreateArgs<ExtArgs>>): Prisma__TtsTaskClient<$Result.GetResult<Prisma.$TtsTaskPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many TtsTasks.
+     * @param {TtsTaskCreateManyArgs} args - Arguments to create many TtsTasks.
+     * @example
+     * // Create many TtsTasks
+     * const ttsTask = await prisma.ttsTask.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends TtsTaskCreateManyArgs>(args?: SelectSubset<T, TtsTaskCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many TtsTasks and returns the data saved in the database.
+     * @param {TtsTaskCreateManyAndReturnArgs} args - Arguments to create many TtsTasks.
+     * @example
+     * // Create many TtsTasks
+     * const ttsTask = await prisma.ttsTask.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many TtsTasks and only return the `id`
+     * const ttsTaskWithIdOnly = await prisma.ttsTask.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends TtsTaskCreateManyAndReturnArgs>(args?: SelectSubset<T, TtsTaskCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TtsTaskPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a TtsTask.
+     * @param {TtsTaskDeleteArgs} args - Arguments to delete one TtsTask.
+     * @example
+     * // Delete one TtsTask
+     * const TtsTask = await prisma.ttsTask.delete({
+     *   where: {
+     *     // ... filter to delete one TtsTask
+     *   }
+     * })
+     * 
+     */
+    delete<T extends TtsTaskDeleteArgs>(args: SelectSubset<T, TtsTaskDeleteArgs<ExtArgs>>): Prisma__TtsTaskClient<$Result.GetResult<Prisma.$TtsTaskPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one TtsTask.
+     * @param {TtsTaskUpdateArgs} args - Arguments to update one TtsTask.
+     * @example
+     * // Update one TtsTask
+     * const ttsTask = await prisma.ttsTask.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends TtsTaskUpdateArgs>(args: SelectSubset<T, TtsTaskUpdateArgs<ExtArgs>>): Prisma__TtsTaskClient<$Result.GetResult<Prisma.$TtsTaskPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more TtsTasks.
+     * @param {TtsTaskDeleteManyArgs} args - Arguments to filter TtsTasks to delete.
+     * @example
+     * // Delete a few TtsTasks
+     * const { count } = await prisma.ttsTask.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends TtsTaskDeleteManyArgs>(args?: SelectSubset<T, TtsTaskDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more TtsTasks.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsTaskUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many TtsTasks
+     * const ttsTask = await prisma.ttsTask.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends TtsTaskUpdateManyArgs>(args: SelectSubset<T, TtsTaskUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more TtsTasks and returns the data updated in the database.
+     * @param {TtsTaskUpdateManyAndReturnArgs} args - Arguments to update many TtsTasks.
+     * @example
+     * // Update many TtsTasks
+     * const ttsTask = await prisma.ttsTask.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more TtsTasks and only return the `id`
+     * const ttsTaskWithIdOnly = await prisma.ttsTask.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends TtsTaskUpdateManyAndReturnArgs>(args: SelectSubset<T, TtsTaskUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TtsTaskPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one TtsTask.
+     * @param {TtsTaskUpsertArgs} args - Arguments to update or create a TtsTask.
+     * @example
+     * // Update or create a TtsTask
+     * const ttsTask = await prisma.ttsTask.upsert({
+     *   create: {
+     *     // ... data to create a TtsTask
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the TtsTask we want to update
+     *   }
+     * })
+     */
+    upsert<T extends TtsTaskUpsertArgs>(args: SelectSubset<T, TtsTaskUpsertArgs<ExtArgs>>): Prisma__TtsTaskClient<$Result.GetResult<Prisma.$TtsTaskPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of TtsTasks.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsTaskCountArgs} args - Arguments to filter TtsTasks to count.
+     * @example
+     * // Count the number of TtsTasks
+     * const count = await prisma.ttsTask.count({
+     *   where: {
+     *     // ... the filter for the TtsTasks we want to count
+     *   }
+     * })
+    **/
+    count<T extends TtsTaskCountArgs>(
+      args?: Subset<T, TtsTaskCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], TtsTaskCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a TtsTask.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsTaskAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends TtsTaskAggregateArgs>(args: Subset<T, TtsTaskAggregateArgs>): Prisma.PrismaPromise<GetTtsTaskAggregateType<T>>
+
+    /**
+     * Group by TtsTask.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsTaskGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends TtsTaskGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: TtsTaskGroupByArgs['orderBy'] }
+        : { orderBy?: TtsTaskGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, TtsTaskGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetTtsTaskGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the TtsTask model
+   */
+  readonly fields: TtsTaskFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for TtsTask.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__TtsTaskClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    chapters<T extends TtsTask$chaptersArgs<ExtArgs> = {}>(args?: Subset<T, TtsTask$chaptersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TtsChapterTaskPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the TtsTask model
+   */
+  interface TtsTaskFieldRefs {
+    readonly id: FieldRef<"TtsTask", 'String'>
+    readonly bookName: FieldRef<"TtsTask", 'String'>
+    readonly author: FieldRef<"TtsTask", 'String'>
+    readonly filePath: FieldRef<"TtsTask", 'String'>
+    readonly totalChapters: FieldRef<"TtsTask", 'Int'>
+    readonly completedChapters: FieldRef<"TtsTask", 'Int'>
+    readonly status: FieldRef<"TtsTask", 'String'>
+    readonly createdAt: FieldRef<"TtsTask", 'DateTime'>
+    readonly options: FieldRef<"TtsTask", 'String'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * TtsTask findUnique
+   */
+  export type TtsTaskFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsTask
+     */
+    select?: TtsTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsTask
+     */
+    omit?: TtsTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsTaskInclude<ExtArgs> | null
+    /**
+     * Filter, which TtsTask to fetch.
+     */
+    where: TtsTaskWhereUniqueInput
+  }
+
+  /**
+   * TtsTask findUniqueOrThrow
+   */
+  export type TtsTaskFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsTask
+     */
+    select?: TtsTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsTask
+     */
+    omit?: TtsTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsTaskInclude<ExtArgs> | null
+    /**
+     * Filter, which TtsTask to fetch.
+     */
+    where: TtsTaskWhereUniqueInput
+  }
+
+  /**
+   * TtsTask findFirst
+   */
+  export type TtsTaskFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsTask
+     */
+    select?: TtsTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsTask
+     */
+    omit?: TtsTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsTaskInclude<ExtArgs> | null
+    /**
+     * Filter, which TtsTask to fetch.
+     */
+    where?: TtsTaskWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TtsTasks to fetch.
+     */
+    orderBy?: TtsTaskOrderByWithRelationInput | TtsTaskOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for TtsTasks.
+     */
+    cursor?: TtsTaskWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TtsTasks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TtsTasks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of TtsTasks.
+     */
+    distinct?: TtsTaskScalarFieldEnum | TtsTaskScalarFieldEnum[]
+  }
+
+  /**
+   * TtsTask findFirstOrThrow
+   */
+  export type TtsTaskFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsTask
+     */
+    select?: TtsTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsTask
+     */
+    omit?: TtsTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsTaskInclude<ExtArgs> | null
+    /**
+     * Filter, which TtsTask to fetch.
+     */
+    where?: TtsTaskWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TtsTasks to fetch.
+     */
+    orderBy?: TtsTaskOrderByWithRelationInput | TtsTaskOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for TtsTasks.
+     */
+    cursor?: TtsTaskWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TtsTasks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TtsTasks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of TtsTasks.
+     */
+    distinct?: TtsTaskScalarFieldEnum | TtsTaskScalarFieldEnum[]
+  }
+
+  /**
+   * TtsTask findMany
+   */
+  export type TtsTaskFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsTask
+     */
+    select?: TtsTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsTask
+     */
+    omit?: TtsTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsTaskInclude<ExtArgs> | null
+    /**
+     * Filter, which TtsTasks to fetch.
+     */
+    where?: TtsTaskWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TtsTasks to fetch.
+     */
+    orderBy?: TtsTaskOrderByWithRelationInput | TtsTaskOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing TtsTasks.
+     */
+    cursor?: TtsTaskWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TtsTasks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TtsTasks.
+     */
+    skip?: number
+    distinct?: TtsTaskScalarFieldEnum | TtsTaskScalarFieldEnum[]
+  }
+
+  /**
+   * TtsTask create
+   */
+  export type TtsTaskCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsTask
+     */
+    select?: TtsTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsTask
+     */
+    omit?: TtsTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsTaskInclude<ExtArgs> | null
+    /**
+     * The data needed to create a TtsTask.
+     */
+    data: XOR<TtsTaskCreateInput, TtsTaskUncheckedCreateInput>
+  }
+
+  /**
+   * TtsTask createMany
+   */
+  export type TtsTaskCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many TtsTasks.
+     */
+    data: TtsTaskCreateManyInput | TtsTaskCreateManyInput[]
+  }
+
+  /**
+   * TtsTask createManyAndReturn
+   */
+  export type TtsTaskCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsTask
+     */
+    select?: TtsTaskSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsTask
+     */
+    omit?: TtsTaskOmit<ExtArgs> | null
+    /**
+     * The data used to create many TtsTasks.
+     */
+    data: TtsTaskCreateManyInput | TtsTaskCreateManyInput[]
+  }
+
+  /**
+   * TtsTask update
+   */
+  export type TtsTaskUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsTask
+     */
+    select?: TtsTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsTask
+     */
+    omit?: TtsTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsTaskInclude<ExtArgs> | null
+    /**
+     * The data needed to update a TtsTask.
+     */
+    data: XOR<TtsTaskUpdateInput, TtsTaskUncheckedUpdateInput>
+    /**
+     * Choose, which TtsTask to update.
+     */
+    where: TtsTaskWhereUniqueInput
+  }
+
+  /**
+   * TtsTask updateMany
+   */
+  export type TtsTaskUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update TtsTasks.
+     */
+    data: XOR<TtsTaskUpdateManyMutationInput, TtsTaskUncheckedUpdateManyInput>
+    /**
+     * Filter which TtsTasks to update
+     */
+    where?: TtsTaskWhereInput
+    /**
+     * Limit how many TtsTasks to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * TtsTask updateManyAndReturn
+   */
+  export type TtsTaskUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsTask
+     */
+    select?: TtsTaskSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsTask
+     */
+    omit?: TtsTaskOmit<ExtArgs> | null
+    /**
+     * The data used to update TtsTasks.
+     */
+    data: XOR<TtsTaskUpdateManyMutationInput, TtsTaskUncheckedUpdateManyInput>
+    /**
+     * Filter which TtsTasks to update
+     */
+    where?: TtsTaskWhereInput
+    /**
+     * Limit how many TtsTasks to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * TtsTask upsert
+   */
+  export type TtsTaskUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsTask
+     */
+    select?: TtsTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsTask
+     */
+    omit?: TtsTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsTaskInclude<ExtArgs> | null
+    /**
+     * The filter to search for the TtsTask to update in case it exists.
+     */
+    where: TtsTaskWhereUniqueInput
+    /**
+     * In case the TtsTask found by the `where` argument doesn't exist, create a new TtsTask with this data.
+     */
+    create: XOR<TtsTaskCreateInput, TtsTaskUncheckedCreateInput>
+    /**
+     * In case the TtsTask was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<TtsTaskUpdateInput, TtsTaskUncheckedUpdateInput>
+  }
+
+  /**
+   * TtsTask delete
+   */
+  export type TtsTaskDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsTask
+     */
+    select?: TtsTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsTask
+     */
+    omit?: TtsTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsTaskInclude<ExtArgs> | null
+    /**
+     * Filter which TtsTask to delete.
+     */
+    where: TtsTaskWhereUniqueInput
+  }
+
+  /**
+   * TtsTask deleteMany
+   */
+  export type TtsTaskDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which TtsTasks to delete
+     */
+    where?: TtsTaskWhereInput
+    /**
+     * Limit how many TtsTasks to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * TtsTask.chapters
+   */
+  export type TtsTask$chaptersArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsChapterTask
+     */
+    select?: TtsChapterTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsChapterTask
+     */
+    omit?: TtsChapterTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsChapterTaskInclude<ExtArgs> | null
+    where?: TtsChapterTaskWhereInput
+    orderBy?: TtsChapterTaskOrderByWithRelationInput | TtsChapterTaskOrderByWithRelationInput[]
+    cursor?: TtsChapterTaskWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: TtsChapterTaskScalarFieldEnum | TtsChapterTaskScalarFieldEnum[]
+  }
+
+  /**
+   * TtsTask without action
+   */
+  export type TtsTaskDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsTask
+     */
+    select?: TtsTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsTask
+     */
+    omit?: TtsTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsTaskInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model TtsChapterTask
+   */
+
+  export type AggregateTtsChapterTask = {
+    _count: TtsChapterTaskCountAggregateOutputType | null
+    _avg: TtsChapterTaskAvgAggregateOutputType | null
+    _sum: TtsChapterTaskSumAggregateOutputType | null
+    _min: TtsChapterTaskMinAggregateOutputType | null
+    _max: TtsChapterTaskMaxAggregateOutputType | null
+  }
+
+  export type TtsChapterTaskAvgAggregateOutputType = {
+    id: number | null
+    index: number | null
+  }
+
+  export type TtsChapterTaskSumAggregateOutputType = {
+    id: number | null
+    index: number | null
+  }
+
+  export type TtsChapterTaskMinAggregateOutputType = {
+    id: number | null
+    taskId: string | null
+    index: number | null
+    title: string | null
+    status: string | null
+    errorMsg: string | null
+    outputPath: string | null
+  }
+
+  export type TtsChapterTaskMaxAggregateOutputType = {
+    id: number | null
+    taskId: string | null
+    index: number | null
+    title: string | null
+    status: string | null
+    errorMsg: string | null
+    outputPath: string | null
+  }
+
+  export type TtsChapterTaskCountAggregateOutputType = {
+    id: number
+    taskId: number
+    index: number
+    title: number
+    status: number
+    errorMsg: number
+    outputPath: number
+    _all: number
+  }
+
+
+  export type TtsChapterTaskAvgAggregateInputType = {
+    id?: true
+    index?: true
+  }
+
+  export type TtsChapterTaskSumAggregateInputType = {
+    id?: true
+    index?: true
+  }
+
+  export type TtsChapterTaskMinAggregateInputType = {
+    id?: true
+    taskId?: true
+    index?: true
+    title?: true
+    status?: true
+    errorMsg?: true
+    outputPath?: true
+  }
+
+  export type TtsChapterTaskMaxAggregateInputType = {
+    id?: true
+    taskId?: true
+    index?: true
+    title?: true
+    status?: true
+    errorMsg?: true
+    outputPath?: true
+  }
+
+  export type TtsChapterTaskCountAggregateInputType = {
+    id?: true
+    taskId?: true
+    index?: true
+    title?: true
+    status?: true
+    errorMsg?: true
+    outputPath?: true
+    _all?: true
+  }
+
+  export type TtsChapterTaskAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which TtsChapterTask to aggregate.
+     */
+    where?: TtsChapterTaskWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TtsChapterTasks to fetch.
+     */
+    orderBy?: TtsChapterTaskOrderByWithRelationInput | TtsChapterTaskOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: TtsChapterTaskWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TtsChapterTasks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TtsChapterTasks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned TtsChapterTasks
+    **/
+    _count?: true | TtsChapterTaskCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: TtsChapterTaskAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: TtsChapterTaskSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: TtsChapterTaskMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: TtsChapterTaskMaxAggregateInputType
+  }
+
+  export type GetTtsChapterTaskAggregateType<T extends TtsChapterTaskAggregateArgs> = {
+        [P in keyof T & keyof AggregateTtsChapterTask]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateTtsChapterTask[P]>
+      : GetScalarType<T[P], AggregateTtsChapterTask[P]>
+  }
+
+
+
+
+  export type TtsChapterTaskGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: TtsChapterTaskWhereInput
+    orderBy?: TtsChapterTaskOrderByWithAggregationInput | TtsChapterTaskOrderByWithAggregationInput[]
+    by: TtsChapterTaskScalarFieldEnum[] | TtsChapterTaskScalarFieldEnum
+    having?: TtsChapterTaskScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: TtsChapterTaskCountAggregateInputType | true
+    _avg?: TtsChapterTaskAvgAggregateInputType
+    _sum?: TtsChapterTaskSumAggregateInputType
+    _min?: TtsChapterTaskMinAggregateInputType
+    _max?: TtsChapterTaskMaxAggregateInputType
+  }
+
+  export type TtsChapterTaskGroupByOutputType = {
+    id: number
+    taskId: string
+    index: number
+    title: string
+    status: string
+    errorMsg: string | null
+    outputPath: string | null
+    _count: TtsChapterTaskCountAggregateOutputType | null
+    _avg: TtsChapterTaskAvgAggregateOutputType | null
+    _sum: TtsChapterTaskSumAggregateOutputType | null
+    _min: TtsChapterTaskMinAggregateOutputType | null
+    _max: TtsChapterTaskMaxAggregateOutputType | null
+  }
+
+  type GetTtsChapterTaskGroupByPayload<T extends TtsChapterTaskGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<TtsChapterTaskGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof TtsChapterTaskGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], TtsChapterTaskGroupByOutputType[P]>
+            : GetScalarType<T[P], TtsChapterTaskGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type TtsChapterTaskSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    taskId?: boolean
+    index?: boolean
+    title?: boolean
+    status?: boolean
+    errorMsg?: boolean
+    outputPath?: boolean
+    task?: boolean | TtsTaskDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["ttsChapterTask"]>
+
+  export type TtsChapterTaskSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    taskId?: boolean
+    index?: boolean
+    title?: boolean
+    status?: boolean
+    errorMsg?: boolean
+    outputPath?: boolean
+    task?: boolean | TtsTaskDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["ttsChapterTask"]>
+
+  export type TtsChapterTaskSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    taskId?: boolean
+    index?: boolean
+    title?: boolean
+    status?: boolean
+    errorMsg?: boolean
+    outputPath?: boolean
+    task?: boolean | TtsTaskDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["ttsChapterTask"]>
+
+  export type TtsChapterTaskSelectScalar = {
+    id?: boolean
+    taskId?: boolean
+    index?: boolean
+    title?: boolean
+    status?: boolean
+    errorMsg?: boolean
+    outputPath?: boolean
+  }
+
+  export type TtsChapterTaskOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "taskId" | "index" | "title" | "status" | "errorMsg" | "outputPath", ExtArgs["result"]["ttsChapterTask"]>
+  export type TtsChapterTaskInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    task?: boolean | TtsTaskDefaultArgs<ExtArgs>
+  }
+  export type TtsChapterTaskIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    task?: boolean | TtsTaskDefaultArgs<ExtArgs>
+  }
+  export type TtsChapterTaskIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    task?: boolean | TtsTaskDefaultArgs<ExtArgs>
+  }
+
+  export type $TtsChapterTaskPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "TtsChapterTask"
+    objects: {
+      task: Prisma.$TtsTaskPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      taskId: string
+      index: number
+      title: string
+      status: string
+      errorMsg: string | null
+      outputPath: string | null
+    }, ExtArgs["result"]["ttsChapterTask"]>
+    composites: {}
+  }
+
+  type TtsChapterTaskGetPayload<S extends boolean | null | undefined | TtsChapterTaskDefaultArgs> = $Result.GetResult<Prisma.$TtsChapterTaskPayload, S>
+
+  type TtsChapterTaskCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<TtsChapterTaskFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: TtsChapterTaskCountAggregateInputType | true
+    }
+
+  export interface TtsChapterTaskDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['TtsChapterTask'], meta: { name: 'TtsChapterTask' } }
+    /**
+     * Find zero or one TtsChapterTask that matches the filter.
+     * @param {TtsChapterTaskFindUniqueArgs} args - Arguments to find a TtsChapterTask
+     * @example
+     * // Get one TtsChapterTask
+     * const ttsChapterTask = await prisma.ttsChapterTask.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends TtsChapterTaskFindUniqueArgs>(args: SelectSubset<T, TtsChapterTaskFindUniqueArgs<ExtArgs>>): Prisma__TtsChapterTaskClient<$Result.GetResult<Prisma.$TtsChapterTaskPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one TtsChapterTask that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {TtsChapterTaskFindUniqueOrThrowArgs} args - Arguments to find a TtsChapterTask
+     * @example
+     * // Get one TtsChapterTask
+     * const ttsChapterTask = await prisma.ttsChapterTask.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends TtsChapterTaskFindUniqueOrThrowArgs>(args: SelectSubset<T, TtsChapterTaskFindUniqueOrThrowArgs<ExtArgs>>): Prisma__TtsChapterTaskClient<$Result.GetResult<Prisma.$TtsChapterTaskPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first TtsChapterTask that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsChapterTaskFindFirstArgs} args - Arguments to find a TtsChapterTask
+     * @example
+     * // Get one TtsChapterTask
+     * const ttsChapterTask = await prisma.ttsChapterTask.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends TtsChapterTaskFindFirstArgs>(args?: SelectSubset<T, TtsChapterTaskFindFirstArgs<ExtArgs>>): Prisma__TtsChapterTaskClient<$Result.GetResult<Prisma.$TtsChapterTaskPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first TtsChapterTask that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsChapterTaskFindFirstOrThrowArgs} args - Arguments to find a TtsChapterTask
+     * @example
+     * // Get one TtsChapterTask
+     * const ttsChapterTask = await prisma.ttsChapterTask.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends TtsChapterTaskFindFirstOrThrowArgs>(args?: SelectSubset<T, TtsChapterTaskFindFirstOrThrowArgs<ExtArgs>>): Prisma__TtsChapterTaskClient<$Result.GetResult<Prisma.$TtsChapterTaskPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more TtsChapterTasks that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsChapterTaskFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all TtsChapterTasks
+     * const ttsChapterTasks = await prisma.ttsChapterTask.findMany()
+     * 
+     * // Get first 10 TtsChapterTasks
+     * const ttsChapterTasks = await prisma.ttsChapterTask.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const ttsChapterTaskWithIdOnly = await prisma.ttsChapterTask.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends TtsChapterTaskFindManyArgs>(args?: SelectSubset<T, TtsChapterTaskFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TtsChapterTaskPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a TtsChapterTask.
+     * @param {TtsChapterTaskCreateArgs} args - Arguments to create a TtsChapterTask.
+     * @example
+     * // Create one TtsChapterTask
+     * const TtsChapterTask = await prisma.ttsChapterTask.create({
+     *   data: {
+     *     // ... data to create a TtsChapterTask
+     *   }
+     * })
+     * 
+     */
+    create<T extends TtsChapterTaskCreateArgs>(args: SelectSubset<T, TtsChapterTaskCreateArgs<ExtArgs>>): Prisma__TtsChapterTaskClient<$Result.GetResult<Prisma.$TtsChapterTaskPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many TtsChapterTasks.
+     * @param {TtsChapterTaskCreateManyArgs} args - Arguments to create many TtsChapterTasks.
+     * @example
+     * // Create many TtsChapterTasks
+     * const ttsChapterTask = await prisma.ttsChapterTask.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends TtsChapterTaskCreateManyArgs>(args?: SelectSubset<T, TtsChapterTaskCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many TtsChapterTasks and returns the data saved in the database.
+     * @param {TtsChapterTaskCreateManyAndReturnArgs} args - Arguments to create many TtsChapterTasks.
+     * @example
+     * // Create many TtsChapterTasks
+     * const ttsChapterTask = await prisma.ttsChapterTask.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many TtsChapterTasks and only return the `id`
+     * const ttsChapterTaskWithIdOnly = await prisma.ttsChapterTask.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends TtsChapterTaskCreateManyAndReturnArgs>(args?: SelectSubset<T, TtsChapterTaskCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TtsChapterTaskPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a TtsChapterTask.
+     * @param {TtsChapterTaskDeleteArgs} args - Arguments to delete one TtsChapterTask.
+     * @example
+     * // Delete one TtsChapterTask
+     * const TtsChapterTask = await prisma.ttsChapterTask.delete({
+     *   where: {
+     *     // ... filter to delete one TtsChapterTask
+     *   }
+     * })
+     * 
+     */
+    delete<T extends TtsChapterTaskDeleteArgs>(args: SelectSubset<T, TtsChapterTaskDeleteArgs<ExtArgs>>): Prisma__TtsChapterTaskClient<$Result.GetResult<Prisma.$TtsChapterTaskPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one TtsChapterTask.
+     * @param {TtsChapterTaskUpdateArgs} args - Arguments to update one TtsChapterTask.
+     * @example
+     * // Update one TtsChapterTask
+     * const ttsChapterTask = await prisma.ttsChapterTask.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends TtsChapterTaskUpdateArgs>(args: SelectSubset<T, TtsChapterTaskUpdateArgs<ExtArgs>>): Prisma__TtsChapterTaskClient<$Result.GetResult<Prisma.$TtsChapterTaskPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more TtsChapterTasks.
+     * @param {TtsChapterTaskDeleteManyArgs} args - Arguments to filter TtsChapterTasks to delete.
+     * @example
+     * // Delete a few TtsChapterTasks
+     * const { count } = await prisma.ttsChapterTask.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends TtsChapterTaskDeleteManyArgs>(args?: SelectSubset<T, TtsChapterTaskDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more TtsChapterTasks.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsChapterTaskUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many TtsChapterTasks
+     * const ttsChapterTask = await prisma.ttsChapterTask.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends TtsChapterTaskUpdateManyArgs>(args: SelectSubset<T, TtsChapterTaskUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more TtsChapterTasks and returns the data updated in the database.
+     * @param {TtsChapterTaskUpdateManyAndReturnArgs} args - Arguments to update many TtsChapterTasks.
+     * @example
+     * // Update many TtsChapterTasks
+     * const ttsChapterTask = await prisma.ttsChapterTask.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more TtsChapterTasks and only return the `id`
+     * const ttsChapterTaskWithIdOnly = await prisma.ttsChapterTask.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends TtsChapterTaskUpdateManyAndReturnArgs>(args: SelectSubset<T, TtsChapterTaskUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TtsChapterTaskPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one TtsChapterTask.
+     * @param {TtsChapterTaskUpsertArgs} args - Arguments to update or create a TtsChapterTask.
+     * @example
+     * // Update or create a TtsChapterTask
+     * const ttsChapterTask = await prisma.ttsChapterTask.upsert({
+     *   create: {
+     *     // ... data to create a TtsChapterTask
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the TtsChapterTask we want to update
+     *   }
+     * })
+     */
+    upsert<T extends TtsChapterTaskUpsertArgs>(args: SelectSubset<T, TtsChapterTaskUpsertArgs<ExtArgs>>): Prisma__TtsChapterTaskClient<$Result.GetResult<Prisma.$TtsChapterTaskPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of TtsChapterTasks.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsChapterTaskCountArgs} args - Arguments to filter TtsChapterTasks to count.
+     * @example
+     * // Count the number of TtsChapterTasks
+     * const count = await prisma.ttsChapterTask.count({
+     *   where: {
+     *     // ... the filter for the TtsChapterTasks we want to count
+     *   }
+     * })
+    **/
+    count<T extends TtsChapterTaskCountArgs>(
+      args?: Subset<T, TtsChapterTaskCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], TtsChapterTaskCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a TtsChapterTask.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsChapterTaskAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends TtsChapterTaskAggregateArgs>(args: Subset<T, TtsChapterTaskAggregateArgs>): Prisma.PrismaPromise<GetTtsChapterTaskAggregateType<T>>
+
+    /**
+     * Group by TtsChapterTask.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TtsChapterTaskGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends TtsChapterTaskGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: TtsChapterTaskGroupByArgs['orderBy'] }
+        : { orderBy?: TtsChapterTaskGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, TtsChapterTaskGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetTtsChapterTaskGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the TtsChapterTask model
+   */
+  readonly fields: TtsChapterTaskFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for TtsChapterTask.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__TtsChapterTaskClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    task<T extends TtsTaskDefaultArgs<ExtArgs> = {}>(args?: Subset<T, TtsTaskDefaultArgs<ExtArgs>>): Prisma__TtsTaskClient<$Result.GetResult<Prisma.$TtsTaskPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the TtsChapterTask model
+   */
+  interface TtsChapterTaskFieldRefs {
+    readonly id: FieldRef<"TtsChapterTask", 'Int'>
+    readonly taskId: FieldRef<"TtsChapterTask", 'String'>
+    readonly index: FieldRef<"TtsChapterTask", 'Int'>
+    readonly title: FieldRef<"TtsChapterTask", 'String'>
+    readonly status: FieldRef<"TtsChapterTask", 'String'>
+    readonly errorMsg: FieldRef<"TtsChapterTask", 'String'>
+    readonly outputPath: FieldRef<"TtsChapterTask", 'String'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * TtsChapterTask findUnique
+   */
+  export type TtsChapterTaskFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsChapterTask
+     */
+    select?: TtsChapterTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsChapterTask
+     */
+    omit?: TtsChapterTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsChapterTaskInclude<ExtArgs> | null
+    /**
+     * Filter, which TtsChapterTask to fetch.
+     */
+    where: TtsChapterTaskWhereUniqueInput
+  }
+
+  /**
+   * TtsChapterTask findUniqueOrThrow
+   */
+  export type TtsChapterTaskFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsChapterTask
+     */
+    select?: TtsChapterTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsChapterTask
+     */
+    omit?: TtsChapterTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsChapterTaskInclude<ExtArgs> | null
+    /**
+     * Filter, which TtsChapterTask to fetch.
+     */
+    where: TtsChapterTaskWhereUniqueInput
+  }
+
+  /**
+   * TtsChapterTask findFirst
+   */
+  export type TtsChapterTaskFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsChapterTask
+     */
+    select?: TtsChapterTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsChapterTask
+     */
+    omit?: TtsChapterTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsChapterTaskInclude<ExtArgs> | null
+    /**
+     * Filter, which TtsChapterTask to fetch.
+     */
+    where?: TtsChapterTaskWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TtsChapterTasks to fetch.
+     */
+    orderBy?: TtsChapterTaskOrderByWithRelationInput | TtsChapterTaskOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for TtsChapterTasks.
+     */
+    cursor?: TtsChapterTaskWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TtsChapterTasks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TtsChapterTasks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of TtsChapterTasks.
+     */
+    distinct?: TtsChapterTaskScalarFieldEnum | TtsChapterTaskScalarFieldEnum[]
+  }
+
+  /**
+   * TtsChapterTask findFirstOrThrow
+   */
+  export type TtsChapterTaskFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsChapterTask
+     */
+    select?: TtsChapterTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsChapterTask
+     */
+    omit?: TtsChapterTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsChapterTaskInclude<ExtArgs> | null
+    /**
+     * Filter, which TtsChapterTask to fetch.
+     */
+    where?: TtsChapterTaskWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TtsChapterTasks to fetch.
+     */
+    orderBy?: TtsChapterTaskOrderByWithRelationInput | TtsChapterTaskOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for TtsChapterTasks.
+     */
+    cursor?: TtsChapterTaskWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TtsChapterTasks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TtsChapterTasks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of TtsChapterTasks.
+     */
+    distinct?: TtsChapterTaskScalarFieldEnum | TtsChapterTaskScalarFieldEnum[]
+  }
+
+  /**
+   * TtsChapterTask findMany
+   */
+  export type TtsChapterTaskFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsChapterTask
+     */
+    select?: TtsChapterTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsChapterTask
+     */
+    omit?: TtsChapterTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsChapterTaskInclude<ExtArgs> | null
+    /**
+     * Filter, which TtsChapterTasks to fetch.
+     */
+    where?: TtsChapterTaskWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TtsChapterTasks to fetch.
+     */
+    orderBy?: TtsChapterTaskOrderByWithRelationInput | TtsChapterTaskOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing TtsChapterTasks.
+     */
+    cursor?: TtsChapterTaskWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TtsChapterTasks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TtsChapterTasks.
+     */
+    skip?: number
+    distinct?: TtsChapterTaskScalarFieldEnum | TtsChapterTaskScalarFieldEnum[]
+  }
+
+  /**
+   * TtsChapterTask create
+   */
+  export type TtsChapterTaskCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsChapterTask
+     */
+    select?: TtsChapterTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsChapterTask
+     */
+    omit?: TtsChapterTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsChapterTaskInclude<ExtArgs> | null
+    /**
+     * The data needed to create a TtsChapterTask.
+     */
+    data: XOR<TtsChapterTaskCreateInput, TtsChapterTaskUncheckedCreateInput>
+  }
+
+  /**
+   * TtsChapterTask createMany
+   */
+  export type TtsChapterTaskCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many TtsChapterTasks.
+     */
+    data: TtsChapterTaskCreateManyInput | TtsChapterTaskCreateManyInput[]
+  }
+
+  /**
+   * TtsChapterTask createManyAndReturn
+   */
+  export type TtsChapterTaskCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsChapterTask
+     */
+    select?: TtsChapterTaskSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsChapterTask
+     */
+    omit?: TtsChapterTaskOmit<ExtArgs> | null
+    /**
+     * The data used to create many TtsChapterTasks.
+     */
+    data: TtsChapterTaskCreateManyInput | TtsChapterTaskCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsChapterTaskIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * TtsChapterTask update
+   */
+  export type TtsChapterTaskUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsChapterTask
+     */
+    select?: TtsChapterTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsChapterTask
+     */
+    omit?: TtsChapterTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsChapterTaskInclude<ExtArgs> | null
+    /**
+     * The data needed to update a TtsChapterTask.
+     */
+    data: XOR<TtsChapterTaskUpdateInput, TtsChapterTaskUncheckedUpdateInput>
+    /**
+     * Choose, which TtsChapterTask to update.
+     */
+    where: TtsChapterTaskWhereUniqueInput
+  }
+
+  /**
+   * TtsChapterTask updateMany
+   */
+  export type TtsChapterTaskUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update TtsChapterTasks.
+     */
+    data: XOR<TtsChapterTaskUpdateManyMutationInput, TtsChapterTaskUncheckedUpdateManyInput>
+    /**
+     * Filter which TtsChapterTasks to update
+     */
+    where?: TtsChapterTaskWhereInput
+    /**
+     * Limit how many TtsChapterTasks to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * TtsChapterTask updateManyAndReturn
+   */
+  export type TtsChapterTaskUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsChapterTask
+     */
+    select?: TtsChapterTaskSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsChapterTask
+     */
+    omit?: TtsChapterTaskOmit<ExtArgs> | null
+    /**
+     * The data used to update TtsChapterTasks.
+     */
+    data: XOR<TtsChapterTaskUpdateManyMutationInput, TtsChapterTaskUncheckedUpdateManyInput>
+    /**
+     * Filter which TtsChapterTasks to update
+     */
+    where?: TtsChapterTaskWhereInput
+    /**
+     * Limit how many TtsChapterTasks to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsChapterTaskIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * TtsChapterTask upsert
+   */
+  export type TtsChapterTaskUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsChapterTask
+     */
+    select?: TtsChapterTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsChapterTask
+     */
+    omit?: TtsChapterTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsChapterTaskInclude<ExtArgs> | null
+    /**
+     * The filter to search for the TtsChapterTask to update in case it exists.
+     */
+    where: TtsChapterTaskWhereUniqueInput
+    /**
+     * In case the TtsChapterTask found by the `where` argument doesn't exist, create a new TtsChapterTask with this data.
+     */
+    create: XOR<TtsChapterTaskCreateInput, TtsChapterTaskUncheckedCreateInput>
+    /**
+     * In case the TtsChapterTask was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<TtsChapterTaskUpdateInput, TtsChapterTaskUncheckedUpdateInput>
+  }
+
+  /**
+   * TtsChapterTask delete
+   */
+  export type TtsChapterTaskDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsChapterTask
+     */
+    select?: TtsChapterTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsChapterTask
+     */
+    omit?: TtsChapterTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsChapterTaskInclude<ExtArgs> | null
+    /**
+     * Filter which TtsChapterTask to delete.
+     */
+    where: TtsChapterTaskWhereUniqueInput
+  }
+
+  /**
+   * TtsChapterTask deleteMany
+   */
+  export type TtsChapterTaskDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which TtsChapterTasks to delete
+     */
+    where?: TtsChapterTaskWhereInput
+    /**
+     * Limit how many TtsChapterTasks to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * TtsChapterTask without action
+   */
+  export type TtsChapterTaskDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TtsChapterTask
+     */
+    select?: TtsChapterTaskSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TtsChapterTask
+     */
+    omit?: TtsChapterTaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TtsChapterTaskInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -20145,6 +23741,44 @@ export namespace Prisma {
   };
 
   export type FolderScalarFieldEnum = (typeof FolderScalarFieldEnum)[keyof typeof FolderScalarFieldEnum]
+
+
+  export const TtsUserConfigScalarFieldEnum: {
+    id: 'id',
+    engineName: 'engineName',
+    configJson: 'configJson',
+    updatedAt: 'updatedAt'
+  };
+
+  export type TtsUserConfigScalarFieldEnum = (typeof TtsUserConfigScalarFieldEnum)[keyof typeof TtsUserConfigScalarFieldEnum]
+
+
+  export const TtsTaskScalarFieldEnum: {
+    id: 'id',
+    bookName: 'bookName',
+    author: 'author',
+    filePath: 'filePath',
+    totalChapters: 'totalChapters',
+    completedChapters: 'completedChapters',
+    status: 'status',
+    createdAt: 'createdAt',
+    options: 'options'
+  };
+
+  export type TtsTaskScalarFieldEnum = (typeof TtsTaskScalarFieldEnum)[keyof typeof TtsTaskScalarFieldEnum]
+
+
+  export const TtsChapterTaskScalarFieldEnum: {
+    id: 'id',
+    taskId: 'taskId',
+    index: 'index',
+    title: 'title',
+    status: 'status',
+    errorMsg: 'errorMsg',
+    outputPath: 'outputPath'
+  };
+
+  export type TtsChapterTaskScalarFieldEnum = (typeof TtsChapterTaskScalarFieldEnum)[keyof typeof TtsChapterTaskScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -21242,6 +24876,199 @@ export namespace Prisma {
     type?: EnumTrackTypeWithAggregatesFilter<"Folder"> | $Enums.TrackType
   }
 
+  export type TtsUserConfigWhereInput = {
+    AND?: TtsUserConfigWhereInput | TtsUserConfigWhereInput[]
+    OR?: TtsUserConfigWhereInput[]
+    NOT?: TtsUserConfigWhereInput | TtsUserConfigWhereInput[]
+    id?: IntFilter<"TtsUserConfig"> | number
+    engineName?: StringFilter<"TtsUserConfig"> | string
+    configJson?: StringFilter<"TtsUserConfig"> | string
+    updatedAt?: DateTimeFilter<"TtsUserConfig"> | Date | string
+  }
+
+  export type TtsUserConfigOrderByWithRelationInput = {
+    id?: SortOrder
+    engineName?: SortOrder
+    configJson?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type TtsUserConfigWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: TtsUserConfigWhereInput | TtsUserConfigWhereInput[]
+    OR?: TtsUserConfigWhereInput[]
+    NOT?: TtsUserConfigWhereInput | TtsUserConfigWhereInput[]
+    engineName?: StringFilter<"TtsUserConfig"> | string
+    configJson?: StringFilter<"TtsUserConfig"> | string
+    updatedAt?: DateTimeFilter<"TtsUserConfig"> | Date | string
+  }, "id">
+
+  export type TtsUserConfigOrderByWithAggregationInput = {
+    id?: SortOrder
+    engineName?: SortOrder
+    configJson?: SortOrder
+    updatedAt?: SortOrder
+    _count?: TtsUserConfigCountOrderByAggregateInput
+    _avg?: TtsUserConfigAvgOrderByAggregateInput
+    _max?: TtsUserConfigMaxOrderByAggregateInput
+    _min?: TtsUserConfigMinOrderByAggregateInput
+    _sum?: TtsUserConfigSumOrderByAggregateInput
+  }
+
+  export type TtsUserConfigScalarWhereWithAggregatesInput = {
+    AND?: TtsUserConfigScalarWhereWithAggregatesInput | TtsUserConfigScalarWhereWithAggregatesInput[]
+    OR?: TtsUserConfigScalarWhereWithAggregatesInput[]
+    NOT?: TtsUserConfigScalarWhereWithAggregatesInput | TtsUserConfigScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"TtsUserConfig"> | number
+    engineName?: StringWithAggregatesFilter<"TtsUserConfig"> | string
+    configJson?: StringWithAggregatesFilter<"TtsUserConfig"> | string
+    updatedAt?: DateTimeWithAggregatesFilter<"TtsUserConfig"> | Date | string
+  }
+
+  export type TtsTaskWhereInput = {
+    AND?: TtsTaskWhereInput | TtsTaskWhereInput[]
+    OR?: TtsTaskWhereInput[]
+    NOT?: TtsTaskWhereInput | TtsTaskWhereInput[]
+    id?: StringFilter<"TtsTask"> | string
+    bookName?: StringFilter<"TtsTask"> | string
+    author?: StringFilter<"TtsTask"> | string
+    filePath?: StringFilter<"TtsTask"> | string
+    totalChapters?: IntFilter<"TtsTask"> | number
+    completedChapters?: IntFilter<"TtsTask"> | number
+    status?: StringFilter<"TtsTask"> | string
+    createdAt?: DateTimeFilter<"TtsTask"> | Date | string
+    options?: StringNullableFilter<"TtsTask"> | string | null
+    chapters?: TtsChapterTaskListRelationFilter
+  }
+
+  export type TtsTaskOrderByWithRelationInput = {
+    id?: SortOrder
+    bookName?: SortOrder
+    author?: SortOrder
+    filePath?: SortOrder
+    totalChapters?: SortOrder
+    completedChapters?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    options?: SortOrderInput | SortOrder
+    chapters?: TtsChapterTaskOrderByRelationAggregateInput
+  }
+
+  export type TtsTaskWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: TtsTaskWhereInput | TtsTaskWhereInput[]
+    OR?: TtsTaskWhereInput[]
+    NOT?: TtsTaskWhereInput | TtsTaskWhereInput[]
+    bookName?: StringFilter<"TtsTask"> | string
+    author?: StringFilter<"TtsTask"> | string
+    filePath?: StringFilter<"TtsTask"> | string
+    totalChapters?: IntFilter<"TtsTask"> | number
+    completedChapters?: IntFilter<"TtsTask"> | number
+    status?: StringFilter<"TtsTask"> | string
+    createdAt?: DateTimeFilter<"TtsTask"> | Date | string
+    options?: StringNullableFilter<"TtsTask"> | string | null
+    chapters?: TtsChapterTaskListRelationFilter
+  }, "id">
+
+  export type TtsTaskOrderByWithAggregationInput = {
+    id?: SortOrder
+    bookName?: SortOrder
+    author?: SortOrder
+    filePath?: SortOrder
+    totalChapters?: SortOrder
+    completedChapters?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    options?: SortOrderInput | SortOrder
+    _count?: TtsTaskCountOrderByAggregateInput
+    _avg?: TtsTaskAvgOrderByAggregateInput
+    _max?: TtsTaskMaxOrderByAggregateInput
+    _min?: TtsTaskMinOrderByAggregateInput
+    _sum?: TtsTaskSumOrderByAggregateInput
+  }
+
+  export type TtsTaskScalarWhereWithAggregatesInput = {
+    AND?: TtsTaskScalarWhereWithAggregatesInput | TtsTaskScalarWhereWithAggregatesInput[]
+    OR?: TtsTaskScalarWhereWithAggregatesInput[]
+    NOT?: TtsTaskScalarWhereWithAggregatesInput | TtsTaskScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"TtsTask"> | string
+    bookName?: StringWithAggregatesFilter<"TtsTask"> | string
+    author?: StringWithAggregatesFilter<"TtsTask"> | string
+    filePath?: StringWithAggregatesFilter<"TtsTask"> | string
+    totalChapters?: IntWithAggregatesFilter<"TtsTask"> | number
+    completedChapters?: IntWithAggregatesFilter<"TtsTask"> | number
+    status?: StringWithAggregatesFilter<"TtsTask"> | string
+    createdAt?: DateTimeWithAggregatesFilter<"TtsTask"> | Date | string
+    options?: StringNullableWithAggregatesFilter<"TtsTask"> | string | null
+  }
+
+  export type TtsChapterTaskWhereInput = {
+    AND?: TtsChapterTaskWhereInput | TtsChapterTaskWhereInput[]
+    OR?: TtsChapterTaskWhereInput[]
+    NOT?: TtsChapterTaskWhereInput | TtsChapterTaskWhereInput[]
+    id?: IntFilter<"TtsChapterTask"> | number
+    taskId?: StringFilter<"TtsChapterTask"> | string
+    index?: IntFilter<"TtsChapterTask"> | number
+    title?: StringFilter<"TtsChapterTask"> | string
+    status?: StringFilter<"TtsChapterTask"> | string
+    errorMsg?: StringNullableFilter<"TtsChapterTask"> | string | null
+    outputPath?: StringNullableFilter<"TtsChapterTask"> | string | null
+    task?: XOR<TtsTaskScalarRelationFilter, TtsTaskWhereInput>
+  }
+
+  export type TtsChapterTaskOrderByWithRelationInput = {
+    id?: SortOrder
+    taskId?: SortOrder
+    index?: SortOrder
+    title?: SortOrder
+    status?: SortOrder
+    errorMsg?: SortOrderInput | SortOrder
+    outputPath?: SortOrderInput | SortOrder
+    task?: TtsTaskOrderByWithRelationInput
+  }
+
+  export type TtsChapterTaskWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: TtsChapterTaskWhereInput | TtsChapterTaskWhereInput[]
+    OR?: TtsChapterTaskWhereInput[]
+    NOT?: TtsChapterTaskWhereInput | TtsChapterTaskWhereInput[]
+    taskId?: StringFilter<"TtsChapterTask"> | string
+    index?: IntFilter<"TtsChapterTask"> | number
+    title?: StringFilter<"TtsChapterTask"> | string
+    status?: StringFilter<"TtsChapterTask"> | string
+    errorMsg?: StringNullableFilter<"TtsChapterTask"> | string | null
+    outputPath?: StringNullableFilter<"TtsChapterTask"> | string | null
+    task?: XOR<TtsTaskScalarRelationFilter, TtsTaskWhereInput>
+  }, "id">
+
+  export type TtsChapterTaskOrderByWithAggregationInput = {
+    id?: SortOrder
+    taskId?: SortOrder
+    index?: SortOrder
+    title?: SortOrder
+    status?: SortOrder
+    errorMsg?: SortOrderInput | SortOrder
+    outputPath?: SortOrderInput | SortOrder
+    _count?: TtsChapterTaskCountOrderByAggregateInput
+    _avg?: TtsChapterTaskAvgOrderByAggregateInput
+    _max?: TtsChapterTaskMaxOrderByAggregateInput
+    _min?: TtsChapterTaskMinOrderByAggregateInput
+    _sum?: TtsChapterTaskSumOrderByAggregateInput
+  }
+
+  export type TtsChapterTaskScalarWhereWithAggregatesInput = {
+    AND?: TtsChapterTaskScalarWhereWithAggregatesInput | TtsChapterTaskScalarWhereWithAggregatesInput[]
+    OR?: TtsChapterTaskScalarWhereWithAggregatesInput[]
+    NOT?: TtsChapterTaskScalarWhereWithAggregatesInput | TtsChapterTaskScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"TtsChapterTask"> | number
+    taskId?: StringWithAggregatesFilter<"TtsChapterTask"> | string
+    index?: IntWithAggregatesFilter<"TtsChapterTask"> | number
+    title?: StringWithAggregatesFilter<"TtsChapterTask"> | string
+    status?: StringWithAggregatesFilter<"TtsChapterTask"> | string
+    errorMsg?: StringNullableWithAggregatesFilter<"TtsChapterTask"> | string | null
+    outputPath?: StringNullableWithAggregatesFilter<"TtsChapterTask"> | string | null
+  }
+
   export type TrackCreateInput = {
     name: string
     path: string
@@ -22224,6 +26051,206 @@ export namespace Prisma {
     type?: EnumTrackTypeFieldUpdateOperationsInput | $Enums.TrackType
   }
 
+  export type TtsUserConfigCreateInput = {
+    engineName: string
+    configJson: string
+    updatedAt?: Date | string
+  }
+
+  export type TtsUserConfigUncheckedCreateInput = {
+    id?: number
+    engineName: string
+    configJson: string
+    updatedAt?: Date | string
+  }
+
+  export type TtsUserConfigUpdateInput = {
+    engineName?: StringFieldUpdateOperationsInput | string
+    configJson?: StringFieldUpdateOperationsInput | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type TtsUserConfigUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    engineName?: StringFieldUpdateOperationsInput | string
+    configJson?: StringFieldUpdateOperationsInput | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type TtsUserConfigCreateManyInput = {
+    id?: number
+    engineName: string
+    configJson: string
+    updatedAt?: Date | string
+  }
+
+  export type TtsUserConfigUpdateManyMutationInput = {
+    engineName?: StringFieldUpdateOperationsInput | string
+    configJson?: StringFieldUpdateOperationsInput | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type TtsUserConfigUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    engineName?: StringFieldUpdateOperationsInput | string
+    configJson?: StringFieldUpdateOperationsInput | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type TtsTaskCreateInput = {
+    id?: string
+    bookName: string
+    author: string
+    filePath?: string
+    totalChapters: number
+    completedChapters?: number
+    status?: string
+    createdAt?: Date | string
+    options?: string | null
+    chapters?: TtsChapterTaskCreateNestedManyWithoutTaskInput
+  }
+
+  export type TtsTaskUncheckedCreateInput = {
+    id?: string
+    bookName: string
+    author: string
+    filePath?: string
+    totalChapters: number
+    completedChapters?: number
+    status?: string
+    createdAt?: Date | string
+    options?: string | null
+    chapters?: TtsChapterTaskUncheckedCreateNestedManyWithoutTaskInput
+  }
+
+  export type TtsTaskUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    bookName?: StringFieldUpdateOperationsInput | string
+    author?: StringFieldUpdateOperationsInput | string
+    filePath?: StringFieldUpdateOperationsInput | string
+    totalChapters?: IntFieldUpdateOperationsInput | number
+    completedChapters?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    options?: NullableStringFieldUpdateOperationsInput | string | null
+    chapters?: TtsChapterTaskUpdateManyWithoutTaskNestedInput
+  }
+
+  export type TtsTaskUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    bookName?: StringFieldUpdateOperationsInput | string
+    author?: StringFieldUpdateOperationsInput | string
+    filePath?: StringFieldUpdateOperationsInput | string
+    totalChapters?: IntFieldUpdateOperationsInput | number
+    completedChapters?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    options?: NullableStringFieldUpdateOperationsInput | string | null
+    chapters?: TtsChapterTaskUncheckedUpdateManyWithoutTaskNestedInput
+  }
+
+  export type TtsTaskCreateManyInput = {
+    id?: string
+    bookName: string
+    author: string
+    filePath?: string
+    totalChapters: number
+    completedChapters?: number
+    status?: string
+    createdAt?: Date | string
+    options?: string | null
+  }
+
+  export type TtsTaskUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    bookName?: StringFieldUpdateOperationsInput | string
+    author?: StringFieldUpdateOperationsInput | string
+    filePath?: StringFieldUpdateOperationsInput | string
+    totalChapters?: IntFieldUpdateOperationsInput | number
+    completedChapters?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    options?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type TtsTaskUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    bookName?: StringFieldUpdateOperationsInput | string
+    author?: StringFieldUpdateOperationsInput | string
+    filePath?: StringFieldUpdateOperationsInput | string
+    totalChapters?: IntFieldUpdateOperationsInput | number
+    completedChapters?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    options?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type TtsChapterTaskCreateInput = {
+    index: number
+    title: string
+    status?: string
+    errorMsg?: string | null
+    outputPath?: string | null
+    task: TtsTaskCreateNestedOneWithoutChaptersInput
+  }
+
+  export type TtsChapterTaskUncheckedCreateInput = {
+    id?: number
+    taskId: string
+    index: number
+    title: string
+    status?: string
+    errorMsg?: string | null
+    outputPath?: string | null
+  }
+
+  export type TtsChapterTaskUpdateInput = {
+    index?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    errorMsg?: NullableStringFieldUpdateOperationsInput | string | null
+    outputPath?: NullableStringFieldUpdateOperationsInput | string | null
+    task?: TtsTaskUpdateOneRequiredWithoutChaptersNestedInput
+  }
+
+  export type TtsChapterTaskUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    taskId?: StringFieldUpdateOperationsInput | string
+    index?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    errorMsg?: NullableStringFieldUpdateOperationsInput | string | null
+    outputPath?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type TtsChapterTaskCreateManyInput = {
+    id?: number
+    taskId: string
+    index: number
+    title: string
+    status?: string
+    errorMsg?: string | null
+    outputPath?: string | null
+  }
+
+  export type TtsChapterTaskUpdateManyMutationInput = {
+    index?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    errorMsg?: NullableStringFieldUpdateOperationsInput | string | null
+    outputPath?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type TtsChapterTaskUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    taskId?: StringFieldUpdateOperationsInput | string
+    index?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    errorMsg?: NullableStringFieldUpdateOperationsInput | string | null
+    outputPath?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
   export type IntFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel>
     in?: number[]
@@ -23171,6 +27198,136 @@ export namespace Prisma {
   export type FolderSumOrderByAggregateInput = {
     id?: SortOrder
     parentId?: SortOrder
+  }
+
+  export type TtsUserConfigCountOrderByAggregateInput = {
+    id?: SortOrder
+    engineName?: SortOrder
+    configJson?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type TtsUserConfigAvgOrderByAggregateInput = {
+    id?: SortOrder
+  }
+
+  export type TtsUserConfigMaxOrderByAggregateInput = {
+    id?: SortOrder
+    engineName?: SortOrder
+    configJson?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type TtsUserConfigMinOrderByAggregateInput = {
+    id?: SortOrder
+    engineName?: SortOrder
+    configJson?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type TtsUserConfigSumOrderByAggregateInput = {
+    id?: SortOrder
+  }
+
+  export type TtsChapterTaskListRelationFilter = {
+    every?: TtsChapterTaskWhereInput
+    some?: TtsChapterTaskWhereInput
+    none?: TtsChapterTaskWhereInput
+  }
+
+  export type TtsChapterTaskOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type TtsTaskCountOrderByAggregateInput = {
+    id?: SortOrder
+    bookName?: SortOrder
+    author?: SortOrder
+    filePath?: SortOrder
+    totalChapters?: SortOrder
+    completedChapters?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    options?: SortOrder
+  }
+
+  export type TtsTaskAvgOrderByAggregateInput = {
+    totalChapters?: SortOrder
+    completedChapters?: SortOrder
+  }
+
+  export type TtsTaskMaxOrderByAggregateInput = {
+    id?: SortOrder
+    bookName?: SortOrder
+    author?: SortOrder
+    filePath?: SortOrder
+    totalChapters?: SortOrder
+    completedChapters?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    options?: SortOrder
+  }
+
+  export type TtsTaskMinOrderByAggregateInput = {
+    id?: SortOrder
+    bookName?: SortOrder
+    author?: SortOrder
+    filePath?: SortOrder
+    totalChapters?: SortOrder
+    completedChapters?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    options?: SortOrder
+  }
+
+  export type TtsTaskSumOrderByAggregateInput = {
+    totalChapters?: SortOrder
+    completedChapters?: SortOrder
+  }
+
+  export type TtsTaskScalarRelationFilter = {
+    is?: TtsTaskWhereInput
+    isNot?: TtsTaskWhereInput
+  }
+
+  export type TtsChapterTaskCountOrderByAggregateInput = {
+    id?: SortOrder
+    taskId?: SortOrder
+    index?: SortOrder
+    title?: SortOrder
+    status?: SortOrder
+    errorMsg?: SortOrder
+    outputPath?: SortOrder
+  }
+
+  export type TtsChapterTaskAvgOrderByAggregateInput = {
+    id?: SortOrder
+    index?: SortOrder
+  }
+
+  export type TtsChapterTaskMaxOrderByAggregateInput = {
+    id?: SortOrder
+    taskId?: SortOrder
+    index?: SortOrder
+    title?: SortOrder
+    status?: SortOrder
+    errorMsg?: SortOrder
+    outputPath?: SortOrder
+  }
+
+  export type TtsChapterTaskMinOrderByAggregateInput = {
+    id?: SortOrder
+    taskId?: SortOrder
+    index?: SortOrder
+    title?: SortOrder
+    status?: SortOrder
+    errorMsg?: SortOrder
+    outputPath?: SortOrder
+  }
+
+  export type TtsChapterTaskSumOrderByAggregateInput = {
+    id?: SortOrder
+    index?: SortOrder
   }
 
   export type ArtistCreateNestedOneWithoutTracksInput = {
@@ -24419,6 +28576,62 @@ export namespace Prisma {
     update?: TrackUpdateWithWhereUniqueWithoutFolderInput | TrackUpdateWithWhereUniqueWithoutFolderInput[]
     updateMany?: TrackUpdateManyWithWhereWithoutFolderInput | TrackUpdateManyWithWhereWithoutFolderInput[]
     deleteMany?: TrackScalarWhereInput | TrackScalarWhereInput[]
+  }
+
+  export type TtsChapterTaskCreateNestedManyWithoutTaskInput = {
+    create?: XOR<TtsChapterTaskCreateWithoutTaskInput, TtsChapterTaskUncheckedCreateWithoutTaskInput> | TtsChapterTaskCreateWithoutTaskInput[] | TtsChapterTaskUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: TtsChapterTaskCreateOrConnectWithoutTaskInput | TtsChapterTaskCreateOrConnectWithoutTaskInput[]
+    createMany?: TtsChapterTaskCreateManyTaskInputEnvelope
+    connect?: TtsChapterTaskWhereUniqueInput | TtsChapterTaskWhereUniqueInput[]
+  }
+
+  export type TtsChapterTaskUncheckedCreateNestedManyWithoutTaskInput = {
+    create?: XOR<TtsChapterTaskCreateWithoutTaskInput, TtsChapterTaskUncheckedCreateWithoutTaskInput> | TtsChapterTaskCreateWithoutTaskInput[] | TtsChapterTaskUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: TtsChapterTaskCreateOrConnectWithoutTaskInput | TtsChapterTaskCreateOrConnectWithoutTaskInput[]
+    createMany?: TtsChapterTaskCreateManyTaskInputEnvelope
+    connect?: TtsChapterTaskWhereUniqueInput | TtsChapterTaskWhereUniqueInput[]
+  }
+
+  export type TtsChapterTaskUpdateManyWithoutTaskNestedInput = {
+    create?: XOR<TtsChapterTaskCreateWithoutTaskInput, TtsChapterTaskUncheckedCreateWithoutTaskInput> | TtsChapterTaskCreateWithoutTaskInput[] | TtsChapterTaskUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: TtsChapterTaskCreateOrConnectWithoutTaskInput | TtsChapterTaskCreateOrConnectWithoutTaskInput[]
+    upsert?: TtsChapterTaskUpsertWithWhereUniqueWithoutTaskInput | TtsChapterTaskUpsertWithWhereUniqueWithoutTaskInput[]
+    createMany?: TtsChapterTaskCreateManyTaskInputEnvelope
+    set?: TtsChapterTaskWhereUniqueInput | TtsChapterTaskWhereUniqueInput[]
+    disconnect?: TtsChapterTaskWhereUniqueInput | TtsChapterTaskWhereUniqueInput[]
+    delete?: TtsChapterTaskWhereUniqueInput | TtsChapterTaskWhereUniqueInput[]
+    connect?: TtsChapterTaskWhereUniqueInput | TtsChapterTaskWhereUniqueInput[]
+    update?: TtsChapterTaskUpdateWithWhereUniqueWithoutTaskInput | TtsChapterTaskUpdateWithWhereUniqueWithoutTaskInput[]
+    updateMany?: TtsChapterTaskUpdateManyWithWhereWithoutTaskInput | TtsChapterTaskUpdateManyWithWhereWithoutTaskInput[]
+    deleteMany?: TtsChapterTaskScalarWhereInput | TtsChapterTaskScalarWhereInput[]
+  }
+
+  export type TtsChapterTaskUncheckedUpdateManyWithoutTaskNestedInput = {
+    create?: XOR<TtsChapterTaskCreateWithoutTaskInput, TtsChapterTaskUncheckedCreateWithoutTaskInput> | TtsChapterTaskCreateWithoutTaskInput[] | TtsChapterTaskUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: TtsChapterTaskCreateOrConnectWithoutTaskInput | TtsChapterTaskCreateOrConnectWithoutTaskInput[]
+    upsert?: TtsChapterTaskUpsertWithWhereUniqueWithoutTaskInput | TtsChapterTaskUpsertWithWhereUniqueWithoutTaskInput[]
+    createMany?: TtsChapterTaskCreateManyTaskInputEnvelope
+    set?: TtsChapterTaskWhereUniqueInput | TtsChapterTaskWhereUniqueInput[]
+    disconnect?: TtsChapterTaskWhereUniqueInput | TtsChapterTaskWhereUniqueInput[]
+    delete?: TtsChapterTaskWhereUniqueInput | TtsChapterTaskWhereUniqueInput[]
+    connect?: TtsChapterTaskWhereUniqueInput | TtsChapterTaskWhereUniqueInput[]
+    update?: TtsChapterTaskUpdateWithWhereUniqueWithoutTaskInput | TtsChapterTaskUpdateWithWhereUniqueWithoutTaskInput[]
+    updateMany?: TtsChapterTaskUpdateManyWithWhereWithoutTaskInput | TtsChapterTaskUpdateManyWithWhereWithoutTaskInput[]
+    deleteMany?: TtsChapterTaskScalarWhereInput | TtsChapterTaskScalarWhereInput[]
+  }
+
+  export type TtsTaskCreateNestedOneWithoutChaptersInput = {
+    create?: XOR<TtsTaskCreateWithoutChaptersInput, TtsTaskUncheckedCreateWithoutChaptersInput>
+    connectOrCreate?: TtsTaskCreateOrConnectWithoutChaptersInput
+    connect?: TtsTaskWhereUniqueInput
+  }
+
+  export type TtsTaskUpdateOneRequiredWithoutChaptersNestedInput = {
+    create?: XOR<TtsTaskCreateWithoutChaptersInput, TtsTaskUncheckedCreateWithoutChaptersInput>
+    connectOrCreate?: TtsTaskCreateOrConnectWithoutChaptersInput
+    upsert?: TtsTaskUpsertWithoutChaptersInput
+    connect?: TtsTaskWhereUniqueInput
+    update?: XOR<XOR<TtsTaskUpdateToOneWithWhereWithoutChaptersInput, TtsTaskUpdateWithoutChaptersInput>, TtsTaskUncheckedUpdateWithoutChaptersInput>
   }
 
   export type NestedIntFilter<$PrismaModel = never> = {
@@ -27395,6 +31608,125 @@ export namespace Prisma {
     data: XOR<TrackUpdateManyMutationInput, TrackUncheckedUpdateManyWithoutFolderInput>
   }
 
+  export type TtsChapterTaskCreateWithoutTaskInput = {
+    index: number
+    title: string
+    status?: string
+    errorMsg?: string | null
+    outputPath?: string | null
+  }
+
+  export type TtsChapterTaskUncheckedCreateWithoutTaskInput = {
+    id?: number
+    index: number
+    title: string
+    status?: string
+    errorMsg?: string | null
+    outputPath?: string | null
+  }
+
+  export type TtsChapterTaskCreateOrConnectWithoutTaskInput = {
+    where: TtsChapterTaskWhereUniqueInput
+    create: XOR<TtsChapterTaskCreateWithoutTaskInput, TtsChapterTaskUncheckedCreateWithoutTaskInput>
+  }
+
+  export type TtsChapterTaskCreateManyTaskInputEnvelope = {
+    data: TtsChapterTaskCreateManyTaskInput | TtsChapterTaskCreateManyTaskInput[]
+  }
+
+  export type TtsChapterTaskUpsertWithWhereUniqueWithoutTaskInput = {
+    where: TtsChapterTaskWhereUniqueInput
+    update: XOR<TtsChapterTaskUpdateWithoutTaskInput, TtsChapterTaskUncheckedUpdateWithoutTaskInput>
+    create: XOR<TtsChapterTaskCreateWithoutTaskInput, TtsChapterTaskUncheckedCreateWithoutTaskInput>
+  }
+
+  export type TtsChapterTaskUpdateWithWhereUniqueWithoutTaskInput = {
+    where: TtsChapterTaskWhereUniqueInput
+    data: XOR<TtsChapterTaskUpdateWithoutTaskInput, TtsChapterTaskUncheckedUpdateWithoutTaskInput>
+  }
+
+  export type TtsChapterTaskUpdateManyWithWhereWithoutTaskInput = {
+    where: TtsChapterTaskScalarWhereInput
+    data: XOR<TtsChapterTaskUpdateManyMutationInput, TtsChapterTaskUncheckedUpdateManyWithoutTaskInput>
+  }
+
+  export type TtsChapterTaskScalarWhereInput = {
+    AND?: TtsChapterTaskScalarWhereInput | TtsChapterTaskScalarWhereInput[]
+    OR?: TtsChapterTaskScalarWhereInput[]
+    NOT?: TtsChapterTaskScalarWhereInput | TtsChapterTaskScalarWhereInput[]
+    id?: IntFilter<"TtsChapterTask"> | number
+    taskId?: StringFilter<"TtsChapterTask"> | string
+    index?: IntFilter<"TtsChapterTask"> | number
+    title?: StringFilter<"TtsChapterTask"> | string
+    status?: StringFilter<"TtsChapterTask"> | string
+    errorMsg?: StringNullableFilter<"TtsChapterTask"> | string | null
+    outputPath?: StringNullableFilter<"TtsChapterTask"> | string | null
+  }
+
+  export type TtsTaskCreateWithoutChaptersInput = {
+    id?: string
+    bookName: string
+    author: string
+    filePath?: string
+    totalChapters: number
+    completedChapters?: number
+    status?: string
+    createdAt?: Date | string
+    options?: string | null
+  }
+
+  export type TtsTaskUncheckedCreateWithoutChaptersInput = {
+    id?: string
+    bookName: string
+    author: string
+    filePath?: string
+    totalChapters: number
+    completedChapters?: number
+    status?: string
+    createdAt?: Date | string
+    options?: string | null
+  }
+
+  export type TtsTaskCreateOrConnectWithoutChaptersInput = {
+    where: TtsTaskWhereUniqueInput
+    create: XOR<TtsTaskCreateWithoutChaptersInput, TtsTaskUncheckedCreateWithoutChaptersInput>
+  }
+
+  export type TtsTaskUpsertWithoutChaptersInput = {
+    update: XOR<TtsTaskUpdateWithoutChaptersInput, TtsTaskUncheckedUpdateWithoutChaptersInput>
+    create: XOR<TtsTaskCreateWithoutChaptersInput, TtsTaskUncheckedCreateWithoutChaptersInput>
+    where?: TtsTaskWhereInput
+  }
+
+  export type TtsTaskUpdateToOneWithWhereWithoutChaptersInput = {
+    where?: TtsTaskWhereInput
+    data: XOR<TtsTaskUpdateWithoutChaptersInput, TtsTaskUncheckedUpdateWithoutChaptersInput>
+  }
+
+  export type TtsTaskUpdateWithoutChaptersInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    bookName?: StringFieldUpdateOperationsInput | string
+    author?: StringFieldUpdateOperationsInput | string
+    filePath?: StringFieldUpdateOperationsInput | string
+    totalChapters?: IntFieldUpdateOperationsInput | number
+    completedChapters?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    options?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type TtsTaskUncheckedUpdateWithoutChaptersInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    bookName?: StringFieldUpdateOperationsInput | string
+    author?: StringFieldUpdateOperationsInput | string
+    filePath?: StringFieldUpdateOperationsInput | string
+    totalChapters?: IntFieldUpdateOperationsInput | number
+    completedChapters?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    options?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
   export type UserTrackLikeCreateManyTrackInput = {
     id?: number
     userId: number
@@ -28246,6 +32578,41 @@ export namespace Prisma {
     trashedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     artistId?: NullableIntFieldUpdateOperationsInput | number | null
     albumId?: NullableIntFieldUpdateOperationsInput | number | null
+  }
+
+  export type TtsChapterTaskCreateManyTaskInput = {
+    id?: number
+    index: number
+    title: string
+    status?: string
+    errorMsg?: string | null
+    outputPath?: string | null
+  }
+
+  export type TtsChapterTaskUpdateWithoutTaskInput = {
+    index?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    errorMsg?: NullableStringFieldUpdateOperationsInput | string | null
+    outputPath?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type TtsChapterTaskUncheckedUpdateWithoutTaskInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    index?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    errorMsg?: NullableStringFieldUpdateOperationsInput | string | null
+    outputPath?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type TtsChapterTaskUncheckedUpdateManyWithoutTaskInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    index?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    errorMsg?: NullableStringFieldUpdateOperationsInput | string | null
+    outputPath?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
 

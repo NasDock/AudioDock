@@ -25,6 +25,8 @@ const UserManagement = lazy(() => import("./pages/Admin/UserManagement/index"));
 const Songs = lazy(() => import("./pages/Songs/index"));
 const Login = lazy(() => import("./pages/Login/index"));
 const SourceManage = lazy(() => import("./pages/SourceManage/index"));
+const TaskList = lazy(() => import("./pages/TTS/TaskList/index"));
+const CreateTask = lazy(() => import("./pages/TTS/CreateTask/index"));
 
 import { theme } from "antd";
 import { useEffect } from "react";
@@ -42,7 +44,7 @@ const RootWrapper = ({ children, mode }: { children: React.ReactNode; mode: stri
   return (
     <div
       style={{
-        backgroundColor: mode === "dark" ? "#000" : token.colorBgLayout,
+        backgroundColor: mode === "dark" ? "#000" : undefined,
         color: token.colorText,
         minHeight: "100vh",
         width: "100vw",
@@ -219,6 +221,14 @@ const AppContent = () => {
                               <Route
                                 path="/admin/users"
                                 element={<UserManagement />}
+                              />
+                              <Route
+                                path="/tts/tasks"
+                                element={<TaskList />}
+                              />
+                              <Route
+                                path="/tts/create"
+                                element={<CreateTask />}
                               />
                             </Routes>
                           </Suspense>

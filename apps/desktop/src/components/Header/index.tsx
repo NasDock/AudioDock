@@ -1,4 +1,5 @@
 import {
+  AppstoreOutlined,
   CustomerServiceOutlined,
   DatabaseOutlined,
   DeleteOutlined,
@@ -597,6 +598,17 @@ const Header: React.FC = () => {
               onClick={() => usePlayerStore.getState().startRadioMode()}
             >
               <WifiOutlined />
+            </div>
+          </Tooltip>
+        )}
+        {playMode !== TrackType.MUSIC && (
+          <Tooltip title="TTS">
+            <div
+              className={styles.actionIcon}
+              style={actionIconStyle}
+              onClick={() => navigate("/tts/tasks")}
+            >
+              <AppstoreOutlined />
             </div>
           </Tooltip>
         )}
