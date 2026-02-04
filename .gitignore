@@ -12,3 +12,5 @@ dist/
 
 **/android/build
 **/ios/build
+**/data
+**/.venv

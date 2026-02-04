@@ -15,7 +15,7 @@ export function getBaseURL(): string {
   }
 
   // Default fallback
-  return "http://localhost:3000";
+  return "/api";
 }
 
 const instance = axios.create({
