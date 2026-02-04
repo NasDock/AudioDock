@@ -1,7 +1,7 @@
 # ==========================================
-# Stage 1: Base
+# Stage 1: Builder (Install dependencies + Build projects)
 # ==========================================
-FROM node:22-bullseye AS base
+FROM node:22-bullseye AS builder
 
 RUN apt-get update \
   && apt-get install -y openssl \
@@ -10,12 +10,7 @@ RUN apt-get update \
 RUN npm install -g pnpm
 WORKDIR /app
 
-# ==========================================
-# Stage 2: Builder（安装依赖 + 构建所有项目 + Prisma generate）
-# ==========================================
-FROM base AS builder
-
-# 1. 复制 lock + workspace 配置，触发 Docker 缓存
+# 1. 复制 lock + workspace 配置
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # 2. 复制所有子包 package.json
@@ -32,66 +27,96 @@ RUN pnpm install --frozen-lockfile
 # 4. 复制完整源码
 COPY . .
 
-# 5. 构建所有 workspace (修改部分开始)
-# 构建 @soundx/utils
+# 5. 构建所有 workspace
 RUN cd packages/utils && pnpm run build
-# 构建 @soundx/ws
 RUN cd packages/ws && pnpm run build
-# 构建 @soundx/db
 RUN cd packages/db && pnpm run build
-# 构建 @soundx/services
 RUN cd packages/services && pnpm run build
-# 6. Prisma generate（确保生成到 packages/db/generated/client）
-# 确保在 db 目录下运行 generate
+
+# 6. Prisma generate（生成到 packages/db/generated/client）
 RUN cd packages/db && pnpm run generate
-# 构建 @soundx/api
+
+# 7. 构建后端 API
 RUN cd services/api && pnpm run build
-# 构建 @soundx/desktop (Web)
+
+# 8. 构建前端 Web
 RUN cd apps/desktop && pnpm run build:web
 
 # ==========================================
-# Stage 3: Backend Runner（只放生产依赖 + dist + prisma client）
+# Stage 2: Unified Runner (All-in-one image)
 # ==========================================
-FROM node:22-slim AS backend_runner
+FROM node:22-bullseye-slim AS runner
+
 WORKDIR /app
 
+# 1. 安装运行环境 (Python3, Nginx, OpenSSL)
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    nginx \
+    openssl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. 基础环境变量配置
 ENV NODE_ENV=production
+ENV TXT_BASE_DIR=/txt
+ENV AUDIO_BOOK_DIR=/audio
+ENV MUSIC_BASE_DIR=/music
+ENV CACHE_DIR=/covers
+ENV DATABASE_URL="file:/app/packages/db/prisma/dev.db"
+ENV PORT=3000
 
-# 1. 复制必要文件
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/db/package.json      ./packages/db/
-COPY packages/utils/package.json   ./packages/utils/
-COPY packages/services/package.json   ./packages/services/
-COPY services/api/package.json     ./services/api/
+# 3. 复制 Node 项目产物
+COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/packages/db/dist           ./packages/db/dist
+COPY --from=builder /app/packages/db/package.json   ./packages/db/package.json
+COPY --from=builder /app/packages/db/prisma         ./packages/db/prisma
+COPY --from=builder /app/packages/db/generated      ./packages/db/generated
+COPY --from=builder /app/packages/utils/dist        ./packages/utils/dist
+COPY --from=builder /app/packages/utils/package.json ./packages/utils/package.json
+COPY --from=builder /app/packages/ws/dist           ./packages/ws/dist
+COPY --from=builder /app/packages/ws/package.json   ./packages/ws/package.json
+COPY --from=builder /app/packages/services/dist     ./packages/services/dist
+COPY --from=builder /app/packages/services/package.json ./packages/services/package.json
+COPY --from=builder /app/services/api/dist          ./services/api/dist
+COPY --from=builder /app/services/api/package.json  ./services/api/package.json
+COPY --from=builder /app/apps/desktop/dist          /usr/share/nginx/html
 
-# 2. 安装生产依赖 + 全局安装 prisma (用于 db push)
-RUN apt-get update -y && apt-get install -y openssl
-RUN npm i -g pnpm prisma@6.6.0 && pnpm install --prod --frozen-lockfile --ignore-scripts
+# 4. 复制并安装 TTS 服务 (Python)
+COPY services/tts /app/services/tts
+RUN python3 -m pip install --no-cache-dir -r /app/services/tts/requirements.txt
 
-# 3. 复制构建产物 + prisma client + prisma schema
-COPY --from=builder /app/packages/db/dist       ./packages/db/dist
-COPY --from=builder /app/packages/db/prisma     ./packages/db/prisma
-COPY --from=builder /app/packages/utils/dist    ./packages/utils/dist
-COPY --from=builder /app/packages/services/dist    ./packages/services/dist
-COPY --from=builder /app/services/api/dist      ./services/api/dist
-COPY --from=builder /app/apps/desktop/dist      ./apps/desktop/dist
+# 5. 安装 Node 运行时依赖
+RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile --ignore-scripts
 
-RUN cd packages/db && npx prisma generate
-
-EXPOSE 3000
-
-CMD ["sh", "-c", "cd packages/db && npx prisma db push && cd ../../services/api && node dist/main.js"]
-
-# ==========================================
-# Stage 4: Frontend Runner（Nginx 承载 web）
-# ==========================================
-FROM nginx:alpine AS frontend_runner
-
-# 拷贝 Nginx 配置
+# 6. 复制 Nginx 配置
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# 拷贝前端构建产物
-COPY --from=builder /app/apps/desktop/dist /usr/share/nginx/html
+# 7. 暴露服务端口
+# 3000: API, 8000: TTS, 9958: Web
+EXPOSE 3000 8000 9958
 
-EXPOSE 9958
-CMD ["nginx", "-g", "daemon off;"]
+# 8. 启动脚本
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+# 1. 确保数据库目录存在 (针对持久化挂载的情况)\n\
+mkdir -p /app/packages/db/prisma\n\
+\n\
+# 2. 确保数据库存在并更新 schema\n\
+echo "Running prisma db push..."\n\
+cd /app/packages/db && npx prisma@6 db push --accept-data-loss\n\
+\n\
+# 3. 启动 Nginx (后台运行)\n\
+echo "Starting Nginx..."\n\
+nginx\n\
+\n\
+# 4. 启动 Python TTS 服务 (后台运行)\n\
+echo "Starting TTS Service..."\n\
+cd /app/services/tts && python3 -m uvicorn src.main:app --host 0.0.0.0 --port 8000 &\n\
+\n\
+# 5. 启动 Node API 服务 (前台运行)\n\
+echo "Starting API Service..."\n\
+cd /app/services/api && node dist/main.js' > /app/start.sh && chmod +x /app/start.sh
+
+CMD ["/app/start.sh"]

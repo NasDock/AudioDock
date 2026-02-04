@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 
 # 加载环境变量，一定要在导入其他业务模块之前
-load_dotenv(override=True)
+# load_dotenv(override=True)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

@@ -59,7 +59,7 @@ const CreateTask: React.FC = () => {
   const [view, setView] = useState<"select" | "review">("select");
   const [reviewData, setReviewData] = useState<ReviewItem[]>([]);
 
-  const TTS_BASE_URL = "http://localhost:8000";
+  const TTS_BASE_URL = "/tts";
 
   const fetchVoices = async () => {
     try {

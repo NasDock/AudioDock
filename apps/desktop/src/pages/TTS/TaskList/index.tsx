@@ -1,13 +1,13 @@
 import { PlusOutlined } from "@ant-design/icons";
 import {
-  Button,
-  Flex,
-  Progress,
-  Segmented,
-  Space,
-  Table,
-  Tag,
-  Typography,
+    Button,
+    Flex,
+    Progress,
+    Segmented,
+    Space,
+    Table,
+    Tag,
+    Typography,
 } from "antd";
 import axios from "axios";
 import React, { useEffect, useState } from "react";
@@ -31,8 +31,8 @@ const TaskList: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const navigate = useNavigate();
 
-  // 这里暂时硬编码，实际应该从配置中读取
-  const TTS_BASE_URL = "http://localhost:8000";
+  // Nginx 代理后的地址，直接使用当前域名的 /tts 路径
+  const TTS_BASE_URL = "/tts";
 
   const fetchTasks = async (showLoading = true) => {
     if (showLoading) setLoading(true);

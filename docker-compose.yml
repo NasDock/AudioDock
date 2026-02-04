@@ -1,62 +1,40 @@
 version: "3.8"
 
 services:
-  # 1. API 后端服务 (Node.js)
-  api:
+  app:
     platform: linux/amd64
-    image: audiodock-api
+    image: audiodock-app
     build:
-      context: . # 上下文必须是根目录
-      dockerfile: Dockerfile # Dockerfile 必须在根目录
-      target: backend_runner # 使用多阶段构建的目标
-    container_name: audiodock-api
-
-    # 容器内部端口 (3000) 默认对内部网络开放，无需 ports 字段映射到宿主机
-    # 如果要直接测试 API，可以加上 ports: - "3000:3000"
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    container_name: audiodock-app
     ports:
-      - "3001:3000"
-
+      - "3000:3000" # Node API
+      - "9958:9958" # Web UI
     environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/packages/db/prisma/dev.db
+      - JWT_SECRET=/.jwt_secret
+      - TXT_BASE_DIR=/txt
       - AUDIO_BOOK_DIR=/audio
       - MUSIC_BASE_DIR=/music
       - CACHE_DIR=/covers
-      - DATABASE_URL=file:/data/dev.db
-      - JWT_SECRET=/.jwt_secret
-      - PORT=3000
-
-    # 挂载数据文件和缓存，使用 Docker 命名卷更安全
     volumes:
+      # 这里可以根据需要调整物理机的挂载路径
+      - ./services/api/music/txt:/txt
       - ./services/api/music/audio:/audio
       - ./services/api/music/music:/music
       - ./services/api/music/covers:/covers
-      - api-db:/data
+      - app-db:/app/packages/db/prisma # 将数据库文件目录挂载出来持久化
       - ./services/api/.jwt_secret:/.jwt_secret
-
     restart: unless-stopped
     networks:
       - audiodock-network
 
-  # 2. Web 前端服务 (Nginx) - 用于托管静态文件和反向代理
-  web:
-    platform: linux/amd64
-    image: audiodock-web
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: frontend_runner # 使用多阶段构建的目标
-    container_name: audiodock-web
-    ports:
-      - "9958:9958" # <--- 将 Web 服务的 80 端口映射到宿主机的 8080 端口
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - api # 确保 API 容器先启动
-    networks:
-      - audiodock-network
-
 volumes:
-  api-cache: # 命名卷用于缓存
-  api-db: # 命名卷用于 SQLite 或其他数据文件
+  app-db: # 命名卷用于持久化数据库
 
 networks:
   audiodock-network:
+    driver: bridge

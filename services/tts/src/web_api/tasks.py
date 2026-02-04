@@ -25,10 +25,19 @@ async def list_local_files(db: Session = Depends(get_session)):
     """
     列出 TXT_BASE_DIR 目录下的所有 txt 文件，并标记是否已生成任务
     """
-    txt_dir = os.getenv("TXT_BASE_DIR", os.path.join(BASE_DIR, "data/novels"))
-    # 如果是相对路径，相对于 BASE_DIR
-    if not os.path.isabs(txt_dir):
-        txt_dir = os.path.abspath(os.path.join(BASE_DIR, "services/tts", txt_dir))
+    # 优先读取环境变量
+    env_txt_dir = os.getenv("TXT_BASE_DIR")
+    if env_txt_dir:
+        if os.path.isabs(env_txt_dir):
+            txt_dir = env_txt_dir
+        else:
+            # 如果是相对路径，则相对于 BASE_DIR（即项目根目录）解析
+            txt_dir = os.path.abspath(os.path.join(BASE_DIR, env_txt_dir))
+    else:
+        # 默认回退路径
+        txt_dir = os.path.join(BASE_DIR, "services/tts/data/novels")
+    
+    print(f"--- Scanning TXT Dir: {txt_dir} ---")
     
     if not os.path.exists(txt_dir):
         return {"success": True, "files": [], "msg": f"Directory not found: {txt_dir}"}

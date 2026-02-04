@@ -7,19 +7,28 @@ import os
 # ---------------------------------------------------------
 # 数据库连接配置 (指向 Prisma 的 SQLite 文件)
 # ---------------------------------------------------------
-# 获取项目根目录 (soundX)
-# 当前文件在 services/tts/src/database/models.py
-DB_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))
-SQLITE_FILE = os.path.join(DB_ROOT, "packages/db/prisma/dev.db")
+# 优先从环境变量获取 DATABASE_URL (Prisma 使用的格式: file:/path/to/db)
+database_url_env = os.getenv("DATABASE_URL")
 
-# 打印路径方便调试
-print(f"--- TTS DB Path: {SQLITE_FILE} ---")
-
-# SQLite 在不同系统下的写法兼容
-if os.name == 'nt': # Windows
-    sqlite_url = f"sqlite:///{SQLITE_FILE.replace('\\', '/')}"
+if database_url_env and database_url_env.startswith("file:"):
+    # 将 file:/path/to/db 转换为 sqlite:////path/to/db
+    sqlite_path = database_url_env.replace("file:", "")
+    if os.name == 'nt':
+        sqlite_url = f"sqlite:///{sqlite_path.lstrip('/')}"
+    else:
+        sqlite_url = f"sqlite:////{sqlite_path.lstrip('/')}"
 else:
-    sqlite_url = f"sqlite:////{SQLITE_FILE}"
+    # 兜底计算逻辑
+    DB_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))
+    SQLITE_FILE = os.path.join(DB_ROOT, "packages/db/prisma/dev.db")
+    
+    if os.name == 'nt': # Windows
+        normalized_path = SQLITE_FILE.replace('\\', '/')
+        sqlite_url = f"sqlite:///{normalized_path}"
+    else:
+        sqlite_url = f"sqlite:////{SQLITE_FILE}"
+
+print(f"--- TTS Connecting to DB: {sqlite_url} ---")
 
 engine = create_engine(sqlite_url, echo=False)
 
