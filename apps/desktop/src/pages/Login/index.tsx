@@ -441,12 +441,19 @@ const Login: React.FC = () => {
                 <Input.Password prefix={<LockOutlined />} placeholder="密码" />
               </Form.Item>
               <Form.Item>
-                <Checkbox
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                >
-                  记住我
-                </Checkbox>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <Checkbox
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  >
+                    记住我
+                  </Checkbox>
+                  {sourceType === "AudioDock" && (
+                     <Button type="link" size="small" onClick={() => navigate("/forgot-password")} style={{ padding: 0 }}>
+                       忘记密码?
+                     </Button>
+                  )}
+                </div>
               </Form.Item>
               <Button htmlType="submit" block loading={loading}>
                 登录

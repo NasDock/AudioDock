@@ -109,6 +109,13 @@ function RootLayoutNav() {
             animation: 'slide_from_left' 
           }} 
         />
+        <Stack.Screen 
+          name="forgot-password" 
+          options={{ 
+            headerShown: false,
+            animation: 'slide_from_right'
+          }} 
+        />
       </Stack>
       {(segments[0] as string) !== "player" && <PlaylistModal />}
     </>

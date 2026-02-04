@@ -16,3 +16,11 @@ import type { User } from "./models";
   export const hello = () => {
     return getAdapter().auth.hello();
   };
+
+  export const verifyDevice = (username: string, deviceName: string) => {
+    return getAdapter().auth.verifyDevice(username, deviceName);
+  };
+
+  export const resetPassword = (username: string, deviceName: string, newPassword: string) => {
+    return getAdapter().auth.resetPassword(username, deviceName, newPassword);
+  };

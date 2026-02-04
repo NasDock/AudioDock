@@ -5,6 +5,10 @@ export const getAdminUsers = async () => {
   return request.get<ISuccessResponse<User[]>>("/admin/users");
 };
 
+export const createAdminUser = async (data: Partial<User>) => {
+  return request.post<ISuccessResponse<User>>("/admin/users", data);
+};
+
 export const deleteAdminUser = async (id: number | string) => {
   return request.delete<ISuccessResponse<boolean>>(`/admin/users/${id}`);
 };

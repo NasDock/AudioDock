@@ -24,6 +24,7 @@ const Downloads = lazy(() => import("./pages/Downloads/index"));
 const UserManagement = lazy(() => import("./pages/Admin/UserManagement/index"));
 const Songs = lazy(() => import("./pages/Songs/index"));
 const Login = lazy(() => import("./pages/Login/index"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword/index"));
 const SourceManage = lazy(() => import("./pages/SourceManage/index"));
 
 import { theme } from "antd";
@@ -154,6 +155,7 @@ const AppContent = () => {
             <Routes>
               <Route path="/source-manage" element={<SourceManage />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
 
               {isAuthenticated ? (
                 <Route

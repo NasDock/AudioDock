@@ -112,6 +112,15 @@ export class UserService {
     }
   }
 
+  async getDevice(userId: number, deviceName: string): Promise<Device | null> {
+    return await this.prisma.device.findFirst({
+      where: {
+        userId,
+        name: deviceName,
+      },
+    });
+  }
+
   // === 系统设置相关 ===
   async getSetting(key: string): Promise<string | null> {
     const setting = await this.prisma.systemSetting.findUnique({

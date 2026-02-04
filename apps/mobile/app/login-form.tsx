@@ -4,17 +4,17 @@ import { SOURCEMAP, SOURCETIPSMAP } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../src/context/AuthContext";
@@ -284,6 +284,12 @@ export default function LoginFormScreen() {
                 onChangeText={setPassword}
                 secureTextEntry
               />
+
+              {isLogin && sourceType === "AudioDock" && (
+                <TouchableOpacity onPress={() => router.push("/forgot-password")} style={{alignSelf: 'flex-end', marginBottom: 10}}>
+                   <Text style={{color: colors.primary}}>忘记密码?</Text>
+                </TouchableOpacity>
+              )}
 
               {!isLogin && (
                 <>

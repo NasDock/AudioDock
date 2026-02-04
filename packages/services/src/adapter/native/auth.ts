@@ -27,4 +27,12 @@ export class NativeAuthAdapter implements IAuthAdapter {
   async hello() {
       return request.get<any, ISuccessResponse<string>>("/hello");
   }
+
+  async verifyDevice(username: string, deviceName: string) {
+    return request.post<any, ISuccessResponse<boolean>>("/auth/verify-device", { username, deviceName });
+  }
+
+  async resetPassword(username: string, deviceName: string, newPassword: string) {
+    return request.post<any, ISuccessResponse<User & { token: string; device: Device }>>("/auth/reset-password", { username, deviceName, newPassword });
+  }
 }
