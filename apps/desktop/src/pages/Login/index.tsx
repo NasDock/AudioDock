@@ -280,11 +280,9 @@ const Login: React.FC = () => {
     const type = sourceType;
     let { internalAddress, externalAddress } = values;
     const { username, password } = values;
-    console.log(values);
 
     // Web 端 AudioDock 默认地址处理
     const isWeb_ = isWeb();
-    console.log(isWeb_);
     if (
       isWeb_ &&
       type === "AudioDock" &&
@@ -383,7 +381,10 @@ const Login: React.FC = () => {
       {contextHolder}
 
       <div className={styles.content}>
-        <div className={styles.header} style={{ marginBottom: isWeb() ? 20 : 0 }}>
+        <div
+          className={styles.header}
+          style={{ marginBottom: isWeb() ? 20 : 0 }}
+        >
           <img
             src={getLogo(sourceType)}
             alt={sourceType}
@@ -404,34 +405,29 @@ const Login: React.FC = () => {
           className={styles.form}
           onFinish={handleFinish}
         >
-          {isWeb() ? null : (
-            <>
-              <Form.Item label="内网地址" name="internalAddress">
-                <AutoComplete
-                  options={serverHistory}
-                  onSelect={(val) => restoreCredentials(val, sourceType)}
-                >
-                  <Input
-                    prefix={<HddOutlined />}
-                    placeholder={isWeb() ? "/api" : "http://192.168.x.x"}
-                  />
-                </AutoComplete>
-              </Form.Item>
+          <Form.Item label="内网地址" name="internalAddress">
+            <AutoComplete
+              options={serverHistory}
+              onSelect={(val) => restoreCredentials(val, sourceType)}
+            >
+              <Input
+                prefix={<HddOutlined />}
+                placeholder={isWeb() ? "/api" : "http://192.168.x.x"}
+              />
+            </AutoComplete>
+          </Form.Item>
 
-              <Form.Item label="外网地址" name="externalAddress">
-                <AutoComplete
-                  options={serverHistory}
-                  onSelect={(val) => restoreCredentials(val, sourceType)}
-                >
-                  <Input
-                    prefix={<HddOutlined />}
-                    placeholder="http://example.com..."
-                  />
-                </AutoComplete>
-              </Form.Item>
-            </>
-          )}
-
+          <Form.Item label="外网地址" name="externalAddress">
+            <AutoComplete
+              options={serverHistory}
+              onSelect={(val) => restoreCredentials(val, sourceType)}
+            >
+              <Input
+                prefix={<HddOutlined />}
+                placeholder="http://example.com..."
+              />
+            </AutoComplete>
+          </Form.Item>
           {isLogin ? (
             <>
               <Form.Item name="username" rules={[{ required: true }]}>
@@ -441,7 +437,9 @@ const Login: React.FC = () => {
                 <Input.Password prefix={<LockOutlined />} placeholder="密码" />
               </Form.Item>
               <Form.Item>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div
+                  style={{ display: "flex", justifyContent: "space-between" }}
+                >
                   <Checkbox
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
@@ -449,9 +447,14 @@ const Login: React.FC = () => {
                     记住我
                   </Checkbox>
                   {sourceType === "AudioDock" && (
-                     <Button type="link" size="small" onClick={() => navigate("/forgot-password")} style={{ padding: 0 }}>
-                       忘记密码?
-                     </Button>
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => navigate("/forgot-password")}
+                      style={{ padding: 0 }}
+                    >
+                      忘记密码?
+                    </Button>
                   )}
                 </div>
               </Form.Item>
