@@ -655,7 +655,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   trackIndexContainer: {
-    width: 30,
+    width: 50,
     justifyContent: "center",
     alignItems: "center",
   },

@@ -44,7 +44,10 @@
         "REQUEST_INSTALL_PACKAGES",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
-        "INTERNET"
+        "INTERNET",
+        "WAKE_LOCK",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,

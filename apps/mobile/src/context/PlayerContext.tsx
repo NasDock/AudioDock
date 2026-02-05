@@ -1,30 +1,30 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-    addAlbumToHistory,
-    addToHistory,
-    getLatestHistory,
-    getLatestTracks,
-    reportAudiobookProgress
+  addAlbumToHistory,
+  addToHistory,
+  getLatestHistory,
+  getLatestTracks,
+  reportAudiobookProgress
 } from "@soundx/services";
 import * as Device from "expo-device";
 import React, {
-    createContext,
-    useContext,
-    useEffect,
-    useRef,
-    useState,
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
 } from "react";
 import { Alert, Platform } from "react-native";
 import TrackPlayer, {
-    AppKilledPlaybackBehavior,
-    Capability,
-    Event,
-    IOSCategory,
-    IOSCategoryMode,
-    IOSCategoryOptions,
-    State,
-    useProgress,
-    useTrackPlayerEvents,
+  AppKilledPlaybackBehavior,
+  Capability,
+  Event,
+  IOSCategory,
+  IOSCategoryMode,
+  IOSCategoryOptions,
+  State,
+  useProgress,
+  useTrackPlayerEvents,
 } from "react-native-track-player";
 import { Track, TrackType } from "../models";
 import { socketService } from "../services/socket";
@@ -156,6 +156,16 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const positionRef = React.useRef(position);
   const playbackRateRef = React.useRef(playbackRate);
   const isRadioModeRef = React.useRef(isRadioMode);
+  const skipIntroDurationRef = React.useRef(skipIntroDuration);
+  const skipOutroDurationRef = React.useRef(skipOutroDuration);
+
+  useEffect(() => {
+    skipIntroDurationRef.current = skipIntroDuration;
+  }, [skipIntroDuration]);
+
+  useEffect(() => {
+    skipOutroDurationRef.current = skipOutroDuration;
+  }, [skipOutroDuration]);
 
   useEffect(() => {
     isRadioModeRef.current = isRadioMode;
@@ -234,7 +244,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     setupPlayer();
   }, []);
 
-  // Sync TrackPlayer events
   useTrackPlayerEvents(
     [
       Event.PlaybackState,
@@ -244,6 +253,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       Event.RemotePrevious,
       Event.RemoteJumpForward,
       Event.RemoteJumpBackward,
+      Event.PlaybackActiveTrackChanged,
     ],
     async (event) => {
       if (event.type === Event.PlaybackError) {
@@ -261,8 +271,31 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           event.state === State.Buffering || event.state === State.Loading
         );
       }
+      if (event.type === Event.PlaybackActiveTrackChanged) {
+        // ✨ 当切歌发生（无论是手动还是自动播放下一首）
+        if (event.index !== undefined && trackListRef.current[event.index]) {
+          const nextTrack = trackListRef.current[event.index];
+          console.log(`[Player] Active track changed to index ${event.index}: ${nextTrack.name}`);
+          
+          setCurrentTrack(nextTrack);
+          isSkippingOutroRef.current = false;
+
+          // ✨ 处理有声书自动跳过片头
+          if (
+            nextTrack.type === TrackType.AUDIOBOOK &&
+            skipIntroDurationRef.current > 0 &&
+            event.lastIndex !== undefined // 确保是自动切换或手动切，不是第一次加载
+          ) {
+            console.log(`[AutoSkip] Native transition detected, skipping intro: ${skipIntroDurationRef.current}s`);
+            await TrackPlayer.seekTo(skipIntroDurationRef.current);
+          }
+        }
+      }
       if (event.type === Event.PlaybackQueueEnded) {
-        playNext();
+        // 如果是电台模式，需要手动加载下一首
+        if (isRadioModeRef.current) {
+            playNext();
+        }
       }
       if (event.type === Event.RemoteNext) {
         playNext();
@@ -406,6 +439,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       await seekTo(0);
       return;
     }
+    
+    // ✨ 优化：如果已经在用原生队列，手动 playNext 只需调用原生 skipToNext
+    const queue = await TrackPlayer.getQueue();
+    if (queue.length > 1) {
+        await TrackPlayer.skipToNext();
+        return;
+    }
+
     const current = currentTrackRef.current;
     if (!current || list.length === 0) return;
     const currentIndex = list.findIndex((t) => t.id === current.id);
@@ -478,8 +519,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           const uri = await resolveTrackUri(track, { cacheEnabled });
           const artwork = resolveArtworkUri(track);
 
-          await TrackPlayer.reset();
-          await TrackPlayer.add({
+          await TrackPlayer.setQueue([{
             id: String(track.id),
             url: uri,
             title: track.name,
@@ -487,7 +527,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             album: track.album || "Unknown Album",
             artwork: artwork,
             duration: track.duration || 0,
-          });
+          }]);
 
           if (state.position) {
             await TrackPlayer.seekTo(state.position);
@@ -554,8 +594,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
       console.log("Playing track:", track.id, "URI:", playUri);
 
-      await TrackPlayer.reset();
-      await TrackPlayer.add({
+      const trackData = {
         id: String(track.id),
         url: playUri,
         title: track.name,
@@ -563,7 +602,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         album: track.album || "Unknown Album",
         artwork: artwork,
         duration: track.duration || 0,
-      });
+      };
+
+      // ✨ 优化：使用“先加后跳再删”逻辑，防止 reset 导致音频焦点丢失和通知栏闪烁
+      const queue = await TrackPlayer.getQueue();
+      if (queue.length > 0) {
+        await TrackPlayer.add(trackData);
+        await TrackPlayer.skip(queue.length);
+        // 延迟移除旧歌曲（不使用 await 以免阻塞后续播放逻辑）
+        TrackPlayer.remove(Array.from({ length: queue.length }, (_, i) => i)).catch(() => {});
+      } else {
+        await TrackPlayer.add(trackData);
+      }
 
       await updatePlayerCapabilities(track);
 
@@ -596,10 +646,34 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const playTrackList = async (tracks: Track[], index: number, initialPosition?: number) => {
     setIsRadioMode(false);
     setTrackList(tracks);
-    if (tracks[index]) {
-      await playTrack(tracks[index], initialPosition);
-      savePlaybackState(mode);
+    
+    // ✨ 核心改进：预加载整个列表进入原生队列
+    const playerTracks = await Promise.all(tracks.map(async (t) => {
+        const uri = await resolveTrackUri(t, { cacheEnabled });
+        const artwork = resolveArtworkUri(t);
+        return {
+          id: String(t.id),
+          url: uri,
+          title: t.name,
+          artist: t.artist,
+          album: t.album || "Unknown Album",
+          artwork: artwork,
+          duration: t.duration || 0,
+        };
+    }));
+
+    await TrackPlayer.setQueue(playerTracks);
+    await TrackPlayer.skip(index);
+    
+    if (initialPosition !== undefined) {
+      await TrackPlayer.seekTo(initialPosition);
+    } else if (tracks[index].type === TrackType.AUDIOBOOK && skipIntroDuration > 0) {
+      await TrackPlayer.seekTo(skipIntroDuration);
     }
+
+    await TrackPlayer.play();
+    setCurrentTrack(tracks[index]);
+    savePlaybackState(mode);
   };
 
   const startRadioMode = async () => {
