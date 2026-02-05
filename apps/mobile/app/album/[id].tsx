@@ -10,22 +10,22 @@ import { downloadTracks } from "@/src/services/downloadManager";
 import { getImageUrl } from "@/src/utils/image";
 import { Ionicons } from "@expo/vector-icons";
 import {
-  getAlbumById,
-  getAlbumTracks,
-  toggleAlbumLike,
-  toggleAlbumUnLike,
+    getAlbumById,
+    getAlbumTracks,
+    toggleAlbumLike,
+    toggleAlbumUnLike,
 } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function AlbumDetailScreen() {

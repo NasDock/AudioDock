@@ -177,6 +177,7 @@ export default function PlayerScreen() {
   const [moreModalVisible, setMoreModalVisible] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const playlistRef = useRef<FlatList>(null);
   const [currentLyricIndex, setCurrentLyricIndex] = useState(-1);
   const [lyricContainerHeight, setLyricContainerHeight] = useState(0);
   const [liked, setLiked] = useState(false);
@@ -348,6 +349,21 @@ export default function PlayerScreen() {
     lyricFontSize,
   ]);
 
+  useEffect(() => {
+    if (currentTrack && trackList.length > 0) {
+      const index = trackList.findIndex((t) => t.id === currentTrack.id);
+      if (index !== -1) {
+        setTimeout(() => {
+          playlistRef.current?.scrollToIndex({
+            index,
+            animated: true,
+            viewPosition: 0.5,
+          });
+        }, 500);
+      }
+    }
+  }, [currentTrack?.id, trackList.length]);
+
   const formatTime = (seconds: number) => {
     if (!seconds) return "0:00";
     const mins = Math.floor(seconds / 60);
@@ -411,8 +427,15 @@ export default function PlayerScreen() {
 
   const renderPlaylist = () => (
     <FlatList
+      ref={playlistRef}
       data={trackList}
       keyExtractor={(item) => item.id.toString()}
+      onScrollToIndexFailed={(info) => {
+        playlistRef.current?.scrollToOffset({
+          offset: info.averageItemLength * info.index,
+          animated: true,
+        });
+      }}
       renderItem={({ item, index }) => (
         <TouchableOpacity
           style={[
