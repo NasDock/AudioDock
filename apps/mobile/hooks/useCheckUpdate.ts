@@ -46,10 +46,16 @@ export const useCheckUpdate = () => {
       // 3. 比对版本
       if (compareVersions(remoteVersion, localVersion) === 1) {
 
-        // 构造下载地址
-        // 文件名格式: AudioDock-1.0.59.apk
-        let downloadUrl = `https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/download/${tagName}/${GITHUB_REPO}-${remoteVersion}.apk`;
-        console.log(downloadUrl);
+        // 寻找 APK 资源
+        const apkAsset = data.assets?.find((a: any) => a.name.endsWith('.apk'));
+        
+        if (!apkAsset) {
+          console.log(`Version ${remoteVersion} found but no APK asset found in release.`);
+          return;
+        }
+
+        let downloadUrl = apkAsset.browser_download_url;
+        console.log(`Found APK: ${downloadUrl}`);
 
         if (USE_GHPROXY) {
           downloadUrl = `https://mirror.ghproxy.com/${downloadUrl}`;

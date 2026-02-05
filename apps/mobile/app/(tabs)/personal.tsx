@@ -123,8 +123,8 @@ export default function PersonalScreen() {
   const [history, setHistory] = useState<any[]>([]);
   const [downloads, setDownloads] = useState<Track[]>([]);
   const [downloadedAlbums, setDownloadedAlbums] = useState<any[]>([]);
-  const [selectedDownloadAlbum, setSelectedDownloadAlbum] = useState<
-    any | null
+  const [selectedDownloadAlbumName, setSelectedDownloadAlbumName] = useState<
+    string | null
   >(null);
 
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -149,7 +149,7 @@ export default function PersonalScreen() {
   // Reset selected album when tab changes or mode changes
   useFocusEffect(
     useCallback(() => {
-      setSelectedDownloadAlbum(null);
+      setSelectedDownloadAlbumName(null);
     }, [activeTab, mode]),
   );
 
@@ -237,7 +237,16 @@ export default function PersonalScreen() {
         style: "destructive",
         onPress: async () => {
           await removeDownloadedTrack(item.id, item.path); // Use path as URL
-          loadData();
+          await loadData();
+          
+          // 如果删除的是当前展开专辑里的最后一首歌，则返回专辑列表
+          if (selectedDownloadAlbumName) {
+            const tracks = await getDownloadedTracks();
+            const stillHasAlbum = tracks.some(t => t.album === selectedDownloadAlbumName && t.type === mode);
+            if (!stillHasAlbum) {
+              setSelectedDownloadAlbumName(null);
+            }
+          }
         },
       },
     ]);
@@ -341,11 +350,11 @@ export default function PersonalScreen() {
         activeTab !== "playlists" &&
         activeTab !== "downloads" &&
         (mode === "AUDIOBOOK" || activeSubTab === "album");
-      const isDownloadAlbum =
-        activeTab === "downloads" &&
-        mode === "AUDIOBOOK" &&
-        !selectedDownloadAlbum &&
-        item.type === "album";
+        const isDownloadAlbum =
+          activeTab === "downloads" &&
+          mode === "AUDIOBOOK" &&
+          !selectedDownloadAlbumName &&
+          item.type === "album";
 
       // For downloads, if we are in audiobook mode and selected an album, we render tracks.
       // Wait, FlatList data source is controlled.
@@ -364,13 +373,10 @@ export default function PersonalScreen() {
             } else if (activeTab === "downloads") {
               if (isDownloadAlbum) {
                 // Enter album
-                setSelectedDownloadAlbum(data);
+                setSelectedDownloadAlbumName(data.name);
               } else {
                 // Play downloaded track
-                // Data source depends on view.
-                const list = selectedDownloadAlbum
-                  ? selectedDownloadAlbum.tracks
-                  : downloads;
+                const list = getListData();
                 const index = list.findIndex(
                   (t: Track) => t.id === (data as Track).id,
                 );
@@ -465,7 +471,7 @@ export default function PersonalScreen() {
       favorites,
       history,
       downloads,
-      selectedDownloadAlbum,
+      selectedDownloadAlbumName,
       downloadModeList(),
       playTrackList,
       mode,
@@ -475,8 +481,8 @@ export default function PersonalScreen() {
   function downloadModeList() {
     if (activeTab !== "downloads") return [];
     if (mode === "AUDIOBOOK") {
-      return selectedDownloadAlbum
-        ? selectedDownloadAlbum.tracks
+      return selectedDownloadAlbumName
+        ? downloads.filter(t => t.album === selectedDownloadAlbumName)
         : downloadedAlbums;
     }
     return downloads;
@@ -489,9 +495,10 @@ export default function PersonalScreen() {
     if (activeTab === "history") return history;
     if (activeTab === "downloads") {
       if (mode === "AUDIOBOOK") {
-        return selectedDownloadAlbum
-          ? selectedDownloadAlbum.tracks
-          : downloadedAlbums;
+        if (selectedDownloadAlbumName) {
+            return downloads.filter(t => t.album === selectedDownloadAlbumName);
+        }
+        return downloadedAlbums;
       }
       return downloads;
     }
@@ -638,17 +645,17 @@ export default function PersonalScreen() {
       {/* Back Button for Audiobook Downloads */}
       {activeTab === "downloads" &&
         mode === "AUDIOBOOK" &&
-        selectedDownloadAlbum && (
+        selectedDownloadAlbumName && (
           <View style={{ paddingHorizontal: 20, paddingVertical: 10 }}>
             <TouchableOpacity
               style={{ flexDirection: "row", alignItems: "center" }}
-              onPress={() => setSelectedDownloadAlbum(null)}
+              onPress={() => setSelectedDownloadAlbumName(null)}
             >
               <Ionicons name="arrow-back" size={20} color={colors.primary} />
               <Text
                 style={{ marginLeft: 5, color: colors.primary, fontSize: 16 }}
               >
-                返回 {selectedDownloadAlbum.name}
+                返回 {selectedDownloadAlbumName}
               </Text>
             </TouchableOpacity>
           </View>

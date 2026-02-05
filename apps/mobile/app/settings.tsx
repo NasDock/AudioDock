@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../src/context/AuthContext";
 import { useSettings } from "../src/context/SettingsContext";
 import { useTheme } from "../src/context/ThemeContext";
-import { clearCache, getCacheSize } from "../src/services/cache";
+import { clearSpecificCache, getDetailedCacheSize } from "../src/services/cache";
 import { usePlayMode } from "../src/utils/playMode";
 import { getLocalVersion } from "../src/utils/updateUtils";
 
@@ -32,26 +32,70 @@ export default function SettingsScreen() {
     autoTheme,
     updateSetting,
   } = useSettings();
-  const [cacheSize, setCacheSize] = React.useState<string>("0 B");
+  const [detailedSizes, setDetailedSizes] = React.useState<{
+    covers: string;
+    music: string;
+    audiobooks: string;
+    apks: string;
+  }>({
+    covers: "0 B",
+    music: "0 B",
+    audiobooks: "0 B",
+    apks: "0 B",
+  });
+
+  const formatSize = (size: number) => {
+    if (size === 0) return "0 B";
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  };
 
   const fetchCacheSize = async () => {
-    const size = await getCacheSize();
-    if (size === 0) {
-      setCacheSize("0 B");
-    } else if (size < 1024) {
-      setCacheSize(`${size} B`);
-    } else if (size < 1024 * 1024) {
-      setCacheSize(`${(size / 1024).toFixed(1)} KB`);
-    } else if (size < 1024 * 1024 * 1024) {
-      setCacheSize(`${(size / (1024 * 1024)).toFixed(1)} MB`);
-    } else {
-      setCacheSize(`${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`);
-    }
+    const sizes = await getDetailedCacheSize();
+    setDetailedSizes({
+      covers: formatSize(sizes.covers),
+      music: formatSize(sizes.music),
+      audiobooks: formatSize(sizes.audiobooks),
+      apks: formatSize(sizes.apks),
+    });
   };
 
   React.useEffect(() => {
     fetchCacheSize();
   }, []);
+
+  const handleClearCache = async (category: 'covers' | 'music' | 'audiobooks' | 'apks', label: string) => {
+    Alert.alert("清除缓存", `确定要清除${label}缓存吗？`, [
+      { text: "取消", style: "cancel" },
+      {
+        text: "确定",
+        onPress: async () => {
+          await clearSpecificCache(category);
+          await fetchCacheSize();
+          Alert.alert("已清除", `${label}缓存已清空`);
+        },
+      },
+    ]);
+  };
+
+  const renderCacheRow = (label: string, size: string, category: 'covers' | 'music' | 'audiobooks' | 'apks') => (
+    <TouchableOpacity
+      style={[styles.settingRow, { borderBottomColor: colors.border }]}
+      onPress={() => handleClearCache(category, label)}
+    >
+      <View style={styles.settingInfo}>
+        <Text style={[styles.settingLabel, { color: colors.text }]}>
+          {label} ({size})
+        </Text>
+        <Text style={[styles.settingDescription, { color: colors.secondary }]}>
+          点击清除
+        </Text>
+      </View>
+      <Ionicons name="trash-outline" size={20} color={colors.secondary} />
+    </TouchableOpacity>
+  );
 
   const renderSettingRow = (
     label: string,
@@ -180,34 +224,13 @@ export default function SettingsScreen() {
             (val) => updateSetting("cacheEnabled", val)
           )}
 
-          <TouchableOpacity
-            style={[styles.settingRow, { borderBottomColor: colors.border }]}
-            onPress={() => {
-              Alert.alert("清除缓存", "确定要清除所有本地音频缓存吗？", [
-                { text: "取消", style: "cancel" },
-                {
-                  text: "确定",
-                  onPress: async () => {
-                    await clearCache();
-                    await fetchCacheSize();
-                    Alert.alert("已清除", "本地缓存已清空");
-                  },
-                },
-              ]);
-            }}
-          >
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>
-                清除缓存 ({cacheSize})
-              </Text>
-              <Text
-                style={[styles.settingDescription, { color: colors.secondary }]}
-              >
-                释放本地存储空间
-              </Text>
-            </View>
-            <Ionicons name="trash-outline" size={20} color={colors.secondary} />
-          </TouchableOpacity>
+          <Text style={[styles.sectionTitle, { color: colors.primary, marginTop: 20 }]}>
+            存储管理
+          </Text>
+          {renderCacheRow("封面缓存", detailedSizes.covers, "covers")}
+          {renderCacheRow("音乐缓存", detailedSizes.music, "music")}
+          {renderCacheRow("有声书缓存", detailedSizes.audiobooks, "audiobooks")}
+          {renderCacheRow("安装包文件", detailedSizes.apks, "apks")}
         </View>
 
         <View style={styles.section}>

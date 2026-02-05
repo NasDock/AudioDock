@@ -52,6 +52,7 @@ export const downloadTrack = async (track: Track, url: string): Promise<string |
       
       await ensureCacheDirExists();
       const localPath = getLocalPath(track.id, url);
+      const tempPath = `${localPath}.tmp`;
       
       // Check if already exists to avoid redownloading
       const fileInfo = await FileSystem.getInfoAsync(localPath);
@@ -60,14 +61,24 @@ export const downloadTrack = async (track: Track, url: string): Promise<string |
         return localPath;
       }
 
-      console.log(`[Cache] Starting download for track ${track.id}: ${url}`);
-      const downloadRes = await FileSystem.downloadAsync(url, localPath);
+      console.log(`[Cache] Starting download for track ${track.id}: ${url} to temp path`);
+      const downloadRes = await FileSystem.downloadAsync(url, tempPath);
+      
       if (downloadRes.status === 200) {
-        console.log(`[Cache] Successfully downloaded track ${track.id} to ${localPath}`);
+        // Atomic move to final destination
+        await FileSystem.moveAsync({
+          from: tempPath,
+          to: localPath
+        });
+        
+        console.log(`[Cache] Successfully downloaded and verified track ${track.id}`);
         await saveTrackMetadata(track, localPath);
         return localPath;
+      } else {
+        // Cleanup temp file if download failed
+        await FileSystem.deleteAsync(tempPath, { idempotent: true });
+        return null;
       }
-      return null;
     } catch (e) {
       console.error(`[Cache] Failed to download track ${track.id}`, e);
       return null;
@@ -188,30 +199,159 @@ export const resolveLocalPath = (path: string): string => {
 };
 
 /**
- * Clear all cached audio files
+ * Get cache size in bytes for a specific directory
+ */
+export const getDirectorySize = async (dirPath: string): Promise<number> => {
+  try {
+    const dirInfo = await FileSystem.getInfoAsync(dirPath);
+    if (!dirInfo.exists) return 0;
+    if (!dirInfo.isDirectory) return dirInfo.size || 0;
+
+    const files = await FileSystem.readDirectoryAsync(dirPath);
+    let totalSize = 0;
+    for (const file of files) {
+      const fileInfo = await FileSystem.getInfoAsync(`${dirPath}${file}`);
+      if (fileInfo.exists) {
+        if (fileInfo.isDirectory) {
+          totalSize += await getDirectorySize(`${dirPath}${file}/`);
+        } else {
+          totalSize += fileInfo.size || 0;
+        }
+      }
+    }
+    return totalSize;
+  } catch (e) {
+    return 0;
+  }
+};
+
+export interface DetailedCacheSize {
+  covers: number;
+  music: number;
+  audiobooks: number;
+  apks: number;
+}
+
+/**
+ * Get detailed cache size dimensions
+ */
+export const getDetailedCacheSize = async (): Promise<DetailedCacheSize> => {
+  const result: DetailedCacheSize = {
+    covers: 0,
+    music: 0,
+    audiobooks: 0,
+    apks: 0,
+  };
+
+  try {
+    // 1. APKs (in cacheDirectory)
+    const cacheDir = FileSystem.cacheDirectory || '';
+    if (cacheDir) {
+      const files = await FileSystem.readDirectoryAsync(cacheDir);
+      for (const file of files) {
+        if (file.endsWith('.apk')) {
+          const info = await FileSystem.getInfoAsync(`${cacheDir}${file}`);
+          if (info.exists) result.apks += info.size || 0;
+        }
+      }
+    }
+
+    // 2. Music & Audiobooks (in CACHE_DIR)
+    const stored = await AsyncStorage.getItem(OFFLINE_TRACKS_KEY);
+    if (stored) {
+      const tracks: Track[] = JSON.parse(stored);
+      for (const track of tracks) {
+        if (track.path) {
+          const info = await FileSystem.getInfoAsync(track.path);
+          if (info.exists) {
+            if (track.type === 'AUDIOBOOK') {
+               result.audiobooks += info.size || 0;
+            } else {
+               result.music += info.size || 0;
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Covers (Image Cache)
+    // expo-image stores its cache in cacheDirectory/ImageCache
+    const imageCacheDir = `${FileSystem.cacheDirectory}ImageCache/`;
+    result.covers = await getDirectorySize(imageCacheDir);
+
+  } catch (e) {
+    console.error("Failed to get detailed cache size", e);
+  }
+
+  return result;
+};
+
+/**
+ * Clear specific cache category
+ */
+export const clearSpecificCache = async (category: keyof DetailedCacheSize) => {
+  try {
+    switch (category) {
+      case 'apks':
+        const cacheDir = FileSystem.cacheDirectory || '';
+        if (cacheDir) {
+          const files = await FileSystem.readDirectoryAsync(cacheDir);
+          for (const file of files) {
+            if (file.endsWith('.apk')) {
+              await FileSystem.deleteAsync(`${cacheDir}${file}`, { idempotent: true });
+            }
+          }
+        }
+        break;
+      
+      case 'covers':
+        const imageCacheDir = `${FileSystem.cacheDirectory}ImageCache/`;
+        await FileSystem.deleteAsync(imageCacheDir, { idempotent: true });
+        break;
+
+      case 'music':
+      case 'audiobooks':
+        const type = category === 'music' ? 'MUSIC' : 'AUDIOBOOK';
+        const stored = await AsyncStorage.getItem(OFFLINE_TRACKS_KEY);
+        if (stored) {
+          const tracks: Track[] = JSON.parse(stored);
+          const tracksToClear = tracks.filter(t => t.type === type);
+          const tracksToKeep = tracks.filter(t => t.type !== type);
+          
+          for (const track of tracksToClear) {
+            if (track.path) {
+              await FileSystem.deleteAsync(track.path, { idempotent: true });
+            }
+          }
+          await AsyncStorage.setItem(OFFLINE_TRACKS_KEY, JSON.stringify(tracksToKeep));
+        }
+        break;
+    }
+  } catch (e) {
+    console.error(`Failed to clear ${category} cache`, e);
+  }
+};
+
+/**
+ * Clear all cached audio files (Deprecated in favor of clearSpecificCache)
  */
 export const clearCache = async () => {
   try {
     await FileSystem.deleteAsync(CACHE_DIR, { idempotent: true });
     await ensureCacheDirExists();
     await AsyncStorage.removeItem(OFFLINE_TRACKS_KEY);
+    // Also clear covers and apks for full clear
+    await clearSpecificCache('covers');
+    await clearSpecificCache('apks');
   } catch (e) {
     console.error('Failed to clear cache', e);
   }
 };
 
 /**
- * Get cache size in bytes
+ * Get total cache size in bytes
  */
 export const getCacheSize = async (): Promise<number> => {
-  try {
-    const dirInfo = await FileSystem.getInfoAsync(CACHE_DIR);
-    if (!dirInfo.exists) return 0;
-    
-    // FileSystem.getInfoAsync for a directory doesn't always return size correctly on all platforms
-    // A more robust way would be to list all files and sum their sizes, but for simplicity:
-    return (dirInfo as any).size || 0;
-  } catch (e) {
-    return 0;
-  }
+  const detailed = await getDetailedCacheSize();
+  return detailed.music + detailed.audiobooks + detailed.covers + detailed.apks;
 };
