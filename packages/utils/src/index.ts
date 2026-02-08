@@ -4,6 +4,7 @@ import * as https from 'https';
 import * as iconv from 'iconv-lite';
 import * as music from 'music-metadata';
 import * as path from 'path';
+import { createClient, FileStat, WebDAVClient } from 'webdav';
 
 export interface ScanResult {
   path: string;
@@ -392,4 +393,125 @@ export class LocalMusicScanner {
   }
 }
 
-export default LocalMusicScanner;
+export class WebDAVScanner {
+  private client: WebDAVClient;
+
+  constructor(
+    private url: string,
+    private user?: string,
+    private password?: string,
+    private cacheDir?: string
+  ) {
+    // Decode URI to prevent double encoding and trim trailing slash
+    let decodedUrl = decodeURI(url);
+    if (decodedUrl.endsWith('/')) {
+      decodedUrl = decodedUrl.slice(0, -1);
+    }
+    
+    console.log(`[WebDAVScanner] Initialized with URL: ${decodedUrl}`);
+    
+    this.client = createClient(decodedUrl, {
+      username: user,
+      password: password,
+    });
+    if (cacheDir && !fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+  }
+
+  public async scan(remotePath: string = '/', callback: (item: ScanResult) => Promise<void>): Promise<void> {
+    try {
+      const contents = await this.client.getDirectoryContents(remotePath) as FileStat[];
+      
+      for (const item of contents) {
+        if (item.type === 'directory') {
+          await this.scan(item.filename, callback);
+        } else if (/\.(mp3|flac|ogg|wav|m4a|mp4)$/i.test(item.filename)) {
+          const result = await this.parseRemoteFile(item);
+          if (result) {
+            await callback(result);
+          }
+        }
+      }
+    } catch (e) {
+      console.error(`WebDAV scan failed for ${remotePath}:`, e);
+    }
+  }
+
+  private async parseRemoteFile(file: FileStat): Promise<ScanResult | null> {
+    const streamUrl = this.client.getFileDownloadLink(file.filename);
+    
+    const result: ScanResult = {
+      path: streamUrl,
+      originalPath: file.filename,
+      size: file.size,
+      mtime: new Date(file.lastmod),
+      title: path.basename(file.filename, path.extname(file.filename)),
+      artist: '未知',
+      album: '未知',
+      duration: 0,
+    };
+
+    // Try to fetch metadata using the same stream logic as strm
+    try {
+        // Simple helper to fetch metadata from WebDAV stream
+        const metadata = await this.fetchMetadata(streamUrl);
+        if (metadata) {
+            if (metadata.common.title) result.title = metadata.common.title;
+            if (metadata.common.artist) result.artist = metadata.common.artist;
+            if (metadata.common.album) result.album = metadata.common.album;
+            if (metadata.format.duration) result.duration = metadata.format.duration;
+
+            if (this.cacheDir && metadata.common.picture && metadata.common.picture.length > 0) {
+                const picture = metadata.common.picture[0];
+                const picExt = picture.format.split('/')[1] || 'jpg';
+                const coverName = `${Buffer.from(file.filename).toString('hex').slice(-20)}_${picExt}`;
+                const savePath = path.join(this.cacheDir, coverName);
+                fs.writeFileSync(savePath, picture.data);
+                result.coverPath = savePath;
+            }
+        }
+    } catch (e) {
+        console.warn(`Failed to fetch WebDAV metadata for ${file.filename}`);
+    }
+
+    return result;
+  }
+
+  private async fetchMetadata(url: string): Promise<music.IAudioMetadata | null> {
+    return new Promise((resolve) => {
+      const protocol = url.startsWith('https') ? https : http;
+      const options = {
+        headers: {
+            'Range': 'bytes=0-1048576',
+            'Authorization': `Basic ${Buffer.from(`${this.user}:${this.password}`).toString('base64')}`
+        }
+      };
+
+      const req = protocol.get(url, options, (res) => {
+        if (res.statusCode !== 200 && res.statusCode !== 206) {
+          res.resume();
+          return resolve(null);
+        }
+
+        music.parseStream(res as any, { mimeType: res.headers['content-type'] }, { skipCovers: false })
+          .then((metadata) => {
+            req.destroy();
+            resolve(metadata);
+          })
+          .catch(() => {
+            req.destroy();
+            resolve(null);
+          });
+      });
+
+      req.on('error', () => resolve(null));
+      req.setTimeout(10000, () => {
+        req.destroy();
+        resolve(null);
+      });
+    });
+  }
+}
+
+// No default export to avoid confusion with multiple scanner classes in one file

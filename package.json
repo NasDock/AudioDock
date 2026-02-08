@@ -28,7 +28,8 @@
   "author": "mmdctjj <mmdctjj@gmail.com>",
   "license": "ISC",
   "dependencies": {
-    "@soundx/utils": "workspace:^"
+    "@soundx/utils": "workspace:^",
+    "webdav": "^5.9.0"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

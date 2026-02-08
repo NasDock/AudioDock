@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { FileStatus, PrismaClient, TrackType } from '@soundx/db';
-import { LocalMusicScanner, ScanResult } from '@soundx/utils';
+import { LocalMusicScanner, ScanResult, WebDAVScanner } from '@soundx/utils';
 import * as chokidar from 'chokidar';
 import * as crypto from 'crypto';
 import { randomUUID } from 'crypto';
@@ -46,12 +46,51 @@ export class ImportService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    // Run content hash generation in background
+    // Run content hash generation and Check WebDAV in background
     setTimeout(() => {
         this.generateMissingHashes().catch(err => {
             this.logger.error("Failed to generate missing hashes", err);
         });
-    }, 5000); // Delay 5s to avoid startup contention
+        
+        // Auto-scan WebDAV on startup if library is empty
+        this.checkInitialWebDAVScan().catch(err => {
+            this.logger.error("Initial WebDAV scan failed", err);
+        });
+    }, 5000); 
+  }
+
+  private async checkInitialWebDAVScan() {
+    const count = await this.prisma.track.count();
+    if (count === 0) {
+        const cachePath = process.env.CACHE_DIR || './music/cover';
+        if (process.env.WEBDAV_MUSIC_URL) {
+            this.logger.log('Library is empty. Triggering initial WebDAV Music scan...');
+            this.startWebDAVImport(cachePath, TrackType.MUSIC).catch(e => this.logger.error('WebDAV Music initial scan failed', e));
+        }
+        if (process.env.WEBDAV_AUDIOBOOK_URL) {
+            this.logger.log('Library is empty. Triggering initial WebDAV Audiobook scan...');
+            this.startWebDAVImport(cachePath, TrackType.AUDIOBOOK).catch(e => this.logger.error('WebDAV Audiobook initial scan failed', e));
+        }
+    }
+  }
+
+  private async startWebDAVImport(cachePath: string, type: TrackType) {
+    const webdavUrl = type === TrackType.AUDIOBOOK ? process.env.WEBDAV_AUDIOBOOK_URL : process.env.WEBDAV_MUSIC_URL;
+    if (!webdavUrl) return;
+
+    const scanner = new WebDAVScanner(
+        webdavUrl, 
+        process.env.WEBDAV_USER, 
+        process.env.WEBDAV_PASSWORD,
+        cachePath
+    );
+
+    this.logger.log(`Starting WebDAV ${type} scan: ${webdavUrl}`);
+    await scanner.scan('/', async (item) => {
+        // Folder ID is null for WebDAV for now as it doesn't map to local folder tree easily
+        await this.processTrackData(item, type, '', cachePath, item.path, null, '');
+    });
+    this.logger.log(`WebDAV ${type} scan completed.`);
   }
 
   private async generateMissingHashes() {
@@ -425,6 +464,14 @@ export class ImportService implements OnModuleInit {
 
       task.status = TaskStatus.SUCCESS;
       this.setupWatcher(musicPath, audiobookPath, cachePath);
+
+      // Trigger WebDAV scans after local scan
+      if (process.env.WEBDAV_MUSIC_URL) {
+          this.startWebDAVImport(cachePath, TrackType.MUSIC).catch(e => this.logger.error('WebDAV Music background scan failed', e));
+      }
+      if (process.env.WEBDAV_AUDIOBOOK_URL) {
+          this.startWebDAVImport(cachePath, TrackType.AUDIOBOOK).catch(e => this.logger.error('WebDAV Audiobook background scan failed', e));
+      }
 
     } catch (error) {
       console.error('Import failed:', error);
