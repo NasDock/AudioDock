@@ -419,6 +419,23 @@ export class WebDAVScanner {
     }
   }
 
+  public async count(remotePath: string = '/'): Promise<number> {
+    let count = 0;
+    try {
+      const contents = await this.client.getDirectoryContents(remotePath) as FileStat[];
+      for (const item of contents) {
+        if (item.type === 'directory') {
+          count += await this.count(item.filename);
+        } else if (/\.(mp3|flac|ogg|wav|m4a|mp4)$/i.test(item.filename)) {
+          count++;
+        }
+      }
+    } catch (e) {
+      console.error(`WebDAV count failed for ${remotePath}:`, e);
+    }
+    return count;
+  }
+
   public async scan(remotePath: string = '/', callback: (item: ScanResult) => Promise<void>): Promise<void> {
     try {
       const contents = await this.client.getDirectoryContents(remotePath) as FileStat[];

@@ -883,24 +883,36 @@ export default function PersonalScreen() {
               />
             </View>
 
-            <Text style={[styles.importCounts, { color: colors.secondary }]}>
-              共检测到 {importTask?.total || 0} 个音频文件，已经入库{" "}
-              {importTask?.current || 0} 个
-            </Text>
+            <View style={{ marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ color: colors.secondary, fontSize: 12 }}>本地文件</Text>
+                    <Text style={{ color: colors.text, fontSize: 12 }}>{importTask?.localCurrent || 0} / {importTask?.localTotal || 0}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ color: colors.secondary, fontSize: 12 }}>WebDAV 文件</Text>
+                    <Text style={{ color: colors.text, fontSize: 12 }}>{importTask?.webdavCurrent || 0} / {importTask?.webdavTotal || 0}</Text>
+                </View>
+                <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: 'bold' }}>总进度</Text>
+                    <Text style={{ color: colors.primary, fontSize: 13, fontWeight: 'bold' }}>{importTask?.current || 0} / {importTask?.total || 0}</Text>
+                </View>
+            </View>
 
             {importTask?.currentFileName && (
-              <Text
-                numberOfLines={1}
-                ellipsizeMode="middle"
-                style={{
-                  color: colors.secondary,
-                  fontSize: 11,
-                  marginBottom: 10,
-                  fontStyle: "italic",
-                }}
-              >
-                正在处理: {importTask.currentFileName}
-              </Text>
+              <View style={{ backgroundColor: colors.background, padding: 8, borderRadius: 6, marginBottom: 15 }}>
+                <Text
+                    numberOfLines={1}
+                    ellipsizeMode="middle"
+                    style={{
+                    color: colors.secondary,
+                    fontSize: 11,
+                    fontStyle: "italic",
+                    }}
+                >
+                    正在处理: {importTask.currentFileName}
+                </Text>
+              </View>
             )}
 
             {importTask?.status === TaskStatus.SUCCESS ||

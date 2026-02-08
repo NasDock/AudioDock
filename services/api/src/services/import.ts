@@ -24,6 +24,10 @@ export interface ImportTask {
   message?: string;
   total?: number;
   current?: number;
+  localTotal?: number;
+  localCurrent?: number;
+  webdavTotal?: number;
+  webdavCurrent?: number;
   currentFileName?: string;
   mode?: 'incremental' | 'full';
 }
@@ -74,9 +78,11 @@ export class ImportService implements OnModuleInit {
     }
   }
 
-  private async startWebDAVImport(cachePath: string, type: TrackType) {
+  private async startWebDAVImport(cachePath: string, type: TrackType, taskId?: string) {
     const webdavUrl = type === TrackType.AUDIOBOOK ? process.env.WEBDAV_AUDIOBOOK_URL : process.env.WEBDAV_MUSIC_URL;
     if (!webdavUrl) return;
+
+    const task = taskId ? this.tasks.get(taskId) : null;
 
     const scanner = new WebDAVScanner(
         webdavUrl, 
@@ -87,8 +93,16 @@ export class ImportService implements OnModuleInit {
 
     this.logger.log(`Starting WebDAV ${type} scan: ${webdavUrl}`);
     await scanner.scan('/', async (item) => {
+        if (task) {
+            task.currentFileName = item.title || path.basename(item.path);
+        }
         // Folder ID is null for WebDAV for now as it doesn't map to local folder tree easily
         await this.processTrackData(item, type, '', cachePath, item.path, null, '');
+        
+        if (task) {
+            task.webdavCurrent = (task.webdavCurrent || 0) + 1;
+            task.current = (task.current || 0) + 1;
+        }
     });
     this.logger.log(`WebDAV ${type} scan completed.`);
   }
@@ -439,16 +453,40 @@ export class ImportService implements OnModuleInit {
       this.scanner = new LocalMusicScanner(cachePath);
       const musicCount = await this.scanner.countFiles(musicPath);
       const audiobookCount = await this.scanner.countFiles(audiobookPath);
-      task.total = musicCount + audiobookCount;
+      
+      let webdavMusicCount = 0;
+      let webdavAudiobookCount = 0;
+      
+      if (process.env.WEBDAV_MUSIC_URL) {
+          const wdScanner = new WebDAVScanner(process.env.WEBDAV_MUSIC_URL, process.env.WEBDAV_USER, process.env.WEBDAV_PASSWORD);
+          webdavMusicCount = await wdScanner.count('/');
+      }
+      if (process.env.WEBDAV_AUDIOBOOK_URL) {
+          const wdScanner = new WebDAVScanner(process.env.WEBDAV_AUDIOBOOK_URL, process.env.WEBDAV_USER, process.env.WEBDAV_PASSWORD);
+          webdavAudiobookCount = await wdScanner.count('/');
+      }
+
+      task.localTotal = musicCount + audiobookCount;
+      task.webdavTotal = webdavMusicCount + webdavAudiobookCount;
+      task.total = task.localTotal + task.webdavTotal;
+      
+      task.localCurrent = 0;
+      task.webdavCurrent = 0;
       task.current = 0;
       task.status = TaskStatus.PARSING;
 
-      const processItem = async (item: ScanResult, type: TrackType, audioBasePath: string) => {
+      const processItem = async (item: ScanResult, type: TrackType, audioBasePath: string, isWebDAV = false) => {
           const audioUrl = item.path.startsWith('http') ? item.path : this.convertToHttpUrl(item.originalPath || item.path, type === TrackType.AUDIOBOOK ? 'audio' : 'music', audioBasePath);
-          const folderId = await this.getFolderId(item.originalPath || item.path, audioBasePath, type);
-          const hash = await this.calculateFingerprint(item.originalPath || item.path);
+          const folderId = isWebDAV ? null : await this.getFolderId(item.originalPath || item.path, audioBasePath, type);
+          const hash = isWebDAV ? '' : await this.calculateFingerprint(item.originalPath || item.path);
 
           await this.processTrackData(item, type, audioBasePath, cachePath, audioUrl, folderId, hash);
+          
+          if (isWebDAV) {
+            task.webdavCurrent = (task.webdavCurrent || 0) + 1;
+          } else {
+            task.localCurrent = (task.localCurrent || 0) + 1;
+          }
           task.current = (task.current || 0) + 1;
       };
 
@@ -462,16 +500,16 @@ export class ImportService implements OnModuleInit {
         await processItem(item, TrackType.AUDIOBOOK, audiobookPath);
       });
 
-      task.status = TaskStatus.SUCCESS;
-      this.setupWatcher(musicPath, audiobookPath, cachePath);
-
-      // Trigger WebDAV scans after local scan
+      // Trigger WebDAV scans as part of the same task flow
       if (process.env.WEBDAV_MUSIC_URL) {
-          this.startWebDAVImport(cachePath, TrackType.MUSIC).catch(e => this.logger.error('WebDAV Music background scan failed', e));
+          await this.startWebDAVImport(cachePath, TrackType.MUSIC, id);
       }
       if (process.env.WEBDAV_AUDIOBOOK_URL) {
-          this.startWebDAVImport(cachePath, TrackType.AUDIOBOOK).catch(e => this.logger.error('WebDAV Audiobook background scan failed', e));
+          await this.startWebDAVImport(cachePath, TrackType.AUDIOBOOK, id);
       }
+
+      task.status = TaskStatus.SUCCESS;
+      this.setupWatcher(musicPath, audiobookPath, cachePath);
 
     } catch (error) {
       console.error('Import failed:', error);

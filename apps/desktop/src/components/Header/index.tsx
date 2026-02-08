@@ -1,57 +1,57 @@
 import {
-  CustomerServiceOutlined,
-  DatabaseOutlined,
-  DeleteOutlined,
-  FolderOutlined,
-  GithubOutlined,
-  HeartOutlined,
-  ImportOutlined,
-  LeftOutlined,
-  LogoutOutlined,
-  MoonOutlined,
-  PlusOutlined,
-  ReadOutlined,
-  ReloadOutlined,
-  RetweetOutlined,
-  RightOutlined,
-  RollbackOutlined,
-  SearchOutlined,
-  SettingOutlined,
-  SunOutlined,
-  WifiOutlined,
+    CustomerServiceOutlined,
+    DatabaseOutlined,
+    DeleteOutlined,
+    FolderOutlined,
+    GithubOutlined,
+    HeartOutlined,
+    ImportOutlined,
+    LeftOutlined,
+    LogoutOutlined,
+    MoonOutlined,
+    PlusOutlined,
+    ReadOutlined,
+    ReloadOutlined,
+    RetweetOutlined,
+    RightOutlined,
+    RollbackOutlined,
+    SearchOutlined,
+    SettingOutlined,
+    SunOutlined,
+    WifiOutlined,
 } from "@ant-design/icons";
 import {
-  addSearchRecord,
-  check,
-  clearSearchHistory,
-  createImportTask,
-  getHotSearches,
-  getImportTask,
-  getRunningImportTask,
-  getSearchHistory,
-  searchAll,
-  setServiceConfig,
-  SOURCEMAP,
-  TaskStatus,
-  useNativeAdapter,
-  useSubsonicAdapter,
-  type ImportTask,
-  type SearchResults as SearchResultsType,
+    addSearchRecord,
+    check,
+    clearSearchHistory,
+    createImportTask,
+    getHotSearches,
+    getImportTask,
+    getRunningImportTask,
+    getSearchHistory,
+    searchAll,
+    setServiceConfig,
+    SOURCEMAP,
+    TaskStatus,
+    useNativeAdapter,
+    useSubsonicAdapter,
+    type ImportTask,
+    type SearchResults as SearchResultsType,
 } from "@soundx/services";
 import {
-  Button,
-  Card,
-  Empty,
-  Flex,
-  Input,
-  Modal,
-  Popover,
-  Progress,
-  Segmented,
-  Spin,
-  theme,
-  Tooltip,
-  Typography,
+    Button,
+    Card,
+    Empty,
+    Flex,
+    Input,
+    Modal,
+    Popover,
+    Progress,
+    Segmented,
+    Spin,
+    theme,
+    Tooltip,
+    Typography,
 } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -876,26 +876,39 @@ const Header: React.FC = () => {
                   : "active"
             }
           />
-          <div
-            style={{
-              marginTop: 8,
-              textAlign: "right",
-              color: token.colorTextSecondary,
-            }}
-          >
-            共检测到 {importTask?.total || 0} 个音频文件，已经入库{" "}
-            {importTask?.current || 0} 个
-          </div>
+          <Flex vertical gap={4} style={{ marginTop: 12 }}>
+            <Flex justify="space-between" align="center">
+              <Text type="secondary" style={{ fontSize: 12 }}>本地文件入库进度</Text>
+              <Text style={{ fontSize: 13 }}>
+                {importTask?.localCurrent || 0} / {importTask?.localTotal || 0}
+              </Text>
+            </Flex>
+            <Flex justify="space-between" align="center">
+              <Text type="secondary" style={{ fontSize: 12 }}>WebDAV 文件入库进度</Text>
+              <Text style={{ fontSize: 13 }}>
+                {importTask?.webdavCurrent || 0} / {importTask?.webdavTotal || 0}
+              </Text>
+            </Flex>
+            <Flex justify="space-between" align="center" style={{ marginTop: 4, paddingTop: 4, borderTop: `1px dashed ${token.colorBorderSecondary}` }}>
+              <Text strong style={{ fontSize: 12 }}>总进度</Text>
+              <Text strong style={{ fontSize: 13 }}>
+                {importTask?.current || 0} / {importTask?.total || 0}
+              </Text>
+            </Flex>
+          </Flex>
           {importTask?.currentFileName && (
             <div
               style={{
-                marginTop: 4,
+                marginTop: 12,
                 fontSize: 12,
                 color: token.colorTextTertiary,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
                 fontStyle: "italic",
+                padding: '4px 8px',
+                backgroundColor: token.colorFillAlter,
+                borderRadius: 4
               }}
             >
               正在处理: {importTask.currentFileName}
