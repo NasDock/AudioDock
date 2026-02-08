@@ -67,15 +67,15 @@ jobs:
               "template": "#{{CHANGELOG}}",
               "categories": [
                 {
-                    "title": "## 🚀 Features",
+                    "title": "## 新功能",
                     "labels": ["feat", "feature", "Feat", "Feature"]
                 },
                 {
-                    "title": "## 🐛 Fixes",
+                    "title": "## 修复",
                     "labels": ["fix", "bug", "Fix", "Bug"]
                 },
                 {
-                    "title": "## 🧪 Other Changes",
+                    "title": "## 更新内容",
                     "labels": []
                 }
               ],

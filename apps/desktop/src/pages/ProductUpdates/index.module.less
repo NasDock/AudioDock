@@ -1,0 +1,128 @@
+.productUpdatesPage {
+  padding: 32px 48px;
+  max-width: 100%;
+  overflow-y: auto;
+  height: 100%;
+
+  .header {
+    margin-bottom: 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .title {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 0;
+  }
+
+  .version {
+    font-size: 14px;
+    opacity: 0.6;
+  }
+
+  .contentCard {
+    background: var(--ant-color-bg-container);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+    .updateTitle {
+      font-size: 20px;
+      margin-bottom: 24px;
+    }
+  }
+
+  .qrSection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px;
+    border-top: 1px solid var(--ant-color-border-secondary);
+
+    .qrCode {
+      width: 100px;
+      height: 100px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .qrLabel {
+      font-size: 14px;
+      opacity: 0.6;
+    }
+  }
+
+  /* Markdown styles */
+  .markdown {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--ant-color-text);
+
+    h1, h2, h3 {
+      color: var(--ant-color-text);
+      margin: 24px 0 16px;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+
+    h1 { font-size: 2em; border-bottom: 1px solid var(--ant-color-border-secondary); padding-bottom: 0.3em; }
+    h2 { font-size: 1.5em; border-bottom: 1px solid var(--ant-color-border-secondary); padding-bottom: 0.3em; }
+    h3 { font-size: 1.25em; }
+
+    ul, ol {
+      padding-left: 2em;
+      margin-bottom: 16px;
+    }
+
+    li {
+      margin: 0.25em 0;
+    }
+
+    p {
+      margin-bottom: 16px;
+    }
+
+    code {
+      padding: 0.2em 0.4em;
+      margin: 0;
+      font-size: 85%;
+      background-color: var(--ant-color-fill-alter);
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+    }
+
+    pre {
+      padding: 16px;
+      overflow: auto;
+      font-size: 85%;
+      line-height: 1.45;
+      background-color: var(--ant-color-fill-alter);
+      border-radius: 6px;
+      margin-bottom: 16px;
+
+      code {
+        padding: 0;
+        background-color: transparent;
+        font-size: 100%;
+      }
+    }
+
+    a {
+      color: var(--ant-color-primary);
+      text-decoration: none;
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+
+    blockquote {
+      padding: 0 1em;
+      color: var(--ant-color-text-description);
+      border-left: 0.25em solid var(--ant-color-border);
+      margin: 0 0 16px;
+    }
+  }
+}

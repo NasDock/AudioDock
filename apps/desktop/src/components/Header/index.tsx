@@ -798,6 +798,13 @@ const Header: React.FC = () => {
 
               <div
                 className={styles.userMenuItem}
+                onClick={() => navigate("/product-updates")}
+              >
+                <ReadOutlined className={styles.actionIcon} />
+                产品动态
+              </div>
+              <div
+                className={styles.userMenuItem}
                 onClick={() => navigate("/settings")}
               >
                 <SettingOutlined className={styles.actionIcon} />

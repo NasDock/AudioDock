@@ -26,6 +26,7 @@ const Songs = lazy(() => import("./pages/Songs/index"));
 const Login = lazy(() => import("./pages/Login/index"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword/index"));
 const SourceManage = lazy(() => import("./pages/SourceManage/index"));
+const ProductUpdates = lazy(() => import("./pages/ProductUpdates/index"));
 
 import { theme } from "antd";
 import { useEffect } from "react";
@@ -221,6 +222,10 @@ const AppContent = () => {
                               <Route
                                 path="/admin/users"
                                 element={<UserManagement />}
+                              />
+                              <Route
+                                path="/product-updates"
+                                element={<ProductUpdates />}
                               />
                             </Routes>
                           </Suspense>
