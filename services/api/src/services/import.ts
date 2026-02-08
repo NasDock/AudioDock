@@ -207,14 +207,14 @@ export class ImportService implements OnModuleInit {
     this.watcher
       .on('add', async (filePath) => {
         const info = getBasePathAndType(filePath);
-        if (info && /\.(mp3|flac|ogg|wav|m4a)$/i.test(filePath)) {
+        if (info && /\.(mp3|flac|ogg|wav|m4a|mp4|strm)$/i.test(filePath)) {
           this.logger.log(`[Watcher] File added: ${filePath}`);
           await this.handleFileAdd(filePath, info.basePath, info.type, cachePath);
         }
       })
       .on('change', async (filePath) => {
         const info = getBasePathAndType(filePath);
-        if (info && /\.(mp3|flac|ogg|wav|m4a)$/i.test(filePath)) {
+        if (info && /\.(mp3|flac|ogg|wav|m4a|mp4|strm)$/i.test(filePath)) {
             this.logger.log(`[Watcher] File changed: ${filePath}`);
             await this.handleFileChange(filePath, info.basePath, info.type, cachePath);
         }
@@ -235,7 +235,18 @@ export class ImportService implements OnModuleInit {
 
     if (trashedTrack) {
         this.logger.log(`[Watcher] Resurrecting moved track: ${trashedTrack.name} -> ${filePath}`);
-        const audioUrl = this.convertToHttpUrl(filePath, type === TrackType.AUDIOBOOK ? 'audio' : 'music', basePath);
+        
+        let audioUrl = '';
+        if (filePath.toLowerCase().endsWith('.strm')) {
+            if (!this.scanner) this.scanner = new LocalMusicScanner(cachePath);
+            const metadata = await this.scanner.parseFile(filePath);
+            audioUrl = metadata?.path || '';
+        }
+
+        if (!audioUrl) {
+            audioUrl = filePath.startsWith('http') ? filePath : this.convertToHttpUrl(filePath, type === TrackType.AUDIOBOOK ? 'audio' : 'music', basePath);
+        }
+
         const folderId = await this.getFolderId(filePath, basePath, type);
         
         await this.prisma.track.update({
@@ -256,8 +267,8 @@ export class ImportService implements OnModuleInit {
         if (!this.scanner) this.scanner = new LocalMusicScanner(cachePath);
         const metadata = await this.scanner.parseFile(filePath);
         if (metadata) {
-             const audioUrl = this.convertToHttpUrl(filePath, type === TrackType.AUDIOBOOK ? 'audio' : 'music', basePath);
-             const folderId = await this.getFolderId(filePath, basePath, type);
+             const audioUrl = metadata.path.startsWith('http') ? metadata.path : this.convertToHttpUrl(filePath, type === TrackType.AUDIOBOOK ? 'audio' : 'music', basePath);
+             const folderId = await this.getFolderId(metadata.originalPath || filePath, basePath, type);
              await this.processTrackData(metadata, type, basePath, cachePath, audioUrl, folderId, hash);
         }
     }
@@ -267,7 +278,7 @@ export class ImportService implements OnModuleInit {
      if (!this.scanner) this.scanner = new LocalMusicScanner(cachePath);
      const metadata = await this.scanner.parseFile(filePath);
      if (metadata) {
-         const audioUrl = this.convertToHttpUrl(filePath, type === TrackType.AUDIOBOOK ? 'audio' : 'music', basePath);
+         const audioUrl = metadata.path.startsWith('http') ? metadata.path : this.convertToHttpUrl(filePath, type === TrackType.AUDIOBOOK ? 'audio' : 'music', basePath);
          const track = await this.trackService.findByPath(audioUrl);
          
          const hash = await this.calculateFingerprint(filePath);
@@ -394,9 +405,9 @@ export class ImportService implements OnModuleInit {
       task.status = TaskStatus.PARSING;
 
       const processItem = async (item: ScanResult, type: TrackType, audioBasePath: string) => {
-          const audioUrl = this.convertToHttpUrl(item.path, type === TrackType.AUDIOBOOK ? 'audio' : 'music', audioBasePath);
-          const folderId = await this.getFolderId(item.path, audioBasePath, type);
-          const hash = await this.calculateFingerprint(item.path);
+          const audioUrl = item.path.startsWith('http') ? item.path : this.convertToHttpUrl(item.originalPath || item.path, type === TrackType.AUDIOBOOK ? 'audio' : 'music', audioBasePath);
+          const folderId = await this.getFolderId(item.originalPath || item.path, audioBasePath, type);
+          const hash = await this.calculateFingerprint(item.originalPath || item.path);
 
           await this.processTrackData(item, type, audioBasePath, cachePath, audioUrl, folderId, hash);
           task.current = (task.current || 0) + 1;

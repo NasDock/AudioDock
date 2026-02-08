@@ -1,4 +1,6 @@
 import * as fs from 'fs';
+import * as http from 'http';
+import * as https from 'https';
 import * as iconv from 'iconv-lite';
 import * as music from 'music-metadata';
 import * as path from 'path';
@@ -84,7 +86,7 @@ export class LocalMusicScanner {
             const stat = fs.statSync(fullPath);
             if (stat.isDirectory()) {
               traverseCount(fullPath);
-            } else if (/\.(mp3|flac|ogg|wav|m4a)$/i.test(file)) {
+            } else if (/\.(mp3|flac|ogg|wav|m4a|mp4|strm)$/i.test(file)) {
               count++;
             }
           } catch (e) {
@@ -109,7 +111,7 @@ export class LocalMusicScanner {
           const stat = fs.statSync(fullPath);
           if (stat.isDirectory()) {
             await this.traverse(fullPath, callback);
-          } else if (/\.(mp3|flac|ogg|wav|m4a)$/i.test(file)) {
+          } else if (/\.(mp3|flac|ogg|wav|m4a|mp4|strm)$/i.test(file)) {
             await callback(fullPath);
           }
         } catch (e) {
@@ -123,6 +125,59 @@ export class LocalMusicScanner {
 
   public async parseFile(filePath: string): Promise<ScanResult | null> {
     try {
+      const ext = path.extname(filePath).toLowerCase();
+      
+      // Handle .strm files
+      if (ext === '.strm') {
+        let url = fs.readFileSync(filePath, 'utf-8').trim();
+        if (!url) return null;
+
+        // Resolve relative paths using STRM_ADDRESS
+        if (!url.startsWith('http')) {
+          const base = process.env.STRM_ADDRESS || '';
+          // Ensure no double slashes if base ends with / or url starts with /
+          const separator = (base.endsWith('/') || url.startsWith('/')) ? '' : '/';
+          url = `${base}${separator}${url}`;
+        }
+
+        const scanResult: ScanResult = {
+          path: encodeURI(decodeURI(url)),
+          originalPath: filePath,
+          size: fs.statSync(filePath).size,
+          mtime: fs.statSync(filePath).mtime,
+          title: path.basename(filePath, '.strm'),
+          artist: '未知',
+          album: '未知',
+          duration: 0,
+        };
+
+        // Try to fetch remote metadata
+        try {
+          const remoteMetadata = await this.parseRemoteFile(url);
+          if (remoteMetadata) {
+            if (remoteMetadata.common.title) scanResult.title = remoteMetadata.common.title;
+            if (remoteMetadata.common.artist) scanResult.artist = remoteMetadata.common.artist;
+            if (remoteMetadata.common.album) scanResult.album = remoteMetadata.common.album;
+            if (remoteMetadata.format.duration) scanResult.duration = remoteMetadata.format.duration;
+            
+            // Handle cover if present in remote metadata
+            if (remoteMetadata.common.picture && remoteMetadata.common.picture.length > 0) {
+              const picture = remoteMetadata.common.picture[0];
+              const picExt = picture.format.split('/')[1] || 'jpg';
+              const fileName = path.basename(filePath);
+              const coverName = `${fileName}_strm.${picExt}`;
+              const savePath = path.join(this.cacheDir, coverName);
+              fs.writeFileSync(savePath, picture.data);
+              scanResult.coverPath = savePath;
+            }
+          }
+        } catch (e: any) {
+          console.warn(`Failed to fetch remote metadata for ${url}: ${e.message}`);
+        }
+
+        return scanResult;
+      }
+
       const metadata = await music.parseFile(filePath);
       const common = metadata.common;
 
@@ -188,6 +243,7 @@ export class LocalMusicScanner {
 
       return {
         path: filePath,
+        originalPath: filePath,
         size: fs.statSync(filePath).size,
         mtime: fs.statSync(filePath).mtime,
         ...common,
@@ -280,6 +336,59 @@ export class LocalMusicScanner {
       // Ignore
     }
     return str;
+  }
+
+  private async parseRemoteFile(url: string, redirectCount = 0): Promise<music.IAudioMetadata | null> {
+    if (redirectCount > 5) return null;
+
+    return new Promise((resolve, reject) => {
+      const client = url.startsWith('https') ? https : http;
+      const options = {
+        timeout: 10000,
+        headers: {
+          'Range': 'bytes=0-1048576' // Request first 1MB to avoid downloading whole file
+        }
+      };
+      
+      const req = client.get(url, options, (res: http.IncomingMessage) => {
+        // Handle transparency/redirects
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          res.resume();
+          let location = res.headers.location;
+          if (!location.startsWith('http')) {
+            const parsed = new URL(url);
+            location = `${parsed.protocol}//${parsed.host}${location}`;
+          }
+          return resolve(this.parseRemoteFile(location, redirectCount + 1));
+        }
+
+        if (res.statusCode !== 200 && res.statusCode !== 206) {
+          res.resume();
+          return resolve(null);
+        }
+
+        music.parseStream(res as any, { mimeType: res.headers['content-type'] }, { skipCovers: false })
+          .then((metadata) => {
+            req.destroy(); 
+            resolve(metadata);
+          })
+          .catch((err: any) => {
+            req.destroy();
+            // Don't reject for metadata parsing errors, just log and return basic info
+            console.warn(`Metadata parsing failed for ${url}: ${err.message}`);
+            resolve(null);
+          });
+      });
+
+      req.on('error', (err) => {
+        resolve(null); // Resolve with null on connection error
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        resolve(null);
+      });
+    });
   }
 }
 

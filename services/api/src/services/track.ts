@@ -40,6 +40,16 @@ export class TrackService {
     return await this.prisma.track.findMany({ where: { status: 'ACTIVE' } });
   }
 
+  async findById(id: number): Promise<Track | null> {
+    return await this.prisma.track.findUnique({
+      where: { id },
+      include: {
+        artistEntity: true,
+        albumEntity: true,
+      },
+    });
+  }
+
   async findByPath(path: string): Promise<Track | null> {
     return await this.prisma.track.findFirst({
       where: { path, status: 'ACTIVE' },

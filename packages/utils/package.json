@@ -1,6 +1,6 @@
 {
   "name": "@soundx/utils",
-  "version": "1.0.76",
+  "version": "1.0.77",
   "description": "",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
