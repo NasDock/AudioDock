@@ -15,10 +15,12 @@ export const PlaybackService = async function () {
 
     TrackPlayer.addEventListener(Event.RemoteNext, () => {
         console.log('[PlaybackService] Event.RemoteNext');
+        TrackPlayer.skipToNext();
     });
 
     TrackPlayer.addEventListener(Event.RemotePrevious, () => {
         console.log('[PlaybackService] Event.RemotePrevious');
+        TrackPlayer.skipToPrevious();
     });
 
     TrackPlayer.addEventListener(Event.RemoteJumpForward, (event) => {

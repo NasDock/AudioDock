@@ -1,0 +1,165 @@
+name: Test Build (feat/test)
+
+on:
+  push:
+    branches:
+      - "feat/test"
+  workflow_dispatch:
+
+jobs:
+  build-desktop:
+    name: Build Desktop (${{ matrix.platform }})
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+            command: build:mac
+          - os: windows-latest
+            platform: win
+            command: build:win
+          - os: ubuntu-latest
+            platform: linux
+            command: build:linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build Dependencies
+        run: |
+          pnpm --filter @soundx/ws run build
+          pnpm --filter @soundx/utils run build
+          pnpm --filter @soundx/db run generate
+          pnpm --filter @soundx/services run build
+
+      - name: Build Electron App
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm --filter sound-x run ${{ matrix.command }} -- --publish never
+
+      - name: Upload Release Assets (Draft)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: test-build
+          name: Test Build (feat/test)
+          draft: true
+          files: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/*.deb
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/latest*.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Patch react-native-track-player
+        run: |
+          FILE=$(find node_modules -name MusicModule.kt | grep "react-native-track-player")
+          if [ -n "$FILE" ]; then
+            echo "Patching $FILE"
+            sed -i 's/metadata.putBundle(Metas.METADATA_KEY_EXTRAS, bundle)/metadata.putBundle(Metas.METADATA_KEY_EXTRAS, bundle ?: Bundle())/g' "$FILE"
+            sed -i 's/intent.putExtras(bundle)/intent.putExtras(bundle ?: Bundle())/g' "$FILE"
+          else
+            echo "MusicModule.kt not found"
+          fi
+
+      - name: Build Dependencies
+        run: |
+          pnpm --filter @soundx/ws run build
+          pnpm --filter @soundx/utils run build
+          pnpm --filter @soundx/db run generate
+
+      - name: Expo Prebuild
+        run: |
+          cd apps/mobile
+          npx expo prebuild --platform android --no-install
+
+      - name: Copy Network Security Config
+        run: |
+          mkdir -p apps/mobile/android/app/src/main/res/xml
+          cp apps/mobile/network_security_config.xml apps/mobile/android/app/src/main/res/xml/
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build Android APK
+        run: |
+          cd apps/mobile/android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: Rename and Prepare APK
+        id: prepare_apk
+        run: |
+          VERSION=$(node -p "require('./apps/mobile/app.json').expo.version")
+          OLD_PATH="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+          NEW_NAME="AudioDock-${VERSION}-test.apk"
+          NEW_PATH="apps/mobile/android/app/build/outputs/apk/release/${NEW_NAME}"
+          mv "$OLD_PATH" "$NEW_PATH"
+          echo "apk_path=$NEW_PATH" >> $GITHUB_OUTPUT
+
+      - name: Upload Release Assets (Draft)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: test-build
+          name: Test Build (feat/test)
+          draft: true
+          files: |
+            ${{ steps.prepare_apk.outputs.apk_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,30 +1,30 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  addAlbumToHistory,
-  addToHistory,
-  getLatestHistory,
-  getLatestTracks,
-  reportAudiobookProgress
+    addAlbumToHistory,
+    addToHistory,
+    getLatestHistory,
+    getLatestTracks,
+    reportAudiobookProgress
 } from "@soundx/services";
 import * as Device from "expo-device";
 import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
+    createContext,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
 } from "react";
 import { Alert, Platform } from "react-native";
 import TrackPlayer, {
-  AppKilledPlaybackBehavior,
-  Capability,
-  Event,
-  IOSCategory,
-  IOSCategoryMode,
-  IOSCategoryOptions,
-  State,
-  useProgress,
-  useTrackPlayerEvents,
+    AppKilledPlaybackBehavior,
+    Capability,
+    Event,
+    IOSCategory,
+    IOSCategoryMode,
+    IOSCategoryOptions,
+    State,
+    useProgress,
+    useTrackPlayerEvents,
 } from "react-native-track-player";
 import { Track, TrackType } from "../models";
 import { socketService } from "../services/socket";
@@ -280,6 +280,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           setCurrentTrack(nextTrack);
           isSkippingOutroRef.current = false;
 
+          // ✨ 智能预缓存：当当前歌曲开始播放时，自动触发下一首的后台下载
+          const nextIndexForCache = event.index + 1;
+          if (nextIndexForCache < trackListRef.current.length) {
+              const preCacheTrack = trackListRef.current[nextIndexForCache];
+              console.log(`[Player] Pre-caching next song: ${preCacheTrack.name}`);
+              resolveTrackUri(preCacheTrack, { cacheEnabled, shouldDownload: true }).catch(() => {});
+          }
+
           // ✨ 处理有声书自动跳过片头
           if (
             nextTrack.type === TrackType.AUDIOBOOK &&
@@ -410,7 +418,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       progressUpdateEventInterval: 1,
       android: {
         appKilledPlaybackBehavior:
-          AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+          AppKilledPlaybackBehavior.ContinuePlayback,
       },
     } as any);
   };
@@ -647,9 +655,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsRadioMode(false);
     setTrackList(tracks);
     
-    // ✨ 核心改进：预加载整个列表进入原生队列
-    const playerTracks = await Promise.all(tracks.map(async (t) => {
-        const uri = await resolveTrackUri(t, { cacheEnabled });
+    // ✨ 核心改进：预加载整个列表进入原生队列，但仅触发当前和下一首的下载
+    const playerTracks = await Promise.all(tracks.map(async (t, i) => {
+        // 仅当前曲目 (index) 和下一首 (index + 1) 会触发下载
+        const shouldDownload = (i === index || i === index + 1);
+        const uri = await resolveTrackUri(t, { cacheEnabled, shouldDownload });
         const artwork = resolveArtworkUri(t);
         return {
           id: String(t.id),

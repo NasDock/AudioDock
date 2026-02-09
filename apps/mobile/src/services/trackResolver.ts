@@ -4,6 +4,7 @@ import { downloadTrack, isCached, resolveLocalPath } from "./cache";
 
 interface ResolveOptions {
   cacheEnabled: boolean;
+  shouldDownload?: boolean; // 新增：是否触发后台下载
 }
 
 /**
@@ -17,7 +18,7 @@ export const resolveTrackUri = async (
   track: Track,
   options: ResolveOptions
 ): Promise<string> => {
-  const { cacheEnabled } = options;
+  const { cacheEnabled, shouldDownload } = options;
 
   // 1. Construct the URI via backend stream endpoint
   const remoteUri = `${getBaseURL()}/track/stream/${track.id}`;
@@ -30,11 +31,13 @@ export const resolveTrackUri = async (
       return resolveLocalPath(localPath);
     }
 
-    // 3. If not cached but features is enabled, trigger background download
-    console.log(`[TrackResolver] Not cached, starting background download: ${track.id}`);
-    downloadTrack(track, remoteUri).catch((e) =>
-      console.error("[TrackResolver] Cache download failed", e)
-    );
+    // 3. If not cached but features is enabled AND shouldDownload is not explicitly false, trigger background download
+    if (shouldDownload !== false) {
+      console.log(`[TrackResolver] Not cached, starting background download: ${track.id}`);
+      downloadTrack(track, remoteUri).catch((e) =>
+        console.error("[TrackResolver] Cache download failed", e)
+      );
+    }
   }
 
   // 4. Return remote URI by default
