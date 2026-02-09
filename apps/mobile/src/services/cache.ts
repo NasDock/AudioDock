@@ -275,9 +275,18 @@ export const getDetailedCacheSize = async (): Promise<DetailedCacheSize> => {
     }
 
     // 3. Covers (Image Cache)
-    // expo-image stores its cache in cacheDirectory/ImageCache
-    const imageCacheDir = `${FileSystem.cacheDirectory}ImageCache/`;
-    result.covers = await getDirectorySize(imageCacheDir);
+    // expo-image stores its cache in different locations based on version and platform
+    const imageCacheDirs = [
+      `${FileSystem.cacheDirectory}ImageCache/`,        // Older expo-image
+      `${FileSystem.cacheDirectory}expo-image-cache/`,   // Newer expo-image
+      `${FileSystem.cacheDirectory}GlideCache/`,        // Android Glide
+      `${FileSystem.cacheDirectory}com.hackemist.SDImageCache/`, // iOS SDWebImage
+    ];
+    
+    for (const dir of imageCacheDirs) {
+      const size = await getDirectorySize(dir);
+      result.covers += size;
+    }
 
   } catch (e) {
     console.error("Failed to get detailed cache size", e);
@@ -305,8 +314,20 @@ export const clearSpecificCache = async (category: keyof DetailedCacheSize) => {
         break;
       
       case 'covers':
-        const imageCacheDir = `${FileSystem.cacheDirectory}ImageCache/`;
-        await FileSystem.deleteAsync(imageCacheDir, { idempotent: true });
+        // Clear all potential image cache directories
+        const imageCacheDirs = [
+          `${FileSystem.cacheDirectory}ImageCache/`,
+          `${FileSystem.cacheDirectory}expo-image-cache/`,
+          `${FileSystem.cacheDirectory}GlideCache/`,
+          `${FileSystem.cacheDirectory}com.hackemist.SDImageCache/`,
+        ];
+        for (const dir of imageCacheDirs) {
+          try {
+            await FileSystem.deleteAsync(dir, { idempotent: true });
+          } catch (e) {
+            // Ignore errors for individual directories
+          }
+        }
         break;
 
       case 'music':

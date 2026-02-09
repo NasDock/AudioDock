@@ -20,20 +20,22 @@ export const resolveTrackUri = async (
 ): Promise<string> => {
   const { cacheEnabled, shouldDownload } = options;
 
-  // 1. Construct the URI via backend stream endpoint
-  const remoteUri = `${getBaseURL()}/track/stream/${track.id}`;
+  // 1. Construct the remote URI
+  const remoteUri = track.path.startsWith("http")
+    ? track.path
+    : `${getBaseURL()}${track.path}`;
 
   // 2. Check for cached version if enabled
-  if (cacheEnabled && track.id && !track.path.startsWith('http')) {
+  if (cacheEnabled && track.id) {
     const localPath = await isCached(track.id, track.path);
     if (localPath) {
       console.log(`[TrackResolver] Playing from cache: ${track.id}`);
       return resolveLocalPath(localPath);
     }
 
-    // 3. If not cached but features is enabled AND shouldDownload is not explicitly false, trigger background download
-    if (shouldDownload !== false) {
-      console.log(`[TrackResolver] Not cached, starting background download: ${track.id}`);
+    // 3. If not cached but features is enabled, trigger background download
+    console.log(`[TrackResolver] Not cached, starting background download: ${track.id}`);
+    if (shouldDownload) {
       downloadTrack(track, remoteUri).catch((e) =>
         console.error("[TrackResolver] Cache download failed", e)
       );
@@ -52,5 +54,5 @@ export const resolveArtworkUri = (track: Track): string | undefined => {
   
   return track.cover.startsWith("http")
     ? track.cover
-    : `${getBaseURL()}${encodeURI(track.cover)}`;
+    : `${getBaseURL()}${track.cover}`;
 };

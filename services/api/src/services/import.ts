@@ -13,6 +13,7 @@ import { TrackService } from './track';
 
 export enum TaskStatus {
   INITIALIZING = 'INITIALIZING',
+  PREPARING = 'PREPARING',
   PARSING = 'PARSING',
   SUCCESS = 'SUCCESS',
   FAILED = 'FAILED',
@@ -183,20 +184,35 @@ export class ImportService implements OnModuleInit {
     }
   }
 
-  private async clearLibraryData() {
-    this.logger.log('Starting full library cleanup...');
-    await this.prisma.userTrackHistory.deleteMany();
-    await this.prisma.userTrackLike.deleteMany();
-    await this.prisma.userAudiobookHistory.deleteMany();
-    await this.prisma.userAudiobookLike.deleteMany();
-    await this.prisma.userAlbumHistory.deleteMany();
-    await this.prisma.userAlbumLike.deleteMany();
-    await this.prisma.playlist.deleteMany();
-    await this.prisma.track.deleteMany();
-    await this.prisma.album.deleteMany();
-    await this.prisma.artist.deleteMany();
-    await this.prisma.folder.deleteMany();
-    this.logger.log('Full library cleanup completed.');
+  private async clearLibraryData(task?: ImportTask) {
+    this.logger.log('Starting full library soft-sync (marking as TRASHED)...');
+    
+    if (task) {
+        task.status = TaskStatus.PREPARING;
+        task.message = '正在准备环境...';
+    }
+
+    const tables = [
+        { name: '曲目', model: this.prisma.track },
+        { name: '专辑', model: this.prisma.album },
+        { name: '艺人', model: this.prisma.artist }
+    ];
+
+    if (task) task.total = tables.length;
+    
+    for (let i = 0; i < tables.length; i++) {
+        const table = tables[i];
+        if (task) {
+            task.current = i + 1;
+            task.message = `正在清理${table.name}数据...`;
+        }
+        // @ts-ignore
+        await table.model.updateMany({
+            data: { status: FileStatus.TRASHED, trashedAt: new Date() }
+        });
+    }
+
+    this.logger.log('Soft-sync initialization completed.');
   }
 
   async calculateFingerprint(filePath: string): Promise<string> {
@@ -446,11 +462,16 @@ export class ImportService implements OnModuleInit {
     if (!task) return;
 
     try {
-      if (mode === 'full') {
-        await this.clearLibraryData();
-      }
+      // 1. We no longer clear at the start to keep app data accessible during scan.
+      // if (mode === 'full') {
+      //   await this.clearLibraryData(task);
+      // }
+      const processedTrackIds = new Set<number>();
 
       this.scanner = new LocalMusicScanner(cachePath);
+      
+      task.status = TaskStatus.PREPARING;
+      task.message = '正在统计本地文件数量...';
       const musicCount = await this.scanner.countFiles(musicPath);
       const audiobookCount = await this.scanner.countFiles(audiobookPath);
       
@@ -458,10 +479,12 @@ export class ImportService implements OnModuleInit {
       let webdavAudiobookCount = 0;
       
       if (process.env.WEBDAV_MUSIC_URL) {
+          task.message = '正在统计 WebDAV 音乐文件...';
           const wdScanner = new WebDAVScanner(process.env.WEBDAV_MUSIC_URL, process.env.WEBDAV_USER, process.env.WEBDAV_PASSWORD);
           webdavMusicCount = await wdScanner.count('/');
       }
       if (process.env.WEBDAV_AUDIOBOOK_URL) {
+          task.message = '正在统计 WebDAV 有声书文件...';
           const wdScanner = new WebDAVScanner(process.env.WEBDAV_AUDIOBOOK_URL, process.env.WEBDAV_USER, process.env.WEBDAV_PASSWORD);
           webdavAudiobookCount = await wdScanner.count('/');
       }
@@ -474,13 +497,15 @@ export class ImportService implements OnModuleInit {
       task.webdavCurrent = 0;
       task.current = 0;
       task.status = TaskStatus.PARSING;
+      task.message = '正在解析媒体文件...';
 
       const processItem = async (item: ScanResult, type: TrackType, audioBasePath: string, isWebDAV = false) => {
           const audioUrl = item.path.startsWith('http') ? item.path : this.convertToHttpUrl(item.originalPath || item.path, type === TrackType.AUDIOBOOK ? 'audio' : 'music', audioBasePath);
           const folderId = isWebDAV ? null : await this.getFolderId(item.originalPath || item.path, audioBasePath, type);
           const hash = isWebDAV ? '' : await this.calculateFingerprint(item.originalPath || item.path);
 
-          await this.processTrackData(item, type, audioBasePath, cachePath, audioUrl, folderId, hash);
+          const trackId = await this.processTrackData(item, type, audioBasePath, cachePath, audioUrl, folderId, hash);
+          if (trackId) processedTrackIds.add(trackId);
           
           if (isWebDAV) {
             task.webdavCurrent = (task.webdavCurrent || 0) + 1;
@@ -508,6 +533,12 @@ export class ImportService implements OnModuleInit {
           await this.startWebDAVImport(cachePath, TrackType.AUDIOBOOK, id);
       }
 
+      // Cleanup orphans if it's a full update
+      if (mode === 'full') {
+          task.message = '正在清理已失效数据...';
+          await this.cleanupOrphans(processedTrackIds);
+      }
+
       task.status = TaskStatus.SUCCESS;
       this.setupWatcher(musicPath, audiobookPath, cachePath);
 
@@ -518,22 +549,45 @@ export class ImportService implements OnModuleInit {
     }
   }
   
-  private async processTrackData(item: ScanResult, type: TrackType, audioBasePath: string, cachePath: string, audioUrl: string, folderId: number | null, hash: string) {
+  private async processTrackData(item: ScanResult, type: TrackType, audioBasePath: string, cachePath: string, audioUrl: string, folderId: number | null, hash: string): Promise<number | null> {
         const artistName = item.artist || '未知';
         const albumName = item.album || '未知';
         const coverUrl = item.coverPath ? this.convertToHttpUrl(item.coverPath, 'cover', cachePath) : null;
 
-        const existingTrack = await this.trackService.findByPath(audioUrl);
+        // 1. Try to find by Hash (Highest Priority for persistence)
+        let existingTrack = hash ? await this.prisma.track.findFirst({ where: { fileHash: hash } }) : null;
+        
+        // 2. Fallback to path if hash not found
+        if (!existingTrack) {
+            existingTrack = await this.trackService.findByPath(audioUrl);
+        }
         
         if (existingTrack) {
-          if (existingTrack.folderId !== folderId && folderId) {
-             await this.trackService.updateTrack(existingTrack.id, { folderId });
-          }
-          if (!existingTrack.fileHash && hash) {
-              await this.prisma.track.update({ where: { id: existingTrack.id }, data: { fileHash: hash } });
-          }
+          // Resurrection / Update Logic
+          this.logger.verbose(`Updating existing track ${existingTrack.id}: ${existingTrack.name}`);
+          
+          await this.prisma.track.update({
+              where: { id: existingTrack.id },
+              data: {
+                  path: audioUrl, // Update path in case it moved
+                  folderId: folderId,
+                  status: FileStatus.ACTIVE,
+                  trashedAt: null,
+                  fileHash: hash || existingTrack.fileHash,
+                  fileModifiedAt: item?.mtime ? new Date(item.mtime) : new Date(),
+                  // Sync metadata if changed
+                  name: item.title || path.basename(item.path),
+                  duration: Math.round(item.duration || 0),
+                  index: item.track?.no || 0,
+              }
+          });
+
+          // Also ensure parent album/artist are active
+          if (existingTrack.albumId) await this.updateParentStatus(existingTrack.albumId, 'album');
+          return existingTrack.id;
         } else {
-          let artist = await this.artistService.findByName(artistName, type);
+          // Create new record
+          let artist = await this.artistService.findByName(artistName, type, true);
           if (!artist) {
             artist = await this.artistService.createArtist({
               name: artistName,
@@ -546,7 +600,7 @@ export class ImportService implements OnModuleInit {
               await this.artistService.updateArtist(artist.id, { status: FileStatus.ACTIVE, trashedAt: null });
           }
 
-          let album = await this.albumService.findByName(albumName, artistName, type);
+          let album = await this.albumService.findByName(albumName, artistName, type, true);
           if (!album) {
             album = await this.albumService.createAlbum({
               name: albumName,
@@ -561,7 +615,7 @@ export class ImportService implements OnModuleInit {
               await this.albumService.updateAlbum(album.id, { status: FileStatus.ACTIVE, trashedAt: null });
           }
 
-          await this.trackService.createTrack({
+          const createdTrack = await this.trackService.createTrack({
             name: item.title || path.basename(item.path),
             artist: artistName,
             album: albumName,
@@ -581,7 +635,38 @@ export class ImportService implements OnModuleInit {
             status: FileStatus.ACTIVE,
             trashedAt: null
           } as any);
+          return createdTrack.id;
         }
+  }
+
+  private async cleanupOrphans(processedTrackIds: Set<number>) {
+      const allActiveTracks = await this.prisma.track.findMany({
+          where: { status: FileStatus.ACTIVE },
+          select: { id: true, albumId: true }
+      });
+
+      const orphanTrackIds = allActiveTracks
+          .filter(t => !processedTrackIds.has(t.id))
+          .map(t => t.id);
+
+      if (orphanTrackIds.length > 0) {
+          this.logger.log(`Cleaning up ${orphanTrackIds.length} orphan tracks...`);
+          // Batch update to TRASHED
+          const chunkSize = 500;
+          for (let i = 0; i < orphanTrackIds.length; i += chunkSize) {
+              const chunk = orphanTrackIds.slice(i, i + chunkSize);
+              await this.prisma.track.updateMany({
+                  where: { id: { in: chunk } },
+                  data: { status: FileStatus.TRASHED, trashedAt: new Date() }
+              });
+          }
+      }
+
+      // Sync Album & Artist statuses
+      const affectedAlbumIds = new Set(allActiveTracks.map(t => t.albumId).filter(id => id !== null));
+      for (const albumId of affectedAlbumIds) {
+          await this.updateParentStatus(albumId!, 'album');
+      }
   }
 
   private async getFolderId(localPath: string, basePath: string, type: TrackType): Promise<number | null> {

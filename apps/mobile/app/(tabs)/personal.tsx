@@ -1,32 +1,32 @@
 import { useFocusEffect } from "@react-navigation/native";
 import {
-    createImportTask,
-    createPlaylist,
-    getAlbumHistory,
-    getFavoriteAlbums,
-    getFavoriteTracks,
-    getImportTask,
-    getPlaylists,
-    getRunningImportTask,
-    getTrackHistory,
-    TaskStatus,
-    type ImportTask
+  createImportTask,
+  createPlaylist,
+  getAlbumHistory,
+  getFavoriteAlbums,
+  getFavoriteTracks,
+  getImportTask,
+  getPlaylists,
+  getRunningImportTask,
+  getTrackHistory,
+  TaskStatus,
+  type ImportTask
 } from "@soundx/services";
 import { Asset } from 'expo-asset';
 import * as MediaLibrary from 'expo-media-library';
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../src/context/AuthContext";
@@ -34,8 +34,8 @@ import { usePlayer } from "../../src/context/PlayerContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { Playlist, Track } from "../../src/models";
 import {
-    getDownloadedTracks,
-    removeDownloadedTrack,
+  getDownloadedTracks,
+  removeDownloadedTrack,
 } from "../../src/services/cache";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
@@ -303,7 +303,7 @@ export default function PersonalScreen() {
     if (updateMode === "full") {
       Alert.alert(
         "确认全量更新？",
-        "全量更新将清空所有歌曲、专辑、艺术家、播放列表以及您的播放历史和收藏记录！此操作不可恢复。",
+        "全量更新将核对所有音频文件。您的播放历史、收藏记录、歌单由于文件识别（指纹）机制将得到保留。仅当文件在磁盘上被物理删除时，对应的记录才会被清除。",
         [
           { text: "取消", style: "cancel" },
           { text: "确认清空并更新", style: "destructive", onPress: startTask },
@@ -848,15 +848,17 @@ export default function PersonalScreen() {
             <View style={styles.importStatusRow}>
               <Text style={{ color: colors.secondary }}>状态：</Text>
               <Text style={{ color: colors.text, fontWeight: "500" }}>
-                {importTask?.status === TaskStatus.INITIALIZING
-                  ? "正在初始化..."
-                  : importTask?.status === TaskStatus.PARSING
-                    ? "正在解析媒体文件..."
-                    : importTask?.status === TaskStatus.SUCCESS
-                      ? "入库完成"
-                      : importTask?.status === TaskStatus.FAILED
-                        ? "入库失败"
-                        : "准备中"}
+                {importTask?.message && importTask.status !== TaskStatus.FAILED && importTask.status !== TaskStatus.SUCCESS
+                  ? importTask.message
+                  : importTask?.status === TaskStatus.INITIALIZING
+                    ? "正在初始化..."
+                    : importTask?.status === TaskStatus.PARSING
+                      ? "正在解析媒体文件..."
+                      : importTask?.status === TaskStatus.SUCCESS
+                        ? "入库完成"
+                        : importTask?.status === TaskStatus.FAILED
+                          ? "入库失败"
+                          : "准备中"}
               </Text>
             </View>
 
