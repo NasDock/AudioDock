@@ -1,7 +1,7 @@
 
 import { Body, Controller, Delete, ForbiddenException, Get, Param, Post, Req } from '@nestjs/common';
 import { User } from '@soundx/db';
-import { IErrorResponse, ISuccessResponse } from '../common/const';
+import { IErrorResponse, IParamsErrorResponse, ISuccessResponse } from '../common/const';
 import { UserService } from '../services/user';
 
 @Controller('admin')
@@ -23,6 +23,43 @@ export class AdminController {
       code: 200,
       message: 'success',
       data: users,
+    };
+  }
+
+  @Post('users')
+  async createUser(
+    @Req() req: any, 
+    @Body() body: any
+  ): Promise<ISuccessResponse<User> | IErrorResponse | IParamsErrorResponse> {
+    await this.checkAdmin(req.user.userId);
+    // Basic validation
+    if (!body.username || !body.password) {
+        return {
+            code: 400,
+            message: '用户名和密码不能为空'
+        };
+    }
+    // Check if user exists
+    const existing = await this.userService.getUser(body.username);
+    if (existing) {
+        return {
+            code: 400,
+            message: '用户已存在'
+        };
+    }
+
+    const newUser = await this.userService.createUser({
+        username: body.username,
+        password: body.password,
+        is_admin: body.is_admin || false,
+        createdAt: new Date(),
+        // other fields optional/default
+    } as any);
+
+    return {
+      code: 200,
+      message: 'success',
+      data: newUser,
     };
   }
 

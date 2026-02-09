@@ -16,6 +16,9 @@ export const getThemeConfig = (mode: 'light' | 'dark'): ThemeConfig => {
         colorBgBody: 'transparent',
         colorBgHeader: 'transparent',
       },
+      Button: {
+        colorPrimaryText: isDark ? '#000' : '#fff',
+      },
       Menu: {
         itemBg: 'transparent',
         subMenuItemBg: 'transparent',

@@ -27,19 +27,26 @@ export const useCheckUpdate = () => {
         // Find asset based on platform
         const platform = getPlatform();
         let asset = null;
-        if (platform === 'win') {
-           // Prefer setup exe, exclude blockmap
-           asset = data.assets.find((a: any) => a.name.endsWith('.exe') && !a.name.includes('blockmap'));
-        } else if (platform === 'mac') {
-           // Prefer dmg
-           asset = data.assets.find((a: any) => a.name.endsWith('.dmg'));
-           if (!asset) asset = data.assets.find((a: any) => a.name.endsWith('.zip') && !a.name.includes('source'));
-        } else if (platform === 'linux') {
-           asset = data.assets.find((a: any) => a.name.endsWith('.AppImage'));
-           if (!asset) asset = data.assets.find((a: any) => a.name.endsWith('.deb'));
+        if (data.assets && Array.isArray(data.assets)) {
+          if (platform === 'win') {
+             // Prefer setup exe, exclude blockmap
+             asset = data.assets.find((a: any) => a.name.endsWith('.exe') && !a.name.includes('blockmap'));
+          } else if (platform === 'mac') {
+             // Prefer dmg
+             asset = data.assets.find((a: any) => a.name.endsWith('.dmg'));
+             if (!asset) asset = data.assets.find((a: any) => a.name.endsWith('.zip') && !a.name.includes('source'));
+          } else if (platform === 'linux') {
+             asset = data.assets.find((a: any) => a.name.endsWith('.AppImage'));
+             if (!asset) asset = data.assets.find((a: any) => a.name.endsWith('.deb'));
+          }
         }
 
-        const downloadUrl = asset ? asset.browser_download_url : data.html_url; 
+        if (!asset) {
+          console.log(`No matching asset found for platform ${platform} in version ${remoteVersion}`);
+          return;
+        }
+
+        const downloadUrl = asset.browser_download_url;
 
         setUpdateInfo({
           version: remoteVersion,

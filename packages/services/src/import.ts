@@ -14,6 +14,10 @@ export interface ImportTask {
   message?: string;
   total?: number;
   current?: number;
+  localTotal?: number;
+  localCurrent?: number;
+  webdavTotal?: number;
+  webdavCurrent?: number;
   currentFileName?: string;
 }
 

@@ -14,4 +14,6 @@ export interface IAuthAdapter {
     register(user: Partial<User> & { deviceName?: string }): Promise<ISuccessResponse<any>>;
     check(): Promise<ISuccessResponse<boolean>>;
     hello(): Promise<ISuccessResponse<string>>;
+    verifyDevice(username: string, deviceName: string): Promise<ISuccessResponse<boolean>>;
+    resetPassword(username: string, deviceName: string, newPassword: string): Promise<ISuccessResponse<any>>;
 }

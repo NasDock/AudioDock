@@ -19,13 +19,11 @@ export const resolveTrackUri = async (
 ): Promise<string> => {
   const { cacheEnabled } = options;
 
-  // 1. Construct the remote URI
-  const remoteUri = track.path.startsWith("http")
-    ? track.path
-    : `${getBaseURL()}${track.path}`;
+  // 1. Construct the URI via backend stream endpoint
+  const remoteUri = `${getBaseURL()}/track/stream/${track.id}`;
 
   // 2. Check for cached version if enabled
-  if (cacheEnabled && track.id) {
+  if (cacheEnabled && track.id && !track.path.startsWith('http')) {
     const localPath = await isCached(track.id, track.path);
     if (localPath) {
       console.log(`[TrackResolver] Playing from cache: ${track.id}`);
@@ -51,5 +49,5 @@ export const resolveArtworkUri = (track: Track): string | undefined => {
   
   return track.cover.startsWith("http")
     ? track.cover
-    : `${getBaseURL()}${track.cover}`;
+    : `${getBaseURL()}${encodeURI(track.cover)}`;
 };

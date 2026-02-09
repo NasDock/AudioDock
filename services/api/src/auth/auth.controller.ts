@@ -102,4 +102,63 @@ export class AuthController {
       data: true,
     };
   }
+
+  @Public()
+  @Post('/auth/verify-device')
+  async verifyDevice(
+    @Body() body: { username: string; deviceName: string },
+  ): Promise<ISuccessResponse<boolean> | IErrorResponse> {
+    const user = await this.userService.getUser(body.username);
+    if (!user) {
+      return {
+        code: 500,
+        message: '用户不存在',
+      };
+    }
+
+    const device = await this.userService.getDevice(user.id, body.deviceName);
+    if (!device) {
+      return {
+        code: 500,
+        message: '设备验证失败，请在常用设备上操作',
+      };
+    }
+
+    return {
+      code: 200,
+      message: 'success',
+      data: true,
+    };
+  }
+
+  @Public()
+  @Post('/auth/reset-password')
+  async resetPassword(
+    @Body() body: { username: string; deviceName: string; newPassword: string },
+  ): Promise<ISuccessResponse<User & { token: string; device?: Device }> | IErrorResponse> {
+    const user = await this.userService.getUser(body.username);
+    if (!user) {
+      return {
+        code: 500,
+        message: '用户不存在',
+      };
+    }
+
+    const device = await this.userService.getDevice(user.id, body.deviceName);
+    if (!device) {
+      return {
+        code: 500,
+        message: '设备验证失败，无法重置密码',
+      };
+    }
+
+    const updatedUser = await this.userService.updateUser(user.id, { password: body.newPassword });
+    const token = this.authService.login(updatedUser);
+
+    return {
+      code: 200,
+      message: 'success',
+      data: { ...updatedUser, token, device },
+    };
+  }
 }

@@ -1,27 +1,27 @@
 import {
-    HddOutlined,
-    LeftOutlined,
-    LockOutlined,
-    UserOutlined,
+  HddOutlined,
+  LeftOutlined,
+  LockOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import {
-    check,
-    login,
-    register,
-    setServiceConfig,
-    SOURCEMAP,
-    SOURCETIPSMAP,
-    useNativeAdapter,
-    useSubsonicAdapter,
+  check,
+  login,
+  register,
+  setServiceConfig,
+  SOURCEMAP,
+  SOURCETIPSMAP,
+  useNativeAdapter,
+  useSubsonicAdapter,
 } from "@soundx/services";
 import {
-    AutoComplete,
-    Button,
-    Checkbox,
-    Form,
-    Input,
-    message,
-    Typography
+  AutoComplete,
+  Button,
+  Checkbox,
+  Form,
+  Input,
+  message,
+  Typography,
 } from "antd";
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -29,12 +29,14 @@ import emby from "../../assets/emby.png";
 import logo from "../../assets/logo.png";
 import subsonic from "../../assets/subsonic.png";
 import { useAuthStore } from "../../store/auth";
+import { isWeb } from "../../utils/platform";
 import styles from "./index.module.less";
 
 const { Title, Text } = Typography;
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const [messageApi, contextHolder] = message.useMessage();
   const location = useLocation();
   const { login: setLogin } = useAuthStore();
 
@@ -153,11 +155,7 @@ const Login: React.FC = () => {
     }
   };
 
-  const saveConfig = (
-    internal: string,
-    external: string,
-    type: string,
-  ) => {
+  const saveConfig = (internal: string, external: string, type: string) => {
     const configKey = `sourceConfig_${type}`;
     const existingStr = localStorage.getItem(configKey);
     let existingConfigs: Array<{
@@ -242,7 +240,9 @@ const Login: React.FC = () => {
 
     const tryAddress = async (addr: string) => {
       if (!addr) return false;
-      if (!addr.startsWith("http")) return false;
+      // Web 端允许相对路径 (如 /api)
+      if (!addr.startsWith("http") && !(isWeb() && addr.startsWith("/")))
+        return false;
 
       configureAdapter(type, addr, username, password);
       try {
@@ -278,10 +278,22 @@ const Login: React.FC = () => {
   const handleFinish = async (values: any) => {
     setLoading(true);
     const type = sourceType;
-    const { internalAddress, externalAddress, username, password } = values;
+    let { internalAddress, externalAddress } = values;
+    const { username, password } = values;
+
+    // Web 端 AudioDock 默认地址处理
+    const isWeb_ = isWeb();
+    if (
+      isWeb_ &&
+      type === "AudioDock" &&
+      !internalAddress &&
+      !externalAddress
+    ) {
+      internalAddress = "/api";
+    }
 
     if (!internalAddress && !externalAddress) {
-      message.error("请至少输入一个地址");
+      messageApi.error("请至少输入一个地址");
       setLoading(false);
       return;
     }
@@ -293,6 +305,8 @@ const Login: React.FC = () => {
         username,
         password,
       );
+
+      console.log(activeAddress);
 
       // Save Configurations
       localStorage.setItem(`serverAddress_${type}`, activeAddress); // Active
@@ -328,7 +342,7 @@ const Login: React.FC = () => {
           if (device) localStorage.setItem(deviceKey, JSON.stringify(device));
 
           setLogin(newToken, userData as any, device);
-          message.success("登录成功");
+          messageApi.success("登录成功");
           // Navigate to home
           navigate("/");
           window.location.reload(); // Reload to ensure full app init state
@@ -341,14 +355,14 @@ const Login: React.FC = () => {
           localStorage.setItem(userKey, JSON.stringify(userData));
           if (device) localStorage.setItem(deviceKey, JSON.stringify(device));
           setLogin(newToken, userData as any, device);
-          message.success("注册成功");
+          messageApi.success("注册成功");
           navigate("/");
           window.location.reload();
         }
       }
     } catch (error: any) {
       console.error(error);
-      message.error(error.message || "操作失败");
+      messageApi.error(error.message || "操作失败");
     } finally {
       setLoading(false);
     }
@@ -364,9 +378,13 @@ const Login: React.FC = () => {
       >
         返回选择
       </Button>
+      {contextHolder}
 
       <div className={styles.content}>
-        <div className={styles.header}>
+        <div
+          className={styles.header}
+          style={{ marginBottom: isWeb() ? 20 : 0 }}
+        >
           <img
             src={getLogo(sourceType)}
             alt={sourceType}
@@ -394,7 +412,7 @@ const Login: React.FC = () => {
             >
               <Input
                 prefix={<HddOutlined />}
-                placeholder="http://192.168..."
+                placeholder={isWeb() ? "/api" : "http://192.168.x.x"}
               />
             </AutoComplete>
           </Form.Item>
@@ -410,7 +428,6 @@ const Login: React.FC = () => {
               />
             </AutoComplete>
           </Form.Item>
-
           {isLogin ? (
             <>
               <Form.Item name="username" rules={[{ required: true }]}>
@@ -420,12 +437,26 @@ const Login: React.FC = () => {
                 <Input.Password prefix={<LockOutlined />} placeholder="密码" />
               </Form.Item>
               <Form.Item>
-                <Checkbox
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
+                <div
+                  style={{ display: "flex", justifyContent: "space-between" }}
                 >
-                  记住我
-                </Checkbox>
+                  <Checkbox
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  >
+                    记住我
+                  </Checkbox>
+                  {sourceType === "AudioDock" && (
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => navigate("/forgot-password")}
+                      style={{ padding: 0 }}
+                    >
+                      忘记密码?
+                    </Button>
+                  )}
+                </div>
               </Form.Item>
               <Button htmlType="submit" block loading={loading}>
                 登录

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Markdown from 'react-native-markdown-display';
 import { UpdateInfo } from '../../hooks/useCheckUpdate';
 import { useTheme } from '../context/ThemeContext';
 
@@ -55,9 +56,19 @@ export const UpdateModal = ({
           ) : updateInfo ? (
             <>
                <Text style={[styles.title, { color: colors.text }]}>发现新版本 {updateInfo.version}</Text>
-               <ScrollView style={styles.scrollView}>
-                 <Text style={[styles.content, { color: colors.text }]}>{updateInfo.body}</Text>
-               </ScrollView>
+                <ScrollView style={styles.scrollView}>
+                  <Markdown
+                    style={{
+                      body: { color: colors.text, fontSize: 14, lineHeight: 20 },
+                      heading1: { color: colors.text, fontSize: 20, fontWeight: 'bold' },
+                      heading2: { color: colors.text, fontSize: 18, fontWeight: 'bold' },
+                      bullet_list: { marginVertical: 8 },
+                      link: { color: colors.primary },
+                    }}
+                  >
+                    {updateInfo.body}
+                  </Markdown>
+                </ScrollView>
                
                <View style={styles.buttonContainer}>
                  <TouchableOpacity style={[styles.ignoreBtn, { backgroundColor: colors.background }]} onPress={onIgnore}>

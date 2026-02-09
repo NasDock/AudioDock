@@ -1,6 +1,6 @@
 {
   "name": "@soundx/ws",
-  "version": "1.0.74",
+  "version": "1.0.78",
   "description": "Shared WebSocket client for SoundX",
   "author": "mmdctjj <mmdctjj@gmail.com>",
   "repository": {

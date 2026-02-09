@@ -1,25 +1,25 @@
 import {
-    ArrowLeftOutlined,
-    CheckCircleOutlined,
-    DownloadOutlined,
-    FileTextOutlined,
-    RocketOutlined,
-    SoundOutlined,
-    UploadOutlined,
+  ArrowLeftOutlined,
+  CheckCircleOutlined,
+  DownloadOutlined,
+  FileTextOutlined,
+  RocketOutlined,
+  SoundOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import {
-    Button,
-    Card,
-    Empty,
-    Flex,
-    Input,
-    message,
-    Select,
-    Space,
-    Table,
-    Tag,
-    Typography,
-    Upload,
+  Button,
+  Card,
+  Empty,
+  Flex,
+  Input,
+  message,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+  Upload,
 } from "antd";
 import axios from "axios";
 import React, { useEffect, useRef, useState } from "react";
@@ -64,7 +64,9 @@ const CreateTask: React.FC = () => {
   const fetchVoices = async () => {
     try {
       const res = await axios.get(`${TTS_BASE_URL}/api/tasks/voices`);
-      setVoices(res.data);
+      if (Array.isArray(res.data)) {
+        setVoices(res.data);
+      }
     } catch (err) {
       console.error("Failed to fetch voices", err);
     }

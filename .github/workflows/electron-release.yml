@@ -40,7 +40,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install
@@ -67,22 +67,23 @@ jobs:
               "template": "#{{CHANGELOG}}",
               "categories": [
                 {
-                    "title": "## 🚀 Features",
-                    "labels": ["feat", "feature"]
+                    "title": "## 新功能",
+                    "labels": ["feat", "feature", "Feat", "Feature"]
                 },
                 {
-                    "title": "## 🐛 Fixes",
-                    "labels": ["fix", "bug"]
+                    "title": "## 修复",
+                    "labels": ["fix", "bug", "Fix", "Bug"]
                 },
                 {
-                    "title": "## 🧪 Other Changes",
+                    "title": "## 更新内容",
                     "labels": []
                 }
               ],
               "label_extractor": [
                 {
-                  "pattern": "^(feat|fix|docs|style|refactor|perf|test|chore|revert|ci|build)",
-                  "target": "$1"
+                  "pattern": "^\\s*(feat|fix|docs|style|refactor|perf|test|chore|revert|ci|build)(?:\\(.+\\))?!?: .+$",
+                  "target": "$1",
+                  "flags": "i"
                 }
               ]
             }
@@ -121,4 +122,3 @@ jobs:
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

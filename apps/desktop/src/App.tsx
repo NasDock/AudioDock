@@ -24,9 +24,11 @@ const Downloads = lazy(() => import("./pages/Downloads/index"));
 const UserManagement = lazy(() => import("./pages/Admin/UserManagement/index"));
 const Songs = lazy(() => import("./pages/Songs/index"));
 const Login = lazy(() => import("./pages/Login/index"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword/index"));
 const SourceManage = lazy(() => import("./pages/SourceManage/index"));
 const TaskList = lazy(() => import("./pages/TTS/TaskList/index"));
 const CreateTask = lazy(() => import("./pages/TTS/CreateTask/index"));
+const ProductUpdates = lazy(() => import("./pages/ProductUpdates/index"));
 
 import { theme } from "antd";
 import { useEffect } from "react";
@@ -156,6 +158,7 @@ const AppContent = () => {
             <Routes>
               <Route path="/source-manage" element={<SourceManage />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
 
               {isAuthenticated ? (
                 <Route
@@ -229,6 +232,10 @@ const AppContent = () => {
                               <Route
                                 path="/tts/create"
                                 element={<CreateTask />}
+                              />
+                              <Route
+                                path="/product-updates"
+                                element={<ProductUpdates />}
                               />
                             </Routes>
                           </Suspense>

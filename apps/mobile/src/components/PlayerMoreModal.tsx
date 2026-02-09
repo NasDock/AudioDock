@@ -5,14 +5,14 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    Modal,
+    Platform,
+    Pressable,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isCached } from "../services/cache";
@@ -161,7 +161,7 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
   };
 
   const handleTogglePlaybackRate = () => {
-    const rates = [0.5, 1, 1.5, 2];
+    const rates = [0.5, 1, 1.25, 1.5, 2];
     const currentIndex = rates.indexOf(playbackRate);
     const nextRate = rates[(currentIndex + 1) % rates.length];
     setPlaybackRate(nextRate);

@@ -14,12 +14,20 @@ services:
       - "9958:9958" # Web UI
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=file:/app/packages/db/prisma/dev.db
-      - JWT_SECRET=/.jwt_secret
       - TXT_BASE_DIR=/txt
       - AUDIO_BOOK_DIR=/audio
       - MUSIC_BASE_DIR=/music
       - CACHE_DIR=/covers
+      - DATABASE_URL=file:/data/dev.db
+      - JWT_SECRET=/.jwt_secret
+      - PORT=3000
+      - STRM_ADDRESS=http://192.168.1.12:5244
+      - WEBDAV_MUSIC_URL=http://192.168.1.12:5005/音乐
+      - WEBDAV_AUDIOBOOK_URL=http://192.168.1.12:5005/有声书
+      - WEBDAV_USER=admin
+      - WEBDAV_PASSWORD=123456
+
+    # 挂载数据文件和缓存，使用 Docker 命名卷更安全
     volumes:
       # 这里可以根据需要调整物理机的挂载路径
       - ./services/api/music/txt:/txt

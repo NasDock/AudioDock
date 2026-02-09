@@ -12,3 +12,7 @@ dist/
 
 **/android/build
 **/ios/build
+**/data
+**/.venv
+**/__pycache__
+*.pyc

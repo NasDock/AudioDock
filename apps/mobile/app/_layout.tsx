@@ -36,6 +36,7 @@ function RootLayoutNav() {
       segmentName === "player" ||
       segmentName === "search" ||
       segmentName === "settings" ||
+      segmentName === "product-updates" ||
       segmentName === "playlist" ||
       segmentName === "folder" ||
       segmentName === "admin" ||
@@ -107,6 +108,20 @@ function RootLayoutNav() {
           options={{ 
             headerShown: false, 
             animation: 'slide_from_left' 
+          }} 
+        />
+        <Stack.Screen 
+          name="forgot-password" 
+          options={{ 
+            headerShown: false,
+            animation: 'slide_from_right'
+          }} 
+        />
+        <Stack.Screen 
+          name="product-updates" 
+          options={{ 
+            headerShown: false,
+            animation: 'slide_from_right'
           }} 
         />
       </Stack>

@@ -100,4 +100,20 @@ export class SubsonicAuthAdapter implements IAuthAdapter {
     async hello() {
         return this.response("Hello from Subsonic Adapter");
     }
+
+    async verifyDevice(username: string, deviceName: string) {
+         return {
+            code: 501,
+            message: "Subsonic 数据源不支持设备验证",
+            data: false
+         };
+    }
+
+    async resetPassword(username: string, deviceName: string, newPassword: string) {
+        return {
+            code: 501,
+            message: "Subsonic 数据源不支持重置密码",
+            data: null
+        };
+    }
 }

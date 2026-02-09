@@ -13,7 +13,6 @@ This project is licensed under a **Personal-Use Only License**.
 <img src="./images/logo.png" width="200" />
 </p>
 
-
 AudioDock（声仓） 是一个基于现代 Web 技术构建的音乐和有声书一体的本地化播放器，包含桌面端、移动端、web端、小程序。以及本地化后端服务
 
 - **多端支持 💻**：包含移动端、web端、桌面端、小程序、电视端！
@@ -31,7 +30,9 @@ AudioDock（声仓） 是一个基于现代 Web 技术构建的音乐和有声�
 > 代码编号：soundx
 
 ## 下载
+
 最新版本看这里：
+
 - **[web端和服务端](https://github.com/mmdctjj?tab=packages&repo_name=AudioDock)**：找到每个包最新的下载命令 docker 下载即可
 - **[桌面端、移动端](https://github.com/mmdctjj/AudioDock/releases)**：下载对应平台的版本
 
@@ -44,7 +45,8 @@ AudioDock（声仓） 是一个基于现代 Web 技术构建的音乐和有声�
 - [x] 服务端
 
 ### 功能规划
-✅：完成    ❌：未开发/未完成开发     🚫：无设计
+
+✅：完成 ❌：未开发/未完成开发 🚫：无设计
 
 | 功能描述             | web / 桌面端 | 移动端 | 小程序 | 电视端 |
 | -------------------- | ------------ | ------ | ------ | ------ |
@@ -60,10 +62,16 @@ AudioDock（声仓） 是一个基于现代 Web 技术构建的音乐和有声�
 | 多用户同步播放       | ✅           | ✅     | ❌     | ❌     |
 | 播放记录             | ✅           | ✅     | ✅     | ✅     |
 | 收藏记录             | ✅           | ✅     | ✅     | ✅     |
-| 桌面歌词           | ✅           | ❌     | 🚫     | 🚫     |
+| 桌面歌词             | ✅           | ❌     | 🚫     | 🚫     |
 | 和系统交互           | ✅           | ✅     | 🚫     | 🚫     |
 | TTS 生成有声书       | ❌           | ❌     | 🚫     | 🚫     |
 | 云盘聚合             | ❌           | ❌     | 🚫     | 🚫     |
+
+<p align="center">
+<img src="./images/wechat_qr.jpg" width="100" />
+</p>
+
+<p align="center">产品动态欢迎关注官方公众号：声仓</p>
 
 ## 页面操作指南
 
@@ -132,7 +140,6 @@ volumes:
 
 networks:
   audiodock-network:
-
 ```
 
 ## 本地运行

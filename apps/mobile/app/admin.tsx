@@ -1,24 +1,25 @@
 import { Ionicons } from "@expo/vector-icons";
 import {
-  deleteAdminUser,
-  getAdminUsers,
-  getRegistrationSetting,
-  setAdminUserExpiration,
-  toggleRegistrationSetting,
+    createAdminUser,
+    deleteAdminUser,
+    getAdminUsers,
+    getRegistrationSetting,
+    setAdminUserExpiration,
+    toggleRegistrationSetting,
 } from "@soundx/services"; // Assuming these are exported
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Modal,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../src/context/ThemeContext";
@@ -35,8 +36,14 @@ export default function AdminScreen() {
 
   // modal states
   const [modalVisible, setModalVisible] = useState(false);
+  const [createModalVisible, setCreateModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [expirationDays, setExpirationDays] = useState<string>("");
+
+  // create user states
+  const [newUsername, setNewUsername] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [isNewAdmin, setIsNewAdmin] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -126,6 +133,30 @@ export default function AdminScreen() {
     }
   };
 
+  const handleCreateUser = async () => {
+    if (!newUsername || !newPassword) {
+      Alert.alert("Error", "Username and password are required");
+      return;
+    }
+
+    const res = await createAdminUser({
+      username: newUsername,
+      password: newPassword,
+      is_admin: isNewAdmin,
+    });
+
+    if (res.code === 200) {
+      Alert.alert("Success", "User created");
+      setCreateModalVisible(false);
+      setNewUsername("");
+      setNewPassword("");
+      setIsNewAdmin(false);
+      fetchUsers();
+    } else {
+      Alert.alert("Error", res.message);
+    }
+  };
+
   const formatDate = (dateStr?: string | Date | null) => {
     if (!dateStr) return "用不过期";
     const date = new Date(dateStr);
@@ -207,7 +238,12 @@ export default function AdminScreen() {
         <Text style={[styles.headerTitle, { color: colors.text }]}>
           用户管理
         </Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          onPress={() => setCreateModalVisible(true)}
+          style={styles.backButton}
+        >
+          <Ionicons name="add" size={28} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
       <View
@@ -243,6 +279,7 @@ export default function AdminScreen() {
         />
       )}
 
+      {/* Expiration Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -286,6 +323,75 @@ export default function AdminScreen() {
               >
                 <Text style={[styles.textStyle, { color: colors.background }]}>
                   保存
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Create User Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={createModalVisible}
+        onRequestClose={() => setCreateModalVisible(false)}
+      >
+        <View style={styles.centeredView}>
+          <View
+            style={[styles.modalView, { backgroundColor: colors.background }]}
+          >
+            <Text style={[styles.modalText, { color: colors.text, marginBottom: 15 }]}>
+              创建新用户
+            </Text>
+
+            <TextInput
+              style={[
+                styles.input,
+                { color: colors.text, borderColor: colors.border },
+              ]}
+              onChangeText={setNewUsername}
+              value={newUsername}
+              placeholder="用户名"
+              placeholderTextColor={colors.secondary}
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={[
+                styles.input,
+                { color: colors.text, borderColor: colors.border },
+              ]}
+              onChangeText={setNewPassword}
+              value={newPassword}
+              placeholder="密码"
+              placeholderTextColor={colors.secondary}
+              secureTextEntry
+            />
+
+            <View style={[styles.settingRow, { width: '100%', marginVertical: 10, borderBottomWidth: 0 }]}>
+                 <Text style={{color: colors.text, marginRight: 10}}>设为管理员</Text>
+                 <Switch
+                    value={isNewAdmin}
+                    onValueChange={setIsNewAdmin}
+                    trackColor={{ false: "#767577", true: colors.primary }}
+                  />
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonClose, {backgroundColor: colors.background}]}
+                onPress={() => setCreateModalVisible(false)}
+              >
+                <Text style={[styles.textStyle, { color: colors.primary }]}>
+                  取消
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonClose, {backgroundColor: colors.primary}]}
+                onPress={handleCreateUser}
+              >
+                <Text style={[styles.textStyle, { color: colors.background }]}>
+                  创建
                 </Text>
               </TouchableOpacity>
             </View>
