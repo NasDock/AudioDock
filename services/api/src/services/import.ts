@@ -51,8 +51,12 @@ export class ImportService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    // Run content hash generation and Check WebDAV in background
+    // Run content hash generation, index recalibration, and Check WebDAV in background
     setTimeout(() => {
+        this.recalibrateAllIndices().catch(err => {
+            this.logger.error("Failed to recalibrate indices", err);
+        });
+        
         this.generateMissingHashes().catch(err => {
             this.logger.error("Failed to generate missing hashes", err);
         });
@@ -62,6 +66,33 @@ export class ImportService implements OnModuleInit {
             this.logger.error("Initial WebDAV scan failed", err);
         });
     }, 5000); 
+  }
+
+  private async recalibrateAllIndices() {
+      const tracks = await this.prisma.track.findMany({
+          where: { status: FileStatus.ACTIVE },
+          select: { id: true, name: true, episodeNumber: true }
+      });
+      
+      this.logger.log(`Starting index recalibration for ${tracks.length} tracks...`);
+      let updateCount = 0;
+
+      for (const track of tracks) {
+          const newIndex = extractEpisodeNumber(track.name);
+          if (newIndex !== track.episodeNumber) {
+              await this.prisma.track.update({
+                  where: { id: track.id },
+                  data: { episodeNumber: newIndex }
+              });
+              updateCount++;
+          }
+      }
+
+      if (updateCount > 0) {
+          this.logger.log(`Recalibrated ${updateCount} track indices.`);
+      } else {
+          this.logger.log('All indices are already correct.');
+      }
   }
 
   private async checkInitialWebDAVScan() {
@@ -579,6 +610,7 @@ export class ImportService implements OnModuleInit {
                   name: item.title || path.basename(item.path),
                   duration: Math.round(item.duration || 0),
                   index: item.track?.no || 0,
+                  episodeNumber: extractEpisodeNumber(item.title || ""),
               }
           });
 
@@ -711,6 +743,18 @@ export class ImportService implements OnModuleInit {
   }
 }
 
+function romanToNumber(roman: string): number {
+  if (!roman) return 0;
+  const upper = roman.toUpperCase();
+  const map: Record<string, number> = {
+    'Ⅰ': 1, 'Ⅱ': 2, 'Ⅲ': 3, 'Ⅳ': 4, 'Ⅴ': 5,
+    'Ⅵ': 6, 'Ⅶ': 7, 'Ⅷ': 8, 'Ⅸ': 9, 'Ⅹ': 10,
+    'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5,
+    'VI': 6, 'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10
+  };
+  return map[upper] || 0;
+}
+
 function chineseToNumber(chinese: string): number {
   const map: Record<string, number> = {
     "零": 0, "〇": 0,
@@ -740,9 +784,41 @@ function chineseToNumber(chinese: string): number {
 }
 
 export function extractEpisodeNumber(title: string): number {
-  let match = title.match(/(\d{1,4})\s*(集|章|节|话)?/);
-  if (match) return Number(match[1]);
-  match = title.match(/第?([零〇一二三四五六七八九十百千万两]{1,})[集章节话]?/);
-  if (match) return chineseToNumber(match[1]);
-  return 0;
+  let part = 0;
+  let episode = 0;
+
+  const romanPattern = /([ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ])|[\s\b](I{1,3}|IV|V|VI{0,3}|IX|X)[\s\b]/i;
+  const romanMatch = title.match(romanPattern);
+  if (romanMatch) {
+    part = romanToNumber(romanMatch[1] || romanMatch[2]);
+  }
+
+  const partPattern = /第\s*([0-9一二三四五六七八九十百]+)\s*(部|季|卷|册)/;
+  const partMatch = title.match(partPattern);
+  if (partMatch) {
+    const p = partMatch[1];
+    part = /^\d+$/.test(p) ? parseInt(p) : chineseToNumber(p);
+  }
+
+  let searchTitle = title;
+  if (partMatch && /^\d+$/.test(partMatch[1])) {
+    searchTitle = title.replace(partMatch[0], '');
+  }
+
+  const episodePattern = /第\s*([0-9一二三四五六七八九十百千万两]+)\s*(集|章|节|话|回)/;
+  const epMatch = searchTitle.match(episodePattern);
+  if (epMatch) {
+    const val = epMatch[1];
+    episode = /^\d+$/.test(val) ? parseInt(val) : chineseToNumber(val);
+  } else {
+    const arabMatch = searchTitle.match(/(\d{1,4})/);
+    if (arabMatch) {
+      episode = Number(arabMatch[1]);
+    } else {
+      const simpleChinMatch = searchTitle.match(/([一二三四五六七八九十百千万]+)/);
+      if (simpleChinMatch) episode = chineseToNumber(simpleChinMatch[1]);
+    }
+  }
+
+  return (part * 10000) + episode;
 }

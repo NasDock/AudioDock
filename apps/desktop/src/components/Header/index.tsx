@@ -775,7 +775,7 @@ const Header: React.FC = () => {
                     title: "确认全量更新？",
                     content:
                       "全量更新将核对所有音频文件。您的播放历史、收藏记录、歌单由于文件指纹机制将得到保留。仅当文件在磁盘上被物理删除时，对应的记录才会被清除。",
-                    okText: "确认清空并更新",
+                    okText: "确认更新",
                     cancelText: "取消",
                     onOk: () => handleUpdateLibrary("full"),
                   });

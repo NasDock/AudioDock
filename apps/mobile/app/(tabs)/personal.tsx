@@ -306,7 +306,7 @@ export default function PersonalScreen() {
         "全量更新将核对所有音频文件。您的播放历史、收藏记录、歌单由于文件识别（指纹）机制将得到保留。仅当文件在磁盘上被物理删除时，对应的记录才会被清除。",
         [
           { text: "取消", style: "cancel" },
-          { text: "确认清空并更新", style: "destructive", onPress: startTask },
+          { text: "确认更新", style: "destructive", onPress: startTask },
         ],
       );
     } else {
