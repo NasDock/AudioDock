@@ -1,20 +1,21 @@
 import {
-  AppstoreOutlined,
-  AudioOutlined,
-  CloudDownloadOutlined,
-  CompassOutlined,
-  CustomerServiceOutlined,
-  HeartOutlined,
-  PlusOutlined,
-  SoundOutlined,
-  TeamOutlined
+    AppstoreOutlined,
+    AudioOutlined,
+    CloudDownloadOutlined,
+    CompassOutlined,
+    CustomerServiceOutlined,
+    HeartOutlined,
+    PlusOutlined,
+    SoundOutlined,
+    TeamOutlined
 } from "@ant-design/icons";
-import { createPlaylist, getPlaylists, TrackType, type Playlist } from "@soundx/services";
+import { createPlaylist, TrackType } from "@soundx/services";
 import { Form, Input, Modal, theme, Typography } from "antd";
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
 import { useAuthStore } from "../../store/auth";
+import { usePlaylistStore } from "../../store/playlist";
 import { isSubsonicSource } from "../../utils";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
@@ -26,7 +27,7 @@ const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { token } = theme.useToken();
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const { playlists, fetchPlaylists } = usePlaylistStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -34,20 +35,9 @@ const Sidebar: React.FC = () => {
   const { mode } = usePlayMode();
   const { user } = useAuthStore();
 
-  const fetchPlaylists = async () => {
-    try {
-      const res = await getPlaylists(mode, user?.id);
-      if (res.code === 200) {
-        setPlaylists(res.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch playlists:", error);
-    }
-  };
-
   useEffect(() => {
     if (user?.id) {
-      fetchPlaylists();
+      fetchPlaylists(mode, user.id);
     }
   }, [mode, user?.id]);
 
@@ -64,7 +54,7 @@ const Sidebar: React.FC = () => {
         message.success("创建成功");
         setIsModalOpen(false);
         form.resetFields();
-        fetchPlaylists();
+        fetchPlaylists(mode, user.id);
       } else {
         message.error("创建失败");
       }

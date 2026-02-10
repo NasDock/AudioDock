@@ -213,7 +213,11 @@ let minimizeToTray = true;
 let isQuitting = false;
 function updatePlayerUI(shouldUpdateTitle = true) {
   const playIcon = playerState.isPlaying ? "pause.png" : "play.png";
-  trayPlay?.setImage(path.join(process.env.VITE_PUBLIC, playIcon));
+  if (trayPlay) {
+    const img = nativeImage.createFromPath(path.join(process.env.VITE_PUBLIC, playIcon)).resize({ width: 18, height: 18 });
+    if (process.platform === "darwin") img.setTemplateImage(true);
+    trayPlay.setImage(img);
+  }
   if (process.platform === "darwin" && shouldUpdateTitle) {
     if (playerState.track) {
       trayNext?.setTitle(`${playerState.track.name} - ${playerState.track.artist}`);
@@ -457,20 +461,26 @@ function createLyricWindow(settings) {
   });
 }
 function createTray() {
-  const img = (name, size = 20) => nativeImage.createFromPath(path.join(process.env.VITE_PUBLIC, name)).resize({ width: size, height: size });
-  trayNext = new Tray(img("next.png"));
-  trayPlay = new Tray(img("play.png"));
-  trayPrev = new Tray(img("previous.png"));
-  trayMain = new Tray(img("mini_logo.png"));
-  trayNext.on("click", () => {
-    win?.webContents.send("player:next");
-  });
-  trayPlay.on("click", () => {
-    win?.webContents.send("player:toggle");
-  });
-  trayPrev.on("click", () => {
-    win?.webContents.send("player:prev");
-  });
+  const img = (name, size = 20) => {
+    const icon = nativeImage.createFromPath(path.join(process.env.VITE_PUBLIC, name));
+    if (process.platform === "darwin") {
+      icon.setTemplateImage(true);
+    }
+    return icon.resize({ width: size, height: size });
+  };
+  if (process.platform === "darwin") {
+    trayNext = new Tray(img("next.png"));
+    trayPlay = new Tray(img("play.png"));
+    trayPrev = new Tray(img("previous.png"));
+    trayMain = new Tray(img("mini_logo.png"));
+    trayNext.on("click", () => win?.webContents.send("player:next"));
+    trayPlay.on("click", () => win?.webContents.send("player:toggle"));
+    trayPrev.on("click", () => win?.webContents.send("player:prev"));
+  } else {
+    const logoImg = nativeImage.createFromPath(path.join(process.env.VITE_PUBLIC, "logo.png")).resize({ width: 24, height: 24 });
+    trayMain = new Tray(logoImg);
+    trayMain.setToolTip("AudioDock");
+  }
   trayMain.on("click", () => {
     if (win) {
       if (win.isVisible()) {
