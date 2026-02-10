@@ -1,5 +1,6 @@
 import {
   AppstoreOutlined,
+  CrownOutlined,
   CustomerServiceOutlined,
   DatabaseOutlined,
   DeleteOutlined,
@@ -742,6 +743,20 @@ const Header: React.FC = () => {
             )}
           </div>
         </Tooltip>
+        <Tooltip title="会员服务">
+          <div
+            className={styles.actionIcon}
+            style={{ ...actionIconStyle }}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("/member-login");
+            }}
+          >
+            <CrownOutlined
+              style={{ fontSize: 18, color: false ? "#FFD700" : undefined }}
+            />
+          </div>
+        </Tooltip>
         <Popover
           content={
             <div className={styles.userMenu}>
@@ -864,7 +879,9 @@ const Header: React.FC = () => {
         <div style={{ padding: "20px 0" }}>
           <div style={{ marginBottom: 16 }}>
             状态：
-            {importTask?.message && importTask.status !== TaskStatus.FAILED && importTask.status !== TaskStatus.SUCCESS
+            {importTask?.message &&
+            importTask.status !== TaskStatus.FAILED &&
+            importTask.status !== TaskStatus.SUCCESS
               ? importTask.message
               : importTask?.status === TaskStatus.INITIALIZING
                 ? "正在初始化..."
@@ -899,19 +916,34 @@ const Header: React.FC = () => {
           />
           <Flex vertical gap={4} style={{ marginTop: 12 }}>
             <Flex justify="space-between" align="center">
-              <Text type="secondary" style={{ fontSize: 12 }}>本地文件入库进度</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                本地文件入库进度
+              </Text>
               <Text style={{ fontSize: 13 }}>
                 {importTask?.localCurrent || 0} / {importTask?.localTotal || 0}
               </Text>
             </Flex>
             <Flex justify="space-between" align="center">
-              <Text type="secondary" style={{ fontSize: 12 }}>WebDAV 文件入库进度</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                WebDAV 文件入库进度
+              </Text>
               <Text style={{ fontSize: 13 }}>
-                {importTask?.webdavCurrent || 0} / {importTask?.webdavTotal || 0}
+                {importTask?.webdavCurrent || 0} /{" "}
+                {importTask?.webdavTotal || 0}
               </Text>
             </Flex>
-            <Flex justify="space-between" align="center" style={{ marginTop: 4, paddingTop: 4, borderTop: `1px dashed ${token.colorBorderSecondary}` }}>
-              <Text strong style={{ fontSize: 12 }}>总进度</Text>
+            <Flex
+              justify="space-between"
+              align="center"
+              style={{
+                marginTop: 4,
+                paddingTop: 4,
+                borderTop: `1px dashed ${token.colorBorderSecondary}`,
+              }}
+            >
+              <Text strong style={{ fontSize: 12 }}>
+                总进度
+              </Text>
               <Text strong style={{ fontSize: 13 }}>
                 {importTask?.current || 0} / {importTask?.total || 0}
               </Text>
@@ -927,9 +959,9 @@ const Header: React.FC = () => {
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
                 fontStyle: "italic",
-                padding: '4px 8px',
+                padding: "4px 8px",
                 backgroundColor: token.colorFillAlter,
-                borderRadius: 4
+                borderRadius: 4,
               }}
             >
               正在处理: {importTask.currentFileName}

@@ -43,7 +43,7 @@ import { usePlayMode } from "../../src/utils/playMode";
 import { useCheckUpdate } from "@/hooks/useCheckUpdate";
 import { CachedImage } from "@/src/components/CachedImage";
 import { UpdateModal } from "@/src/components/UpdateModal";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 const logo = require("../../assets/images/logo.png");
 const subsonicLogo = require("../../assets/images/subsonic.png");
 const embyLogo = require("../../assets/images/emby.png");
@@ -565,9 +565,20 @@ export default function PersonalScreen() {
           source={{ uri: getImageUrl((user as any)?.avatar, "https://picsum.photos/200") }} // Placeholder for avatar
           style={styles.avatar}
         />
-        <Text style={[styles.nickname, { color: colors.text }]}>
-          {user?.username || "未登录"}
-        </Text>
+        <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+            <Text style={[styles.nickname, { color: colors.text }]}>
+            {user?.username || "未登录"}
+            </Text>
+            {user && (
+                <TouchableOpacity onPress={() => router.push("/member-login" as any)}>
+                    <MaterialCommunityIcons 
+                        name="crown" 
+                        size={24} 
+                        color={false ? "#FFD700" : colors.secondary} 
+                    />
+                </TouchableOpacity>
+            )}
+        </View>
       </View>
 
       {/* Tabs */}

@@ -43,7 +43,9 @@ function RootLayoutNav() {
       segmentName === "notification.click" ||
       segmentName === "source-manage" ||
       segmentName === "login-form" ||
-      segmentName === "login";
+      segmentName === "login" ||
+      segmentName === "member-login" ||
+      segmentName === "member-benefits";
 
     if (!token && inAuthGroup) {
       router.replace({
@@ -108,6 +110,20 @@ function RootLayoutNav() {
           options={{ 
             headerShown: false, 
             animation: 'slide_from_left' 
+          }} 
+        />
+        <Stack.Screen 
+          name="member-login" 
+          options={{ 
+            headerShown: false,
+            animation: 'slide_from_left' 
+          }} 
+        />
+        <Stack.Screen 
+          name="member-benefits" 
+          options={{ 
+            headerShown: false,
+            animation: 'slide_from_right' 
           }} 
         />
         <Stack.Screen 

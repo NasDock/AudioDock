@@ -4,6 +4,8 @@ import { Button, Form, Input, message, Steps, Typography } from "antd";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import styles from "./index.module.less";
+
 const { Title, Text } = Typography;
 
 const ForgotPassword: React.FC = () => {
@@ -93,22 +95,8 @@ const ForgotPassword: React.FC = () => {
   };
 
   return (
-    <div
-      style={{
-        height: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <div
-        style={{
-          width: 400,
-          padding: 40,
-          borderRadius: 8,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-        }}
-      >
+    <div className={styles.container}>
+      <div className={styles.content}>
         {contextHolder}
         <div style={{ marginBottom: 24, textAlign: "center" }}>
           <Title level={4}>重置密码</Title>

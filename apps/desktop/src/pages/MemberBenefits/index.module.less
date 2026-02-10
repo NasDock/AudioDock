@@ -1,0 +1,121 @@
+
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100%;
+  padding: 40px 20px;
+  -webkit-app-region: drag; /* Enable dragging for the area outside the card */
+}
+
+.card {
+  width: 100%;
+  max-width: 650px;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 40px;
+  -webkit-app-region: no-drag; /* Disable dragging for the card itself to allow interactions */
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.backBtn {
+  font-size: 18px;
+}
+
+.benefitTable {
+  :global {
+    .ant-table-thead > tr > th {
+      background: transparent;
+      border-bottom: 2px solid rgba(0,0,0,0.05);
+      font-weight: 600;
+    }
+  }
+}
+
+.benefitRow:hover {
+  background: rgba(0,0,0,0.02);
+}
+
+.priceCard {
+  width: 180px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  transition: all 0.3s;
+  border: 1px solid rgba(0,0,0,0.08);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    background: #fafafa;
+  }
+}
+
+.proBadge {
+  position: absolute;
+  top: 10px;
+  right: -25px;
+  background: #FFD700;
+  color: #000;
+  padding: 2px 30px;
+  font-size: 10px;
+  font-weight: bold;
+  transform: rotate(45deg);
+}
+
+.price {
+  margin-top: 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  color: var(--ant-primary-color);
+}
+
+.currency {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.amount {
+  font-size: 32px;
+  font-weight: bold;
+  margin: 0 2px;
+}
+
+.unit {
+  font-size: 12px;
+  color: rgba(0,0,0,0.45);
+}
+
+.paymentMethods {
+  padding: 10px 0;
+}
+
+.paymentItem {
+  cursor: pointer;
+  padding: 16px 32px;
+  border-radius: 12px;
+  transition: all 0.2s;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  width: 180px;
+  justify-content: center;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    background: #fafafa;
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}

@@ -29,6 +29,8 @@ const SourceManage = lazy(() => import("./pages/SourceManage/index"));
 const TaskList = lazy(() => import("./pages/TTS/TaskList/index"));
 const CreateTask = lazy(() => import("./pages/TTS/CreateTask/index"));
 const ProductUpdates = lazy(() => import("./pages/ProductUpdates/index"));
+const MemberLogin = lazy(() => import("./pages/MemberLogin/index"));
+const MemberBenefits = lazy(() => import("./pages/MemberBenefits/index"));
 
 import { theme } from "antd";
 import { useEffect } from "react";
@@ -159,6 +161,8 @@ const AppContent = () => {
               <Route path="/source-manage" element={<SourceManage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/member-login" element={<MemberLogin />} />
+              <Route path="/member-benefits" element={<MemberBenefits />} />
 
               {isAuthenticated ? (
                 <Route
