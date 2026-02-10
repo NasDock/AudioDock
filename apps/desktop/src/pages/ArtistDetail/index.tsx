@@ -1,43 +1,34 @@
 import {
-    CheckSquareOutlined,
-    CloseOutlined,
-    DownloadOutlined,
-    PlaySquareOutlined,
-    PlusOutlined,
-    UnorderedListOutlined
+  CheckSquareOutlined,
+  CloseOutlined,
+  DownloadOutlined,
+  PlusOutlined
 } from "@ant-design/icons";
 import {
-    addTracksToPlaylist,
-    getAlbumsByArtist,
-    getArtistById,
-    getCollaborativeAlbumsByArtist,
-    getPlaylists,
-    getTracksByArtist,
-    type Playlist,
+  getAlbumsByArtist,
+  getArtistById,
+  getCollaborativeAlbumsByArtist,
+  getTracksByArtist,
 } from "@soundx/services";
 import {
-    Avatar,
-    Button,
-    Col,
-    Empty,
-    Flex,
-    List,
-    message,
-    Modal,
-    Row,
-    Skeleton,
-    theme,
-    Typography
+  Avatar,
+  Button,
+  Col,
+  Empty,
+  Flex,
+  message,
+  Row,
+  Skeleton,
+  Typography
 } from "antd";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import Cover from "../../components/Cover";
 import TrackList from "../../components/TrackList";
 import { getBaseURL } from "../../https";
 import { type Album, type Artist, type Track, TrackType } from "../../models";
 import { downloadTracks } from "../../services/downloadManager";
-import { useAuthStore } from "../../store/auth";
-import { usePlayerStore } from "../../store/player";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
 
@@ -47,9 +38,6 @@ const ArtistDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   // const message = useMessage(); // Use messageApi from antd 5
   const [messageApi, contextHolder] = message.useMessage();
-  const { token } = theme.useToken();
-  const { insertTracksNext } = usePlayerStore();
-  const { user } = useAuthStore();
 
   const [artist, setArtist] = useState<Artist | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -62,7 +50,6 @@ const ArtistDetail: React.FC = () => {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isBatchAddModalOpen, setIsBatchAddModalOpen] = useState(false);
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -121,47 +108,7 @@ const ArtistDetail: React.FC = () => {
     });
   };
 
-  const handleBatchAddToQueue = () => {
-    if (!selectedTracks.length) return;
-    insertTracksNext(selectedTracks);
-    messageApi.success(`已添加 ${selectedTracks.length} 首歌曲到下一首播放`);
-    setIsSelectionMode(false);
-    setSelectedRowKeys([]);
-  };
 
-  const openBatchAddToPlaylist = async () => {
-    if (!selectedTracks.length) return;
-    setIsBatchAddModalOpen(true);
-    try {
-        const res = await getPlaylists(mode, user?.id);
-        if (res.code === 200) {
-            setPlaylists(res.data);
-        }
-    } catch (error) {
-        messageApi.error("获取播放列表失败");
-    }
-  };
-
-  const handleBatchAddToPlaylist = async (playlistId: number | string) => {
-    try {
-        const res = await addTracksToPlaylist(playlistId, selectedRowKeys as (string|number)[]);
-        if (res.code === 200) {
-            messageApi.success("添加成功");
-            setIsBatchAddModalOpen(false);
-            setIsSelectionMode(false);
-            setSelectedRowKeys([]);
-        } else {
-            messageApi.error("添加失败");
-        }
-    } catch (error) {
-        messageApi.error("添加失败");
-    }
-  };
-
-  const handleAddSelectionToCurrentPlaylist = () => {
-      handleBatchAddToQueue();
-      setIsBatchAddModalOpen(false);
-  };
 
   if (loading) {
     return (
@@ -273,7 +220,7 @@ const ArtistDetail: React.FC = () => {
                   <Button 
                     icon={<PlusOutlined />} 
                     disabled={!selectedRowKeys.length}
-                    onClick={openBatchAddToPlaylist}
+                    onClick={() => setIsBatchAddModalOpen(true)}
                   >
                     添加到...
                   </Button>
@@ -307,42 +254,15 @@ const ArtistDetail: React.FC = () => {
         </div>
       )}
 
-      <Modal
-        title="添加到播放列表"
+      <AddToPlaylistModal
         open={isBatchAddModalOpen}
         onCancel={() => setIsBatchAddModalOpen(false)}
-        footer={null}
-      >
-        <List
-            header={
-                <List.Item
-                    onClick={handleAddSelectionToCurrentPlaylist}
-                    style={{ cursor: "pointer", borderBottom: `1px solid ${token.colorBorderSecondary}` }}
-                    className={styles.playlistItem}
-                >
-                    <List.Item.Meta
-                        avatar={<PlaySquareOutlined style={{ fontSize: 24, color: token.colorPrimary }} />}
-                        title={<span style={{ color: token.colorText }}>当前播放列表</span>}
-                        description="插入到正在播放之后"
-                    />
-                </List.Item>
-            }
-            dataSource={playlists}
-            renderItem={(item) => (
-            <List.Item
-                onClick={() => handleBatchAddToPlaylist(item.id)}
-                style={{ cursor: "pointer" }}
-            >
-                <List.Item.Meta
-                    avatar={<UnorderedListOutlined style={{ fontSize: 20 }} />}
-                    title={item.name}
-                    description={`${item._count?.tracks || 0} 首`}
-                />
-            </List.Item>
-            )}
-            style={{ maxHeight: 400, overflowY: 'auto' }}
-        />
-      </Modal>
+        tracks={selectedTracks}
+        onSuccess={() => {
+            setIsSelectionMode(false);
+            setSelectedRowKeys([]);
+        }}
+      />
     </div>
   );
 };

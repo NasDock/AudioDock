@@ -13,7 +13,7 @@ export class AlbumService {
     return await this.prisma.album.findMany({ where: { status: 'ACTIVE' } });
   }
 
-  async findByName(name: string, artist?: string, type?: any): Promise<Album | null> {
+  async findByName(name: string, artist?: string, type?: any, allStatus = false): Promise<Album | null> {
     // Build where clause dynamically to avoid null matching issues
     const where: any = {};
 
@@ -26,7 +26,10 @@ export class AlbumService {
     if (type !== null && type !== undefined) {
       where.type = type;
     }
-    where.status = 'ACTIVE';
+    
+    if (!allStatus) {
+      where.status = 'ACTIVE';
+    }
 
     return await this.prisma.album.findFirst({ where });
   }

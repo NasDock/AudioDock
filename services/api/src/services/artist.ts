@@ -13,12 +13,15 @@ export class ArtistService {
     return await this.prisma.artist.findMany({ where: { status: 'ACTIVE' } });
   }
 
-  async findByName(name: string, type?: any): Promise<Artist | null> {
+  async findByName(name: string, type?: any, allStatus = false): Promise<Artist | null> {
     // Don't search if name is null
     if (name === null || name === undefined) {
       return null;
     }
-    const where: any = { name, status: 'ACTIVE' };
+    const where: any = { name };
+    if (!allStatus) {
+      where.status = 'ACTIVE';
+    }
     if (type) {
       where.type = type;
     }

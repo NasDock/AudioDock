@@ -4,26 +4,22 @@ import {
   HeartFilled,
   HeartOutlined,
   OrderedListOutlined,
-  PlaySquareOutlined,
   PlusOutlined,
   SearchOutlined,
   SortAscendingOutlined,
   SortDescendingOutlined,
-  UnorderedListOutlined
 } from "@ant-design/icons";
 import {
-  addTracksToPlaylist,
   getAlbumById,
-  getAlbumTracks, // add
-  getPlaylists,
+  getAlbumTracks,
   toggleAlbumLike,
-  toggleAlbumUnLike, // add
-  type Playlist, // add
+  toggleAlbumUnLike,
 } from "@soundx/services";
 import { useRequest } from "ahooks";
-import { Avatar, Button, Col, Flex, Input, List, Modal, Row, Space, theme, Typography } from "antd";
+import { Avatar, Button, Col, Flex, Input, Row, Space, theme, Typography } from "antd";
 import React, { useEffect, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
+import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import { useMessage } from "../../context/MessageContext";
 import { type Album, type Track } from "../../models";
 import { downloadTracks } from "../../services/downloadManager";
@@ -52,14 +48,13 @@ const Detail: React.FC = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [isBatchAddModalOpen, setIsBatchAddModalOpen] = useState(false); // add
-  const [playlists, setPlaylists] = useState<Playlist[]>([]); // add
+  const [isBatchAddModalOpen, setIsBatchAddModalOpen] = useState(false);
 
   const location = useLocation();
   const hasResumed = React.useRef(false);
 
   const { token } = theme.useToken();
-  const { play, setPlaylist, currentAlbumId, playlist, appendTracks, insertTracksNext } = usePlayerStore();
+  const { play, setPlaylist, currentAlbumId, playlist, appendTracks } = usePlayerStore();
 
   const pageSize = 50;
 
@@ -247,50 +242,6 @@ const Detail: React.FC = () => {
     fetchTracks(id, 0, sort, keyword);
   };
 
-  const handleBatchAddToQueue = () => {
-    const selectedTracks = tracks.filter((t) => selectedRowKeys.includes(t.id));
-    if (!selectedTracks.length) return;
-    insertTracksNext(selectedTracks);
-    message.success(`已添加 ${selectedTracks.length} 首歌曲到下一首播放`);
-    setIsSelectionMode(false);
-    setSelectedRowKeys([]);
-  };
-
-  const openBatchAddToPlaylist = async () => {
-    const selectedTracks = tracks.filter((t) => selectedRowKeys.includes(t.id));
-    if (!selectedTracks.length) return;
-    setIsBatchAddModalOpen(true);
-    try {
-        const res = await getPlaylists("MUSIC", user?.id); // Assuming MUSIC mode for albums, or check context. Album is usually MUSIC or AUDIOBOOK.
-        // We can get mode from utils or just fetch both. Album usually implies type.
-        if (res.code === 200) {
-            setPlaylists(res.data);
-        }
-    } catch (error) {
-        message.error("获取播放列表失败");
-    }
-  };
-
-  const handleBatchAddToPlaylist = async (playlistId: number | string) => {
-    try {
-        const res = await addTracksToPlaylist(playlistId, selectedRowKeys as (string|number)[]);
-        if (res.code === 200) {
-            message.success("添加成功");
-            setIsBatchAddModalOpen(false);
-            setIsSelectionMode(false);
-            setSelectedRowKeys([]);
-        } else {
-            message.error("添加失败");
-        }
-    } catch (error) {
-        message.error("添加失败");
-    }
-  };
-
-  const handleAddSelectionToCurrentPlaylist = () => {
-      handleBatchAddToQueue();
-      setIsBatchAddModalOpen(false);
-  };
 
   return (
     <div
@@ -373,7 +324,7 @@ const Detail: React.FC = () => {
                       <Button 
                         icon={<PlusOutlined />} 
                         size="small"
-                        onClick={openBatchAddToPlaylist}
+                        onClick={() => setIsBatchAddModalOpen(true)}
                       >
                         添加到...
                       </Button>
@@ -482,42 +433,15 @@ const Detail: React.FC = () => {
           </Col>
         </Row>
       </div>
-      <Modal
-        title="添加到播放列表"
+      <AddToPlaylistModal
         open={isBatchAddModalOpen}
         onCancel={() => setIsBatchAddModalOpen(false)}
-        footer={null}
-      >
-        <List
-            header={
-                <List.Item
-                    onClick={handleAddSelectionToCurrentPlaylist}
-                    style={{ cursor: "pointer", borderBottom: `1px solid ${token.colorBorderSecondary}` }}
-                    className={styles.playlistItem}
-                >
-                    <List.Item.Meta
-                        avatar={<PlaySquareOutlined style={{ fontSize: 24, color: token.colorPrimary }} />}
-                        title={<span style={{ color: token.colorText }}>当前播放列表</span>}
-                        description="插入到正在播放之后"
-                    />
-                </List.Item>
-            }
-            dataSource={playlists}
-            renderItem={(item) => (
-            <List.Item
-                onClick={() => handleBatchAddToPlaylist(item.id)}
-                style={{ cursor: "pointer" }}
-            >
-                <List.Item.Meta
-                    avatar={<UnorderedListOutlined style={{ fontSize: 20 }} />}
-                    title={item.name}
-                    description={`${item._count?.tracks || 0} 首`}
-                />
-            </List.Item>
-            )}
-            style={{ maxHeight: 400, overflowY: 'auto' }}
-        />
-      </Modal>
+        tracks={tracks.filter(t => selectedRowKeys.includes(t.id))}
+        onSuccess={() => {
+            setIsSelectionMode(false);
+            setSelectedRowKeys([]);
+        }}
+      />
     </div>
   );
 };

@@ -786,8 +786,8 @@ const Header: React.FC = () => {
                   modal.confirm({
                     title: "确认全量更新？",
                     content:
-                      "全量更新将清空所有歌曲、专辑、艺术家、播放列表以及您的播放历史和收藏记录！此操作不可恢复。",
-                    okText: "确认清空并更新",
+                      "全量更新将核对所有音频文件。您的播放历史、收藏记录、歌单由于文件指纹机制将得到保留。仅当文件在磁盘上被物理删除时，对应的记录才会被清除。",
+                    okText: "确认更新",
                     cancelText: "取消",
                     onOk: () => handleUpdateLibrary("full"),
                   });
@@ -864,15 +864,17 @@ const Header: React.FC = () => {
         <div style={{ padding: "20px 0" }}>
           <div style={{ marginBottom: 16 }}>
             状态：
-            {importTask?.status === TaskStatus.INITIALIZING
-              ? "正在初始化..."
-              : importTask?.status === TaskStatus.PARSING
-                ? "正在解析媒体文件..."
-                : importTask?.status === TaskStatus.SUCCESS
-                  ? "入库完成"
-                  : importTask?.status === TaskStatus.FAILED
-                    ? "入库失败"
-                    : "准备中"}
+            {importTask?.message && importTask.status !== TaskStatus.FAILED && importTask.status !== TaskStatus.SUCCESS
+              ? importTask.message
+              : importTask?.status === TaskStatus.INITIALIZING
+                ? "正在初始化..."
+                : importTask?.status === TaskStatus.PARSING
+                  ? "正在解析媒体文件..."
+                  : importTask?.status === TaskStatus.SUCCESS
+                    ? "入库完成"
+                    : importTask?.status === TaskStatus.FAILED
+                      ? "入库失败"
+                      : "准备中"}
           </div>
           {importTask?.status === TaskStatus.FAILED && (
             <div style={{ color: token.colorError, marginBottom: 16 }}>
