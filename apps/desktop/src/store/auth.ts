@@ -42,6 +42,7 @@ initService(currentUrl, currentType);
 const initToken = localStorage.getItem(`token_${currentUrl}`);
 const initUser = localStorage.getItem(`user_${currentUrl}`);
 const initDevice = localStorage.getItem(`device_${currentUrl}`);
+const initPlusToken = localStorage.getItem("plus_token");
 
 interface AuthState {
   token: string | null;
@@ -50,12 +51,15 @@ interface AuthState {
   login: (token: string, user: User, device?: any) => void;
   logout: () => void;
   switchServer: (url: string) => void;
+  plusToken: string | null;
+  setPlusToken: (token: string | null) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   token: initToken || null,
   user: initUser ? JSON.parse(initUser) : null,
   device: initDevice ? JSON.parse(initDevice) : null,
+  plusToken: initPlusToken || null,
   login: (token, user, device) => set({ token, user, device }),
   logout: () => {
     const url =
@@ -63,7 +67,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.removeItem(`token_${url}`);
     localStorage.removeItem(`user_${url}`);
     localStorage.removeItem(`device_${url}`);
-    set({ token: null, user: null, device: null });
+    localStorage.removeItem("plus_token");
+    localStorage.removeItem("plus_user_id");
+    set({ token: null, user: null, device: null, plusToken: null });
   },
   switchServer: (url: string) => {
     localStorage.setItem("serverAddress", url);
@@ -79,5 +85,14 @@ export const useAuthStore = create<AuthState>((set) => ({
       user: user ? JSON.parse(user) : null,
       device: device ? JSON.parse(device) : null,
     });
+  },
+  setPlusToken: (token: string | null) => {
+    if (token) {
+      localStorage.setItem("plus_token", token);
+    } else {
+      localStorage.removeItem("plus_token");
+      localStorage.removeItem("plus_user_id");
+    }
+    set({ plusToken: token });
   },
 }));

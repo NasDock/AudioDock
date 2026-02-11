@@ -64,7 +64,7 @@ const AppContent = () => {
   const { mode } = useTheme();
   const themeConfig = getThemeConfig(mode);
   const [messageApi, contextHolder] = message.useMessage();
-  const { token, user } = useAuthStore();
+  const { token, user, plusToken } = useAuthStore();
 
   const { checkUpdate, updateInfo, cancelUpdate } = useCheckUpdate();
 
@@ -150,13 +150,7 @@ const AppContent = () => {
   // We can handle this via Routes structure.
 
   const isAuthenticated = !!token;
-  const isMemberAuthenticated = !!localStorage.getItem("plus_token");
-  const isAuthPage = [
-    "/source-manage",
-    "/login",
-    "/forgot-password",
-    "/member-login",
-  ].some((path) => window.location.hash.includes(path));
+  const isMemberAuthenticated = !!plusToken;
 
   return (
     <ConfigProvider theme={themeConfig} locale={zhCN}>
@@ -165,113 +159,139 @@ const AppContent = () => {
         <MessageProvider messageApi={messageApi}>
           <Suspense fallback={<Skeleton active />}>
             <Routes>
-              <Route path="/source-manage" element={<SourceManage />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/member-login" element={<MemberLogin />} />
-              <Route path="/member-benefits" element={<MemberBenefits />} />
 
-              {isAuthenticated ? (
-                !isMemberAuthenticated && !isAuthPage ? (
-                    <Route path="*" element={<Navigate to="/member-login" replace />} />
-                ) : (
-                <Route
-                  path="/*"
-                  element={
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        height: "100vh",
-                        width: "100vw",
-                        // Inner layout can keep its own background logic if needed for glass effect
-                        backgroundColor: "transparent",
-                      }}
-                    >
-                      <div
-                        style={{ display: "flex", flex: 1, overflow: "hidden" }}
-                      >
-                        <Sidebar />
-                        <div
-                          style={{
-                            flex: 1,
-                            display: "flex",
-                            flexDirection: "column",
-                            overflow: "hidden",
-                          }}
-                        >
-                          <Header />
-                          <Suspense fallback={<Skeleton active />}>
-                            <Routes>
-                              <Route
-                                path="/"
-                                element={<Navigate to="/recommended" replace />}
-                              />
-                              <Route
-                                path="/recommended"
-                                element={<Recommended />}
-                              />
-                              <Route path="/detail" element={<Detail />} />
-                              <Route
-                                path="/artist/:id"
-                                element={<ArtistDetail />}
-                              />
-                              <Route path="/category" element={<Category />} />
-                              <Route path="/songs" element={<Songs />} />
-                              <Route
-                                path="/favorites"
-                                element={<Favorites />}
-                              />
-                              <Route path="/listened" element={<Listened />} />
-                              <Route path="/artists" element={<ArtistList />} />
-                              <Route
-                                path="/playlist/:id"
-                                element={<PlaylistDetail />}
-                              />
-                              <Route path="/settings" element={<Settings />} />
-                              <Route path="/folders" element={<Folder />} />
-                              <Route path="/folder/:id" element={<Folder />} />
-                              <Route
-                                path="/downloads"
-                                element={<Downloads />}
-                              />
-                              <Route
-                                path="/admin/users"
-                                element={<UserManagement />}
-                              />
-                              <Route
-                                path="/tts/tasks"
-                                element={<TaskList />}
-                              />
-                              <Route
-                                path="/tts/create"
-                                element={<CreateTask />}
-                              />
-                              <Route
-                                path="/product-updates"
-                                element={<ProductUpdates />}
-                              />
-                            </Routes>
-                          </Suspense>
-                        </div>
-                      </div>
-
-                      <Player />
-                      <UpdateModal
-                        visible={!!updateInfo}
-                        updateInfo={updateInfo}
-                        onCancel={cancelUpdate}
-                      />
-                      <InviteListener />
-                    </div>
-                  }
-                />
-                )
-              ) : (
+              {!isMemberAuthenticated ? (
                 <Route
                   path="*"
-                  element={<Navigate to="/source-manage" replace />}
+                  element={<Navigate to="/member-login" replace />}
                 />
+              ) : (
+                <>
+                  <Route path="/source-manage" element={<SourceManage />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/member-benefits" element={<MemberBenefits />} />
+
+                  {isAuthenticated ? (
+                    <Route
+                      path="/*"
+                      element={
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            height: "100vh",
+                            width: "100vw",
+                            backgroundColor: "transparent",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              flex: 1,
+                              overflow: "hidden",
+                            }}
+                          >
+                            <Sidebar />
+                            <div
+                              style={{
+                                flex: 1,
+                                display: "flex",
+                                flexDirection: "column",
+                                overflow: "hidden",
+                              }}
+                            >
+                              <Header />
+                              <Suspense fallback={<Skeleton active />}>
+                                <Routes>
+                                  <Route
+                                    path="/"
+                                    element={
+                                      <Navigate to="/recommended" replace />
+                                    }
+                                  />
+                                  <Route
+                                    path="/recommended"
+                                    element={<Recommended />}
+                                  />
+                                  <Route path="/detail" element={<Detail />} />
+                                  <Route
+                                    path="/artist/:id"
+                                    element={<ArtistDetail />}
+                                  />
+                                  <Route
+                                    path="/category"
+                                    element={<Category />}
+                                  />
+                                  <Route path="/songs" element={<Songs />} />
+                                  <Route
+                                    path="/favorites"
+                                    element={<Favorites />}
+                                  />
+                                  <Route
+                                    path="/listened"
+                                    element={<Listened />}
+                                  />
+                                  <Route
+                                    path="/artists"
+                                    element={<ArtistList />}
+                                  />
+                                  <Route
+                                    path="/playlist/:id"
+                                    element={<PlaylistDetail />}
+                                  />
+                                  <Route
+                                    path="/settings"
+                                    element={<Settings />}
+                                  />
+                                  <Route path="/folders" element={<Folder />} />
+                                  <Route
+                                    path="/folder/:id"
+                                    element={<Folder />}
+                                  />
+                                  <Route
+                                    path="/downloads"
+                                    element={<Downloads />}
+                                  />
+                                  <Route
+                                    path="/admin/users"
+                                    element={<UserManagement />}
+                                  />
+                                  <Route
+                                    path="/tts/tasks"
+                                    element={<TaskList />}
+                                  />
+                                  <Route
+                                    path="/tts/create"
+                                    element={<CreateTask />}
+                                  />
+                                  <Route
+                                    path="/product-updates"
+                                    element={<ProductUpdates />}
+                                  />
+                                </Routes>
+                              </Suspense>
+                            </div>
+                          </div>
+
+                          <Player />
+                          <UpdateModal
+                            visible={!!updateInfo}
+                            updateInfo={updateInfo}
+                            onCancel={cancelUpdate}
+                          />
+                          <InviteListener />
+                        </div>
+                      }
+                    />
+                  ) : (
+                    <Route
+                      path="*"
+                      element={<Navigate to="/source-manage" replace />}
+                    />
+                  )}
+                </>
               )}
             </Routes>
           </Suspense>

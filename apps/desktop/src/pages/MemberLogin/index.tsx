@@ -1,8 +1,9 @@
-import { plusLogin, plusSendCode, setPlusToken } from "@soundx/services";
+import { plusLogin, plusSendCode } from "@soundx/services";
 import { Button, Form, Input, Layout, Typography, message, theme } from "antd";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
+import { useAuthStore } from "../../store/auth";
 import styles from "./index.module.less";
 
 const { Title, Text } = Typography;
@@ -12,6 +13,7 @@ const MemberLogin: React.FC = () => {
   const { token } = theme.useToken();
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const { setPlusToken } = useAuthStore();
   const [messageApi, contextHolder] = message.useMessage();
 
   const [countdown, setCountdown] = useState(0);
@@ -63,7 +65,9 @@ const MemberLogin: React.FC = () => {
         setPlusToken(plusToken);
 
         messageApi.success("会员登录成功");
-        navigate("/", { replace: true });
+        setTimeout(() => {
+          navigate("/", { replace: true });
+        }, 500);
       } else {
         messageApi.error(res.data.message || "登录失败");
       }
