@@ -69,8 +69,9 @@ const MemberBenefits: React.FC = () => {
     { key: '1', feature: '基础功能', nonMember: true, member: true },
     { key: '2', feature: '设备接力', nonMember: true, member: true },
     { key: '3', feature: '同步控制', nonMember: false, member: true },
-    { key: '4', feature: 'TTS语言朗读', nonMember: false, member: true },
-    { key: '5', feature: '数据源备份', nonMember: false, member: true },
+    { key: '4', feature: 'TTS生成有声书', nonMember: false, member: true },
+    { key: '5', feature: 'TV版', nonMember: false, member: true },
+    { key: '6', feature: '车机版', nonMember: false, member: true },
   ];
 
   const columns = [

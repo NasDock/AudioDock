@@ -33,6 +33,7 @@ import {
   getRunningImportTask,
   getSearchHistory,
   plusGetMe,
+  removePlusToken,
   searchAll,
   setPlusToken,
   setServiceConfig,
@@ -916,6 +917,23 @@ const Header: React.FC = () => {
                 <LogoutOutlined />
                 退出登陆
               </div>
+              {localStorage.getItem("plus_token") && (
+                <div
+                  className={styles.userMenuItem}
+                  onClick={() => {
+                    localStorage.removeItem("plus_token");
+                    localStorage.removeItem("plus_user_id");
+                    removePlusToken();
+                    setIsPlusVip(false);
+                    setPlusVipData(null);
+                    message.success("会员已退出登录");
+                    navigate("/member-login");
+                  }}
+                >
+                  <CrownOutlined />
+                  退出/更换会员账号
+                </div>
+              )}
             </div>
           }
         >

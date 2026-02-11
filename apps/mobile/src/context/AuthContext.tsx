@@ -23,6 +23,8 @@ interface AuthContextType {
   sourceType: string;
   setSourceType: (type: string) => void;
   switchServer: (url: string, type?: string, skipToken?: boolean) => Promise<void>;
+  plusToken: string | null;
+  setPlusToken: (token: string | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -36,6 +38,8 @@ const AuthContext = createContext<AuthContextType>({
   sourceType: "AudioDock",
   setSourceType: () => {},
   switchServer: async () => {},
+  plusToken: null,
+  setPlusToken: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -47,6 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [token, setToken] = useState<string | null>(null);
   const [device, setDevice] = useState<any | null>(null);
   const [sourceType, setSourceTypeDirectly] = useState<string>("AudioDock");
+  const [plusToken, setPlusTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const setSourceType = (type: string) => {
@@ -76,6 +81,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const savedDevice = await AsyncStorage.getItem(`device_${savedAddress}`);
       if (savedDevice) {
         setDevice(JSON.parse(savedDevice));
+      }
+      const savedPlusToken = await AsyncStorage.getItem("plus_token");
+      if (savedPlusToken) {
+        setPlusTokenState(savedPlusToken);
       }
 
       // Configure adapter on load
@@ -162,6 +171,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       await AsyncStorage.removeItem(`token_${savedAddress}`);
       await AsyncStorage.removeItem(`user_${savedAddress}`);
       await AsyncStorage.removeItem(`device_${savedAddress}`);
+      await AsyncStorage.removeItem("plus_token");
+      await AsyncStorage.removeItem("plus_user_id");
+      setPlusTokenState(null);
     } catch (error) {
       console.error("Failed to logout:", error);
     }
@@ -220,6 +232,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const setPlusToken = async (pToken: string | null) => {
+    setPlusTokenState(pToken);
+    if (pToken) {
+      await AsyncStorage.setItem("plus_token", pToken);
+    } else {
+      await AsyncStorage.removeItem("plus_token");
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -233,6 +254,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         sourceType,
         setSourceType,
         switchServer,
+        plusToken,
+        setPlusToken,
       }}
     >
       {children}

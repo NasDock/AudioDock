@@ -4,13 +4,13 @@ import { plusCreatePayment } from "@soundx/services";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../src/context/ThemeContext";
@@ -77,8 +77,9 @@ export default function MemberBenefitsScreen() {
     { feature: '基础功能', free: true, member: true },
     { feature: '设备接力', free: true, member: true },
     { feature: '同步控制', free: false, member: true },
-    { feature: 'TTS语言朗读', free: false, member: true },
-    { feature: '数据源备份', free: false, member: true },
+    { feature: 'TTS生成有声书', free: false, member: true },
+    { feature: 'TV版', free: false, member: true },
+    { feature: '车机版', free: false, member: true },
   ];
 
   return (

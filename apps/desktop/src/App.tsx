@@ -150,6 +150,13 @@ const AppContent = () => {
   // We can handle this via Routes structure.
 
   const isAuthenticated = !!token;
+  const isMemberAuthenticated = !!localStorage.getItem("plus_token");
+  const isAuthPage = [
+    "/source-manage",
+    "/login",
+    "/forgot-password",
+    "/member-login",
+  ].some((path) => window.location.hash.includes(path));
 
   return (
     <ConfigProvider theme={themeConfig} locale={zhCN}>
@@ -165,6 +172,9 @@ const AppContent = () => {
               <Route path="/member-benefits" element={<MemberBenefits />} />
 
               {isAuthenticated ? (
+                !isMemberAuthenticated && !isAuthPage ? (
+                    <Route path="*" element={<Navigate to="/member-login" replace />} />
+                ) : (
                 <Route
                   path="/*"
                   element={
@@ -256,6 +266,7 @@ const AppContent = () => {
                     </div>
                   }
                 />
+                )
               ) : (
                 <Route
                   path="*"

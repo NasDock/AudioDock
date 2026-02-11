@@ -1,4 +1,3 @@
-import { ArrowLeftOutlined } from "@ant-design/icons";
 import { plusLogin, plusSendCode, setPlusToken } from "@soundx/services";
 import { Button, Form, Input, Layout, Typography, message, theme } from "antd";
 import React, { useEffect, useState } from "react";
@@ -13,7 +12,8 @@ const MemberLogin: React.FC = () => {
   const { token } = theme.useToken();
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  
+  const [messageApi, contextHolder] = message.useMessage();
+
   const [countdown, setCountdown] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -30,21 +30,21 @@ const MemberLogin: React.FC = () => {
 
   const handleSendCode = async () => {
     try {
-      const values = await form.validateFields(['phone']);
-      
-      const hide = message.loading("正在发送验证码...");
+      const values = await form.validateFields(["phone"]);
+
+      const hide = messageApi.loading("正在发送验证码...");
       const res = await plusSendCode({ phone: values.phone });
       hide();
-      
+
       if (res.data.code === 201 || res.data.code === 200) {
-        message.success("验证码已发送");
+        messageApi.success("验证码已发送");
         setCountdown(60);
       } else {
-        message.error(res.data.message || "获取验证码失败");
+        messageApi.error(res.data.message || "获取验证码失败");
       }
     } catch (e: any) {
       if (e.response?.data?.message) {
-        message.error(e.response.data.message);
+        messageApi.error(e.response.data.message);
       }
     }
   };
@@ -54,45 +54,40 @@ const MemberLogin: React.FC = () => {
     try {
       const res = await plusLogin({ phone: values.phone, code: values.code });
       setLoading(false);
-      
+
       if (res.data.code === 201 || res.data.code === 200) {
         const { token: plusToken, userId } = res.data.data;
         // 保存 Plus Token 用于后续 Plus 接口
         localStorage.setItem("plus_token", plusToken);
         localStorage.setItem("plus_user_id", JSON.stringify(userId));
         setPlusToken(plusToken);
-        
-        message.success("会员登录成功");
-        navigate(-1);
+
+        messageApi.success("会员登录成功");
+        navigate("/", { replace: true });
       } else {
-        message.error(res.data.message || "登录失败");
+        messageApi.error(res.data.message || "登录失败");
       }
     } catch (e: any) {
       setLoading(false);
-      message.error(e.response?.data?.message || "登录失败，请检查验证码");
+      messageApi.error(e.response?.data?.message || "登录失败，请检查验证码");
     }
   };
 
   return (
     <Layout style={{ minHeight: "100vh", background: token.colorBgLayout }}>
       <Content className={styles.container}>
-        <div className={styles.card} style={{ background: token.colorBgContainer }}>
-          {/* Header */}
-          <div className={styles.header}>
-            <Button 
-                type="text" 
-                icon={<ArrowLeftOutlined />} 
-                onClick={() => navigate(-1)} 
-                className={styles.backBtn}
-            />
-          </div>
-
+        <div
+          className={styles.card}
+          style={{ background: token.colorBgContainer }}
+        >
           <div className={styles.logoSection}>
             <img src={logo} alt="AudioDock" className={styles.logo} />
-            <Title level={2} style={{ margin: "16px 0 8px" }}>成为会员</Title>
-            <Text type="secondary">享受更多权益</Text>
+            <Title level={2} style={{ margin: "16px 0 8px" }}>
+              用户登录
+            </Title>
+            <Text type="secondary">AudioDock 听见你的声音</Text>
           </div>
-
+          {contextHolder}
           <Form
             form={form}
             name="member_login"
@@ -114,22 +109,35 @@ const MemberLogin: React.FC = () => {
             </Form.Item>
 
             <Form.Item label="验证码" style={{ marginBottom: 10 }}>
-                <div style={{ display: 'flex', gap: 0 }}>
-                    <Form.Item
-                        name="code"
-                        rules={[{ required: true, message: "请输入验证码" }]}
-                        style={{ flex: 1 }}
-                    >
-                        <Input placeholder="验证码" style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0, borderRight: 'none' }} />
-                    </Form.Item>
-                    <Button 
-                        onClick={handleSendCode} 
-                        disabled={countdown > 0}
-                        style={{ width: 120, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
-                    >
-                        {countdown > 0 ? `${countdown}s` : "获取验证码"}
-                    </Button>
-                </div>
+              <div style={{ display: "flex", gap: 0 }}>
+                <Form.Item
+                  name="code"
+                  rules={[{ required: true, message: "请输入验证码" }]}
+                  style={{ flex: 1 }}
+                >
+                  <Input
+                    placeholder="验证码"
+                    style={{
+                      borderTopRightRadius: 0,
+                      borderBottomRightRadius: 0,
+                      borderRight: "none",
+                    }}
+                  />
+                </Form.Item>
+                <Button
+                  onClick={handleSendCode}
+                  type="primary"
+                  disabled={countdown > 0}
+                  style={{
+                    width: 120,
+                    fontSize: 12,
+                    borderTopLeftRadius: 0,
+                    borderBottomLeftRadius: 0,
+                  }}
+                >
+                  {countdown > 0 ? `${countdown}s` : "获取验证码"}
+                </Button>
+              </div>
             </Form.Item>
 
             <Form.Item>
@@ -141,10 +149,14 @@ const MemberLogin: React.FC = () => {
 
           <div className={styles.footer}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-                登录即代表同意 
-                <Button type="link" size="small" style={{ padding: '0 4px', fontSize: 12 }}>《用户协议》</Button>
-                和 
-                <Button type="link" size="small" style={{ padding: '0 4px', fontSize: 12 }} onClick={() => navigate('/member-benefits')}>《会员权益与服务协议》</Button>
+              登录即代表同意
+              <Button
+                type="link"
+                size="small"
+                style={{ padding: "0 4px", fontSize: 12 }}
+              >
+                《用户协议》
+              </Button>
             </Text>
           </div>
         </div>

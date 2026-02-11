@@ -1,4 +1,3 @@
-import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -15,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -26,6 +26,7 @@ export default function MemberLoginScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { setPlusToken: setContextPlusToken } = useAuth();
 
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -52,7 +53,6 @@ export default function MemberLoginScreen() {
                     return prev - 1;
                 });
             }, 1000);
-            Alert.alert("提示", "验证码已发送");
         } else {
             Alert.alert("错误", res.data.message || "获取验证码失败");
         }
@@ -78,9 +78,8 @@ export default function MemberLoginScreen() {
             await AsyncStorage.setItem("plus_token", plusToken);
             await AsyncStorage.setItem("plus_user_id", JSON.stringify(userId));
             setPlusToken(plusToken);
-            
-            Alert.alert("成功", "会员登录成功");
-            router.back(); 
+            await setContextPlusToken(plusToken);
+            router.replace("/(tabs)"); 
         } else {
             Alert.alert("登录失败", res.data.message || "手机号或验证码错误");
         }
@@ -98,23 +97,14 @@ export default function MemberLoginScreen() {
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-             <TouchableOpacity 
-               onPress={() => router.back()} 
-               style={styles.backButton}
-             >
-                <MaterialIcons name="arrow-back" size={24} color={colors.text} />
-             </TouchableOpacity>
-          </View>
-
           <View style={styles.content}>
             <View style={styles.logoContainer}>
                <Image source={logo} style={styles.logo} />
                <Text style={[styles.title, { color: colors.text }]}>
-                 成为会员
+                 用户登录
                </Text>
                <Text style={[styles.subtitle, { color: colors.secondary }]}>
-                 享受更多会员权益
+                 AudioDock 听见你的声音
                </Text>
             </View>
             
@@ -153,7 +143,7 @@ export default function MemberLoginScreen() {
                         <ActivityIndicator size="small" color="#fff" />
                     ) : (
                         <Text style={[styles.codeButtonText, { color: colors.background }]}>
-                            {countdown > 0 ? `${countdown}s` : "验证码"}
+                            {countdown > 0 ? `${countdown}s` : "获取验证码"}
                         </Text>
                     )}
                 </TouchableOpacity>
@@ -176,11 +166,7 @@ export default function MemberLoginScreen() {
               <View style={styles.footerLinks}>
                 <Text style={{color: colors.secondary, fontSize: 12}}>登录即代表同意 </Text>
                 <TouchableOpacity onPress={() => Alert.alert("用户协议", "这里展示用户协议内容")}>
-                    <Text style={{color: colors.primary, fontSize: 12}}>《用户协议》</Text>
-                </TouchableOpacity>
-                <Text style={{color: colors.secondary, fontSize: 12}}> 和 </Text>
-                <TouchableOpacity onPress={() => router.push("/member-benefits" as any)}>
-                     <Text style={{color: colors.primary, fontSize: 12}}>《会员服务协议》</Text>
+                    <Text style={{color: '#1677ff', fontSize: 12}}>《用户协议》</Text>
                 </TouchableOpacity>
               </View>
 
@@ -214,13 +200,12 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 30,
-    paddingTop: 10,
-    justifyContent: "flex-start",
+    paddingTop: 0,
+    justifyContent: "center",
   },
   logoContainer: {
     alignItems: 'center',
     marginBottom: 40,
-    marginTop: 20,
   },
   logo: {
     width: 80,

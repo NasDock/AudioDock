@@ -16,7 +16,7 @@ import { SettingsProvider, useSettings } from "../src/context/SettingsContext";
 import { SyncProvider } from "../src/context/SyncContext";
 
 function RootLayoutNav() {
-  const { token, isLoading, sourceType } = useAuth();
+  const { token, isLoading, sourceType, plusToken } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const url = Linking.useURL();
@@ -45,17 +45,20 @@ function RootLayoutNav() {
       segmentName === "login-form" ||
       segmentName === "login" ||
       segmentName === "member-login" ||
-      segmentName === "member-benefits";
+      segmentName === "member-benefits" ||
+      segmentName === "forgot-password";
 
     if (!token && inAuthGroup) {
       router.replace({
         pathname: "/login-form",
         params: { type: sourceType || "AudioDock" },
       } as any);
-    } else if (token && !inAuthGroup && !isDetailPage) {
+    } else if (token && inAuthGroup && !plusToken) {
+       router.replace("/member-login");
+    } else if (token && plusToken && !inAuthGroup && !isDetailPage) {
       router.replace("/(tabs)");
     }
-  }, [token, segments, isLoading, sourceType]);
+  }, [token, plusToken, segments, isLoading, sourceType]);
 
   return (
     <>
