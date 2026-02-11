@@ -1,4 +1,5 @@
 import { AlipayCircleFilled, ArrowLeftOutlined, CheckOutlined, CloseOutlined, WechatFilled } from "@ant-design/icons";
+import { plusCreatePayment } from "@soundx/services";
 import { Button, Card, Divider, Flex, Layout, Table, Typography, theme } from "antd";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -13,6 +14,56 @@ const MemberBenefits: React.FC = () => {
   const navigate = useNavigate();
   const message = useMessage();
   const [selectedPlan, setSelectedPlan] = useState<'annual' | 'lifetime'>('lifetime');
+  const [loading, setLoading] = useState(false);
+
+  const handlePayment = async (method: 'WECHAT' | 'ALIPAY') => {
+    const userIdStr = localStorage.getItem("plus_user_id");
+    if (!userIdStr) {
+      message.error("请先登录会员账号");
+      navigate("/member-login");
+      return;
+    }
+
+    let userId = userIdStr;
+    try {
+        userId = JSON.parse(userIdStr);
+    } catch(e) {}
+
+    setLoading(true);
+    const hideLoading = message.loading(`正在发起${method === 'WECHAT' ? '微信' : '支付宝'}支付...`, 0);
+
+    try {
+      const res = await plusCreatePayment({
+        userId,
+        amount: selectedPlan === 'lifetime' ? 60 : 20,
+        currency: "CNY",
+        method,
+        forVip: true,
+        vipTier: selectedPlan === 'lifetime' ? "LIFETIME" : "BASIC",
+        forPoints: false,
+        pointsAmount: 0
+      });
+
+      hideLoading();
+      if (res.data.code === 201 || res.data.code === 200) {
+        const { paymentUrl, qrCode } = res.data.data;
+        if (qrCode || paymentUrl) {
+            // 这里以后可以弹窗展示二维码，目前先跳转或提示
+            message.success("支付订单创建成功");
+            if (paymentUrl) window.open(paymentUrl, '_blank');
+        } else {
+            message.info("订单已创建，请在手机端完成支付");
+        }
+      } else {
+        message.error(res.data.message || "支付发起失败");
+      }
+    } catch (e: any) {
+      hideLoading();
+      message.error(e.response?.data?.message || "网络请求失败，请重试");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const comparisonData = [
     { key: '1', feature: '基础功能', nonMember: true, member: true },
@@ -67,13 +118,14 @@ const MemberBenefits: React.FC = () => {
             dataSource={comparisonData} 
             columns={columns} 
             pagination={false} 
+            bordered
             className={styles.benefitTable}
             rowClassName={styles.benefitRow}
           />
 
           <div style={{ marginTop: 40, marginBottom: 20 }}>
-            <Title level={4} style={{ textAlign: 'center' }}>会员方案</Title>
-            <Flex gap={20} justify="center" style={{ marginTop: 24 }}>
+            <Text style={{ textAlign: 'center' }}>会员方案</Text>
+            <Flex gap={20} justify="space-between" style={{ marginTop: 24 }}>
                 <Card 
                   className={`${styles.priceCard} ${selectedPlan === 'annual' ? styles.selectedCard : ''}`} 
                   hoverable 
@@ -110,21 +162,14 @@ const MemberBenefits: React.FC = () => {
             </Flex>
           </div>
 
-          <Divider>支付方式</Divider>
-          <Flex justify="center" gap={20} className={styles.paymentMethods}>
+          <Text>支付方式</Text>
+          <Flex justify="space-between" gap={20} className={styles.paymentMethods}>
              <Flex 
                 align="center" 
                 gap={8} 
                 className={styles.paymentItem}
-                onClick={() => {
-                  const planName = selectedPlan === 'lifetime' ? '永久卡' : '年卡';
-                  const amount = selectedPlan === 'lifetime' ? 60 : 20;
-                  message.loading(`正在唤起微信支付 (${planName} ¥${amount})...`);
-                  setTimeout(() => {
-                    message.destroy();
-                    message.info("支付功能开发中，感谢支持！");
-                  }, 2000);
-                }}
+                onClick={() => !loading && handlePayment('WECHAT')}
+                style={{ opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
              >
                 <WechatFilled style={{ fontSize: 24, color: '#1AAD19' }} />
                 <Text style={{ fontWeight: 500 }}>微信</Text>
@@ -133,15 +178,8 @@ const MemberBenefits: React.FC = () => {
                 align="center" 
                 gap={8} 
                 className={styles.paymentItem}
-                onClick={() => {
-                  const planName = selectedPlan === 'lifetime' ? '永久卡' : '年卡';
-                  const amount = selectedPlan === 'lifetime' ? 60 : 20;
-                  message.loading(`正在唤起支付宝支付 (${planName} ¥${amount})...`);
-                  setTimeout(() => {
-                    message.destroy();
-                    message.info("支付功能开发中，感谢支持！");
-                  }, 2000);
-                }}
+                onClick={() => !loading && handlePayment('ALIPAY')}
+                style={{ opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
              >
                 <AlipayCircleFilled style={{ fontSize: 24, color: '#02A9F1' }} />
                 <Text style={{ fontWeight: 500 }}>支付宝</Text>

@@ -17,6 +17,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../src/context/ThemeContext";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { plusLogin, plusSendCode, setPlusToken } from "@soundx/services";
+
 const logo = require("../assets/images/logo.png");
 
 export default function MemberLoginScreen() {
@@ -30,42 +33,62 @@ export default function MemberLoginScreen() {
   const [sendingCode, setSendingCode] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
-  const handleSendCode = () => {
+  const handleSendCode = async () => {
     if (!phone) {
         Alert.alert("提示", "请输入手机号");
         return;
     }
     setSendingCode(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+        const res = await plusSendCode({ phone });
+        if (res.data.code === 201 || res.data.code === 200) {
+            setCountdown(60);
+            const timer = setInterval(() => {
+                setCountdown((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(timer);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+            Alert.alert("提示", "验证码已发送");
+        } else {
+            Alert.alert("错误", res.data.message || "获取验证码失败");
+        }
+    } catch (e: any) {
+        Alert.alert("错误", e.response?.data?.message || "网络请求失败");
+    } finally {
         setSendingCode(false);
-        setCountdown(60);
-        const timer = setInterval(() => {
-            setCountdown((prev) => {
-                if (prev <= 1) {
-                    clearInterval(timer);
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-        Alert.alert("提示", "验证码已发送（模拟）");
-    }, 1500);
+    }
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!phone || !code) {
         Alert.alert("提示", "请输入手机号和验证码");
         return;
     }
     setLoading(true);
-    // Simulate Login API
-    setTimeout(() => {
+    try {
+        const res = await plusLogin({ phone, code });
+        if (res.data.code === 201 || res.data.code === 200) {
+            const { token: plusToken, userId } = res.data.data;
+            
+            // 保存 Plus Token
+            await AsyncStorage.setItem("plus_token", plusToken);
+            await AsyncStorage.setItem("plus_user_id", JSON.stringify(userId));
+            setPlusToken(plusToken);
+            
+            Alert.alert("成功", "会员登录成功");
+            router.back(); 
+        } else {
+            Alert.alert("登录失败", res.data.message || "手机号或验证码错误");
+        }
+    } catch (e: any) {
+        Alert.alert("错误", e.response?.data?.message || "登录失败，请重试");
+    } finally {
         setLoading(false);
-        Alert.alert("成功", "会员登录成功（模拟）");
-        router.back(); 
-        // In real implementation, you would save member token/status here
-    }, 1500);
+    }
   };
 
   return (

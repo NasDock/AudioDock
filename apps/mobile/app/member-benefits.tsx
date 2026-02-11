@@ -1,13 +1,16 @@
 import { AntDesign, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { plusCreatePayment } from "@soundx/services";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Linking,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../src/context/ThemeContext";
@@ -17,11 +20,57 @@ export default function MemberBenefitsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [selectedPlan, setSelectedPlan] = useState<'annual' | 'lifetime'>('lifetime');
+  const [loading, setLoading] = useState(false);
 
-  const handlePayment = (method: string) => {
-    const planName = selectedPlan === 'lifetime' ? '永久卡' : '年卡';
-    const amount = selectedPlan === 'lifetime' ? 60 : 20;
-    Alert.alert("赞助确认", `正在唤起${method === 'wechat' ? '微信' : '支付宝'}支付\n方案: ${planName}\n金额: ¥${amount}\n\n支付功能开发中，感谢支持！`);
+  const handlePayment = async (method: 'WECHAT' | 'ALIPAY') => {
+    const userIdStr = await AsyncStorage.getItem("plus_user_id");
+    if (!userIdStr) {
+      Alert.alert("提示", "请先登录会员账号", [
+        { text: "取消" },
+        { text: "去登录", onPress: () => router.push("/member-login" as any) }
+      ]);
+      return;
+    }
+
+    let userId = userIdStr;
+    try {
+        userId = JSON.parse(userIdStr);
+    } catch(e) {}
+
+    setLoading(true);
+    try {
+      const res = await plusCreatePayment({
+        userId,
+        amount: selectedPlan === 'lifetime' ? 60 : 20,
+        currency: "CNY",
+        method,
+        forVip: true,
+        vipTier: selectedPlan === 'lifetime' ? "LIFETIME" : "BASIC",
+        forPoints: false,
+        pointsAmount: 0
+      });
+
+      if (res.data.code === 201 || res.data.code === 200) {
+        const { paymentUrl, qrCode } = res.data.data;
+        if (paymentUrl) {
+            // 在移动端通常跳转到支付页
+            const supported = await Linking.canOpenURL(paymentUrl);
+            if (supported) {
+                await Linking.openURL(paymentUrl);
+            } else {
+                Alert.alert("提示", "订单创建成功，但无法自动打开支付链接，请尝试手动支付。");
+            }
+        } else {
+            Alert.alert("提示", "订单创建成功，请按照提示完成支付");
+        }
+      } else {
+        Alert.alert("支付失败", res.data.message || "请求失败，请稍后重试");
+      }
+    } catch (e: any) {
+      Alert.alert("错误", e.response?.data?.message || "网络请求失败，请检查网络设置");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const comparisonData = [
@@ -125,15 +174,17 @@ export default function MemberBenefitsScreen() {
 
         <View style={styles.paymentMethods}>
             <TouchableOpacity 
-              style={[styles.paymentItem, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => handlePayment('wechat')}
+              style={[styles.paymentItem, { backgroundColor: colors.card, borderColor: colors.border, opacity: loading ? 0.6 : 1 }]}
+              onPress={() => handlePayment('WECHAT')}
+              disabled={loading}
             >
                 <AntDesign name="wechat" size={24} color={'#1AAD19'} />
                 <Text style={[styles.paymentText, { color: colors.text }]}>微信</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.paymentItem, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => handlePayment('alipay')}
+              style={[styles.paymentItem, { backgroundColor: colors.card, borderColor: colors.border, opacity: loading ? 0.6 : 1 }]}
+              onPress={() => handlePayment('ALIPAY')}
+              disabled={loading}
             >
                 <AntDesign name="alipay-circle" size={24} color={'#02A9F1'} />
                 <Text style={[styles.paymentText, { color: colors.text }]}>支付宝</Text>

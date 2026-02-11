@@ -29,10 +29,10 @@
 }
 
 .benefitTable {
+  border: 1px solid rgba(0,0,0,0.08);
   :global {
     .ant-table-thead > tr > th {
       background: transparent;
-      border-bottom: 2px solid rgba(0,0,0,0.05);
       font-weight: 600;
     }
   }
@@ -43,12 +43,12 @@
 }
 
 .priceCard {
-  width: 180px;
   text-align: center;
   position: relative;
   overflow: hidden;
   border-radius: 12px;
   transition: all 0.3s;
+  flex: 1;
   border: 1px solid rgba(0,0,0,0.08);
 
   &:hover {
@@ -106,7 +106,7 @@
   border: 1px solid rgba(0,0,0,0.08);
   background: white;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  width: 180px;
+  flex: 1;
   justify-content: center;
 
   &:hover {

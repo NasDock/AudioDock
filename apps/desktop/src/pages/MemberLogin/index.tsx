@@ -1,10 +1,10 @@
 import { ArrowLeftOutlined } from "@ant-design/icons";
+import { plusLogin, plusSendCode, setPlusToken } from "@soundx/services";
 import { Button, Form, Input, Layout, Typography, message, theme } from "antd";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import styles from "./index.module.less";
-
 import logo from "../../assets/logo.png";
+import styles from "./index.module.less";
 
 const { Title, Text } = Typography;
 const { Content } = Layout;
@@ -30,26 +30,47 @@ const MemberLogin: React.FC = () => {
 
   const handleSendCode = async () => {
     try {
-      await form.validateFields(['phone']);
+      const values = await form.validateFields(['phone']);
       
-      message.loading("正在发送验证码...");
-      setTimeout(() => {
-        message.destroy();
-        message.success("验证码已发送（模拟）");
+      const hide = message.loading("正在发送验证码...");
+      const res = await plusSendCode({ phone: values.phone });
+      hide();
+      
+      if (res.data.code === 201 || res.data.code === 200) {
+        message.success("验证码已发送");
         setCountdown(60);
-      }, 1500);
-    } catch (e) {
-      // Validation failed
+      } else {
+        message.error(res.data.message || "获取验证码失败");
+      }
+    } catch (e: any) {
+      if (e.response?.data?.message) {
+        message.error(e.response.data.message);
+      }
     }
   };
 
-  const onFinish = (_values: any) => {
+  const onFinish = async (values: any) => {
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const res = await plusLogin({ phone: values.phone, code: values.code });
       setLoading(false);
-      message.success("会员登录成功（模拟）");
-      navigate(-1);
-    }, 1500);
+      
+      if (res.data.code === 201 || res.data.code === 200) {
+        const { token: plusToken, userId } = res.data.data;
+        // 保存 Plus Token 用于后续 Plus 接口
+        localStorage.setItem("plus_token", plusToken);
+        localStorage.setItem("plus_user_id", JSON.stringify(userId));
+        setPlusToken(plusToken);
+        
+        message.success("会员登录成功");
+        navigate(-1);
+      } else {
+        message.error(res.data.message || "登录失败");
+      }
+    } catch (e: any) {
+      setLoading(false);
+      message.error(e.response?.data?.message || "登录失败，请检查验证码");
+    }
   };
 
   return (

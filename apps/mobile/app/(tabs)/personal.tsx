@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   createImportTask,
@@ -9,6 +10,8 @@ import {
   getPlaylists,
   getRunningImportTask,
   getTrackHistory,
+  plusGetMe,
+  setPlusToken,
   TaskStatus,
   type ImportTask
 } from "@soundx/services";
@@ -137,6 +140,8 @@ export default function PersonalScreen() {
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importTask, setImportTask] = useState<ImportTask | null>(null);
   const pollTimerRef = React.useRef<any>(null);
+  const [isPlusVip, setIsPlusVip] = useState(false);
+  const [plusVipData, setPlusVipData] = useState<any>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -168,6 +173,37 @@ export default function PersonalScreen() {
         }
       });
     }
+  }, [user]);
+
+  // Fetch Plus VIP status
+  React.useEffect(() => {
+    const fetchVipStatus = async () => {
+        try {
+            const plusToken = await AsyncStorage.getItem("plus_token");
+            const plusUserId = await AsyncStorage.getItem("plus_user_id");
+
+            if (plusToken && plusUserId) {
+                setPlusToken(plusToken);
+                let id = plusUserId;
+                try {
+                    id = JSON.parse(plusUserId);
+                } catch (e) {
+                    // fallback
+                }
+
+                const res = await plusGetMe(id);
+                if (res.data.code === 200 && res.data.data) {
+                    const vipTier = res.data.data.vipTier;
+                    setIsPlusVip(vipTier && vipTier !== "NONE");
+                    setPlusVipData(res.data.data);
+                }
+            }
+        } catch (err) {
+            console.error("Failed to fetch plus profile mobile", err);
+        }
+    };
+
+    fetchVipStatus();
   }, [user]);
 
   const loadData = async () => {
@@ -570,11 +606,31 @@ export default function PersonalScreen() {
             {user?.username || "未登录"}
             </Text>
             {user && (
-                <TouchableOpacity onPress={() => router.push("/member-login" as any)}>
+                <TouchableOpacity onPress={async () => {
+                    const plusToken = await AsyncStorage.getItem("plus_token");
+                    if (plusToken) {
+                        if (isPlusVip) {
+                            const tierName = plusVipData?.vipTier === "LIFETIME" ? "永久会员" : "年度会员";
+                            const expiryDate = plusVipData?.vipTier === "LIFETIME" ? "永久有效" : (plusVipData?.vipExpiresAt ? new Date(plusVipData.vipExpiresAt).toLocaleDateString() : "未知");
+                            
+                            Alert.alert(
+                                "会员详情",
+                                `等级: ${tierName}\n到期时间: ${expiryDate}`,
+                                [
+                                    { text: "知道了" },
+                                ]
+                            );
+                        } else {
+                            router.push("/member-benefits" as any);
+                        }
+                    } else {
+                        router.push("/member-login" as any);
+                    }
+                }}>
                     <MaterialCommunityIcons 
                         name="crown" 
                         size={24} 
-                        color={false ? "#FFD700" : colors.secondary} 
+                        color={isPlusVip ? "#FFD700" : colors.secondary} 
                     />
                 </TouchableOpacity>
             )}

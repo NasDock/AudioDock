@@ -11,6 +11,7 @@ export * from "./search";
 export * from "./adapter/manager";
 export * from "./admin";
 export * from "./config";
+export * from "./plus";
 export * from "./search-record";
 export * from "./track";
 export * from "./user";

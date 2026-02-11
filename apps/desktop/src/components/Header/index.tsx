@@ -1,5 +1,6 @@
 import {
   AppstoreOutlined,
+  CrownFilled,
   CrownOutlined,
   CustomerServiceOutlined,
   DatabaseOutlined,
@@ -31,7 +32,9 @@ import {
   getImportTask,
   getRunningImportTask,
   getSearchHistory,
+  plusGetMe,
   searchAll,
+  setPlusToken,
   setServiceConfig,
   SOURCEMAP,
   TaskStatus,
@@ -53,7 +56,7 @@ import {
   Spin,
   theme,
   Tooltip,
-  Typography,
+  Typography
 } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -334,6 +337,8 @@ const Header: React.FC = () => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
   const [importTask, setImportTask] = useState<ImportTask | null>(null);
+  const [isPlusVip, setIsPlusVip] = useState(false);
+  const [plusVipData, setPlusVipData] = useState<any>(null);
 
   const fetchSearchMeta = async () => {
     try {
@@ -525,6 +530,35 @@ const Header: React.FC = () => {
       });
     }
   }, [user]);
+
+  // Fetch Plus VIP status
+  useEffect(() => {
+    const plusToken = localStorage.getItem("plus_token");
+    const plusUserId = localStorage.getItem("plus_user_id");
+
+    if (plusToken && plusUserId) {
+      setPlusToken(plusToken);
+      // Remove quotes from JSON.stringify if present (though it's better to use JSON.parse)
+      let id = plusUserId;
+      try {
+        id = JSON.parse(plusUserId);
+      } catch (e) {
+        // fallback
+      }
+
+      plusGetMe(id)
+        .then((res) => {
+          if (res.data.code === 200 && res.data.data) {
+            const vipTier = res.data.data.vipTier;
+            setIsPlusVip(vipTier && vipTier !== "NONE");
+            setPlusVipData(res.data.data);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to fetch plus profile", err);
+        });
+    }
+  }, []);
 
   return (
     <div className={styles.header}>
@@ -749,12 +783,53 @@ const Header: React.FC = () => {
             style={{ ...actionIconStyle }}
             onClick={(e) => {
               e.stopPropagation();
-              navigate("/member-login");
+              const plusToken = localStorage.getItem("plus_token");
+              if (plusToken) {
+                if (isPlusVip) {
+                  modal.info({
+                    title: "会员详情",
+                    content: (
+                      <div style={{ marginTop: 12 }}>
+                        <Flex vertical gap={12}>
+                          <Flex justify="space-between">
+                            <Text type="secondary">会员等级</Text>
+                            <Text strong style={{ color: "#FFD700" }}>
+                              {plusVipData?.vipTier === "LIFETIME"
+                                ? "永久会员"
+                                : "年度会员"}
+                            </Text>
+                          </Flex>
+                          <Flex justify="space-between">
+                            <Text type="secondary">到期时间</Text>
+                            <Text>
+                              {plusVipData?.vipTier === "LIFETIME"
+                                ? "永久有效"
+                                : plusVipData?.vipExpiresAt
+                                  ? new Date(
+                                      plusVipData.vipExpiresAt,
+                                    ).toLocaleDateString()
+                                  : "未知"}
+                            </Text>
+                          </Flex>
+                        </Flex>
+                      </div>
+                    ),
+                    icon: <CrownFilled style={{ color: "#FFD700" }} />,
+                    okText: "知道了",
+                  });
+                } else {
+                  navigate("/member-benefits");
+                }
+              } else {
+                navigate("/member-login");
+              }
             }}
           >
-            <CrownOutlined
-              style={{ fontSize: 18, color: false ? "#FFD700" : undefined }}
-            />
+            {isPlusVip ? (
+              <CrownFilled style={{ fontSize: 18, color: "#FFD700" }} />
+            ) : (
+              <CrownOutlined style={{ fontSize: 18 }} />
+            )}
           </div>
         </Tooltip>
         <Popover
