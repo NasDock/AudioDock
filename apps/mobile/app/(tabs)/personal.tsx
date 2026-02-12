@@ -1,35 +1,35 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import {
-  createImportTask,
-  createPlaylist,
-  getAlbumHistory,
-  getFavoriteAlbums,
-  getFavoriteTracks,
-  getImportTask,
-  getPlaylists,
-  getRunningImportTask,
-  getTrackHistory,
-  plusGetMe,
-  setPlusToken,
-  TaskStatus,
-  type ImportTask
+    createImportTask,
+    createPlaylist,
+    getAlbumHistory,
+    getFavoriteAlbums,
+    getFavoriteTracks,
+    getImportTask,
+    getPlaylists,
+    getRunningImportTask,
+    getTrackHistory,
+    plusGetMe,
+    setPlusToken,
+    TaskStatus,
+    type ImportTask
 } from "@soundx/services";
 import { Asset } from 'expo-asset';
 import * as MediaLibrary from 'expo-media-library';
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../src/context/AuthContext";
@@ -37,8 +37,8 @@ import { usePlayer } from "../../src/context/PlayerContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { Playlist, Track } from "../../src/models";
 import {
-  getDownloadedTracks,
-  removeDownloadedTrack,
+    getDownloadedTracks,
+    removeDownloadedTrack,
 } from "../../src/services/cache";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
@@ -884,11 +884,14 @@ export default function PersonalScreen() {
             />
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => handleUpdateLibrary("full")}
+              onPress={() => {
+                setMenuVisible(false);
+                router.push("/tts/tasks" as any);
+              }}
             >
-              <Ionicons name="repeat-outline" size={22} color={colors.text} />
+              <Ionicons name="mic-outline" size={22} color={colors.text} />
               <Text style={[styles.menuItemText, { color: colors.text }]}>
-                全量更新音频文件
+                TTS 有声书转换
               </Text>
             </TouchableOpacity>
           </View>

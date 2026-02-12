@@ -3,6 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import { Logger } from 'nestjs-pino';
 import * as path from 'path';
 import { ImportService } from './services/import';
@@ -40,6 +41,21 @@ async function bootstrap() {
   app.useStaticAssets(audioBookDir, {
     prefix: '/audio/',
   });
+  
+  // TTS Service Proxy
+  const ttsServiceUrl = process.env.TTS_SERVICE_URL || 'http://localhost:8000';
+  console.log(`Proxying /tts requests to: ${ttsServiceUrl}`);
+  app.use(
+    ['/tts', '/api/tts'],
+    createProxyMiddleware({
+      target: ttsServiceUrl,
+      changeOrigin: true,
+      pathRewrite: {
+        '^/api/tts': '', // Remove /api/tts prefix
+        '^/tts': '',     // Remove /tts prefix
+      },
+    }),
+  );
 
   const config = new DocumentBuilder()
     .setTitle('AudioDock API')

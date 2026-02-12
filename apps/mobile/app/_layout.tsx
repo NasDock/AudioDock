@@ -46,7 +46,8 @@ function RootLayoutNav() {
       segmentName === "login" ||
       segmentName === "member-login" ||
       segmentName === "member-benefits" ||
-      segmentName === "forgot-password";
+      segmentName === "forgot-password" ||
+      segmentName === "tts";
 
     if (!token && inAuthGroup) {
       router.replace({
@@ -138,6 +139,20 @@ function RootLayoutNav() {
         />
         <Stack.Screen 
           name="product-updates" 
+          options={{ 
+            headerShown: false,
+            animation: 'slide_from_right'
+          }} 
+        />
+        <Stack.Screen 
+          name="tts/create" 
+          options={{ 
+            headerShown: false,
+            animation: 'slide_from_right'
+          }} 
+        />
+        <Stack.Screen 
+          name="tts/tasks" 
           options={{ 
             headerShown: false,
             animation: 'slide_from_right'

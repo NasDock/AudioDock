@@ -14,6 +14,7 @@ export * from "./config";
 export * from "./plus";
 export * from "./search-record";
 export * from "./track";
+export * from "./tts";
 export * from "./user";
 export * from "./userAudiobookHistory";
 
