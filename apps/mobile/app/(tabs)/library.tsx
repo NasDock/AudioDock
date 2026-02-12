@@ -1,18 +1,19 @@
 import { AddToPlaylistModal } from "@/src/components/AddToPlaylistModal";
 import { CachedImage } from "@/src/components/CachedImage";
+import { FloatingActionButtons } from "@/src/components/FloatingActionButtons";
 import { Ionicons } from "@expo/vector-icons";
 import { getArtistList, loadMoreAlbum, loadMoreTrack } from "@soundx/services";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../src/context/AuthContext";
@@ -46,6 +47,20 @@ const SongList = ({
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
   const [addToPlaylistVisible, setAddToPlaylistVisible] = useState(false);
+  const flatListRef = useRef<FlatList<Track>>(null);
+  const { currentTrack } = usePlayer();
+
+  const handleLocateCurrent = () => {
+    if (!currentTrack || !tracks.length) return;
+    const index = tracks.findIndex((t) => t.id === currentTrack.id);
+    if (index !== -1) {
+      flatListRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.5,
+      });
+    }
+  };
 
   useEffect(() => {
     loadTracks();
@@ -167,11 +182,15 @@ const SongList = ({
           </View>
         )}
         <FlatList
+          ref={flatListRef}
           data={tracks}
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false} 
           contentContainerStyle={styles.listContent}
           keyExtractor={(item) => item.id.toString()}
+          onScrollToIndexFailed={(info) => {
+            flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+          }}
           renderItem={({ item, index }) => (
             <TouchableOpacity
               style={styles.songItem}
@@ -238,6 +257,11 @@ const SongList = ({
         tracks={tracks}
         onClose={() => setAddToPlaylistVisible(false)}
       />
+      <FloatingActionButtons
+        flatListRef={flatListRef}
+        onLocateCurrent={handleLocateCurrent}
+        locateDisabled={!currentTrack || !tracks.some(t => t.id === currentTrack.id)}
+      />
     </>
   );
 };
@@ -249,6 +273,20 @@ const ArtistList = () => {
   const { width } = useWindowDimensions();
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
+  const flatListRef = useRef<FlatList<Artist>>(null);
+  const { currentTrack } = usePlayer();
+
+  const handleLocateCurrent = () => {
+    if (!currentTrack || !artists.length) return;
+    const index = artists.findIndex((a) => a.name === currentTrack.artist);
+    if (index !== -1) {
+      flatListRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.5,
+      });
+    }
+  };
 
   // Calculate columns dynamically
   const availableWidth = width - SCREEN_PADDING;
@@ -291,6 +329,7 @@ const ArtistList = () => {
   return (
     <View style={styles.listContainer}>
       <FlatList
+        ref={flatListRef}
         data={artists}
         numColumns={numColumns}
         columnWrapperStyle={{ gap: GAP, marginBottom: 15 }}
@@ -299,6 +338,9 @@ const ArtistList = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         keyExtractor={(item) => item.id.toString()}
+        onScrollToIndexFailed={(info) => {
+          flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+        }}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={{ width: itemWidth }}
@@ -332,6 +374,11 @@ const ArtistList = () => {
         maxToRenderPerBatch={20}
         windowSize={10}
       />
+      <FloatingActionButtons
+        flatListRef={flatListRef}
+        locateDisabled={!currentTrack || !artists.some(a => a.name === currentTrack.artist)}
+        onLocateCurrent={handleLocateCurrent}
+      />
     </View>
   );
 };
@@ -343,6 +390,20 @@ const AlbumList = () => {
   const { width } = useWindowDimensions();
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
+  const flatListRef = useRef<FlatList<Album>>(null);
+  const { currentTrack } = usePlayer();
+
+  const handleLocateCurrent = () => {
+    if (!currentTrack || !albums.length) return;
+    const index = albums.findIndex((a) => a.name === currentTrack.album);
+    if (index !== -1) {
+      flatListRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.5,
+      });
+    }
+  };
 
   // Calculate columns dynamically
   const availableWidth = width - SCREEN_PADDING;
@@ -389,6 +450,7 @@ const AlbumList = () => {
   return (
     <View style={styles.listContainer}>
       <FlatList
+        ref={flatListRef}
         data={albums}
         numColumns={numColumns}
         key={`album-list-${numColumns}`} 
@@ -397,6 +459,9 @@ const AlbumList = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         keyExtractor={(item) => item.id.toString()}
+        onScrollToIndexFailed={(info) => {
+          flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+        }}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={{ width: itemWidth }}
@@ -456,6 +521,11 @@ const AlbumList = () => {
         initialNumToRender={20}
         maxToRenderPerBatch={20}
         windowSize={10}
+      />
+      <FloatingActionButtons
+        locateDisabled={!currentTrack || !albums.some(a => a.name === currentTrack.album)}
+        flatListRef={flatListRef}
+        onLocateCurrent={handleLocateCurrent}
       />
     </View>
   );

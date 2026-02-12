@@ -1,5 +1,6 @@
 import { AddToPlaylistModal } from "@/src/components/AddToPlaylistModal";
 import { AlbumMoreModal } from "@/src/components/AlbumMoreModal";
+import { FloatingActionButtons } from "@/src/components/FloatingActionButtons";
 import PlayingIndicator from "@/src/components/PlayingIndicator";
 import { TrackMoreModal } from "@/src/components/TrackMoreModal";
 import { useAuth } from "@/src/context/AuthContext";
@@ -10,22 +11,22 @@ import { downloadTracks } from "@/src/services/downloadManager";
 import { getImageUrl } from "@/src/utils/image";
 import { Ionicons } from "@expo/vector-icons";
 import {
-    getAlbumById,
-    getAlbumTracks,
-    toggleAlbumLike,
-    toggleAlbumUnLike,
+  getAlbumById,
+  getAlbumTracks,
+  toggleAlbumLike,
+  toggleAlbumUnLike,
 } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function AlbumDetailScreen() {
@@ -50,6 +51,7 @@ export default function AlbumDetailScreen() {
   const [addToPlaylistVisible, setAddToPlaylistVisible] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedTrackIds, setSelectedTrackIds] = useState<(number | string)[]>([]);
+  const flatListRef = useRef<FlatList<Track>>(null);
 
   const PAGE_SIZE = 20000;
 
@@ -160,6 +162,18 @@ export default function AlbumDetailScreen() {
     );
   };
 
+  const handleLocateCurrent = () => {
+    if (!currentTrack || !tracks.length) return;
+    const index = tracks.findIndex((t) => t.id === currentTrack.id);
+    if (index !== -1) {
+      flatListRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.5,
+      });
+    }
+  };
+
   if (loading) {
     return (
       <View
@@ -262,8 +276,12 @@ export default function AlbumDetailScreen() {
         </View>
       </View>
       <FlatList
+        ref={flatListRef}
         data={tracks}
         keyExtractor={(item) => item.id.toString()}
+        onScrollToIndexFailed={(info) => {
+          flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+        }}
         ListHeaderComponent={
           <View style={styles.header}>
             <View style={styles.coverContainer}>
@@ -568,6 +586,11 @@ export default function AlbumDetailScreen() {
           setIsSelectionMode(true);
           setSelectedTrackIds([]);
         }}
+      />
+      <FloatingActionButtons
+        flatListRef={flatListRef}
+        onLocateCurrent={handleLocateCurrent}
+        locateDisabled={!currentTrack || !tracks.some(t => t.id === currentTrack.id)}
       />
     </View>
   );
