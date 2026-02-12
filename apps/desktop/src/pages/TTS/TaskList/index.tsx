@@ -1,4 +1,11 @@
 import { PlusOutlined } from "@ant-design/icons";
+import type { TtsTask } from "@soundx/services";
+import {
+    deleteTtsTask,
+    getTtsTasks,
+    pauseTtsTask,
+    resumeTtsTask,
+} from "@soundx/services";
 import {
     Button,
     Flex,
@@ -9,21 +16,12 @@ import {
     Tag,
     Typography,
 } from "antd";
-import axios from "axios";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const { Title, Text } = Typography;
 
-interface TtsTask {
-  id: string;
-  book_name: string;
-  author: string;
-  status: string;
-  total_chapters: number;
-  completed_chapters: number;
-  created_at: string;
-}
+// TtsTask type is now imported from @soundx/services
 
 const TaskList: React.FC = () => {
   const [tasks, setTasks] = useState<TtsTask[]>([]);
@@ -31,14 +29,11 @@ const TaskList: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const navigate = useNavigate();
 
-  // Nginx 代理后的地址，直接使用当前域名的 /tts 路径
-  const TTS_BASE_URL = "/tts";
-
   const fetchTasks = async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
-      const res = await axios.get(`${TTS_BASE_URL}/api/tasks/`);
-      setTasks(res.data.tasks);
+      const res = await getTtsTasks();
+      setTasks(res.tasks);
     } catch (error) {
       console.error("Failed to fetch tasks:", error);
     } finally {
@@ -49,9 +44,11 @@ const TaskList: React.FC = () => {
   const handleAction = async (action: string, id: string) => {
     try {
       if (action === "delete") {
-        await axios.delete(`${TTS_BASE_URL}/api/tasks/${id}`);
-      } else {
-        await axios.post(`${TTS_BASE_URL}/api/tasks/${id}/${action}`);
+        await deleteTtsTask(id);
+      } else if (action === "pause") {
+        await pauseTtsTask(id);
+      } else if (action === "resume") {
+        await resumeTtsTask(id);
       }
       fetchTasks(false);
     } catch (error) {

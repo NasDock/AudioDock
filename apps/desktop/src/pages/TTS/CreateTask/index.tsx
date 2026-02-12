@@ -7,6 +7,15 @@ import {
   SoundOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
+import type { TtsFileItem as FileItem, TtsReviewItem as ReviewItem, TtsVoice } from "@soundx/services";
+import {
+  createTtsBatchTasks,
+  getTtsLocalFiles,
+  getTtsPreviewUrl,
+  getTtsVoices,
+  identifyTtsBatch,
+  uploadTtsFile,
+} from "@soundx/services";
 import {
   Button,
   Card,
@@ -21,36 +30,20 @@ import {
   Typography,
   Upload,
 } from "antd";
-import axios from "axios";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-interface FileItem {
-  filename: string;
-  full_path: string;
-  is_generated: boolean;
-}
-
-interface ReviewItem {
-  key: string;
-  filename: string;
-  full_path: string;
-  title: string;
-  author: string;
-  voice: string; // 每个项目独立的音色
-  temp_path?: string;
-  file_id?: string;
-}
+// Types are now imported from @soundx/services
 
 const CreateTask: React.FC = () => {
   const navigate = useNavigate();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [loading, setLoading] = useState(false);
   const [previewLoading, setPreviewLoading] = useState<string | null>(null);
-  const [voices, setVoices] = useState<{ label: string; value: string }[]>([]);
+  const [voices, setVoices] = useState<TtsVoice[]>([]);
   const [localFiles, setLocalFiles] = useState<FileItem[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [selectedVoice, setSelectedVoice] = useState("zh-CN-XiaoxiaoNeural");
@@ -59,13 +52,11 @@ const CreateTask: React.FC = () => {
   const [view, setView] = useState<"select" | "review">("select");
   const [reviewData, setReviewData] = useState<ReviewItem[]>([]);
 
-  const TTS_BASE_URL = "/tts";
-
   const fetchVoices = async () => {
     try {
-      const res = await axios.get(`${TTS_BASE_URL}/api/tasks/voices`);
-      if (Array.isArray(res.data)) {
-        setVoices(res.data);
+      const data = await getTtsVoices();
+      if (Array.isArray(data)) {
+        setVoices(data);
       }
     } catch (err) {
       console.error("Failed to fetch voices", err);
@@ -75,9 +66,9 @@ const CreateTask: React.FC = () => {
   const fetchLocalFiles = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${TTS_BASE_URL}/api/tasks/list-files`);
-      if (res.data.success) {
-        setLocalFiles(res.data.files);
+      const res = await getTtsLocalFiles();
+      if (res.success) {
+        setLocalFiles(res.files);
       }
     } catch (err) {
       message.error("获取本地文件列表失败");
@@ -95,7 +86,7 @@ const CreateTask: React.FC = () => {
     if (previewLoading) return;
     setPreviewLoading(voice);
     try {
-      const previewUrl = `${TTS_BASE_URL}/api/tasks/preview?voice=${voice}&t=${Date.now()}`;
+      const previewUrl = getTtsPreviewUrl(voice);
       if (audioRef.current) {
         audioRef.current.src = previewUrl;
 
@@ -119,25 +110,19 @@ const CreateTask: React.FC = () => {
 
   const handleUpload = async (options: any) => {
     const { file, onSuccess, onError } = options;
-    const formData = new FormData();
-    formData.append("file", file);
-
     setLoading(true);
     try {
-      const res = await axios.post(
-        `${TTS_BASE_URL}/api/tasks/upload`,
-        formData,
-      );
-      if (res.data.success) {
+      const res = await uploadTtsFile(file);
+      if (res.success) {
         const newItem: ReviewItem = {
           key: `upload_${Date.now()}`,
-          filename: res.data.filename,
-          full_path: res.data.temp_path,
-          title: res.data.title || res.data.filename.replace(".txt", ""),
-          author: res.data.author || "Unknown",
+          filename: res.filename,
+          full_path: res.temp_path,
+          title: res.title || res.filename.replace(".txt", ""),
+          author: res.author || "Unknown",
           voice: selectedVoice,
-          temp_path: res.data.temp_path,
-          file_id: res.data.file_id,
+          temp_path: res.temp_path,
+          file_id: res.file_id,
         };
         setReviewData([newItem, ...reviewData]);
         setView("review");
@@ -159,12 +144,10 @@ const CreateTask: React.FC = () => {
 
     setLoading(true);
     try {
-      const res = await axios.post(`${TTS_BASE_URL}/api/tasks/identify-batch`, {
-        paths: selectedRowKeys,
-      });
+      const res = await identifyTtsBatch(selectedRowKeys as string[]);
 
-      if (res.data.success) {
-        const items: ReviewItem[] = res.data.results.map((r: any) => ({
+      if (res.success) {
+        const items: ReviewItem[] = res.results.map((r: any) => ({
           key: r.full_path,
           filename: r.filename,
           full_path: r.full_path,
@@ -185,19 +168,19 @@ const CreateTask: React.FC = () => {
   const handleProcessAll = async () => {
     setLoading(true);
     try {
-      const res = await axios.post(`${TTS_BASE_URL}/api/tasks/batch-create`, {
-        files: reviewData.map((item) => ({
+      const res = await createTtsBatchTasks(
+        reviewData.map((item) => ({
           full_path: item.full_path,
           title: item.title,
           author: item.author,
           voice: item.voice,
           file_id: item.file_id,
           temp_path: item.temp_path,
-        })),
-      });
+        }))
+      );
 
-      if (res.data.success) {
-        message.success(`成功开启 ${res.data.count} 个任务`);
+      if (res.success) {
+        message.success(`成功开启 ${res.count} 个任务`);
         navigate("/tts/tasks");
       }
     } catch (err) {
