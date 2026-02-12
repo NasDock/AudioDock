@@ -174,7 +174,7 @@ const Player: React.FC = () => {
     if (currentTrack.path) {
       initialUri = currentTrack.path.startsWith("http")
         ? currentTrack.path
-        : `${getBaseURL()}${currentTrack.path}`;
+        : `${getBaseURL()}${currentTrack.path.split('/').map(encodeURIComponent).join('/')}`;
 
       if (!initialUri.startsWith("http")) {
         initialUri = `${window.location.origin}${initialUri}`;

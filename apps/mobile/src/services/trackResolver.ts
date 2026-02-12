@@ -23,7 +23,7 @@ export const resolveTrackUri = async (
   // 1. Construct the remote URI
   const remoteUri = track.path.startsWith("http")
     ? track.path
-    : `${getBaseURL()}${track.path}`;
+    : `${getBaseURL()}${track.path.split('/').map(encodeURIComponent).join('/')}`;
 
   // 2. Check for cached version if enabled
   if (cacheEnabled && track.id) {
@@ -54,5 +54,5 @@ export const resolveArtworkUri = (track: Track): string | undefined => {
   
   return track.cover.startsWith("http")
     ? track.cover
-    : `${getBaseURL()}${track.cover}`;
+    : `${getBaseURL()}${track.cover.split('/').map(encodeURIComponent).join('/')}`;
 };

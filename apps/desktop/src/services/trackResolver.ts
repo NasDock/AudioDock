@@ -21,7 +21,7 @@ export const resolveTrackUri = async (
   if (track.path) {
     remoteUri = track.path.startsWith("http")
       ? track.path
-      : `${getBaseURL()}${track.path}`;
+      : `${getBaseURL()}${track.path.split('/').map(encodeURIComponent).join('/')}`;
   }
 
   // Support playback from local list even if path is missing (for legacy or offline tracks)
@@ -68,7 +68,7 @@ export const resolveTrackUri = async (
         albumId: track.albumEntity?.id || (track as any).albumId,
         duration: track.duration,
         type: track.type,
-        cover: track.cover ? (track.cover.startsWith('http') ? track.cover : `${getBaseURL()}${track.cover}`) : null,
+        cover: track.cover ? (track.cover.startsWith('http') ? track.cover : `${getBaseURL()}${track.cover.split('/').map(encodeURIComponent).join('/')}`) : null,
         lyrics: track.lyrics
       };
 
@@ -106,7 +106,7 @@ export const resolveArtworkUri = (item: Track | Album | string): string | undefi
   } else {
     uri = cover.startsWith("http")
       ? cover
-      : `${getBaseURL()}${cover}`;
+      : `${getBaseURL()}${cover.split('/').map(encodeURIComponent).join('/')}`;
   }
   return uri;
 };

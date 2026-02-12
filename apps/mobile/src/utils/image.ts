@@ -14,5 +14,5 @@ export const getImageUrl = (path?: string | null, placeholder?: string) => {
   const baseURL = getBaseURL();
   const cleanBaseURL = baseURL.endsWith("/") ? baseURL.substring(0, baseURL.length - 1) : baseURL;
   const cleanPath = path.startsWith("/") ? path.substring(1) : path;
-  return `${cleanBaseURL}/${cleanPath}`;
+  return `${cleanBaseURL}/${cleanPath.split('/').map(encodeURIComponent).join('/')}`;
 };

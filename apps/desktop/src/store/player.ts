@@ -1,13 +1,13 @@
 import {
-    addAlbumToHistory,
-    addToHistory,
-    getAlbumTracks,
-    getLatestTracks,
-    getTrackHistory,
-    loadMoreTrack,
-    reportAudiobookProgress,
-    toggleTrackLike,
-    toggleTrackUnLike
+  addAlbumToHistory,
+  addToHistory,
+  getAlbumTracks,
+  getLatestTracks,
+  getTrackHistory,
+  loadMoreTrack,
+  reportAudiobookProgress,
+  toggleTrackLike,
+  toggleTrackUnLike
 } from "@soundx/services";
 import { create } from "zustand";
 import { TrackType, type Track } from "../models";
