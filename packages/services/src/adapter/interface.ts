@@ -31,7 +31,7 @@ export interface IAlbumAdapter {
   getRecommendedAlbums(type?: string, random?: boolean, pageSize?: number): Promise<ISuccessResponse<Album[]>>;
   getRecentAlbums(type?: string, random?: boolean, pageSize?: number): Promise<ISuccessResponse<Album[]>>;
   getAlbumById(id: number | string): Promise<ISuccessResponse<Album>>;
-  getAlbumTracks(id: number | string, pageSize: number, skip: number, sort?: "asc" | "desc", keyword?: string, userId?: number | string): Promise<ISuccessResponse<{ list: any[]; total: number }>>;
+  getAlbumTracks(id: number | string, pageSize: number, skip: number, sort?: "asc" | "desc", keyword?: string, userId?: number | string, sortBy?: string): Promise<ISuccessResponse<{ list: any[]; total: number }>>;
   getAlbumsByArtist(artist: string): Promise<ISuccessResponse<Album[]>>;
   getCollaborativeAlbumsByArtist(artist: string): Promise<ISuccessResponse<Album[]>>;
   toggleLike(id: number | string, userId: number | string): Promise<ISuccessResponse<any>>;

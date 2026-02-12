@@ -41,6 +41,8 @@ export default function AlbumDetailScreen() {
   const [isLiked, setIsLiked] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [sort, setSort] = useState<"asc" | "desc">("asc");
+  const [sortBy, setSortBy] = useState<"id" | "index" | "episodeNumber">("episodeNumber");
   const [total, setTotal] = useState(0);
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [moreModalVisible, setMoreModalVisible] = useState(false);
@@ -53,16 +55,16 @@ export default function AlbumDetailScreen() {
 
   useEffect(() => {
     if (id) {
-      loadData(id as string);
+      loadData(id as string, sort, sortBy);
     }
-  }, [id]);
+  }, [id, sort, sortBy]);
 
-  const loadData = async (albumId: number | string) => {
+  const loadData = async (albumId: number | string, currentSort: "asc" | "desc", currentSortBy: "id" | "index" | "episodeNumber") => {
     try {
       setLoading(true);
       const [albumRes, tracksRes] = await Promise.all([
         getAlbumById(albumId),
-        getAlbumTracks(albumId, PAGE_SIZE, 0),
+        getAlbumTracks(albumId, PAGE_SIZE, 0, currentSort, undefined, user?.id, currentSortBy),
       ]);
 
       if (albumRes.code === 200) {
@@ -90,7 +92,7 @@ export default function AlbumDetailScreen() {
 
     try {
       setLoadingMore(true);
-      const res = await getAlbumTracks(album.id, PAGE_SIZE, tracks.length);
+      const res = await getAlbumTracks(album.id, PAGE_SIZE, tracks.length, sort, undefined, user?.id, sortBy);
       if (res.code === 200) {
         const newList = [...tracks, ...res.data.list];
         setTracks(newList);
@@ -372,6 +374,29 @@ export default function AlbumDetailScreen() {
                   />
                 </TouchableOpacity>
               )}
+              <View
+                style={[styles.likeButton, { backgroundColor: colors.card, flexDirection: 'row', width: 'auto', paddingHorizontal: 15 }]}
+              >
+                <TouchableOpacity 
+                   style={{ flexDirection: 'row', alignItems: 'center' }}
+                   onPress={() => {
+                        const sequence: ("id" | "index" | "episodeNumber")[] = ["episodeNumber", "index", "id"];
+                        const next = sequence[(sequence.indexOf(sortBy) + 1) % sequence.length];
+                        setSortBy(next);
+                    }}
+                >
+                    <Text style={{ color: colors.secondary, fontSize: 12, marginRight: 5 }}>
+                    {sortBy === 'id' ? '入库' : sortBy === 'index' ? '专辑' : '优化'}
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setSort(sort === 'asc' ? 'desc' : 'asc')}>
+                  <Ionicons
+                    name={sort === "asc" ? "arrow-up" : "arrow-down"}
+                    size={16}
+                    color={colors.secondary}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         }

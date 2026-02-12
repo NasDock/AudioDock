@@ -261,7 +261,7 @@ export class LocalMusicScanner {
     }
   }
 
-  private async findLyricsFile(audioFilePath: string): Promise<string | null> {
+  public async findLyricsFile(audioFilePath: string): Promise<string | null> {
     const dir = path.dirname(audioFilePath);
     const baseName = path.basename(audioFilePath, path.extname(audioFilePath));
 
@@ -280,7 +280,7 @@ export class LocalMusicScanner {
     return null;
   }
 
-  private async findCoverInDirectory(dir: string): Promise<string | null> {
+  public async findCoverInDirectory(dir: string): Promise<string | null> {
     try {
       const files = fs.readdirSync(dir);
       const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp'];

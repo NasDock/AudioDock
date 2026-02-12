@@ -61,7 +61,7 @@ export class TrackService {
     });
   }
 
-  async getTracksByAlbum(
+   async getTracksByAlbum(
     albumName: string,
     artist: string,
     pageSize: number,
@@ -69,6 +69,7 @@ export class TrackService {
     sort: 'asc' | 'desc' = 'asc',
     keyword?: string,
     userId?: number,
+    sortBy: 'id' | 'index' | 'episodeNumber' = 'episodeNumber',
   ): Promise<Track[]> {
     const where: any = {
       album: albumName,
@@ -83,7 +84,7 @@ export class TrackService {
     const tracks = await this.prisma.track.findMany({
       where,
       orderBy: [
-        { episodeNumber: sort },
+        { [sortBy]: sort },
       ],
       skip: skip,
       take: pageSize,

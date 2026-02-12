@@ -392,6 +392,7 @@ export class AlbumController {
     @Query('pageSize') pageSize: number,
     @Query('skip') skip: number,
     @Query('sort') sort: 'asc' | 'desc',
+    @Query('sortBy') sortBy: 'id' | 'index' | 'episodeNumber',
     @Query('keyword') keyword: string,
   ): Promise<ISuccessResponse<any> | IErrorResponse> {
     try {
@@ -410,7 +411,8 @@ export class AlbumController {
         Number(skip) || 0,
         sort,
         keyword,
-        Number(userId)
+        Number(userId),
+        sortBy || 'episodeNumber'
       );
       const total = await this.trackService.getTrackCountByAlbum(
         album.name,

@@ -43,6 +43,7 @@ const Detail: React.FC = () => {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
   const [sort, setSort] = useState<"asc" | "desc">("asc");
+  const [sortBy, setSortBy] = useState<"id" | "index" | "episodeNumber">("episodeNumber");
   const [keyword, setKeyword] = useState("");
   const [keywordMidValue, setKeywordMidValue] = useState("");
   const [isLiked, setIsLiked] = useState(false);
@@ -84,28 +85,42 @@ const Detail: React.FC = () => {
       hasResumed.current = false;
       fetchAlbumDetails(id);
       
-      // If this is the current playing album, initialize from player store
-      if (String(currentAlbumId) === String(id) && playlist.length > 0) {
+      const playerSource = usePlayerStore.getState().playlistSource;
+      const playerParams = playerSource?.params;
+      const isParamSame = 
+        playerParams?.sort === sort && 
+        playerParams?.keyword === keyword && 
+        playerParams?.sortBy === sortBy;
+
+      // If this is the current playing album AND parameters match, initialize from player store
+      if (String(currentAlbumId) === String(id) && playlist.length > 0 && isParamSame) {
         setTracks(playlist);
         setPage(Math.ceil(playlist.length / pageSize));
-        setHasMore(usePlayerStore.getState().playlistSource?.hasMore ?? true);
+        setHasMore(playerSource?.hasMore ?? true);
       } else {
         // Reset list and fetch fresh
         setTracks([]);
         setPage(0);
         setHasMore(true);
-        fetchTracks(id, 0, sort, keyword);
+        fetchTracks(id, 0, sort, keyword, sortBy);
       }
     }
-  }, [id, sort, keyword]);
+  }, [id, sort, keyword, sortBy]);
 
-  // Two-way Sync: Keep detail tracks in sync with player playlist if it's the same album
+  // Two-way Sync: Keep detail tracks in sync with player playlist if it's the same album AND same parameters
   useEffect(() => {
-    if (String(currentAlbumId) === String(id) && playlist.length > 0) {
+    const playerSource = usePlayerStore.getState().playlistSource;
+    const playerParams = playerSource?.params;
+    const isParamSame = 
+      playerParams?.sort === sort && 
+      playerParams?.keyword === keyword && 
+      playerParams?.sortBy === sortBy;
+
+    if (String(currentAlbumId) === String(id) && playlist.length > 0 && isParamSame) {
       setTracks(playlist);
-      setHasMore(usePlayerStore.getState().playlistSource?.hasMore ?? true);
+      setHasMore(playerSource?.hasMore ?? true);
     }
-  }, [playlist, currentAlbumId, id]);
+  }, [playlist, currentAlbumId, id, sort, keyword, sortBy]);
 
   const fetchAlbumDetails = async (albumId: number | string) => {
     try {
@@ -128,7 +143,8 @@ const Detail: React.FC = () => {
     albumId: number | string,
     currentPage: number,
     currentSort: "asc" | "desc",
-    currentKeyword: string
+    currentKeyword: string,
+    currentSortBy: "id" | "index" | "episodeNumber"
   ) => {
     if (loading) return;
     setLoading(true);
@@ -139,7 +155,8 @@ const Detail: React.FC = () => {
         currentPage * pageSize,
         currentSort,
         currentKeyword,
-        user?.id
+        user?.id,
+        currentSortBy
       );
       if (res.code === 200) {
         const newTracks = res.data.list;
@@ -150,9 +167,16 @@ const Detail: React.FC = () => {
         } else {
           setTracks((prev) => [...prev, ...newTracks]);
         }
+        
+        // SYNC: If this is currently playing AND parameters match, append to player playlist
+        const playerSource = usePlayerStore.getState().playlistSource;
+        const playerParams = playerSource?.params;
+        const isParamSame = 
+          playerParams?.sort === currentSort && 
+          playerParams?.keyword === currentKeyword && 
+          playerParams?.sortBy === currentSortBy;
 
-        // SYNC: If this is currently playing, append to player playlist
-        if (String(currentAlbumId) === String(albumId)) {
+        if (String(currentAlbumId) === String(albumId) && isParamSame) {
           appendTracks(newTracks, totalHasMore);
         }
 
@@ -174,7 +198,7 @@ const Detail: React.FC = () => {
       !loading &&
       id
     ) {
-      fetchTracks(id, page, sort, keyword);
+      fetchTracks(id, page, sort, keyword, sortBy);
     }
   };
 
@@ -186,7 +210,7 @@ const Detail: React.FC = () => {
         pageSize: pageSize,
         currentPage: Math.max(0, page - 1),
         hasMore: hasMore,
-        params: { sort, keyword }
+        params: { sort, keyword, sortBy }
       });
 
       let targetTrack = tracks[0];
@@ -239,7 +263,7 @@ const Detail: React.FC = () => {
     setTracks([]);
     setPage(0);
     setHasMore(true);
-    fetchTracks(id, 0, sort, keyword);
+    fetchTracks(id, 0, sort, keyword, sortBy);
   };
 
 
@@ -362,19 +386,35 @@ const Detail: React.FC = () => {
                   onChange={(e) => setKeywordMidValue(e.target.value)}
                   onPressEnter={() => setKeyword(keywordMidValue)}
                 />
-                {sort === "desc" ? (
-                  <SortAscendingOutlined
-                    className={styles.actionIcon}
-                    style={{ fontSize: "18px" }}
-                    onClick={() => setSort("asc")}
-                  />
-                ) : (
-                  <SortDescendingOutlined
-                    className={styles.actionIcon}
-                    style={{ fontSize: "18px" }}
-                    onClick={() => setSort("desc")}
-                  />
-                )}
+                
+                <Flex align="center" gap={4}>
+                  <Button 
+                    type="text" 
+                    size="small"
+                    className={styles.sortFieldBtn}
+                    onClick={() => {
+                        const sequence: ("id" | "index" | "episodeNumber")[] = ["episodeNumber", "index", "id"];
+                        const next = sequence[(sequence.indexOf(sortBy) + 1) % sequence.length];
+                        setSortBy(next);
+                    }}
+                    style={{ color: token.colorTextSecondary, fontSize: '12px' }}
+                  >
+                    {sortBy === 'id' ? '入库顺序' : sortBy === 'index' ? '专辑顺序' : '优化排序'}
+                  </Button>
+                  {sort === "desc" ? (
+                    <SortAscendingOutlined
+                      className={styles.actionIcon}
+                      style={{ fontSize: "18px" }}
+                      onClick={() => setSort("asc")}
+                    />
+                  ) : (
+                    <SortDescendingOutlined
+                      className={styles.actionIcon}
+                      style={{ fontSize: "18px" }}
+                      onClick={() => setSort("desc")}
+                    />
+                  )}
+                </Flex>
               </div>
             </div>
 
@@ -399,7 +439,7 @@ const Detail: React.FC = () => {
                   pageSize: pageSize,
                   currentPage: page - 1,
                   hasMore: hasMore,
-                  params: { sort, keyword }
+                  params: { sort, keyword, sortBy }
               } : undefined}
             />
             {/* Load More / Footer */}
@@ -415,7 +455,7 @@ const Detail: React.FC = () => {
               ) : hasMore ? (
                 <Button
                   type="text"
-                  onClick={() => id && fetchTracks(id, page, sort, keyword)}
+                  onClick={() => id && fetchTracks(id, page, sort, keyword, sortBy)}
                   style={{ color: token.colorTextSecondary }}
                 >
                   加载更多

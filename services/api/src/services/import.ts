@@ -307,21 +307,43 @@ export class ImportService implements OnModuleInit {
     this.watcher
       .on('add', async (filePath) => {
         const info = getBasePathAndType(filePath);
-        if (info && /\.(mp3|flac|ogg|wav|m4a|mp4|strm)$/i.test(filePath)) {
-          this.logger.log(`[Watcher] File added: ${filePath}`);
-          await this.handleFileAdd(filePath, info.basePath, info.type, cachePath);
+        if (info) {
+          if (/\.(mp3|flac|ogg|wav|m4a|mp4|strm)$/i.test(filePath)) {
+            this.logger.log(`[Watcher] File added: ${filePath}`);
+            await this.handleFileAdd(filePath, info.basePath, info.type, cachePath);
+          } else if (/\.(jpg|jpeg|png|webp)$/i.test(filePath)) {
+            this.logger.log(`[Watcher] Image added: ${filePath}`);
+            await this.handleImageChange(filePath, cachePath);
+          } else if (/\.(lrc|txt)$/i.test(filePath)) {
+            this.logger.log(`[Watcher] Lyric added: ${filePath}`);
+            await this.handleLyricChange(filePath);
+          }
         }
       })
       .on('change', async (filePath) => {
         const info = getBasePathAndType(filePath);
-        if (info && /\.(mp3|flac|ogg|wav|m4a|mp4|strm)$/i.test(filePath)) {
+        if (info) {
+          if (/\.(mp3|flac|ogg|wav|m4a|mp4|strm)$/i.test(filePath)) {
             this.logger.log(`[Watcher] File changed: ${filePath}`);
             await this.handleFileChange(filePath, info.basePath, info.type, cachePath);
+          } else if (/\.(jpg|jpeg|png|webp)$/i.test(filePath)) {
+            this.logger.log(`[Watcher] Image changed: ${filePath}`);
+            await this.handleImageChange(filePath, cachePath);
+          } else if (/\.(lrc|txt)$/i.test(filePath)) {
+            this.logger.log(`[Watcher] Lyric changed: ${filePath}`);
+            await this.handleLyricChange(filePath);
+          }
         }
       })
       .on('unlink', async (filePath) => {
          this.logger.log(`[Watcher] File unlinked: ${filePath}`);
-         await this.handleFileUnlink(filePath, musicPath, audiobookPath);
+         if (/\.(mp3|flac|ogg|wav|m4a|mp4|strm)$/i.test(filePath)) {
+            await this.handleFileUnlink(filePath, musicPath, audiobookPath);
+         } else if (/\.(jpg|jpeg|png|webp)$/i.test(filePath)) {
+            await this.handleImageUnlink(filePath, cachePath);
+         } else if (/\.(lrc|txt)$/i.test(filePath)) {
+            await this.handleLyricUnlink(filePath);
+         }
       });
   }
 
@@ -428,6 +450,106 @@ export class ImportService implements OnModuleInit {
              await this.updateParentStatus(track.albumId, 'album');
          }
      }
+  }
+
+  private async handleImageChange(filePath: string, cachePath: string) {
+    const dirPath = path.dirname(filePath);
+    const folder = await this.prisma.folder.findFirst({
+      where: { path: dirPath }
+    });
+
+    if (!folder) return;
+
+    const tracks = await this.prisma.track.findMany({
+      where: { folderId: folder.id, status: FileStatus.ACTIVE },
+      select: { id: true, albumId: true }
+    });
+
+    if (tracks.length === 0) return;
+
+    if (!this.scanner) this.scanner = new LocalMusicScanner(cachePath);
+    const cachedCoverPath = await this.scanner.findCoverInDirectory(dirPath);
+    const coverUrl = cachedCoverPath ? this.convertToHttpUrl(cachedCoverPath, 'cover', cachePath) : null;
+
+    const albumIds = new Set<number>();
+    for (const track of tracks) {
+      await this.prisma.track.update({
+        where: { id: track.id },
+        data: { cover: coverUrl }
+      });
+      if (track.albumId) albumIds.add(track.albumId);
+    }
+
+    for (const albumId of albumIds) {
+      await this.prisma.album.update({
+        where: { id: albumId },
+        data: { cover: coverUrl }
+      });
+    }
+    this.logger.log(`[Watcher] Updated cover for ${tracks.length} tracks and ${albumIds.size} albums in ${dirPath} to ${coverUrl}`);
+  }
+
+  private async handleImageUnlink(filePath: string, cachePath: string) {
+      await this.handleImageChange(filePath, cachePath);
+  }
+
+  private async handleLyricChange(filePath: string) {
+    const dirPath = path.dirname(filePath);
+    const baseName = path.basename(filePath, path.extname(filePath));
+    
+    const folder = await this.prisma.folder.findFirst({
+        where: { path: dirPath }
+    });
+    if (!folder) return;
+
+    const tracks = await this.prisma.track.findMany({
+      where: { folderId: folder.id, status: FileStatus.ACTIVE }
+    });
+
+    for (const track of tracks) {
+        const absolutePath = this.trackService.getFilePath(track.path);
+        if (!absolutePath) continue;
+        
+        const trackBaseName = path.basename(absolutePath, path.extname(absolutePath));
+        if (trackBaseName === baseName) {
+            const lyrics = fs.readFileSync(filePath, 'utf-8');
+            await this.prisma.track.update({
+                where: { id: track.id },
+                data: { lyrics }
+            });
+            this.logger.log(`[Watcher] Updated lyrics for track ${track.id} (${track.name})`);
+            break;
+        }
+    }
+  }
+
+  private async handleLyricUnlink(filePath: string) {
+    const dirPath = path.dirname(filePath);
+    const baseName = path.basename(filePath, path.extname(filePath));
+    
+    const folder = await this.prisma.folder.findFirst({
+        where: { path: dirPath }
+    });
+    if (!folder) return;
+
+    const tracks = await this.prisma.track.findMany({
+      where: { folderId: folder.id, status: FileStatus.ACTIVE }
+    });
+
+    for (const track of tracks) {
+        const absolutePath = this.trackService.getFilePath(track.path);
+        if (!absolutePath) continue;
+        
+        const trackBaseName = path.basename(absolutePath, path.extname(absolutePath));
+        if (trackBaseName === baseName) {
+            await this.prisma.track.update({
+                where: { id: track.id },
+                data: { lyrics: null }
+            });
+            this.logger.log(`[Watcher] Removed lyrics for track ${track.id} (${track.name})`);
+            break;
+        }
+    }
   }
 
   private async updateParentStatus(id: number, type: 'album' | 'artist') {

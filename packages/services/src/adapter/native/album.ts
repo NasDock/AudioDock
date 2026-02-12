@@ -1,8 +1,8 @@
 import type {
-  Album,
-  ILoadMoreData,
-  ISuccessResponse,
-  ITableData,
+    Album,
+    ILoadMoreData,
+    ISuccessResponse,
+    ITableData,
 } from "../../models";
 import request from "../../request";
 import { IAlbumAdapter } from "../interface";
@@ -82,11 +82,12 @@ export class NativeAlbumAdapter implements IAlbumAdapter {
     sort: "asc" | "desc" = "asc",
     keyword?: string,
     userId?: number | string,
+    sortBy?: string,
   ) {
     return request.get<any, ISuccessResponse<{ list: any[]; total: number }>>(
       `/album/${id}/tracks`,
       {
-        params: { pageSize, skip, sort, keyword, userId },
+        params: { pageSize, skip, sort, keyword, userId, sortBy },
       }
     );
   }

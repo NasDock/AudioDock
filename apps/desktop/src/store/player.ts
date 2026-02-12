@@ -23,6 +23,7 @@ export interface PlaylistSource {
   params?: {
     sort?: "asc" | "desc";
     keyword?: string;
+    sortBy?: string;
   };
 }
 
@@ -536,7 +537,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
             skip,
             playlistSource.params?.sort || "asc",
             playlistSource.params?.keyword,
-            useAuthStore.getState().user?.id
+            useAuthStore.getState().user?.id,
+            playlistSource.params?.sortBy
           );
           if (res.code === 200) {
             newTracks = res.data.list;
