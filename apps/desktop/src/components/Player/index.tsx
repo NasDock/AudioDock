@@ -567,8 +567,14 @@ const Player: React.FC = () => {
         }
 
         // Apply progress if significantly different
-        if (Math.abs(audio.currentTime - currentTime) > 2) {
-          audio.currentTime = currentTime;
+        let targetTime = currentTime;
+        // Prioritize skipStart if in audiobook mode and we are at the beginning
+        if (appMode === TrackType.AUDIOBOOK && skipStart > 0 && targetTime < skipStart) {
+          targetTime = skipStart;
+        }
+
+        if (Math.abs(audio.currentTime - targetTime) > 2) {
+          audio.currentTime = targetTime;
         }
       } catch (e: any) {
         // AbortError is normal when src changes while play() is pending
@@ -581,18 +587,6 @@ const Player: React.FC = () => {
 
     updateAndPlay();
   }, [isPlaying, resolvedUri]);
-
-  useEffect(() => {
-    if (
-      audioRef.current &&
-      currentTrack &&
-      currentTime > 0 &&
-      Math.abs(audioRef.current.currentTime - currentTime) > 1
-    ) {
-      // This handles the case where we start a track with a specific progress
-      audioRef.current.currentTime = currentTime;
-    }
-  }, [currentTrack?.id]);
 
   // Save settings
   useEffect(() => {
@@ -708,11 +702,14 @@ const Player: React.FC = () => {
 
       // Critical for Sync: If store has a specific currentTime (set by play or sync), apply it now.
       // We prioritize valid currentTime > 0.
-      if (currentTime > 0) {
-        audioRef.current.currentTime = currentTime;
-      } else if (appMode === TrackType.AUDIOBOOK && skipStart > 0) {
-        // Fallback to skipStart for audiobooks if no specific time
+      let startTime = currentTime;
+      if (appMode === TrackType.AUDIOBOOK && skipStart > 0 && startTime < skipStart) {
+        startTime = skipStart;
         audioRef.current.currentTime = skipStart;
+      }
+
+      if (startTime > 0) {
+        audioRef.current.currentTime = startTime;
       }
 
       // Allow updates again after metadata loaded and potential seek performed
