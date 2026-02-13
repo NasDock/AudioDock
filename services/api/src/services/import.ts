@@ -746,32 +746,54 @@ export class ImportService implements OnModuleInit {
     const albumGroupArtist = item.albumArtist || artistName;
 
     // 1. Resolve Track Artist (Required for Track.artistId)
-    let artist = await this.artistService.findByName(artistName, type, true);
-    if (!artist) {
-      artist = await this.artistService.createArtist({
-        name: artistName,
-        avatar: coverUrl,
-        type: type,
-        status: FileStatus.ACTIVE,
-        trashedAt: null
-      });
-    } else if (artist.status === FileStatus.TRASHED) {
-      await this.artistService.updateArtist(artist.id, { status: FileStatus.ACTIVE, trashedAt: null });
+    // Support multi-artist parsing: "A & B", "A and B", "A、B"
+    const artistDelimiters = /[&,、]|\s+and\s+/i;
+    // Split and filter empty strings
+    const individualArtists = artistName.split(artistDelimiters).map(s => s.trim()).filter(s => s);
+    
+    let trackPrimaryArtist: any = null;
+    
+    // Fallback if split results in empty (should not happen if artistName is valid)
+    if (individualArtists.length === 0) individualArtists.push(artistName);
+
+    for (const name of individualArtists) {
+        let art = await this.artistService.findByName(name, type, true);
+        if (!art) {
+           art = await this.artistService.createArtist({
+               name: name,
+               avatar: coverUrl, // Use current cover for now
+               type: type,
+               status: FileStatus.ACTIVE,
+               trashedAt: null
+           });
+        } else if (art.status === FileStatus.TRASHED) {
+           await this.artistService.updateArtist(art.id, { status: FileStatus.ACTIVE, trashedAt: null });
+        }
+        
+        if (!trackPrimaryArtist) trackPrimaryArtist = art;
     }
+    
+    const artist = trackPrimaryArtist; // Use the first artist for the relation
 
     // 2. Resolve Album Artist (for Album grouping AND Album Artist entity)
+    // Also split album artist if it's a combination (e.g. "A & B" album)
+    const individualAlbumArtists = albumGroupArtist.split(artistDelimiters).map(s => s.trim()).filter(s => s);
+    if (individualAlbumArtists.length === 0) individualAlbumArtists.push(albumGroupArtist);
+
     if (albumGroupArtist !== artistName) {
-       let albumArtistEntity = await this.artistService.findByName(albumGroupArtist, type, true);
-       if (!albumArtistEntity) {
-          await this.artistService.createArtist({
-              name: albumGroupArtist,
-              avatar: coverUrl,
-              type: type,
-              status: FileStatus.ACTIVE,
-              trashedAt: null
-          });
-       } else if (albumArtistEntity.status === FileStatus.TRASHED) {
-          await this.artistService.updateArtist(albumArtistEntity.id, { status: FileStatus.ACTIVE, trashedAt: null });
+       for (const name of individualAlbumArtists) {
+            let albumArtistEntity = await this.artistService.findByName(name, type, true);
+            if (!albumArtistEntity) {
+                await this.artistService.createArtist({
+                    name: name,
+                    avatar: coverUrl,
+                    type: type,
+                    status: FileStatus.ACTIVE,
+                    trashedAt: null
+                });
+            } else if (albumArtistEntity.status === FileStatus.TRASHED) {
+                await this.artistService.updateArtist(albumArtistEntity.id, { status: FileStatus.ACTIVE, trashedAt: null });
+            }
        }
     }
 

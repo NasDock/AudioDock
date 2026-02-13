@@ -356,7 +356,10 @@ export class TrackService {
 
   async getTracksByArtist(artist: string): Promise<Track[]> {
     const tracks = await this.prisma.track.findMany({
-      where: { artist, status: 'ACTIVE' },
+      where: { 
+        artist: { contains: artist },
+        status: 'ACTIVE' 
+      },
       orderBy: { id: 'desc' },
       include: {
         artistEntity: true,
@@ -364,7 +367,17 @@ export class TrackService {
         likedByUsers: true,
       },
     });
-    return await this.attachProgressToTracks(tracks, 1);
+
+    // Client-side rigorous filtering to avoid partial matches like "Michael" matching "Michael Jackson"
+    // unless it is a split part like "Michael / Jackson"
+    const artistDelimiters = /[&,、]|\s+and\s+/i;
+    const filteredTracks = tracks.filter(t => {
+       if (t.artist === artist) return true;
+       const parts = t.artist.split(artistDelimiters).map(s => s.trim());
+       return parts.includes(artist);
+    });
+
+    return await this.attachProgressToTracks(filteredTracks, 1);
   }
 
   private async attachProgressToTracks(tracks: Track[], userId: number): Promise<Track[]> {

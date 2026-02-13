@@ -1,25 +1,25 @@
 import {
-  CheckSquareOutlined,
-  CloseOutlined,
-  DownloadOutlined,
-  PlusOutlined
+    CheckSquareOutlined,
+    CloseOutlined,
+    DownloadOutlined,
+    PlusOutlined
 } from "@ant-design/icons";
 import {
-  getAlbumsByArtist,
-  getArtistById,
-  getCollaborativeAlbumsByArtist,
-  getTracksByArtist,
+    getAlbumsByArtist,
+    getArtistById,
+    getCollaborativeAlbumsByArtist,
+    getTracksByArtist,
 } from "@soundx/services";
 import {
-  Avatar,
-  Button,
-  Col,
-  Empty,
-  Flex,
-  message,
-  Row,
-  Skeleton,
-  Typography
+    Avatar,
+    Button,
+    Col,
+    Empty,
+    Flex,
+    message,
+    Row,
+    Skeleton,
+    Typography
 } from "antd";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -174,19 +174,20 @@ const ArtistDetail: React.FC = () => {
         </Title>
       </div>
 
-      <div className={styles.content}>
-        <Title level={4} className={styles.sectionTitle}>
-          所有专辑 ({albums.length})
-        </Title>
-        <Row gutter={[24, 24]}>
-          {albums.map((album) => (
-            <Col key={album.id}>
-              <Cover item={album} />
-            </Col>
-          ))}
-        </Row>
-        {albums.length === 0 && <Empty description="暂无专辑" />}
-      </div>
+      {albums.length > 0 && (
+        <div className={styles.content}>
+          <Title level={4} className={styles.sectionTitle}>
+            所有专辑 ({albums.length})
+          </Title>
+          <Row gutter={[24, 24]}>
+            {albums.map((album) => (
+              <Col key={album.id}>
+                <Cover item={album} />
+              </Col>
+            ))}
+          </Row>
+        </div>
+      )}
 
       {collaborativeAlbums.length > 0 && (
         <div className={styles.content} style={{ marginTop: "48px" }}>
