@@ -189,7 +189,14 @@ const SongList = ({
           contentContainerStyle={styles.listContent}
           keyExtractor={(item) => item.id.toString()}
           onScrollToIndexFailed={(info) => {
-            flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+            setTimeout(() => {
+              flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+              setTimeout(() => {
+                try {
+                  flatListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 });
+                } catch (e) { /* ignore */ }
+              }, 100);
+            }, 0);
           }}
           renderItem={({ item, index }) => (
             <TouchableOpacity
@@ -339,7 +346,17 @@ const ArtistList = () => {
         contentContainerStyle={styles.listContent}
         keyExtractor={(item) => item.id.toString()}
         onScrollToIndexFailed={(info) => {
-          flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+          const rowIndex = Math.floor(info.index / numColumns);
+          const rowHeight = itemWidth + 15;
+          const offset = rowIndex * rowHeight;
+          setTimeout(() => {
+            flatListRef.current?.scrollToOffset({ offset, animated: true });
+            setTimeout(() => {
+              try {
+                flatListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 });
+              } catch (e) { /* ignore */ }
+            }, 100);
+          }, 0);
         }}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -396,12 +413,25 @@ const AlbumList = () => {
   const handleLocateCurrent = () => {
     if (!currentTrack || !albums.length) return;
     const index = albums.findIndex((a) => a.name === currentTrack.album);
-    if (index !== -1) {
-      flatListRef.current?.scrollToIndex({
-        index,
-        animated: true,
-        viewPosition: 0.5,
-      });
+    if (index !== -1 && index < albums.length) {
+      try {
+        flatListRef.current?.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0.5,
+        });
+      } catch (error) {
+        // Calculate offset manually for grid layout
+        const rowIndex = Math.floor(index / numColumns);
+        // itemHeight + marginBottom (gap)
+        const rowHeight = itemWidth + 15;
+        const offset = rowIndex * rowHeight;
+        
+        flatListRef.current?.scrollToOffset({
+          offset,
+          animated: true,
+        });
+      }
     }
   };
 
@@ -460,7 +490,17 @@ const AlbumList = () => {
         contentContainerStyle={styles.listContent}
         keyExtractor={(item) => item.id.toString()}
         onScrollToIndexFailed={(info) => {
-          flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+          const rowIndex = Math.floor(info.index / numColumns);
+          const rowHeight = itemWidth + 15;
+          const offset = rowIndex * rowHeight;
+          setTimeout(() => {
+            flatListRef.current?.scrollToOffset({ offset, animated: true });
+            setTimeout(() => {
+              try {
+                flatListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 });
+              } catch (e) { /* ignore */ }
+            }, 100);
+          }, 0);
         }}
         renderItem={({ item }) => (
           <TouchableOpacity

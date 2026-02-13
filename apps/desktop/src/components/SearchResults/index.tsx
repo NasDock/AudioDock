@@ -1,13 +1,18 @@
+import { HeartFilled, HeartOutlined, PlusOutlined } from "@ant-design/icons";
+import type {
+  Playlist,
+  SearchResults as SearchResultsType,
+} from "@soundx/services";
 import {
-  HeartFilled,
-  HeartOutlined,
-  PlusOutlined
-} from "@ant-design/icons";
-import type { Playlist, SearchResults as SearchResultsType } from "@soundx/services";
-import { addTrackToPlaylist, getPlaylists, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
+  addTrackToPlaylist,
+  getPlaylists,
+  toggleTrackLike,
+  toggleTrackUnLike,
+} from "@soundx/services";
 import { Avatar, Empty, List, message, Modal, theme } from "antd";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "../../context/ThemeContext";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { getCoverUrl } from "../../utils";
@@ -36,11 +41,14 @@ const SearchResults: React.FC<SearchResultsProps> = ({
   const { user } = useAuthStore();
   const { mode } = usePlayMode();
   const { token } = theme.useToken();
+  const { themeSetting } = useTheme();
 
   // Add to Playlist State
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [selectedTrackId, setSelectedTrackId] = useState<number | string | null>(null);
+  const [selectedTrackId, setSelectedTrackId] = useState<
+    number | string | null
+  >(null);
 
   const handleTrackClick = (track: any) => {
     play(track);
@@ -58,7 +66,10 @@ const SearchResults: React.FC<SearchResultsProps> = ({
     onClose();
   };
 
-  const openPlaylistModal = async (e: React.MouseEvent, trackId: number | string) => {
+  const openPlaylistModal = async (
+    e: React.MouseEvent,
+    trackId: number | string,
+  ) => {
     e.stopPropagation();
     setSelectedTrackId(trackId);
     try {
@@ -85,15 +96,15 @@ const SearchResults: React.FC<SearchResultsProps> = ({
     }
   };
 
-  // Generic Item Component to handle hover actions 
-  const Item = ({ 
-    data, 
-    type, 
-    onClick, 
-    cover, 
-    title, 
+  // Generic Item Component to handle hover actions
+  const Item = ({
+    data,
+    type,
+    onClick,
+    cover,
+    title,
     subtitle,
-    isArtist = false
+    isArtist = false,
   }: any) => {
     const isLiked = data.likedByUsers?.some((l: any) => l.userId === user?.id);
     const [liked, setLiked] = useState(isLiked);
@@ -104,7 +115,9 @@ const SearchResults: React.FC<SearchResultsProps> = ({
       const newLiked = !liked;
       setLiked(newLiked);
       try {
-        await (newLiked ? toggleTrackLike(data.id, user.id) : toggleTrackUnLike(data.id, user.id));
+        await (newLiked
+          ? toggleTrackLike(data.id, user.id)
+          : toggleTrackUnLike(data.id, user.id));
       } catch (e) {
         setLiked(!newLiked); // Revert
       }
@@ -113,33 +126,40 @@ const SearchResults: React.FC<SearchResultsProps> = ({
     return (
       <div className={styles.resultItem} onClick={onClick}>
         {isArtist ? (
-           <Avatar
-             src={cover}
-             size={48}
-             className={styles.avatar}
-             icon={!data.avatar && data.name[0]}
-           />
+          <Avatar
+            src={cover}
+            size={48}
+            className={styles.avatar}
+            icon={!data.avatar && data.name[0]}
+          />
         ) : (
-           <img src={cover} alt={title} className={styles.cover} />
+          <img src={cover} alt={title} className={styles.cover} />
         )}
-        
+
         <div className={styles.info}>
           <div className={styles.name}>{title}</div>
           <div className={styles.meta}>{subtitle}</div>
         </div>
 
         <div className={styles.actions}>
-           {type === 'track' && (
-             <>
-               <div className={styles.actionBtn} onClick={handleLike}>
-                 {liked ? <HeartFilled style={{ color: token.colorError }} /> : <HeartOutlined />}
-               </div>
-               <div className={styles.actionBtn} onClick={(e) => openPlaylistModal(e, data.id)}>
-                 <PlusOutlined />
-               </div>
-             </>
-           )}
-           {/* For now only Tracks support explicit actions in search dropdown for simplicity and UI space */}
+          {type === "track" && (
+            <>
+              <div className={styles.actionBtn} onClick={handleLike}>
+                {liked ? (
+                  <HeartFilled style={{ color: token.colorError }} />
+                ) : (
+                  <HeartOutlined />
+                )}
+              </div>
+              <div
+                className={styles.actionBtn}
+                onClick={(e) => openPlaylistModal(e, data.id)}
+              >
+                <PlusOutlined />
+              </div>
+            </>
+          )}
+          {/* For now only Tracks support explicit actions in search dropdown for simplicity and UI space */}
         </div>
       </div>
     );
@@ -153,7 +173,15 @@ const SearchResults: React.FC<SearchResultsProps> = ({
 
   if (!hasResults) {
     return (
-      <div className={styles.searchResults}>
+      <div
+        className={styles.searchResults}
+        style={{
+          backgroundColor:
+            themeSetting === "dark"
+              ? "rgba(0, 0, 0, 0.9)"
+              : "rgba(255, 255, 255, 0.9)",
+        }}
+      >
         {history.length > 0 && (
           <div className={styles.section}>
             <div className={styles.sectionHeader}>
@@ -219,21 +247,29 @@ const SearchResults: React.FC<SearchResultsProps> = ({
   }
 
   return (
-    <div className={styles.searchResults}>
+    <div
+      className={styles.searchResults}
+      style={{
+        backgroundColor:
+          themeSetting === "dark"
+            ? "rgba(0, 0, 0, 0.9)"
+            : "rgba(255, 255, 255, 0.9)",
+      }}
+    >
       {results.tracks.length > 0 && (
         <div className={styles.section}>
           <div className={styles.sectionTitle}>单曲</div>
           {results.tracks.map((track) => (
-            <Item 
-              key={track.id} 
-              data={track} 
+            <Item
+              key={track.id}
+              data={track}
               type="track"
-              onClick={() => handleTrackClick(track)} 
-              cover={getCoverUrl(track.cover, track.id)} // Assuming this is correct util usage from old code? Wait, getCoverUrl signature check? 
-              // Wait, old code was: getCoverUrl(album, album.id) for album, and track didn't have cover displayed in old code? 
-              // Re-checking old code: Track list didn't show cover? 
-              // Old code: 
-              // <div className={styles.resultItem}...> <div className={styles.info}>... </div> </div> 
+              onClick={() => handleTrackClick(track)}
+              cover={getCoverUrl(track.cover, track.id)} // Assuming this is correct util usage from old code? Wait, getCoverUrl signature check?
+              // Wait, old code was: getCoverUrl(album, album.id) for album, and track didn't have cover displayed in old code?
+              // Re-checking old code: Track list didn't show cover?
+              // Old code:
+              // <div className={styles.resultItem}...> <div className={styles.info}>... </div> </div>
               // It seems Tracks DID NOT show cover in dropdown initially.
               // But let's add it if available, or just use rendering logic from before but with actions.
               // Actually, standard search result usually has cover.
@@ -257,16 +293,16 @@ const SearchResults: React.FC<SearchResultsProps> = ({
         <div className={styles.section}>
           <div className={styles.sectionTitle}>艺术家</div>
           {results.artists.map((artist) => (
-             <Item 
-               key={artist.id}
-               data={artist}
-               type="artist"
-               onClick={() => handleArtistClick(artist.id)}
-               cover={getCoverUrl(artist, artist.id)}
-               title={artist.name}
-               subtitle={artist.type === "MUSIC" ? "音乐人" : "演播者"}
-               isArtist={true}
-             />
+            <Item
+              key={artist.id}
+              data={artist}
+              type="artist"
+              onClick={() => handleArtistClick(artist.id)}
+              cover={getCoverUrl(artist, artist.id)}
+              title={artist.name}
+              subtitle={artist.type === "MUSIC" ? "音乐人" : "演播者"}
+              isArtist={true}
+            />
           ))}
         </div>
       )}
@@ -275,15 +311,15 @@ const SearchResults: React.FC<SearchResultsProps> = ({
         <div className={styles.section}>
           <div className={styles.sectionTitle}>专辑</div>
           {results.albums.map((album) => (
-             <Item 
-               key={album.id}
-               data={album}
-               type="album"
-               onClick={() => handleAlbumClick(album.id)}
-               cover={getCoverUrl(album, album.id)}
-               title={album.name}
-               subtitle={`${album.artist} · ${album.year}`}
-             />
+            <Item
+              key={album.id}
+              data={album}
+              type="album"
+              onClick={() => handleAlbumClick(album.id)}
+              cover={getCoverUrl(album, album.id)}
+              title={album.name}
+              subtitle={`${album.artist} · ${album.year}`}
+            />
           ))}
         </div>
       )}
@@ -301,7 +337,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
               onClick={() => handleAddToPlaylist(item.id)}
               style={{ cursor: "pointer" }}
             >
-              <List.Item.Meta 
+              <List.Item.Meta
                 title={item.name}
                 description={`${item._count?.tracks || 0} 首`}
               />

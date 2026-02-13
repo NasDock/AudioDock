@@ -587,11 +587,13 @@ export default function AlbumDetailScreen() {
           setSelectedTrackIds([]);
         }}
       />
-      <FloatingActionButtons
-        flatListRef={flatListRef}
-        onLocateCurrent={handleLocateCurrent}
-        locateDisabled={!currentTrack || !tracks.some(t => t.id === currentTrack.id)}
-      />
+      {tracks.length >= 20 && (
+        <FloatingActionButtons
+          flatListRef={flatListRef}
+          onLocateCurrent={handleLocateCurrent}
+          locateDisabled={!currentTrack || !tracks.some(t => t.id === currentTrack.id)}
+        />
+      )}
     </View>
   );
 }
@@ -667,6 +669,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     justifyContent: "center",
+    gap: 10,
     marginTop: 20,
   },
   playAllButton: {
@@ -687,7 +690,6 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 15,
   },
   trackList: {
     padding: 20,
