@@ -2,7 +2,16 @@ import { usePlayer } from "@/src/context/PlayerContext";
 import { EvilIcons, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
-import { getAlbumHistory, getAlbumTracks, getLatestArtists, getLatestTracks, getRecentAlbums, getRecommendedAlbums, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
+import {
+  getAlbumHistory,
+  getAlbumTracks,
+  getLatestArtists,
+  getLatestTracks,
+  getRecentAlbums,
+  getRecommendedAlbums,
+  toggleTrackLike,
+  toggleTrackUnLike,
+} from "@soundx/services";
 import * as Device from "expo-device";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -16,18 +25,18 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 // import * as AudioEq from '../../modules/audio-eq';
 import { initBaseURL } from "@/src/https";
+import { Image as ExpoImage } from "expo-image";
 import { CachedImage } from "../../src/components/CachedImage";
 import { useAuth } from "../../src/context/AuthContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { cacheUtils } from "../../src/utils/cache";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
-
 
 interface Section {
   id: string;
@@ -37,8 +46,15 @@ interface Section {
 }
 
 export default function HomeScreen() {
-  const { colors } = useTheme();
-  const { playTrack, startRadioMode, playTrackList, trackList, currentTrack, isRadioMode } = usePlayer();
+  const { colors, theme } = useTheme();
+  const {
+    playTrack,
+    startRadioMode,
+    playTrackList,
+    trackList,
+    currentTrack,
+    isRadioMode,
+  } = usePlayer();
   const { mode, setMode } = usePlayMode();
   const { user, sourceType } = useAuth();
   const insets = useSafeAreaInsets();
@@ -49,6 +65,26 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const radioAnim = React.useRef(new Animated.Value(0)).current;
+  const swingAnim = React.useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(swingAnim, {
+          toValue: 1,
+          duration: 2500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(swingAnim, {
+          toValue: 0,
+          duration: 2500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
 
   useEffect(() => {
     if (isRadioMode) {
@@ -66,7 +102,7 @@ export default function HomeScreen() {
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
     } else {
       radioAnim.setValue(0);
@@ -85,7 +121,7 @@ export default function HomeScreen() {
         // Try cache first if not refreshing
         if (!forceRefresh) {
           const cachedSections = await cacheUtils.get<Section[]>(
-            `home_sections_${mode}`
+            `home_sections_${mode}`,
           );
           if (cachedSections) {
             setSections(cachedSections);
@@ -99,7 +135,7 @@ export default function HomeScreen() {
           getRecentAlbums(mode, true, pageSize),
           getRecommendedAlbums(mode, true, pageSize),
         ];
-        
+
         if (mode === "MUSIC") {
           promises.push(getLatestTracks("MUSIC", true, pageSize));
         }
@@ -178,7 +214,7 @@ export default function HomeScreen() {
         setRefreshing(false);
       }
     },
-    [mode]
+    [mode],
   );
 
   useFocusEffect(
@@ -205,11 +241,11 @@ export default function HomeScreen() {
         }
       };
       loadOrder();
-    }, [])
+    }, []),
   );
 
   useEffect(() => {
-    initBaseURL().then(() => loadData())
+    initBaseURL().then(() => loadData());
   }, [loadData]);
 
   const onRefresh = useCallback(() => {
@@ -238,7 +274,8 @@ export default function HomeScreen() {
         if (res.code === 200) newData = res.data;
       } else if (sectionId === "history" && user) {
         const res = await getAlbumHistory(user.id, 0, pageSize, "AUDIOBOOK");
-        if (res.code === 200) newData = res.data.list.map((item: any) => item.album);
+        if (res.code === 200)
+          newData = res.data.list.map((item: any) => item.album);
       }
 
       if (newData.length > 0) {
@@ -291,6 +328,42 @@ export default function HomeScreen() {
         }
       >
         <View style={styles.header}>
+          {theme === 'festive' && (
+            <>
+              <Animated.View
+                pointerEvents="none"
+                style={{ 
+                  position: "absolute", 
+                  left: 70, 
+                  top: -5, 
+                  opacity: 0.6,
+                  transform: [{ 
+                    rotate: swingAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['15deg', '25deg']
+                    }) 
+                  }]
+                }}
+              >
+                <ExpoImage
+                  source={require("../../assets/dexopt/denglong.svg")}
+                  style={{ width: 45, height: 45 }}
+                  contentFit="contain"
+                />
+              </Animated.View>
+              
+              <View
+                pointerEvents="none"
+                style={{ position: "absolute", right: 120, top: -2, opacity: 0.6 }}
+              >
+                <ExpoImage
+                  source={require("../../assets/dexopt/baozhu.svg")}
+                  style={{ width: 40, height: 40, transform: [{ rotate: '-15deg' }] }}
+                  contentFit="contain"
+                />
+              </View>
+            </>
+          )}
           <Text style={[styles.headerTitle, { color: colors.text }]}>推荐</Text>
           <View style={styles.headerRight}>
             {mode === "MUSIC" && (
@@ -301,35 +374,43 @@ export default function HomeScreen() {
                 }}
                 style={[
                   styles.modeToggle,
-                  { 
-                    backgroundColor: colors.card, 
+                  {
+                    backgroundColor: colors.card,
                     marginRight: 10,
                     borderWidth: isRadioMode ? 1 : 0,
-                    borderColor: colors.primary + '40'
+                    borderColor: colors.primary + "40",
                   },
                 ]}
               >
-                <Animated.View style={{ 
-                  transform: [
-                    { 
-                      scale: radioAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [1, 1.25]
-                      }) 
-                    }
-                  ],
-                  opacity: radioAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [1, 0.6]
-                  })
-                }}>
-                  <Ionicons name="radio-outline" size={20} color={colors.primary} />
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        scale: radioAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [1, 1.25],
+                        }),
+                      },
+                    ],
+                    opacity: radioAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 0.6],
+                    }),
+                  }}
+                >
+                  <Ionicons
+                    name="radio-outline"
+                    size={20}
+                    color={colors.primary}
+                  />
                 </Animated.View>
               </TouchableOpacity>
             )}
             {sourceType !== "Subsonic" && (
               <TouchableOpacity
-                onPress={() => setMode(mode === "MUSIC" ? "AUDIOBOOK" : "MUSIC")}
+                onPress={() =>
+                  setMode(mode === "MUSIC" ? "AUDIOBOOK" : "MUSIC")
+                }
                 style={[styles.modeToggle, { backgroundColor: colors.card }]}
               >
                 <Ionicons
@@ -357,14 +438,24 @@ export default function HomeScreen() {
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 {section.title}
               </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+              >
                 {section.id === "tracks" && section.data.length > 0 && (
-                   <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={() => playTrackList(section.data, 0)}
-                    style={{ backgroundColor: colors.primary, borderRadius: 20, padding: 4 }}
-                   >
-                     <Ionicons name="play-sharp" size={16} color={colors.background} />
-                   </TouchableOpacity>
+                    style={{
+                      backgroundColor: colors.primary,
+                      borderRadius: 20,
+                      padding: 4,
+                    }}
+                  >
+                    <Ionicons
+                      name="play-sharp"
+                      size={16}
+                      color={colors.background}
+                    />
+                  </TouchableOpacity>
                 )}
                 <TouchableOpacity onPress={() => refreshSection(section.id)}>
                   <EvilIcons name="refresh" size={20} color={colors.primary} />
@@ -395,7 +486,10 @@ export default function HomeScreen() {
                       >
                         <CachedImage
                           source={{
-                            uri: getImageUrl(track.cover, `https://picsum.photos/seed/${track.id}/200/200`),
+                            uri: getImageUrl(
+                              track.cover,
+                              `https://picsum.photos/seed/${track.id}/200/200`,
+                            ),
                           }}
                           style={styles.trackImage}
                         />
@@ -421,61 +515,70 @@ export default function HomeScreen() {
                             onPress={(e) => {
                               e.stopPropagation();
                               const isLiked = track.likedByUsers?.some(
-                                (like: any) => like.userId === user?.id
+                                (like: any) => like.userId === user?.id,
                               );
                               if (user) {
                                 if (isLiked) {
-                                  toggleTrackUnLike(track.id, user.id).then(() => {
-                                    // Update local state
-                                    setSections((prev) =>
-                                      prev.map((s) =>
-                                        s.id === section.id
-                                          ? {
-                                              ...s,
-                                              data: s.data.map((t: any) =>
-                                                t.id === track.id
-                                                  ? {
-                                                      ...t,
-                                                      likedByUsers: t.likedByUsers?.filter(
-                                                        (l: any) => l.userId !== user.id
-                                                      ),
-                                                    }
-                                                  : t
-                                              ),
-                                            }
-                                          : s
-                                      )
-                                    );
-                                  });
+                                  toggleTrackUnLike(track.id, user.id).then(
+                                    () => {
+                                      // Update local state
+                                      setSections((prev) =>
+                                        prev.map((s) =>
+                                          s.id === section.id
+                                            ? {
+                                                ...s,
+                                                data: s.data.map((t: any) =>
+                                                  t.id === track.id
+                                                    ? {
+                                                        ...t,
+                                                        likedByUsers:
+                                                          t.likedByUsers?.filter(
+                                                            (l: any) =>
+                                                              l.userId !==
+                                                              user.id,
+                                                          ),
+                                                      }
+                                                    : t,
+                                                ),
+                                              }
+                                            : s,
+                                        ),
+                                      );
+                                    },
+                                  );
                                 } else {
-                                  toggleTrackLike(track.id, user.id).then(() => {
-                                    // Update local state
-                                    setSections((prev) =>
-                                      prev.map((s) =>
-                                        s.id === section.id
-                                          ? {
-                                              ...s,
-                                              data: s.data.map((t: any) =>
-                                                t.id === track.id
-                                                  ? {
-                                                      ...t,
-                                                      likedByUsers: [
-                                                        ...(t.likedByUsers || []),
-                                                        {
-                                                          id: 0,
-                                                          trackId: track.id,
-                                                          userId: user.id,
-                                                          createdAt: new Date(),
-                                                        },
-                                                      ],
-                                                    }
-                                                  : t
-                                              ),
-                                            }
-                                          : s
-                                      )
-                                    );
-                                  });
+                                  toggleTrackLike(track.id, user.id).then(
+                                    () => {
+                                      // Update local state
+                                      setSections((prev) =>
+                                        prev.map((s) =>
+                                          s.id === section.id
+                                            ? {
+                                                ...s,
+                                                data: s.data.map((t: any) =>
+                                                  t.id === track.id
+                                                    ? {
+                                                        ...t,
+                                                        likedByUsers: [
+                                                          ...(t.likedByUsers ||
+                                                            []),
+                                                          {
+                                                            id: 0,
+                                                            trackId: track.id,
+                                                            userId: user.id,
+                                                            createdAt:
+                                                              new Date(),
+                                                          },
+                                                        ],
+                                                      }
+                                                    : t,
+                                                ),
+                                              }
+                                            : s,
+                                        ),
+                                      );
+                                    },
+                                  );
                                 }
                               }
                             }}
@@ -484,7 +587,7 @@ export default function HomeScreen() {
                             <Ionicons
                               name={
                                 track.likedByUsers?.some(
-                                  (like: any) => like.userId === user?.id
+                                  (like: any) => like.userId === user?.id,
                                 )
                                   ? "heart"
                                   : "heart-outline"
@@ -492,7 +595,7 @@ export default function HomeScreen() {
                               size={18}
                               color={
                                 track.likedByUsers?.some(
-                                  (like: any) => like.userId === user?.id
+                                  (like: any) => like.userId === user?.id,
                                 )
                                   ? colors.primary
                                   : colors.secondary
@@ -505,9 +608,9 @@ export default function HomeScreen() {
                               // Add to queue after current track without affecting playback
                               const newList = [...trackList];
                               const currentIndex = newList.findIndex(
-                                (t) => t.id === currentTrack?.id
+                                (t) => t.id === currentTrack?.id,
                               );
-                              
+
                               if (currentIndex !== -1) {
                                 // Insert after current track in the list
                                 newList.splice(currentIndex + 1, 0, track);
@@ -515,7 +618,7 @@ export default function HomeScreen() {
                                 // If no current track, add to beginning
                                 newList.unshift(track);
                               }
-                              
+
                               // Update the trackList state directly without triggering playback
                               // This is a workaround - ideally we'd have a dedicated method
                               playTrackList(newList, -1);
@@ -553,7 +656,10 @@ export default function HomeScreen() {
                       >
                         <CachedImage
                           source={{
-                            uri: getImageUrl(item.avatar || item.cover, `https://picsum.photos/seed/${item.id}/200/200`),
+                            uri: getImageUrl(
+                              item.avatar || item.cover,
+                              `https://picsum.photos/seed/${item.id}/200/200`,
+                            ),
                           }}
                           style={styles.artistImage}
                         />
@@ -581,13 +687,26 @@ export default function HomeScreen() {
 
                             if (resumeTrackId) {
                               try {
-                                const res = await getAlbumTracks(item.id, 1000, 0);
-                                if (res.code === 200 && res.data.list.length > 0) {
+                                const res = await getAlbumTracks(
+                                  item.id,
+                                  1000,
+                                  0,
+                                );
+                                if (
+                                  res.code === 200 &&
+                                  res.data.list.length > 0
+                                ) {
                                   const tracks = res.data.list;
-                                  let targetIndex = tracks.findIndex((t: any) => t.id === resumeTrackId);
+                                  let targetIndex = tracks.findIndex(
+                                    (t: any) => t.id === resumeTrackId,
+                                  );
                                   if (targetIndex === -1) targetIndex = 0;
-                                  
-                                  await playTrackList(tracks, targetIndex, resumeProgress);
+
+                                  await playTrackList(
+                                    tracks,
+                                    targetIndex,
+                                    resumeProgress,
+                                  );
                                 } else {
                                   router.push(`/album/${item.id}`);
                                 }
@@ -608,15 +727,28 @@ export default function HomeScreen() {
                         <View style={styles.albumImageContainer}>
                           <CachedImage
                             source={{
-                              uri: getImageUrl(item.cover, `https://picsum.photos/seed/${item.id}/200/200`),
+                              uri: getImageUrl(
+                                item.cover,
+                                `https://picsum.photos/seed/${item.id}/200/200`,
+                              ),
                             }}
                             style={styles.albumImage}
                           />
-                          {(item.type === "AUDIOBOOK" || mode === "AUDIOBOOK") && (item as any).progress > 0 && (
-                            <View style={styles.progressOverlay}>
-                              <View style={[styles.progressBar, { width: `${item.progress}%`, backgroundColor: colors.primary }]} />
-                            </View>
-                          )}
+                          {(item.type === "AUDIOBOOK" ||
+                            mode === "AUDIOBOOK") &&
+                            (item as any).progress > 0 && (
+                              <View style={styles.progressOverlay}>
+                                <View
+                                  style={[
+                                    styles.progressBar,
+                                    {
+                                      width: `${item.progress}%`,
+                                      backgroundColor: colors.primary,
+                                    },
+                                  ]}
+                                />
+                              </View>
+                            )}
                         </View>
                         <Text
                           style={[styles.albumTitle, { color: colors.text }]}
@@ -744,8 +876,8 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 10,
-    overflow: 'hidden',
-    position: 'relative',
+    overflow: "hidden",
+    position: "relative",
     marginBottom: 8,
   },
   albumImage: {
@@ -753,16 +885,16 @@ const styles = StyleSheet.create({
     height: 120,
   },
   progressOverlay: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 5,
     left: 3,
     right: 3,
     height: 4,
     width: 120 - 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
   },
   progressBar: {
-    height: '100%',
+    height: "100%",
   },
   albumTitle: {
     fontSize: 14,

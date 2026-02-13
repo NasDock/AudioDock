@@ -1,35 +1,38 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import {
-    createImportTask,
-    createPlaylist,
-    getAlbumHistory,
-    getFavoriteAlbums,
-    getFavoriteTracks,
-    getImportTask,
-    getPlaylists,
-    getRunningImportTask,
-    getTrackHistory,
-    plusGetMe,
-    setPlusToken,
-    TaskStatus,
-    type ImportTask
+  createImportTask,
+  createPlaylist,
+  getAlbumHistory,
+  getFavoriteAlbums,
+  getFavoriteTracks,
+  getImportTask,
+  getPlaylists,
+  getRunningImportTask,
+  getTrackHistory,
+  plusGetMe,
+  setPlusToken,
+  TaskStatus,
+  type ImportTask
 } from "@soundx/services";
-import { Asset } from 'expo-asset';
-import * as MediaLibrary from 'expo-media-library';
+import { Asset } from "expo-asset";
+import { Image as ExpoImage } from "expo-image";
+import * as MediaLibrary from "expo-media-library";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Easing,
+  FlatList,
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../src/context/AuthContext";
@@ -37,8 +40,8 @@ import { usePlayer } from "../../src/context/PlayerContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { Playlist, Track } from "../../src/models";
 import {
-    getDownloadedTracks,
-    removeDownloadedTrack,
+  getDownloadedTracks,
+  removeDownloadedTrack,
 } from "../../src/services/cache";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
@@ -101,7 +104,15 @@ export default function PersonalScreen() {
   const { playTrackList } = usePlayer();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { checkUpdate, progress, updateInfo, startUpdate, ignoreUpdate, cancelUpdate, installLocalUpdate } = useCheckUpdate();
+  const {
+    checkUpdate,
+    progress,
+    updateInfo,
+    startUpdate,
+    ignoreUpdate,
+    cancelUpdate,
+    installLocalUpdate,
+  } = useCheckUpdate();
 
   const [isModalVisible, setModalVisible] = useState(false);
 
@@ -115,8 +126,6 @@ export default function PersonalScreen() {
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>("track");
   const [loading, setLoading] = useState(false);
 
-
-
   useEffect(() => {
     checkUpdate();
   }, []);
@@ -129,6 +138,26 @@ export default function PersonalScreen() {
   const [selectedDownloadAlbumName, setSelectedDownloadAlbumName] = useState<
     string | null
   >(null);
+  const swingAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(swingAnim, {
+          toValue: 1,
+          duration: 3500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(swingAnim, {
+          toValue: 0,
+          duration: 3500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, []);
 
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
@@ -274,11 +303,13 @@ export default function PersonalScreen() {
         onPress: async () => {
           await removeDownloadedTrack(item.id, item.path); // Use path as URL
           await loadData();
-          
+
           // 如果删除的是当前展开专辑里的最后一首歌，则返回专辑列表
           if (selectedDownloadAlbumName) {
             const tracks = await getDownloadedTracks();
-            const stillHasAlbum = tracks.some(t => t.album === selectedDownloadAlbumName && t.type === mode);
+            const stillHasAlbum = tracks.some(
+              (t) => t.album === selectedDownloadAlbumName && t.type === mode,
+            );
             if (!stillHasAlbum) {
               setSelectedDownloadAlbumName(null);
             }
@@ -386,11 +417,11 @@ export default function PersonalScreen() {
         activeTab !== "playlists" &&
         activeTab !== "downloads" &&
         (mode === "AUDIOBOOK" || activeSubTab === "album");
-        const isDownloadAlbum =
-          activeTab === "downloads" &&
-          mode === "AUDIOBOOK" &&
-          !selectedDownloadAlbumName &&
-          item.type === "album";
+      const isDownloadAlbum =
+        activeTab === "downloads" &&
+        mode === "AUDIOBOOK" &&
+        !selectedDownloadAlbumName &&
+        item.type === "album";
 
       // For downloads, if we are in audiobook mode and selected an album, we render tracks.
       // Wait, FlatList data source is controlled.
@@ -438,9 +469,15 @@ export default function PersonalScreen() {
                 // Use a folder icon or similar if cover missing?
                 // Or just use first track cover if we aggregated?
                 // We passed cover in albumMap.
-                <CachedImage source={{ uri: coverUrl }} style={styles.itemCover} />
+                <CachedImage
+                  source={{ uri: coverUrl }}
+                  style={styles.itemCover}
+                />
               ) : (
-                <CachedImage source={{ uri: coverUrl }} style={styles.itemCover} />
+                <CachedImage
+                  source={{ uri: coverUrl }}
+                  style={styles.itemCover}
+                />
               )}
 
               {/* Progress Bar for Audiobook Albums */}
@@ -518,7 +555,7 @@ export default function PersonalScreen() {
     if (activeTab !== "downloads") return [];
     if (mode === "AUDIOBOOK") {
       return selectedDownloadAlbumName
-        ? downloads.filter(t => t.album === selectedDownloadAlbumName)
+        ? downloads.filter((t) => t.album === selectedDownloadAlbumName)
         : downloadedAlbums;
     }
     return downloads;
@@ -532,7 +569,7 @@ export default function PersonalScreen() {
     if (activeTab === "downloads") {
       if (mode === "AUDIOBOOK") {
         if (selectedDownloadAlbumName) {
-            return downloads.filter(t => t.album === selectedDownloadAlbumName);
+          return downloads.filter((t) => t.album === selectedDownloadAlbumName);
         }
         return downloadedAlbums;
       }
@@ -550,6 +587,66 @@ export default function PersonalScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
+        {theme === 'festive' && (
+          <>
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                left: 20,
+                top: 20,
+                opacity: 0.15,
+              }}
+            >
+              <ExpoImage
+                source={require("../../assets/dexopt/fu.svg")}
+                style={{ width: 120, height: 120 }}
+                tintColor="#D4AF37"
+                contentFit="contain"
+              />
+            </View>
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                right: 80,
+                top: 10,
+                opacity: 0.4,
+                transform: [
+                  {
+                    rotate: swingAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ["-5deg", "5deg"],
+                    }),
+                  },
+                ],
+              }}
+            >
+              <ExpoImage
+                source={require("../../assets/dexopt/denglong.svg")}
+                style={{ width: 45, height: 45 }}
+                tintColor="#D4AF37"
+                contentFit="contain"
+              />
+            </Animated.View>
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                right: 20,
+                top: 50,
+                opacity: 0.4,
+              }}
+            >
+              <ExpoImage
+                source={require("../../assets/dexopt/baozhu.svg")}
+                style={{ width: 40, height: 40 }}
+                tintColor="#D4AF37"
+                contentFit="contain"
+              />
+            </View>
+          </>
+        )}
         <TouchableOpacity
           onPress={() => setMenuVisible(true)}
           style={styles.iconBtn}
@@ -598,7 +695,12 @@ export default function PersonalScreen() {
       {/* User Info */}
       <View style={styles.userInfo}>
         <CachedImage
-          source={{ uri: getImageUrl((user as any)?.avatar, "https://picsum.photos/200") }} // Placeholder for avatar
+          source={{
+            uri: getImageUrl(
+              (user as any)?.avatar,
+              "https://picsum.photos/200",
+            ),
+          }} // Placeholder for avatar
           style={styles.avatar}
         />
         <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
@@ -751,11 +853,11 @@ export default function PersonalScreen() {
         />
       )}
 
-      <UpdateModal 
-        visible={isModalVisible} 
-        progress={progress} 
+      <UpdateModal
+        visible={isModalVisible}
+        progress={progress}
         updateInfo={updateInfo}
-        onBackground={() => setModalVisible(false)} 
+        onBackground={() => setModalVisible(false)}
         onUpdate={startUpdate}
         onIgnore={() => {
           ignoreUpdate();
@@ -918,7 +1020,9 @@ export default function PersonalScreen() {
             <View style={styles.importStatusRow}>
               <Text style={{ color: colors.secondary }}>状态：</Text>
               <Text style={{ color: colors.text, fontWeight: "500" }}>
-                {importTask?.message && importTask.status !== TaskStatus.FAILED && importTask.status !== TaskStatus.SUCCESS
+                {importTask?.message &&
+                importTask.status !== TaskStatus.FAILED &&
+                importTask.status !== TaskStatus.SUCCESS
                   ? importTask.message
                   : importTask?.status === TaskStatus.INITIALIZING
                     ? "正在初始化..."
@@ -956,33 +1060,89 @@ export default function PersonalScreen() {
             </View>
 
             <View style={{ marginBottom: 20 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ color: colors.secondary, fontSize: 12 }}>本地文件</Text>
-                    <Text style={{ color: colors.text, fontSize: 12 }}>{importTask?.localCurrent || 0} / {importTask?.localTotal || 0}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ color: colors.secondary, fontSize: 12 }}>WebDAV 文件</Text>
-                    <Text style={{ color: colors.text, fontSize: 12 }}>{importTask?.webdavCurrent || 0} / {importTask?.webdavTotal || 0}</Text>
-                </View>
-                <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: 'bold' }}>总进度</Text>
-                    <Text style={{ color: colors.primary, fontSize: 13, fontWeight: 'bold' }}>{importTask?.current || 0} / {importTask?.total || 0}</Text>
-                </View>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginBottom: 4,
+                }}
+              >
+                <Text style={{ color: colors.secondary, fontSize: 12 }}>
+                  本地文件
+                </Text>
+                <Text style={{ color: colors.text, fontSize: 12 }}>
+                  {importTask?.localCurrent || 0} /{" "}
+                  {importTask?.localTotal || 0}
+                </Text>
+              </View>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginBottom: 4,
+                }}
+              >
+                <Text style={{ color: colors.secondary, fontSize: 12 }}>
+                  WebDAV 文件
+                </Text>
+                <Text style={{ color: colors.text, fontSize: 12 }}>
+                  {importTask?.webdavCurrent || 0} /{" "}
+                  {importTask?.webdavTotal || 0}
+                </Text>
+              </View>
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: colors.border,
+                  marginVertical: 4,
+                }}
+              />
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text
+                  style={{
+                    color: colors.text,
+                    fontSize: 13,
+                    fontWeight: "bold",
+                  }}
+                >
+                  总进度
+                </Text>
+                <Text
+                  style={{
+                    color: colors.primary,
+                    fontSize: 13,
+                    fontWeight: "bold",
+                  }}
+                >
+                  {importTask?.current || 0} / {importTask?.total || 0}
+                </Text>
+              </View>
             </View>
 
             {importTask?.currentFileName && (
-              <View style={{ backgroundColor: colors.background, padding: 8, borderRadius: 6, marginBottom: 15 }}>
+              <View
+                style={{
+                  backgroundColor: colors.background,
+                  padding: 8,
+                  borderRadius: 6,
+                  marginBottom: 15,
+                }}
+              >
                 <Text
-                    numberOfLines={1}
-                    ellipsizeMode="middle"
-                    style={{
+                  numberOfLines={1}
+                  ellipsizeMode="middle"
+                  style={{
                     color: colors.secondary,
                     fontSize: 11,
                     fontStyle: "italic",
-                    }}
+                  }}
                 >
-                    正在处理: {importTask.currentFileName}
+                  正在处理: {importTask.currentFileName}
                 </Text>
               </View>
             )}
@@ -1017,8 +1177,6 @@ export default function PersonalScreen() {
         </View>
       </Modal>
 
-
-
       {/* Donation Modal */}
       <Modal
         visible={donationModalVisible}
@@ -1034,7 +1192,7 @@ export default function PersonalScreen() {
           <View
             style={[
               styles.importModalContent,
-              { backgroundColor: colors.card, alignItems: 'center' },
+              { backgroundColor: colors.card, alignItems: "center" },
             ]}
           >
             <Text
@@ -1045,20 +1203,29 @@ export default function PersonalScreen() {
             >
               赞赏开发者
             </Text>
-            
-            <Text style={{ color: colors.secondary, marginBottom: 20, textAlign: 'center' }}>
-              如果您觉得 AudioDock 对您有帮助{'\n'}欢迎赞赏支持！
+
+            <Text
+              style={{
+                color: colors.secondary,
+                marginBottom: 20,
+                textAlign: "center",
+              }}
+            >
+              如果您觉得 AudioDock 对您有帮助{"\n"}欢迎赞赏支持！
             </Text>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               activeOpacity={0.9}
               onLongPress={async () => {
                 try {
-                  const { status } = await MediaLibrary.requestPermissionsAsync();
-                  if (status === 'granted') {
+                  const { status } =
+                    await MediaLibrary.requestPermissionsAsync();
+                  if (status === "granted") {
                     const asset = Asset.fromModule(ctjjLogo);
                     await asset.downloadAsync();
-                    await MediaLibrary.saveToLibraryAsync(asset.localUri || asset.uri);
+                    await MediaLibrary.saveToLibraryAsync(
+                      asset.localUri || asset.uri,
+                    );
                     Alert.alert("保存成功", "赞赏码已保存到相册");
                   } else {
                     Alert.alert("权限不足", "请允许访问相册以保存图片");
@@ -1068,17 +1235,17 @@ export default function PersonalScreen() {
                 }
               }}
             >
-              <Image 
-                source={ctjjLogo} 
-                style={{ 
-                  width: 200, 
-                  height: 200, 
+              <Image
+                source={ctjjLogo}
+                style={{
+                  width: 200,
+                  height: 200,
                   borderRadius: 10,
-                  marginBottom: 10
-                }} 
+                  marginBottom: 10,
+                }}
               />
             </TouchableOpacity>
-            
+
             <Text style={{ color: colors.secondary, fontSize: 12 }}>
               长按图片保存或截图到相册
             </Text>

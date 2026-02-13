@@ -1,28 +1,28 @@
 import {
-  CloudDownloadOutlined,
-  DeleteOutlined,
-  HeartFilled,
-  HeartOutlined,
-  MoreOutlined,
-  PauseCircleFilled,
-  PlayCircleFilled,
-  PlayCircleOutlined,
-  PlusOutlined,
+    CloudDownloadOutlined,
+    DeleteOutlined,
+    HeartFilled,
+    HeartOutlined,
+    MoreOutlined,
+    PauseCircleFilled,
+    PlayCircleFilled,
+    PlayCircleOutlined,
+    PlusOutlined,
 } from "@ant-design/icons";
 import {
-  addTrackToPlaylist,
-  deleteTrack,
-  getDeletionImpact,
-  getPlaylists,
-  type Playlist,
+    addTrackToPlaylist,
+    deleteTrack,
+    getDeletionImpact,
+    getPlaylists,
+    type Playlist,
 } from "@soundx/services";
 import {
-  Dropdown,
-  List,
-  type MenuProps,
-  Modal,
-  Table,
-  Typography,
+    Dropdown,
+    List,
+    type MenuProps,
+    Modal,
+    Table,
+    Typography,
 } from "antd";
 import type { ColumnProps } from "antd/es/table";
 import React, { useState } from "react";
@@ -430,6 +430,7 @@ const TrackList: React.FC<TrackListProps> = ({
         onRow={(record) => ({
           onClick: () => handlePlayTrack(record),
           style: { cursor: "pointer" },
+          id: `track-${record.id}`
         })}
       />
 

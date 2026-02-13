@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Artist, PrismaClient, TrackType } from '@soundx/db';
 
+const EXCLUDE_ARTIST_FILTER = [
+  { name: { not: { contains: '&' } } },
+  { name: { not: { contains: '、' } } },
+  { name: { not: { contains: ' and ' } } }
+];
+
 @Injectable()
 export class ArtistService {
   private prisma: PrismaClient;
@@ -48,7 +54,10 @@ export class ArtistService {
     loadCount: number,
     type?: any,
   ): Promise<Artist[]> {
-    const where: any = { status: 'ACTIVE' };
+    const where: any = { 
+        status: 'ACTIVE',
+        AND: EXCLUDE_ARTIST_FILTER
+    };
     if (type) {
       where.type = type;
     }
@@ -60,7 +69,10 @@ export class ArtistService {
   }
 
   async artistCount(type?: TrackType): Promise<number> {
-    const where: any = { status: 'ACTIVE' };
+    const where: any = { 
+        status: 'ACTIVE', 
+        AND: EXCLUDE_ARTIST_FILTER
+    };
     if (type) {
       where.type = type;
     }
@@ -117,6 +129,7 @@ export class ArtistService {
         AND: [
           type ? { type } : {},
           { status: 'ACTIVE' },
+          ...EXCLUDE_ARTIST_FILTER,
           {
             OR: [
               { name: { contains: keyword } },
@@ -156,6 +169,7 @@ export class ArtistService {
       where: {
         type,
         status: 'ACTIVE',
+        AND: EXCLUDE_ARTIST_FILTER
       },
       orderBy: { id: 'desc' }, // Assuming higher ID means newer, or use createdAt if available
     });
@@ -163,12 +177,16 @@ export class ArtistService {
 
   // 获取随机艺术家
   async getRandomArtists(limit: number = 8, type: TrackType): Promise<Artist[]> {
-    const count = await this.prisma.artist.count({
-      where: { type, status: 'ACTIVE' },
-    });
+    const where: any = {
+        type, 
+        status: 'ACTIVE',
+        AND: EXCLUDE_ARTIST_FILTER
+    };
+    
+    const count = await this.prisma.artist.count({ where });
     const skip = Math.max(0, Math.floor(Math.random() * (count - limit)));
     const artists = await this.prisma.artist.findMany({
-      where: { type, status: 'ACTIVE' },
+      where,
       skip,
       take: limit,
     });

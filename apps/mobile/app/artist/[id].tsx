@@ -205,63 +205,65 @@ export default function ArtistDetailScreen() {
           </Text>
         </View>
 
-        <View style={styles.section}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: colors.text, paddingHorizontal: 20 },
-            ]}
-          >
-            所有专辑 ({albums.length})
-          </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ paddingHorizontal: 20, paddingBottom: 20 }}
-          >
-            {albums.map((album) => (
-              <TouchableOpacity
-                key={album.id}
-                style={styles.albumCard}
-                onPress={() => router.push(`/album/${album.id}`)}
-              >
-                <View style={styles.albumCoverContainer}>
-                  <Image
-                    source={{
-                      uri: getImageUrl(
-                        album.cover,
-                        `https://picsum.photos/seed/${album.id}/200/200`,
-                      ),
-                    }}
-                    style={styles.albumCover}
-                  />
-                  {album.type === "AUDIOBOOK" &&
-                    (album as any).progress > 0 && (
-                      <View
-                        style={[styles.progressOverlay, { width: 120 - 6 }]}
-                      >
-                        <View
-                          style={[
-                            styles.progressBar,
-                            {
-                              width: `${album.progress || 0}%`,
-                              backgroundColor: colors.primary,
-                            },
-                          ]}
-                        />
-                      </View>
-                    )}
-                </View>
-                <Text
-                  style={[styles.albumName, { color: colors.text }]}
-                  numberOfLines={1}
+        {albums.length > 0 && (
+          <View style={styles.section}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: colors.text, paddingHorizontal: 20 },
+              ]}
+            >
+              所有专辑 ({albums.length})
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ paddingHorizontal: 20, paddingBottom: 20 }}
+            >
+              {albums.map((album) => (
+                <TouchableOpacity
+                  key={album.id}
+                  style={styles.albumCard}
+                  onPress={() => router.push(`/album/${album.id}`)}
                 >
-                  {album.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+                  <View style={styles.albumCoverContainer}>
+                    <Image
+                      source={{
+                        uri: getImageUrl(
+                          album.cover,
+                          `https://picsum.photos/seed/${album.id}/200/200`,
+                        ),
+                      }}
+                      style={styles.albumCover}
+                    />
+                    {album.type === "AUDIOBOOK" &&
+                      (album as any).progress > 0 && (
+                        <View
+                          style={[styles.progressOverlay, { width: 120 - 6 }]}
+                        >
+                          <View
+                            style={[
+                              styles.progressBar,
+                              {
+                                width: `${album.progress || 0}%`,
+                                backgroundColor: colors.primary,
+                              },
+                            ]}
+                          />
+                        </View>
+                      )}
+                  </View>
+                  <Text
+                    style={[styles.albumName, { color: colors.text }]}
+                    numberOfLines={1}
+                  >
+                    {album.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {collaborativeAlbums.length > 0 && (
           <View style={styles.section}>
