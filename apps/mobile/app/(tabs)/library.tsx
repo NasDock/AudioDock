@@ -3,11 +3,14 @@ import { CachedImage } from "@/src/components/CachedImage";
 import { FloatingActionButtons } from "@/src/components/FloatingActionButtons";
 import { Ionicons } from "@expo/vector-icons";
 import { getArtistList, loadMoreAlbum, loadMoreTrack } from "@soundx/services";
+import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
   FlatList,
   StyleSheet,
   Text,
@@ -185,16 +188,25 @@ const SongList = ({
           ref={flatListRef}
           data={tracks}
           style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false} 
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           keyExtractor={(item) => item.id.toString()}
           onScrollToIndexFailed={(info) => {
             setTimeout(() => {
-              flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+              flatListRef.current?.scrollToOffset({
+                offset: info.averageItemLength * info.index,
+                animated: true,
+              });
               setTimeout(() => {
                 try {
-                  flatListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 });
-                } catch (e) { /* ignore */ }
+                  flatListRef.current?.scrollToIndex({
+                    index: info.index,
+                    animated: true,
+                    viewPosition: 0.5,
+                  });
+                } catch (e) {
+                  /* ignore */
+                }
               }, 100);
             }, 0);
           }}
@@ -267,7 +279,9 @@ const SongList = ({
       <FloatingActionButtons
         flatListRef={flatListRef}
         onLocateCurrent={handleLocateCurrent}
-        locateDisabled={!currentTrack || !tracks.some(t => t.id === currentTrack.id)}
+        locateDisabled={
+          !currentTrack || !tracks.some((t) => t.id === currentTrack.id)
+        }
       />
     </>
   );
@@ -341,7 +355,7 @@ const ArtistList = () => {
         numColumns={numColumns}
         columnWrapperStyle={{ gap: GAP, marginBottom: 15 }}
         style={{ flex: 1 }}
-        key={`artist-list-${numColumns}`} 
+        key={`artist-list-${numColumns}`}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         keyExtractor={(item) => item.id.toString()}
@@ -353,8 +367,14 @@ const ArtistList = () => {
             flatListRef.current?.scrollToOffset({ offset, animated: true });
             setTimeout(() => {
               try {
-                flatListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 });
-              } catch (e) { /* ignore */ }
+                flatListRef.current?.scrollToIndex({
+                  index: info.index,
+                  animated: true,
+                  viewPosition: 0.5,
+                });
+              } catch (e) {
+                /* ignore */
+              }
             }, 100);
           }, 0);
         }}
@@ -393,7 +413,9 @@ const ArtistList = () => {
       />
       <FloatingActionButtons
         flatListRef={flatListRef}
-        locateDisabled={!currentTrack || !artists.some(a => a.name === currentTrack.artist)}
+        locateDisabled={
+          !currentTrack || !artists.some((a) => a.name === currentTrack.artist)
+        }
         onLocateCurrent={handleLocateCurrent}
       />
     </View>
@@ -426,7 +448,7 @@ const AlbumList = () => {
         // itemHeight + marginBottom (gap)
         const rowHeight = itemWidth + 15;
         const offset = rowIndex * rowHeight;
-        
+
         flatListRef.current?.scrollToOffset({
           offset,
           animated: true,
@@ -483,7 +505,7 @@ const AlbumList = () => {
         ref={flatListRef}
         data={albums}
         numColumns={numColumns}
-        key={`album-list-${numColumns}`} 
+        key={`album-list-${numColumns}`}
         columnWrapperStyle={{ gap: GAP, marginBottom: 15 }}
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
@@ -497,8 +519,14 @@ const AlbumList = () => {
             flatListRef.current?.scrollToOffset({ offset, animated: true });
             setTimeout(() => {
               try {
-                flatListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 });
-              } catch (e) { /* ignore */ }
+                flatListRef.current?.scrollToIndex({
+                  index: info.index,
+                  animated: true,
+                  viewPosition: 0.5,
+                });
+              } catch (e) {
+                /* ignore */
+              }
             }, 100);
           }, 0);
         }}
@@ -563,7 +591,9 @@ const AlbumList = () => {
         windowSize={10}
       />
       <FloatingActionButtons
-        locateDisabled={!currentTrack || !albums.some(a => a.name === currentTrack.album)}
+        locateDisabled={
+          !currentTrack || !albums.some((a) => a.name === currentTrack.album)
+        }
         flatListRef={flatListRef}
         onLocateCurrent={handleLocateCurrent}
       />
@@ -585,6 +615,26 @@ export default function LibraryScreen() {
   const [selectedTrackIds, setSelectedTrackIds] = useState<(number | string)[]>(
     [],
   );
+  const swingAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(swingAnim, {
+          toValue: 1,
+          duration: 3000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(swingAnim, {
+          toValue: 0,
+          duration: 3000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, []);
 
   useEffect(() => {
     // If we are in MUSIC mode, default to songs? Or keep artists?
@@ -609,6 +659,23 @@ export default function LibraryScreen() {
       ]}
     >
       <View style={styles.header}>
+        {theme === 'festive' && (
+          <View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              left: 60,
+              top: -5,
+              opacity: 0.6,
+            }}
+          >
+            <ExpoImage
+              source={require("../../assets/dexopt/baozhu.svg")}
+              style={{ width: 45, height: 45 }}
+              contentFit="contain"
+            />
+          </View>
+        )}
         <Text style={[styles.headerTitle, { color: colors.text }]}>声仓</Text>
         <View style={styles.headerRight}>
           {mode === "MUSIC" && activeTab === "songs" && (
