@@ -412,12 +412,14 @@ export class AlbumController {
         sort,
         keyword,
         Number(userId),
-        sortBy || 'episodeNumber'
+        sortBy || 'episodeNumber',
+        album.id // Pass album ID
       );
       const total = await this.trackService.getTrackCountByAlbum(
         album.name,
         album.artist,
         keyword,
+        album.id // Pass album ID
       );
       return {
         code: 200,

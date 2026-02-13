@@ -70,12 +70,18 @@ export class TrackService {
     keyword?: string,
     userId?: number,
     sortBy: 'id' | 'index' | 'episodeNumber' = 'episodeNumber',
+    albumId?: number,
   ): Promise<Track[]> {
     const where: any = {
-      album: albumName,
-      artist: artist,
       status: 'ACTIVE',
     };
+
+    if (albumId) {
+      where.albumId = albumId;
+    } else {
+      where.album = albumName;
+      where.artist = artist;
+    }
 
     if (keyword) {
       where.name = { contains: keyword };
@@ -102,12 +108,18 @@ export class TrackService {
     albumName: string,
     artist: string,
     keyword?: string,
+    albumId?: number,
   ): Promise<number> {
     const where: any = {
-      album: albumName,
-      artist: artist,
       status: 'ACTIVE',
     };
+
+    if (albumId) {
+      where.albumId = albumId;
+    } else {
+      where.album = albumName;
+      where.artist = artist;
+    }
 
     if (keyword) {
       where.name = { contains: keyword };

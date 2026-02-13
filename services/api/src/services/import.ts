@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { FileStatus, PrismaClient, TrackType } from '@soundx/db';
+import { Album, FileStatus, PrismaClient, TrackType } from '@soundx/db';
 import { LocalMusicScanner, ScanResult, WebDAVScanner } from '@soundx/utils';
 import * as chokidar from 'chokidar';
 import * as crypto from 'crypto';
@@ -743,11 +743,78 @@ export class ImportService implements OnModuleInit {
     const artistName = item.artist || '未知';
     const albumName = item.album || '未知';
     const coverUrl = item.coverPath ? this.convertToHttpUrl(item.coverPath, 'cover', cachePath) : null;
+    const albumGroupArtist = item.albumArtist || artistName;
 
-    // 1. Try to find by Hash (Highest Priority for persistence)
+    // 1. Resolve Track Artist (Required for Track.artistId)
+    let artist = await this.artistService.findByName(artistName, type, true);
+    if (!artist) {
+      artist = await this.artistService.createArtist({
+        name: artistName,
+        avatar: coverUrl,
+        type: type,
+        status: FileStatus.ACTIVE,
+        trashedAt: null
+      });
+    } else if (artist.status === FileStatus.TRASHED) {
+      await this.artistService.updateArtist(artist.id, { status: FileStatus.ACTIVE, trashedAt: null });
+    }
+
+    // 2. Resolve Album Artist (for Album grouping AND Album Artist entity)
+    if (albumGroupArtist !== artistName) {
+       let albumArtistEntity = await this.artistService.findByName(albumGroupArtist, type, true);
+       if (!albumArtistEntity) {
+          await this.artistService.createArtist({
+              name: albumGroupArtist,
+              avatar: coverUrl,
+              type: type,
+              status: FileStatus.ACTIVE,
+              trashedAt: null
+          });
+       } else if (albumArtistEntity.status === FileStatus.TRASHED) {
+          await this.artistService.updateArtist(albumArtistEntity.id, { status: FileStatus.ACTIVE, trashedAt: null });
+       }
+    }
+
+    // 3. Resolve Album
+    let album: Album | null = null;
+    
+    // Heuristic: If no explicit Album Artist, try to merge with existing album in the same folder
+    if (!item.albumArtist && folderId && albumName !== '未知') {
+       const siblingTrack = await this.prisma.track.findFirst({
+           where: { 
+               folderId: folderId, 
+               album: albumName,
+               status: FileStatus.ACTIVE,
+               albumId: { not: null }
+           },
+           select: { albumId: true }
+       });
+       
+       if (siblingTrack && siblingTrack.albumId) {
+            album = await this.prisma.album.findUnique({ where: { id: siblingTrack.albumId } });
+       }
+    }
+
+    if (!album) {
+        // Fallback: Resolve Album using Album Artist (or Track Artist if Album Artist is missing)
+        album = await this.albumService.findByName(albumName, albumGroupArtist, type, true);
+        if (!album) {
+          album = await this.albumService.createAlbum({
+            name: albumName,
+            artist: albumGroupArtist,
+            cover: coverUrl,
+            year: item.year ? String(item.year) : null,
+            type: type,
+            status: FileStatus.ACTIVE,
+            trashedAt: null
+          });
+        } else if (album.status === FileStatus.TRASHED) {
+          await this.albumService.updateAlbum(album.id, { status: FileStatus.ACTIVE, trashedAt: null });
+        }
+    }
+
+    // 4. Find Existing Track
     let existingTrack = hash ? await this.prisma.track.findFirst({ where: { fileHash: hash } }) : null;
-
-    // 2. Fallback to path if hash not found
     if (!existingTrack) {
       existingTrack = await this.trackService.findByPath(audioUrl);
     }
@@ -759,53 +826,34 @@ export class ImportService implements OnModuleInit {
       await this.prisma.track.update({
         where: { id: existingTrack.id },
         data: {
-          path: audioUrl, // Update path in case it moved
+          path: audioUrl,
           folderId: folderId,
           status: FileStatus.ACTIVE,
           trashedAt: null,
           fileHash: hash || existingTrack.fileHash,
           fileModifiedAt: item?.mtime ? new Date(item.mtime) : new Date(),
-          // Sync metadata if changed
+          // Sync metadata
           name: item.title || path.basename(item.path),
           duration: Math.round(item.duration || 0),
           index: item.track?.no || 0,
           episodeNumber: extractEpisodeNumber(item.title || ""),
+          lyrics: item.lyrics || null, // Ensure lyrics update too
+          // Update relations
+          artistId: artist.id,
+          // artist: artistName, // Optional: Update denormalized artist name if needed, but schema says it's string
+          albumId: album.id,
+          // album: albumName,   // Optional: Update denormalized album name
+          cover: coverUrl || existingTrack.cover, 
         }
       });
 
-      // Also ensure parent album/artist are active
-      if (existingTrack.albumId) await this.updateParentStatus(existingTrack.albumId, 'album');
+      if (existingTrack.albumId && existingTrack.albumId !== album.id) {
+          await this.updateParentStatus(existingTrack.albumId, 'album');
+      }
+      await this.updateParentStatus(album.id, 'album'); 
       return existingTrack.id;
     } else {
       // Create new record
-      let artist = await this.artistService.findByName(artistName, type, true);
-      if (!artist) {
-        artist = await this.artistService.createArtist({
-          name: artistName,
-          avatar: coverUrl,
-          type: type,
-          status: FileStatus.ACTIVE,
-          trashedAt: null
-        });
-      } else if (artist.status === FileStatus.TRASHED) {
-        await this.artistService.updateArtist(artist.id, { status: FileStatus.ACTIVE, trashedAt: null });
-      }
-
-      let album = await this.albumService.findByName(albumName, artistName, type, true);
-      if (!album) {
-        album = await this.albumService.createAlbum({
-          name: albumName,
-          artist: artistName,
-          cover: coverUrl,
-          year: item.year ? String(item.year) : null,
-          type: type,
-          status: FileStatus.ACTIVE,
-          trashedAt: null
-        });
-      } else if (album.status === FileStatus.TRASHED) {
-        await this.albumService.updateAlbum(album.id, { status: FileStatus.ACTIVE, trashedAt: null });
-      }
-
       const createdTrack = await this.trackService.createTrack({
         name: item.title || path.basename(item.path),
         artist: artistName,

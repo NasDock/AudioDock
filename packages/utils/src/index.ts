@@ -12,6 +12,7 @@ export interface ScanResult {
   title?: string;
   artist?: string;
   album?: string;
+  albumArtist?: string;
   duration?: number;
   coverPath?: string;
   lyrics?: string;
@@ -251,6 +252,7 @@ export class LocalMusicScanner {
         title,
         artist: artist || '未知',
         album: album || '未知',
+        albumArtist: common.albumartist,
         duration: metadata.format.duration,
         coverPath: coverPath || undefined,
         lyrics: lyrics || undefined,
@@ -477,6 +479,7 @@ export class WebDAVScanner {
             if (metadata.common.title) result.title = metadata.common.title;
             if (metadata.common.artist) result.artist = metadata.common.artist;
             if (metadata.common.album) result.album = metadata.common.album;
+            if (metadata.common.albumartist) result.albumArtist = metadata.common.albumartist;
             if (metadata.format.duration) result.duration = metadata.format.duration;
 
             if (this.cacheDir && metadata.common.picture && metadata.common.picture.length > 0) {
