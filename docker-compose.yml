@@ -26,6 +26,8 @@ services:
       - WEBDAV_AUDIOBOOK_URL=http://192.168.1.12:5005/有声书
       - WEBDAV_USER=admin
       - WEBDAV_PASSWORD=123456
+      - DISABLE_TTS=${DISABLE_TTS:-false}
+      - DISABLE_ASR=${DISABLE_ASR:-false}
 
     # 挂载数据文件和缓存，使用 Docker 命名卷更安全
     volumes:

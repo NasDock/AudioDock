@@ -82,9 +82,12 @@ COPY --from=builder /app/services/api/dist          ./services/api/dist
 COPY --from=builder /app/services/api/package.json  ./services/api/package.json
 COPY --from=builder /app/apps/desktop/dist          /usr/share/nginx/html
 
-# 4. 复制并安装 TTS 服务 (Python)
+# 4. 复制并安装 TTS 和 ASR 服务 (Python)
 COPY services/tts /app/services/tts
 RUN python3 -m pip install --no-cache-dir -r /app/services/tts/requirements.txt
+
+COPY services/asr /app/services/asr
+RUN python3 -m pip install --no-cache-dir -r /app/services/asr/requirements.txt
 
 # 5. 安装 Node 运行时依赖
 RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile --ignore-scripts
@@ -93,8 +96,8 @@ RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile --ignore-script
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # 7. 暴露服务端口
-# 3000: API, 8000: TTS, 9958: Web
-EXPOSE 3000 8000 9958
+# 3000: API, 8000: TTS, 3300: ASR, 9958: Web
+EXPOSE 3000 8000 3300 9958
 
 # 8. 启动脚本
 RUN echo '#!/bin/bash\n\
@@ -112,10 +115,22 @@ echo "Starting Nginx..."\n\
 nginx\n\
 \n\
 # 4. 启动 Python TTS 服务 (后台运行)\n\
-echo "Starting TTS Service..."\n\
-cd /app/services/tts && python3 -m uvicorn src.main:app --host 0.0.0.0 --port 8000 &\n\
+if [ "$DISABLE_TTS" != "true" ]; then\n\
+  echo "Starting TTS Service..."\n\
+  cd /app/services/tts && python3 -m uvicorn src.main:app --host 0.0.0.0 --port 8000 &\n\
+else\n\
+  echo "TTS Service is disabled."\n\
+fi\n\
 \n\
-# 5. 启动 Node API 服务 (前台运行)\n\
+# 5. 启动 Python ASR 服务 (后台运行)\n\
+if [ "$DISABLE_ASR" != "true" ]; then\n\
+  echo "Starting ASR Service..."\n\
+  cd /app/services/asr && python3 -m uvicorn src.main:app --host 0.0.0.0 --port 3300 &\n\
+else\n\
+  echo "ASR Service is disabled."\n\
+fi\n\
+\n\
+# 6. 启动 Node API 服务 (前台运行)\n\
 echo "Starting API Service..."\n\
 cd /app/services/api && node dist/main.js' > /app/start.sh && chmod +x /app/start.sh
 
