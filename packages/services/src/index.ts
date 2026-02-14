@@ -1,5 +1,6 @@
 export * from "./album";
 export * from "./artist";
+export * from "./asr";
 export * from "./auth";
 export * from "./folder";
 export * from "./import";

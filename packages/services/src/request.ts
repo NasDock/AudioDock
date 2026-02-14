@@ -1,6 +1,18 @@
 import type { AxiosInstance } from "axios";
 
 let requestInstance: AxiosInstance | null = null;
+let asrBaseURL = "http://localhost:3300";
+
+import axios from "axios";
+export const asrRequest = axios.create({
+  baseURL: asrBaseURL,
+  timeout: 60000,
+});
+
+export const setAsrBaseURL = (url: string) => {
+  asrBaseURL = url;
+  asrRequest.defaults.baseURL = url;
+};
 
 export const setRequestInstance = (instance: AxiosInstance) => {
   requestInstance = instance;

@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setAsrBaseURL, setRequestInstance } from "@soundx/services";
 import axios, { AxiosError, type AxiosResponse } from "axios";
 
 let activeBaseURL = "http://localhost:3000";
@@ -8,6 +9,11 @@ export function getBaseURL(): string {
   return activeBaseURL;
 }
 
+const instance = axios.create({
+  baseURL: activeBaseURL,
+  timeout: 30000,
+});
+
 // Initialize base URL from storage
 export async function initBaseURL() {
   try {
@@ -15,6 +21,7 @@ export async function initBaseURL() {
     if (savedAddress) {
       activeBaseURL = savedAddress;
       instance.defaults.baseURL = savedAddress;
+      setAsrBaseURL(savedAddress + "/asr");
     }
   } catch (e) {
     console.error("Failed to init base URL:", e);
@@ -25,12 +32,8 @@ export async function initBaseURL() {
 export function setBaseURL(url: string) {
   activeBaseURL = url;
   instance.defaults.baseURL = url;
+  setAsrBaseURL(url + "/asr");
 }
-
-const instance = axios.create({
-  baseURL: activeBaseURL,
-  timeout: 30000,
-});
 
 const messageContent: { [key in number]: string } = {
   0: "未知错误",
@@ -81,8 +84,6 @@ instance.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-import { setRequestInstance } from "@soundx/services";
 
 setRequestInstance(instance);
 

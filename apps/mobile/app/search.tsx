@@ -1,30 +1,32 @@
 import { Ionicons } from "@expo/vector-icons";
 import {
-  addSearchRecord,
-  clearSearchHistory,
-  getHotSearches,
-  getSearchHistory,
-  searchAlbums,
-  searchArtists,
-  searchTracks,
-  toggleAlbumLike,
-  toggleAlbumUnLike,
-  toggleTrackLike,
-  toggleTrackUnLike,
-  UserAlbumLike,
-  UserTrackLike
+    addSearchRecord,
+    clearSearchHistory,
+    getHotSearches,
+    getSearchHistory,
+    searchAlbums,
+    searchArtists,
+    searchTracks,
+    speechToText,
+    toggleAlbumLike,
+    toggleAlbumUnLike,
+    toggleTrackLike,
+    toggleTrackUnLike,
+    UserAlbumLike,
+    UserTrackLike
 } from "@soundx/services";
+import { Audio } from "expo-av";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Image,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddToPlaylistModal } from "../src/components/AddToPlaylistModal";
@@ -60,6 +62,83 @@ export default function SearchScreen() {
   // Add to Playlist Modal State
   const [addToPlaylistVisible, setAddToPlaylistVisible] = useState(false);
   const [selectedTrackId, setSelectedTrackId] = useState<number | string | null>(null);
+
+  // Recording state
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (recording) {
+        recording.stopAndUnloadAsync().catch((err) => {
+          // Ignored: already unloaded or not prepared
+        });
+      }
+    };
+  }, [recording]);
+
+  const startRecording = async () => {
+    try {
+      // Cleanup existing recording if any to prevent "Only one Recording object" error
+      if (recording) {
+        try {
+          await recording.stopAndUnloadAsync();
+        } catch (e) {
+          // ignore cleanup errors
+        }
+        setRecording(null);
+      }
+
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== "granted") {
+        alert("需要麦克风权限来使用语音搜索");
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+      });
+
+      const { recording: newRecording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      setRecording(newRecording);
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Failed to start recording", err);
+      setIsRecording(false);
+      setRecording(null);
+    }
+  };
+
+  const stopRecording = async () => {
+    if (!recording) return;
+
+    setIsRecording(false);
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setRecording(null);
+
+      if (uri) {
+        setLoading(true);
+        const text = await speechToText(uri);
+        if (text && text.trim()) {
+          setKeyword(text.trim());
+        }
+      }
+    } catch (err) {
+      console.error("Failed to stop recording", err);
+    } finally {
+      setLoading(false);
+      // Reset audio mode
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+      });
+    }
+  };
 
   useEffect(() => {
     fetchSearchMeta();
@@ -259,11 +338,21 @@ export default function SearchScreen() {
             onChangeText={setKeyword}
             autoFocus
           />
-          {keyword.length > 0 && (
-            <TouchableOpacity onPress={() => setKeyword("")}>
+          {keyword.length > 0 && !isRecording && (
+            <TouchableOpacity onPress={() => setKeyword("")} style={{ marginRight: 5 }}>
               <Ionicons name="close-circle" size={20} color={colors.secondary} />
             </TouchableOpacity>
           )}
+          <TouchableOpacity 
+            onPress={isRecording ? stopRecording : startRecording}
+            activeOpacity={0.7}
+          >
+            <Ionicons 
+              name={isRecording ? "mic" : "mic-outline"} 
+              size={22} 
+              color={isRecording ? colors.primary : colors.secondary} 
+            />
+          </TouchableOpacity>
         </View>
       </View>
 

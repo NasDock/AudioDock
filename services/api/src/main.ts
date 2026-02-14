@@ -57,6 +57,21 @@ async function bootstrap() {
     }),
   );
 
+  // ASR Service Proxy
+  const asrServiceUrl = process.env.ASR_SERVICE_URL || 'http://localhost:3300';
+  console.log(`Proxying /asr requests to: ${asrServiceUrl}`);
+  app.use(
+    ['/asr', '/api/asr'],
+    createProxyMiddleware({
+      target: asrServiceUrl,
+      changeOrigin: true,
+      pathRewrite: {
+        '^/api/asr': '', // Remove /api/asr prefix
+        '^/asr': '',     // Remove /asr prefix
+      },
+    }),
+  );
+
   const config = new DocumentBuilder()
     .setTitle('AudioDock API')
     .setDescription('AudioDock API documentation')
