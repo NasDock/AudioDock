@@ -1,0 +1,29 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Body -->
+  <circle cx="100" cy="110" r="60" fill="#A67C52"/>
+  <circle cx="100" cy="110" r="45" fill="#D2B48C"/>
+  
+  <!-- Head -->
+  <circle cx="100" cy="65" r="40" fill="#A67C52"/>
+  
+  <!-- Ears -->
+  <path d="M75 35L65 5C65 5 60 15 70 30" stroke="#A67C52" stroke-width="12" stroke-linecap="round"/>
+  <path d="M125 35L135 5C135 5 140 15 130 30" stroke="#A67C52" stroke-width="12" stroke-linecap="round"/>
+  
+  <!-- Eyes -->
+  <circle cx="85" cy="60" r="6" fill="#000"/>
+  <circle cx="115" cy="60" r="6" fill="#000"/>
+  <circle cx="87" cy="58" r="2" fill="#FFF"/>
+  <circle cx="117" cy="58" r="2" fill="#FFF"/>
+  
+  <!-- Nose/Muzzle -->
+  <circle cx="100" cy="75" r="10" fill="#F5F5DC"/>
+  <circle cx="100" cy="72" r="4" fill="#654321"/>
+  
+  <!-- Tail -->
+  <path d="M150 140C180 140 190 90 170 70C150 50 140 90 140 110" stroke="#8B4513" stroke-width="25" stroke-linecap="round"/>
+  
+  <!-- Cheeks -->
+  <circle cx="75" cy="70" r="5" fill="#FFB6C1" opacity="0.6"/>
+  <circle cx="125" cy="70" r="5" fill="#FFB6C1" opacity="0.6"/>
+</svg>

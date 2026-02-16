@@ -12,6 +12,7 @@ export const unstable_settings = {
 };
 
 import { PlaylistModal } from "../src/components/PlaylistModal";
+import { SquirrelAgent } from "../src/components/SquirrelAgent";
 import { SettingsProvider, useSettings } from "../src/context/SettingsContext";
 import { SyncProvider } from "../src/context/SyncContext";
 
@@ -175,6 +176,7 @@ function RootLayoutNav() {
         />
       </Stack>
       {(segments[0] as string) !== "player" && <PlaylistModal />}
+      {(segments[0] as string) !== "player" && <SquirrelAgent />}
       {theme === 'festive' && segments[0] !== 'player' && (
         <Animated.View 
           pointerEvents="none" 
