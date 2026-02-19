@@ -966,10 +966,18 @@ const Player: React.FC = () => {
   };
 
   const getCoverUrl = (item?: Track | Album | null) => {
-    if (!item) return `https://picsum.photos/seed/0/300/300`;
-    return (
-      resolveArtworkUri(item) || `https://picsum.photos/seed/${item.id}/300/300`
-    );
+    if (!item) return `https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop`;
+    const resolved = resolveArtworkUri(item);
+    if (resolved) return resolved;
+    
+    // Generate a simple stable hash for the fallback seed
+    const seed = String(item.id || item.name || "default");
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+        hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+        hash |= 0;
+    }
+    return `https://picsum.photos/seed/${Math.abs(hash)}/300/300`;
   };
 
   // Skip forward 15 seconds
@@ -1737,14 +1745,18 @@ const Player: React.FC = () => {
                   <img
                     src={getCoverUrl({
                       cover: currentTrack?.artistEntity?.avatar,
-                      id: currentTrack?.id,
+                      id: `artist_${currentTrack?.artist}`,
                       name: currentTrack?.artist,
                     } as any)}
-                    alt="Current Cover"
+                    alt="Artist Avatar"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=100&h=100&fit=crop`;
+                    }}
                     style={{
                       width: "15px",
                       height: "15px",
                       borderRadius: "50%",
+                      objectFit: "cover",
                     }}
                   />
                   <Text ellipsis>
@@ -1764,14 +1776,18 @@ const Player: React.FC = () => {
                   <img
                     src={getCoverUrl({
                       cover: currentTrack?.albumEntity?.cover,
-                      id: currentTrack?.id,
+                      id: `album_${currentTrack?.album}`,
                       name: currentTrack?.album,
                     } as any)}
-                    alt="Current Cover"
+                    alt="Album Cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=100&h=100&fit=crop`;
+                    }}
                     style={{
                       width: "15px",
                       height: "15px",
                       borderRadius: "1px",
+                      objectFit: "cover",
                     }}
                   />
                   <Text ellipsis>{currentTrack?.album || "Unknown Album"}</Text>

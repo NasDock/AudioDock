@@ -486,10 +486,7 @@ export default function HomeScreen() {
                       >
                         <CachedImage
                           source={{
-                            uri: getImageUrl(
-                              track.cover,
-                              `https://picsum.photos/seed/${track.id}/200/200`,
-                            ),
+                            uri: getImageUrl(track.cover),
                           }}
                           style={styles.trackImage}
                         />
@@ -656,10 +653,7 @@ export default function HomeScreen() {
                       >
                         <CachedImage
                           source={{
-                            uri: getImageUrl(
-                              item.avatar || item.cover,
-                              `https://picsum.photos/seed/${item.id}/200/200`,
-                            ),
+                            uri: getImageUrl(item.avatar || item.cover),
                           }}
                           style={styles.artistImage}
                         />
@@ -727,10 +721,7 @@ export default function HomeScreen() {
                         <View style={styles.albumImageContainer}>
                           <CachedImage
                             source={{
-                              uri: getImageUrl(
-                                item.cover,
-                                `https://picsum.photos/seed/${item.id}/200/200`,
-                              ),
+                              uri: getImageUrl(item.cover),
                             }}
                             style={styles.albumImage}
                           />

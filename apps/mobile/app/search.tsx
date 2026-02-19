@@ -239,12 +239,7 @@ export default function SearchScreen() {
   };
 
   const renderItem = ({ item, type }: { item: any; type: string }) => {
-    const coverUrl =
-      type === "track" || type === "album"
-        ? getImageUrl(item.cover, "https://picsum.photos/100")
-        : type === "artist"
-          ? getImageUrl(item.avatar, "https://picsum.photos/100")
-          : "https://picsum.photos/100";
+    const coverUrl = getImageUrl(type === "artist" ? item.avatar : item.cover);
 
     const isLiked = user && (
        type === 'track' 

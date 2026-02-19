@@ -14,8 +14,19 @@ export const setAsrBaseURL = (url: string) => {
   asrRequest.defaults.baseURL = url;
 };
 
+
+import { mockData } from "./mockUtils";
+
 export const setRequestInstance = (instance: AxiosInstance) => {
   requestInstance = instance;
+  
+  // Add response interceptor for mocking
+  requestInstance.interceptors.response.use((response) => {
+    if (response.data) {
+        response.data = mockData(response.data);
+    }
+    return response;
+  });
 };
 
 export const getRequestInstance = () => {

@@ -83,7 +83,7 @@ const SongList = ({
         const mappedTracks = list.map((item: any) =>
           item.track ? item.track : item,
         );
-        setTracks(mappedTracks.sort((a, b) => a.name.localeCompare(b.name)));
+        setTracks(mappedTracks.sort((a: any, b: any) => a.name.localeCompare(b.name)));
       }
     } catch (error) {
       console.error("Failed to load tracks:", error);
@@ -385,10 +385,7 @@ const ArtistList = () => {
           >
             <CachedImage
               source={{
-                uri: getImageUrl(
-                  item.avatar,
-                  `https://picsum.photos/seed/${item.id}/200/200`,
-                ),
+                uri: getImageUrl(item.avatar),
               }}
               style={[
                 styles.image,
