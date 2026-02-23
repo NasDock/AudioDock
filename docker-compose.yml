@@ -28,6 +28,13 @@ services:
       - WEBDAV_PASSWORD=123456
       - DISABLE_TTS=${DISABLE_TTS:-false}
       - DISABLE_ASR=${DISABLE_ASR:-false}
+      - LLM_PROVIDER=${LLM_PROVIDER:-deepseek}
+      - LLM_MODEL=${LLM_MODEL:-deepseek-chat}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-60000}
+      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-2048}
+      - LLM_API_KEY=${LLM_API_KEY:-}
 
     # 挂载数据文件和缓存，使用 Docker 命名卷更安全
     volumes:

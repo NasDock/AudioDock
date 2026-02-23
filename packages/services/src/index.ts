@@ -4,6 +4,7 @@ export * from "./asr";
 export * from "./auth";
 export * from "./folder";
 export * from "./import";
+export * from "./llm";
 export * from "./models";
 export * from "./playlist";
 export * from "./request";

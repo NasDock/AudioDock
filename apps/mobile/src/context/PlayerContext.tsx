@@ -1,30 +1,30 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-    addAlbumToHistory,
-    addToHistory,
-    getLatestHistory,
-    getLatestTracks,
-    reportAudiobookProgress
+  addAlbumToHistory,
+  addToHistory,
+  getLatestHistory,
+  getLatestTracks,
+  reportAudiobookProgress
 } from "@soundx/services";
 import * as Device from "expo-device";
 import React, {
-    createContext,
-    useContext,
-    useEffect,
-    useRef,
-    useState,
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
 } from "react";
 import { Alert, Platform } from "react-native";
 import TrackPlayer, {
-    AppKilledPlaybackBehavior,
-    Capability,
-    Event,
-    IOSCategory,
-    IOSCategoryMode,
-    IOSCategoryOptions,
-    State,
-    useProgress,
-    useTrackPlayerEvents,
+  AppKilledPlaybackBehavior,
+  Capability,
+  Event,
+  IOSCategory,
+  IOSCategoryMode,
+  IOSCategoryOptions,
+  State,
+  useProgress,
+  useTrackPlayerEvents,
 } from "react-native-track-player";
 import { Track, TrackType } from "../models";
 import { socketService } from "../services/socket";
@@ -77,6 +77,8 @@ interface PlayerContextType {
   skipOutroDuration: number;
   setSkipOutroDuration: (seconds: number) => void;
 
+  reset: () => Promise<void>;
+
   // 📻 电台模式
   isRadioMode: boolean;
   startRadioMode: () => Promise<void>;
@@ -116,6 +118,7 @@ const PlayerContext = createContext<PlayerContextType>({
   setSkipOutroDuration: () => {},
   isRadioMode: false,
   startRadioMode: async () => {},
+  reset: async () => {},
 });
 
 export const usePlayer = () => useContext(PlayerContext);
@@ -1136,6 +1139,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         setSkipOutroDuration,
         isRadioMode,
         startRadioMode,
+        reset: () => TrackPlayer.reset()
       }}
     >
       {children}

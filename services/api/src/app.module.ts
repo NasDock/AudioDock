@@ -14,6 +14,7 @@ import { ArtistController } from './controllers/artist';
 import { AudiobookController } from './controllers/audiobook';
 import { FolderController } from './controllers/folder';
 import { ImportController } from './controllers/import';
+import { LlmController } from './controllers/llm.controller';
 import { PlaylistController } from './controllers/playlist';
 import { SearchRecordController } from './controllers/search-record';
 import { TrackController } from './controllers/track';
@@ -32,6 +33,7 @@ import { ArtistService } from './services/artist';
 import { AudiobookService } from './services/audiobook';
 import { FolderService } from './services/folder';
 import { ImportService } from './services/import';
+import { LlmService } from './services/llm.service';
 import { PlaylistService } from './services/playlist';
 import { SearchRecordService } from './services/search-record';
 import { TrackService } from './services/track';
@@ -87,6 +89,7 @@ import { UserTrackLikeService } from './services/user-track-like';
     PlaylistController,
     FolderController,
     SearchRecordController,
+    LlmController,
   ],
   providers: [
     UserService,
@@ -117,6 +120,7 @@ import { UserTrackLikeService } from './services/user-track-like';
     PlaylistService,
     FolderService,
     SearchRecordService,
+    LlmService,
     SyncGateway,
   ],
 })
