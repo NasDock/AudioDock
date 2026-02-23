@@ -165,8 +165,6 @@ export const SquirrelAgent: React.FC = () => {
 
       await new Promise((r) => setTimeout(r, 150));
 
-      await resume();
-
       const uri = recordingRef.current.getURI();
       recordingRef.current = null;
 
@@ -183,11 +181,15 @@ export const SquirrelAgent: React.FC = () => {
             setTimeout(async () => {
               try {
                 if (actionPrompt === "next") await playNext();
-                else if (actionPrompt === "last") await playPrevious();
-                else if (actionPrompt === "pause") await pause();
+                else if (actionPrompt === "last") {
+                  await playPrevious();
+                  await resume();
+                } else if (actionPrompt === "pause") await pause();
                 else if (actionPrompt === "play") await resume();
-                else if (actionPrompt === "random") await startRadioMode();
-                else if (actionPrompt.startsWith("song_")) {
+                else if (actionPrompt === "random") {
+                  await startRadioMode();
+                  await resume();
+                } else if (actionPrompt.startsWith("song_")) {
                   const keyword = actionPrompt.replace("song_", "");
                   const searchRes = await searchAll(keyword);
                   console.log(searchRes, "song");
