@@ -1,6 +1,6 @@
 import type {
-  Album,
-  ISuccessResponse
+    Album,
+    ISuccessResponse
 } from "../../models";
 import { IAlbumAdapter } from "../interface";
 import { SubsonicClient } from "./client";
@@ -142,6 +142,7 @@ export class SubsonicAlbumAdapter implements IAlbumAdapter {
     sort: "asc" | "desc" = "asc",
     keyword?: string,
     userId?: number | string,
+    sortBy?: string,
   ) {
     // getAlbum returns tracks inside it.
     const res = await this.client.get<SubsonicAlbumInfo>("getAlbum", { id: id.toString() });

@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "react";
 import "react-native-reanimated";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { PlayerProvider } from "../src/context/PlayerContext";
-import { ThemeProvider } from "../src/context/ThemeContext";
+import { ThemeProvider, useTheme } from "../src/context/ThemeContext";
 import { PlayModeProvider } from "../src/utils/playMode";
 
 export const unstable_settings = {
@@ -17,8 +17,23 @@ import { SyncProvider } from "../src/context/SyncContext";
 
 function RootLayoutNav() {
   const { token, isLoading, sourceType } = useAuth();
+  const { theme } = useTheme();
   const segments = useSegments();
   const router = useRouter();
+  const fuAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (theme === 'festive') {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(fuAnim, { toValue: 1, duration: 4000, useNativeDriver: true }),
+          Animated.timing(fuAnim, { toValue: 0, duration: 4000, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      fuAnim.setValue(0);
+    }
+  }, [theme]);
   const url = Linking.useURL();
   const handledUrlsRef = useRef<Set<string>>(new Set());
 
@@ -126,6 +141,27 @@ function RootLayoutNav() {
         />
       </Stack>
       {(segments[0] as string) !== "player" && <PlaylistModal />}
+      {theme === 'festive' && segments[0] !== 'player' && (
+        <Animated.View 
+          pointerEvents="none" 
+          style={[
+            styles.festiveOverlay, 
+            { 
+              opacity: fuAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.04, 0.10]
+              }) 
+            }
+          ]}
+        >
+          <ExpoImage 
+            source={require('../assets/dexopt/fu.svg')} 
+            style={styles.festiveFu} 
+            tintColor="#D4AF37"
+            contentFit="contain"
+          />
+        </Animated.View>
+      )}
     </>
   );
 }
@@ -133,7 +169,8 @@ function RootLayoutNav() {
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-import { View } from "react-native";
+import { Image as ExpoImage } from "expo-image";
+import { Animated, StyleSheet, View } from "react-native";
 import PlaybackNotification from "../src/components/PlaybackNotification";
 import { NotificationProvider } from "../src/context/NotificationContext";
 
@@ -182,4 +219,15 @@ export default function RootLayout() {
   );
 }
 
-
+const styles = StyleSheet.create({
+  festiveOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  festiveFu: {
+    width: 350,
+    height: 350,
+  }
+});

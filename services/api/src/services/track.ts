@@ -61,7 +61,7 @@ export class TrackService {
     });
   }
 
-  async getTracksByAlbum(
+   async getTracksByAlbum(
     albumName: string,
     artist: string,
     pageSize: number,
@@ -69,12 +69,19 @@ export class TrackService {
     sort: 'asc' | 'desc' = 'asc',
     keyword?: string,
     userId?: number,
+    sortBy: 'id' | 'index' | 'episodeNumber' = 'episodeNumber',
+    albumId?: number,
   ): Promise<Track[]> {
     const where: any = {
-      album: albumName,
-      artist: artist,
       status: 'ACTIVE',
     };
+
+    if (albumId) {
+      where.albumId = albumId;
+    } else {
+      where.album = albumName;
+      where.artist = artist;
+    }
 
     if (keyword) {
       where.name = { contains: keyword };
@@ -83,7 +90,7 @@ export class TrackService {
     const tracks = await this.prisma.track.findMany({
       where,
       orderBy: [
-        { episodeNumber: sort },
+        { [sortBy]: sort },
       ],
       skip: skip,
       take: pageSize,
@@ -101,12 +108,18 @@ export class TrackService {
     albumName: string,
     artist: string,
     keyword?: string,
+    albumId?: number,
   ): Promise<number> {
     const where: any = {
-      album: albumName,
-      artist: artist,
       status: 'ACTIVE',
     };
+
+    if (albumId) {
+      where.albumId = albumId;
+    } else {
+      where.album = albumName;
+      where.artist = artist;
+    }
 
     if (keyword) {
       where.name = { contains: keyword };
@@ -343,7 +356,10 @@ export class TrackService {
 
   async getTracksByArtist(artist: string): Promise<Track[]> {
     const tracks = await this.prisma.track.findMany({
-      where: { artist, status: 'ACTIVE' },
+      where: { 
+        artist: { contains: artist },
+        status: 'ACTIVE' 
+      },
       orderBy: { id: 'desc' },
       include: {
         artistEntity: true,
@@ -351,7 +367,17 @@ export class TrackService {
         likedByUsers: true,
       },
     });
-    return await this.attachProgressToTracks(tracks, 1);
+
+    // Client-side rigorous filtering to avoid partial matches like "Michael" matching "Michael Jackson"
+    // unless it is a split part like "Michael / Jackson"
+    const artistDelimiters = /[&,、]|\s+and\s+/i;
+    const filteredTracks = tracks.filter(t => {
+       if (t.artist === artist) return true;
+       const parts = t.artist.split(artistDelimiters).map(s => s.trim());
+       return parts.includes(artist);
+    });
+
+    return await this.attachProgressToTracks(filteredTracks, 1);
   }
 
   private async attachProgressToTracks(tracks: Track[], userId: number): Promise<Track[]> {

@@ -2,13 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../src/context/AuthContext";
@@ -21,7 +21,7 @@ import { getLocalVersion } from "../src/utils/updateUtils";
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { colors, theme, toggleTheme } = useTheme();
+  const { colors, theme, toggleTheme, setTheme } = useTheme();
   const { mode, setMode } = usePlayMode();
   const { logout, user, sourceType } = useAuth();
   const {
@@ -204,6 +204,13 @@ export default function SettingsScreen() {
               "开启或关闭应用的深色外观",
               theme === "dark",
               autoTheme ? () => {} : toggleTheme
+            )}
+
+            {renderSettingRow(
+              "春日主题",
+              "开启具有新春氛围的红金配色主题",
+              theme === "festive",
+              autoTheme ? () => {} : (val) => setTheme(val ? "festive" : "light")
             )}
           </View>
 

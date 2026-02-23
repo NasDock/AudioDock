@@ -1,13 +1,13 @@
 import {
-    addAlbumToHistory,
-    addToHistory,
-    getAlbumTracks,
-    getLatestTracks,
-    getTrackHistory,
-    loadMoreTrack,
-    reportAudiobookProgress,
-    toggleTrackLike,
-    toggleTrackUnLike
+  addAlbumToHistory,
+  addToHistory,
+  getAlbumTracks,
+  getLatestTracks,
+  getTrackHistory,
+  loadMoreTrack,
+  reportAudiobookProgress,
+  toggleTrackLike,
+  toggleTrackUnLike
 } from "@soundx/services";
 import { create } from "zustand";
 import { TrackType, type Track } from "../models";
@@ -23,6 +23,7 @@ export interface PlaylistSource {
   params?: {
     sort?: "asc" | "desc";
     keyword?: string;
+    sortBy?: string;
   };
 }
 
@@ -536,7 +537,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
             skip,
             playlistSource.params?.sort || "asc",
             playlistSource.params?.keyword,
-            useAuthStore.getState().user?.id
+            useAuthStore.getState().user?.id,
+            playlistSource.params?.sortBy
           );
           if (res.code === 200) {
             newTracks = res.data.list;

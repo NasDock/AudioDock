@@ -1,14 +1,18 @@
 import {
   AudioOutlined,
   DeleteOutlined,
+  FolderAddOutlined,
   FolderFilled,
   HomeOutlined,
   InfoCircleOutlined,
   MoreOutlined,
   PlayCircleOutlined,
+  PlusOutlined,
 } from "@ant-design/icons";
 import {
+  addTracksToPlaylist,
   batchDeleteItems,
+  createPlaylist,
   deleteFolder,
   deleteTrack,
   getFolderContents,
@@ -29,11 +33,14 @@ import {
   Space,
   Spin,
   theme,
-  Typography,
+  Typography
 } from "antd";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import AddToPlaylistModal from "../../components/AddToPlaylistModal";
+import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
+import { usePlaylistStore } from "../../store/playlist";
 import { getCoverUrl } from "../../utils";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
@@ -54,6 +61,7 @@ const FolderPage: React.FC = () => {
   } | null>(null);
 
   const { play, setPlaylist } = usePlayerStore();
+  const [messageApi, contextHolder] = message.useMessage();
 
   const [modalAPI, modalHandle] = Modal.useModal();
 
@@ -61,6 +69,12 @@ const FolderPage: React.FC = () => {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedFolders, setSelectedFolders] = useState<(number | string)[]>([]);
   const [selectedTracks, setSelectedTracks] = useState<(number | string)[]>([]);
+
+  // Playlist selection state
+  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+  const [targetTracks, setTargetTracks] = useState<any[]>([]);
+
+  const { user } = useAuthStore();
 
   const fetchData = async () => {
     setLoading(true);
@@ -143,7 +157,7 @@ const FolderPage: React.FC = () => {
 
   const handleBatchDelete = () => {
     if (selectedFolders.length === 0 && selectedTracks.length === 0) {
-      message.info("未选中任何项目");
+      messageApi.info("未选中任何项目");
       return;
     }
 
@@ -160,14 +174,14 @@ const FolderPage: React.FC = () => {
             trackIds: selectedTracks,
           });
           if (res.code === 200) {
-            message.success("批量删除成功");
+            messageApi.success("批量删除成功");
             setIsSelectionMode(false);
             setSelectedFolders([]);
             setSelectedTracks([]);
             fetchData();
           }
         } catch (error) {
-          message.error("删除失败");
+          messageApi.error("删除失败");
         }
       },
     });
@@ -197,26 +211,131 @@ const FolderPage: React.FC = () => {
   };
 
   const handlePlayAll = async (folderId: number | string) => {
-    const hide = message.loading('正在获取所有歌曲...', 0);
+    const hide = messageApi.loading('正在获取所有歌曲...', 0);
     try {
       const tracks = await getAllTracks(folderId);
       hide();
       if (tracks.length > 0) {
         setPlaylist(tracks);
         play(tracks[0]);
-        message.success(`已添加 ${tracks.length} 首歌曲到播放列表`);
+        messageApi.success(`已添加 ${tracks.length} 首歌曲到播放列表`);
       } else {
-        message.info("该文件夹下没有可播放的音轨");
+        messageApi.info("该文件夹下没有可播放的音轨");
       }
     } catch (error) {
       hide();
-      message.error("播放失败");
+      messageApi.error("播放失败");
     }
+  };
+
+  const openAddToPlaylistModal = async (tracks: any[]) => {
+    if (tracks.length === 0) {
+      messageApi.info("没有选中的歌曲");
+      return;
+    }
+    setTargetTracks(tracks);
+    setIsPlaylistModalOpen(true);
+  };
+
+  const handleFolderAddToPlaylist = async (folderId: number | string) => {
+    const hide = messageApi.loading('正在提取所有歌曲...', 0);
+    try {
+      const tracks = await getAllTracks(folderId);
+      hide();
+      openAddToPlaylistModal(tracks);
+    } catch (error) {
+      hide();
+      messageApi.error("操作失败");
+    }
+  };
+
+  const handleBatchAddToPlaylist = async () => {
+    const hide = messageApi.loading('正在处理选中的文件夹...', 0);
+    try {
+      let allTracks = [...data?.tracks.filter(t => selectedTracks.includes(t.id)) || []];
+      
+      if (selectedFolders.length > 0) {
+        const folderTracksArr = await Promise.all(
+          selectedFolders.map(fid => getAllTracks(fid))
+        );
+        folderTracksArr.forEach(tracks => {
+          allTracks = [...allTracks, ...tracks];
+        });
+      }
+      
+      // Remove duplicates by ID
+      const uniqueTracks = Array.from(new Map(allTracks.map(t => [t.id, t])).values());
+      hide();
+      openAddToPlaylistModal(uniqueTracks);
+    } catch (error) {
+      hide();
+      messageApi.error("获取数据失败");
+    }
+  };
+
+  const handleCreatePlaylistFromFolder = (folder: FolderType) => {
+    if (!user) {
+      messageApi.error("请先登录");
+      return;
+    }
+    const userId = user.id;
+
+    modalAPI.confirm({
+      title: "创建同名播放列表",
+      content: `将会创建一个名为 "${folder.name}" 的播放列表，并添加该文件夹下的所有歌曲。是否继续？`,
+      okText: "确认创建",
+      cancelText: "取消",
+      onOk: async () => {
+        const hide = messageApi.loading(
+          `正在为文件夹 "${folder.name}" 创建同名歌单...`,
+          0
+        );
+        try {
+          // 1. Get all tracks
+          const tracks = await getAllTracks(folder.id);
+          if (tracks.length === 0) {
+            hide();
+            messageApi.info("该文件夹下没有歌曲");
+            return;
+          }
+
+          // 2. Create playlist
+          const playlistRes = await createPlaylist(
+            folder.name,
+            mode === "MUSIC" ? "MUSIC" : "AUDIOBOOK",
+            userId
+          );
+          if (playlistRes.code !== 200 || !playlistRes.data) {
+            throw new Error("创建歌单失败");
+          }
+          const playlistId = playlistRes.data.id;
+
+          // 3. Add tracks
+          const trackIds = tracks.map((t) => t.id);
+          const addRes = await addTracksToPlaylist(playlistId, trackIds);
+
+          hide();
+          if (addRes.code === 200) {
+            messageApi.success(
+              `成功创建歌单 "${folder.name}" 并添加 ${tracks.length} 首歌曲`
+            );
+            // Update sidebar playlists
+            usePlaylistStore.getState().fetchPlaylists(mode, userId);
+          } else {
+            messageApi.error("添加歌曲到歌单失败");
+          }
+        } catch (error) {
+          hide();
+          console.error(error);
+          messageApi.error("操作失败");
+        }
+      },
+    });
   };
 
   const handlePlayCurrent = async () => {
     if (!data) return;
-    const hide = message.loading("正在获取所有歌曲...", 0);
+    const hide = messageApi.loading("正在获取所有歌曲...", 0);
     try {
       let tracks: any[] = [];
       if (id) {
@@ -235,13 +354,13 @@ const FolderPage: React.FC = () => {
       if (tracks.length > 0) {
         setPlaylist(tracks);
         play(tracks[0]);
-        message.success(`已添加 ${tracks.length} 首歌曲到播放列表`);
+        messageApi.success(`已添加 ${tracks.length} 首歌曲到播放列表`);
       } else {
-        message.info("没有可播放的歌曲");
+        messageApi.info("没有可播放的歌曲");
       }
     } catch (e) {
       hide();
-      message.error("操作失败");
+      messageApi.error("操作失败");
     }
   };
 
@@ -256,11 +375,11 @@ const FolderPage: React.FC = () => {
         try {
           const res = await deleteFolder(folder.id);
           if (res.code === 200) {
-            message.success("文件夹已删除");
+            messageApi.success("文件夹已删除");
             fetchData();
           }
         } catch (error) {
-          message.error("删除失败");
+          messageApi.error("删除失败");
         }
       },
     });
@@ -277,11 +396,11 @@ const FolderPage: React.FC = () => {
         try {
           const res = await deleteTrack(track.id);
           if (res.code === 200) {
-            message.success("音轨已删除");
+            messageApi.success("音轨已删除");
             fetchData();
           }
         } catch (error) {
-          message.error("删除失败");
+          messageApi.error("删除失败");
         }
       },
     });
@@ -312,7 +431,7 @@ const FolderPage: React.FC = () => {
         });
       }
     } catch (error) {
-      message.error("获取属性失败");
+      messageApi.error("获取属性失败");
     }
   };
 
@@ -411,6 +530,14 @@ const FolderPage: React.FC = () => {
               </Button>
               <Button
                 size="small"
+                icon={<PlusOutlined />}
+                onClick={handleBatchAddToPlaylist}
+                disabled={selectedFolders.length === 0 && selectedTracks.length === 0}
+              >
+                添加到...
+              </Button>
+              <Button
+                size="small"
                 danger
                 type="primary"
                 onClick={handleBatchDelete}
@@ -432,6 +559,8 @@ const FolderPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {contextHolder}
 
       <Spin spinning={loading}>
         <div className={styles.content}>
@@ -481,6 +610,24 @@ const FolderPage: React.FC = () => {
                                 onClick: ({ domEvent }) => {
                                   domEvent.stopPropagation();
                                   handlePlayAll(folder.id);
+                                },
+                              },
+                              {
+                                key: "add",
+                                label: "添加到播放列表",
+                                icon: <PlusOutlined />,
+                                onClick: ({ domEvent }) => {
+                                  domEvent.stopPropagation();
+                                  handleFolderAddToPlaylist(folder.id);
+                                },
+                              },
+                              {
+                                key: "createPlaylist",
+                                label: "创建同名播放列表",
+                                icon: <FolderAddOutlined />,
+                                onClick: ({ domEvent }) => {
+                                  domEvent.stopPropagation();
+                                  handleCreatePlaylistFromFolder(folder);
                                 },
                               },
                               {
@@ -582,6 +729,15 @@ const FolderPage: React.FC = () => {
                                 },
                               },
                               {
+                                key: "add",
+                                label: "添加到播放列表",
+                                icon: <PlusOutlined />,
+                                onClick: ({ domEvent }) => {
+                                  domEvent.stopPropagation();
+                                  openAddToPlaylistModal([track]);
+                                },
+                              },
+                              {
                                 key: "properties",
                                 label: "属性",
                                 icon: <InfoCircleOutlined />,
@@ -632,6 +788,17 @@ const FolderPage: React.FC = () => {
         </div>
       </Spin>
       {modalHandle}
+
+      <AddToPlaylistModal
+        open={isPlaylistModalOpen}
+        onCancel={() => setIsPlaylistModalOpen(false)}
+        tracks={targetTracks}
+        onSuccess={() => {
+            setIsSelectionMode(false);
+            setSelectedFolders([]);
+            setSelectedTracks([]);
+        }}
+      />
     </div>
   );
 };

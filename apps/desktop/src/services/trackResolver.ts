@@ -16,8 +16,13 @@ export const resolveTrackUri = async (
 ): Promise<string> => {
   const { cacheEnabled } = options;
 
-  // 1. Construct the URI via backend stream endpoint
-  const remoteUri = `${getBaseURL()}/track/stream/${track.id}`;
+  // 1. Construct the remote URI (if path exists)
+  let remoteUri = "";
+  if (track.path) {
+    remoteUri = track.path.startsWith("http")
+      ? track.path
+      : `${getBaseURL()}${track.path.split('/').map(encodeURIComponent).join('/')}`;
+  }
 
   // Support playback from local list even if path is missing (for legacy or offline tracks)
   const localPath = (track as any).localPath;
@@ -35,7 +40,7 @@ export const resolveTrackUri = async (
   const downloadPath = settings.download.downloadPath;
   const albumName = track.albumEntity?.name || track.album || "Unknown Album";
 
-  if (cacheEnabled && track.id && (window as any).ipcRenderer && !track.path.startsWith('http')) {
+  if (cacheEnabled && track.id && (window as any).ipcRenderer) {
     try {
       const cachedPath = await (window as any).ipcRenderer.invoke(
         "cache:check", 
@@ -63,7 +68,7 @@ export const resolveTrackUri = async (
         albumId: track.albumEntity?.id || (track as any).albumId,
         duration: track.duration,
         type: track.type,
-        cover: track.cover ? (track.cover.startsWith('http') ? track.cover : `${getBaseURL()}${track.cover}`) : null,
+        cover: track.cover ? (track.cover.startsWith('http') ? track.cover : `${getBaseURL()}${track.cover.split('/').map(encodeURIComponent).join('/')}`) : null,
         lyrics: track.lyrics
       };
 
@@ -101,7 +106,7 @@ export const resolveArtworkUri = (item: Track | Album | string): string | undefi
   } else {
     uri = cover.startsWith("http")
       ? cover
-      : `${getBaseURL()}${encodeURI(cover)}`;
+      : `${getBaseURL()}${cover.split('/').map(encodeURIComponent).join('/')}`;
   }
   return uri;
 };

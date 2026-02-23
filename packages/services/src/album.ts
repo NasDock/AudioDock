@@ -1,6 +1,6 @@
 import { getAdapter } from "./adapter/manager";
 import type {
-  Album
+    Album
 } from "./models";
   
   export const getAlbumList = () => {
@@ -65,8 +65,9 @@ import type {
     sort: "asc" | "desc" = "asc",
     keyword?: string,
     userId?: number | string,
+    sortBy?: string,
   ) => {
-    return getAdapter().album.getAlbumTracks(id, pageSize, skip, sort, keyword, userId);
+    return getAdapter().album.getAlbumTracks(id, pageSize, skip, sort, keyword, userId, sortBy);
   };
   
   export const getAlbumsByArtist = (artist: string) => {

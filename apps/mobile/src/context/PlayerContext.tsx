@@ -1,30 +1,30 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-    addAlbumToHistory,
-    addToHistory,
-    getLatestHistory,
-    getLatestTracks,
-    reportAudiobookProgress
+  addAlbumToHistory,
+  addToHistory,
+  getLatestHistory,
+  getLatestTracks,
+  reportAudiobookProgress
 } from "@soundx/services";
 import * as Device from "expo-device";
 import React, {
-    createContext,
-    useContext,
-    useEffect,
-    useRef,
-    useState,
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
 } from "react";
 import { Alert, Platform } from "react-native";
 import TrackPlayer, {
-    AppKilledPlaybackBehavior,
-    Capability,
-    Event,
-    IOSCategory,
-    IOSCategoryMode,
-    IOSCategoryOptions,
-    State,
-    useProgress,
-    useTrackPlayerEvents,
+  AppKilledPlaybackBehavior,
+  Capability,
+  Event,
+  IOSCategory,
+  IOSCategoryMode,
+  IOSCategoryOptions,
+  State,
+  useProgress,
+  useTrackPlayerEvents,
 } from "react-native-track-player";
 import { Track, TrackType } from "../models";
 import { socketService } from "../services/socket";
@@ -42,6 +42,8 @@ export enum PlayMode {
   LOOP_SINGLE = "LOOP_SINGLE",
   SINGLE_ONCE = "SINGLE_ONCE",
 }
+const PLAYBACK_MODE_KEY = "playerPlaybackMode";
+const LEGACY_PLAY_MODE_KEY = "playMode";
 
 interface PlayerContextType {
   isPlaying: boolean;
@@ -199,6 +201,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         const outro = await AsyncStorage.getItem("skipOutroDuration");
         if (intro) setSkipIntroDurationState(parseInt(intro, 10));
         if (outro) setSkipOutroDurationState(parseInt(outro, 10));
+        const storedPlayMode =
+          (await AsyncStorage.getItem(PLAYBACK_MODE_KEY)) ??
+          (await AsyncStorage.getItem(LEGACY_PLAY_MODE_KEY));
+        if (storedPlayMode && Object.values(PlayMode).includes(storedPlayMode as PlayMode)) {
+          setPlayMode(storedPlayMode as PlayMode);
+        }
       } catch (e) {
         console.error("Failed to load skip settings", e);
       }
@@ -484,11 +492,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const togglePlayMode = () => {
+  const togglePlayMode = async () => {
     const modes = Object.values(PlayMode);
     const currentIndex = modes.indexOf(playMode);
     const nextMode = modes[(currentIndex + 1) % modes.length];
     setPlayMode(nextMode);
+    await AsyncStorage.setItem(PLAYBACK_MODE_KEY, nextMode);
     savePlaybackState(mode);
   };
 
@@ -523,26 +532,44 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           setPlaybackRateState(state.playbackRate);
         }
         if (state.currentTrack) {
-          const track = state.currentTrack;
-          const uri = await resolveTrackUri(track, { cacheEnabled });
-          const artwork = resolveArtworkUri(track);
+          const savedList = Array.isArray(state.trackList) ? state.trackList : [];
+          const list = savedList.length > 0 ? savedList : [state.currentTrack];
+          const activeIndex = Math.max(
+            0,
+            list.findIndex((t: Track) => t.id === state.currentTrack.id)
+          );
 
-          await TrackPlayer.setQueue([{
-            id: String(track.id),
-            url: uri,
-            title: track.name,
-            artist: track.artist,
-            album: track.album || "Unknown Album",
-            artwork: artwork,
-            duration: track.duration || 0,
-          }]);
+          const queue = await Promise.all(
+            list.map(async (track: Track, i: number) => {
+              const isNearCurrent = i === activeIndex || i === activeIndex + 1;
+              const uri = await resolveTrackUri(track, {
+                cacheEnabled,
+                shouldDownload: isNearCurrent,
+                fast: !isNearCurrent,
+              });
+              const artwork = resolveArtworkUri(track);
+              return {
+                id: String(track.id),
+                url: uri,
+                title: track.name,
+                artist: track.artist,
+                album: track.album || "Unknown Album",
+                artwork,
+                duration: track.duration || 0,
+                type: track.type,
+              } as any;
+            })
+          );
+
+          await TrackPlayer.setQueue(queue);
+          await TrackPlayer.skip(activeIndex);
 
           if (state.position) {
             await TrackPlayer.seekTo(state.position);
           }
 
-          await updatePlayerCapabilities(track);
-          setCurrentTrack(track);
+          await updatePlayerCapabilities(list[activeIndex]);
+          setCurrentTrack(list[activeIndex]);
         }
       } else {
         setCurrentTrack(null);
@@ -602,7 +629,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
       console.log("Playing track:", track.id, "URI:", playUri);
 
-      const trackData = {
+      const trackData: any = {
         id: String(track.id),
         url: playUri,
         title: track.name,
@@ -610,6 +637,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         album: track.album || "Unknown Album",
         artwork: artwork,
         duration: track.duration || 0,
+        type: track.type, // ✨ 传递类型
       };
 
       // ✨ 优化：使用“先加后跳再删”逻辑，防止 reset 导致音频焦点丢失和通知栏闪烁
@@ -657,9 +685,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     
     // ✨ 核心改进：预加载整个列表进入原生队列，但仅触发当前和下一首的下载
     const playerTracks = await Promise.all(tracks.map(async (t, i) => {
-        // 仅当前曲目 (index) 和下一首 (index + 1) 会触发下载
-        const shouldDownload = (i === index || i === index + 1);
-        const uri = await resolveTrackUri(t, { cacheEnabled, shouldDownload });
+        // 核心优化：仅当前曲目 (index) 和下一首 (index + 1) 会触发耗时的缓存检查和预下载
+        // 其他歌曲使用 fast 模式直接返回远程 URL，稍后真正切到它们时再由 resolveTrackUri 处理缓存
+        const isNearCurrent = (i === index || i === index + 1);
+        const uri = await resolveTrackUri(t, { 
+            cacheEnabled, 
+            shouldDownload: isNearCurrent,
+            fast: !isNearCurrent 
+        });
         const artwork = resolveArtworkUri(t);
         return {
           id: String(t.id),
@@ -669,7 +702,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           album: t.album || "Unknown Album",
           artwork: artwork,
           duration: t.duration || 0,
-        };
+          // ✨ 附加自定义字段，方便背景服务识别
+          type: t.type 
+        } as any;
     }));
 
     await TrackPlayer.setQueue(playerTracks);

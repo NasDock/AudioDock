@@ -1,5 +1,6 @@
 import { AddToPlaylistModal } from "@/src/components/AddToPlaylistModal";
 import { AlbumMoreModal } from "@/src/components/AlbumMoreModal";
+import { FloatingActionButtons } from "@/src/components/FloatingActionButtons";
 import PlayingIndicator from "@/src/components/PlayingIndicator";
 import { TrackMoreModal } from "@/src/components/TrackMoreModal";
 import { useAuth } from "@/src/context/AuthContext";
@@ -10,22 +11,22 @@ import { downloadTracks } from "@/src/services/downloadManager";
 import { getImageUrl } from "@/src/utils/image";
 import { Ionicons } from "@expo/vector-icons";
 import {
-    getAlbumById,
-    getAlbumTracks,
-    toggleAlbumLike,
-    toggleAlbumUnLike,
+  getAlbumById,
+  getAlbumTracks,
+  toggleAlbumLike,
+  toggleAlbumUnLike,
 } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function AlbumDetailScreen() {
@@ -41,6 +42,8 @@ export default function AlbumDetailScreen() {
   const [isLiked, setIsLiked] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [sort, setSort] = useState<"asc" | "desc">("asc");
+  const [sortBy, setSortBy] = useState<"id" | "index" | "episodeNumber">("episodeNumber");
   const [total, setTotal] = useState(0);
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [moreModalVisible, setMoreModalVisible] = useState(false);
@@ -48,21 +51,22 @@ export default function AlbumDetailScreen() {
   const [addToPlaylistVisible, setAddToPlaylistVisible] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedTrackIds, setSelectedTrackIds] = useState<(number | string)[]>([]);
+  const flatListRef = useRef<FlatList<Track>>(null);
 
   const PAGE_SIZE = 20000;
 
   useEffect(() => {
     if (id) {
-      loadData(id as string);
+      loadData(id as string, sort, sortBy);
     }
-  }, [id]);
+  }, [id, sort, sortBy]);
 
-  const loadData = async (albumId: number | string) => {
+  const loadData = async (albumId: number | string, currentSort: "asc" | "desc", currentSortBy: "id" | "index" | "episodeNumber") => {
     try {
       setLoading(true);
       const [albumRes, tracksRes] = await Promise.all([
         getAlbumById(albumId),
-        getAlbumTracks(albumId, PAGE_SIZE, 0),
+        getAlbumTracks(albumId, PAGE_SIZE, 0, currentSort, undefined, user?.id, currentSortBy),
       ]);
 
       if (albumRes.code === 200) {
@@ -90,7 +94,7 @@ export default function AlbumDetailScreen() {
 
     try {
       setLoadingMore(true);
-      const res = await getAlbumTracks(album.id, PAGE_SIZE, tracks.length);
+      const res = await getAlbumTracks(album.id, PAGE_SIZE, tracks.length, sort, undefined, user?.id, sortBy);
       if (res.code === 200) {
         const newList = [...tracks, ...res.data.list];
         setTracks(newList);
@@ -156,6 +160,18 @@ export default function AlbumDetailScreen() {
         },
       ]
     );
+  };
+
+  const handleLocateCurrent = () => {
+    if (!currentTrack || !tracks.length) return;
+    const index = tracks.findIndex((t) => t.id === currentTrack.id);
+    if (index !== -1) {
+      flatListRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.5,
+      });
+    }
   };
 
   if (loading) {
@@ -260,8 +276,12 @@ export default function AlbumDetailScreen() {
         </View>
       </View>
       <FlatList
+        ref={flatListRef}
         data={tracks}
         keyExtractor={(item) => item.id.toString()}
+        onScrollToIndexFailed={(info) => {
+          flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+        }}
         ListHeaderComponent={
           <View style={styles.header}>
             <View style={styles.coverContainer}>
@@ -372,6 +392,29 @@ export default function AlbumDetailScreen() {
                   />
                 </TouchableOpacity>
               )}
+              <View
+                style={[styles.likeButton, { backgroundColor: colors.card, flexDirection: 'row', width: 'auto', paddingHorizontal: 15 }]}
+              >
+                <TouchableOpacity 
+                   style={{ flexDirection: 'row', alignItems: 'center' }}
+                   onPress={() => {
+                        const sequence: ("id" | "index" | "episodeNumber")[] = ["episodeNumber", "index", "id"];
+                        const next = sequence[(sequence.indexOf(sortBy) + 1) % sequence.length];
+                        setSortBy(next);
+                    }}
+                >
+                    <Text style={{ color: colors.secondary, fontSize: 12, marginRight: 5 }}>
+                    {sortBy === 'id' ? '入库' : sortBy === 'index' ? '专辑' : '优化'}
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setSort(sort === 'asc' ? 'desc' : 'asc')}>
+                  <Ionicons
+                    name={sort === "asc" ? "arrow-up" : "arrow-down"}
+                    size={16}
+                    color={colors.secondary}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         }
@@ -544,6 +587,13 @@ export default function AlbumDetailScreen() {
           setSelectedTrackIds([]);
         }}
       />
+      {tracks.length >= 20 && (
+        <FloatingActionButtons
+          flatListRef={flatListRef}
+          onLocateCurrent={handleLocateCurrent}
+          locateDisabled={!currentTrack || !tracks.some(t => t.id === currentTrack.id)}
+        />
+      )}
     </View>
   );
 }
@@ -619,6 +669,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     justifyContent: "center",
+    gap: 10,
     marginTop: 20,
   },
   playAllButton: {
@@ -639,7 +690,6 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 15,
   },
   trackList: {
     padding: 20,

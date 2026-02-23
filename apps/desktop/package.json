@@ -1,7 +1,7 @@
 {
   "name": "sound-x",
   "private": true,
-  "version": "1.0.78",
+  "version": "1.0.82",
   "productName": "Sound X",
   "author": "mmdctjj <mmdctjj@gmail.com>",
   "repository": {
@@ -72,6 +72,7 @@
       "output": "release"
     },
     "win": {
+      "icon": "public/logo.png",
       "target": [
         {
           "target": "nsis",
