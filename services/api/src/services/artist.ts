@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Artist, PrismaClient, TrackType } from '@soundx/db';
+import { toSimplified } from '../common/zh-utils';
 
 const EXCLUDE_ARTIST_FILTER = [
   { name: { not: { contains: '&' } } },
@@ -124,6 +125,7 @@ export class ArtistService {
     type?: TrackType,
     limit: number = 10
   ): Promise<Artist[]> {
+    const simplifiedKeyword = toSimplified(keyword);
     const candidates = await this.prisma.artist.findMany({
       where: {
         AND: [
@@ -132,7 +134,7 @@ export class ArtistService {
           ...EXCLUDE_ARTIST_FILTER,
           {
             OR: [
-              { name: { contains: keyword } },
+              { name: { contains: simplifiedKeyword } },
             ],
           },
         ],

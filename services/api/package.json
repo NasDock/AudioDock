@@ -38,6 +38,7 @@
     "@soundx/db": "workspace:*",
     "@soundx/utils": "workspace:*",
     "@types/chokidar": "^2.1.7",
+    "chinese-conv": "^4.0.0",
     "chokidar": "^5.0.0",
     "dayjs": "^1.11.19",
     "http-proxy-middleware": "^3.0.5",

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Album, PrismaClient, TrackType } from '@soundx/db';
+import { toSimplified } from '../common/zh-utils';
 
 @Injectable()
 export class AlbumService {
@@ -254,10 +255,11 @@ export class AlbumService {
 
   // 搜索专辑
   async searchAlbums(keyword: string, type: any, limit: number = 10, userId: number): Promise<Album[]> {
+    const simplifiedKeyword = toSimplified(keyword);
     const where: any = {
       OR: [
-        { name: { contains: keyword } },
-        { artist: { contains: keyword } },
+        { name: { contains: simplifiedKeyword } },
+        { artist: { contains: simplifiedKeyword } },
       ],
     };
 

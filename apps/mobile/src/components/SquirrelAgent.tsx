@@ -9,6 +9,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Easing,
   PanResponder,
   StyleSheet,
   Text,
@@ -27,6 +28,7 @@ export const SquirrelAgent: React.FC = () => {
   const { colors, theme } = useTheme();
   const [state, setState] = useState<AgentState>("idle");
   const [resultText, setResultText] = useState("");
+  const [side, setSide] = useState<"left" | "right">("right");
   const {
     playNext,
     playPrevious,
@@ -47,6 +49,7 @@ export const SquirrelAgent: React.FC = () => {
   ).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const bubbleOpacity = useRef(new Animated.Value(0)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
 
   // Recording refs
   const recordingRef = useRef<Audio.Recording | null>(null);
@@ -55,7 +58,12 @@ export const SquirrelAgent: React.FC = () => {
   // Pan Responder for dragging
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => false,
+
+      onMoveShouldSetPanResponder: (e, gestureState) => {
+        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+      },
+
       onPanResponderGrant: () => {
         pan.setOffset({
           x: (pan.x as any)._value,
@@ -63,16 +71,21 @@ export const SquirrelAgent: React.FC = () => {
         });
         pan.setValue({ x: 0, y: 0 });
       },
+
       onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
         useNativeDriver: false,
       }),
+
       onPanResponderRelease: (e, gestureState) => {
         pan.flattenOffset();
-        // Stick to side logic
+
         const targetX =
           gestureState.moveX > SCREEN_WIDTH / 2
             ? SCREEN_WIDTH - SQUIRREL_SIZE - 10
             : 10;
+
+        setSide(gestureState.moveX > SCREEN_WIDTH / 2 ? "right" : "left");
+
         Animated.spring(pan, {
           toValue: { x: targetX, y: (pan.y as any)._value },
           useNativeDriver: false,
@@ -101,6 +114,27 @@ export const SquirrelAgent: React.FC = () => {
       pulseAnim.setValue(1);
     }
   }, [state]);
+  
+  useEffect(() => {
+    if (state === "processing") {
+      rotateAnim.setValue(0);
+      Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      ).start();
+    } else {
+      rotateAnim.stopAnimation();
+    }
+  }, [state]);
+
+  const spin = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
 
   const startRecording = async () => {
     try {
@@ -250,6 +284,7 @@ export const SquirrelAgent: React.FC = () => {
               currentX > SCREEN_WIDTH / 2
                 ? SCREEN_WIDTH - SQUIRREL_SIZE - 10
                 : 10;
+            setSide(currentX > SCREEN_WIDTH / 2 ? "right" : "left");
             Animated.spring(pan, {
               toValue: { x: targetX, y: (pan.y as any)._value },
               useNativeDriver: false,
@@ -268,8 +303,10 @@ export const SquirrelAgent: React.FC = () => {
   const handlePress = () => {
     if (state === "idle") {
       const currentX = (pan.x as any)._value;
+      const targetSide = currentX > SCREEN_WIDTH / 2 ? "right" : "left";
+      setSide(targetSide);
       const targetX =
-        currentX > SCREEN_WIDTH / 2 ? SCREEN_WIDTH - SQUIRREL_SIZE - 40 : 40;
+        targetSide === "right" ? SCREEN_WIDTH - SQUIRREL_SIZE - 40 : 40;
 
       Animated.spring(pan, {
         toValue: { x: targetX, y: (pan.y as any)._value },
@@ -308,7 +345,10 @@ export const SquirrelAgent: React.FC = () => {
           <Animated.View
             style={[
               styles.bubble,
-              { backgroundColor: colors.card, opacity: bubbleOpacity },
+              { backgroundColor: colors.card + "f2", opacity: bubbleOpacity },
+              side === "left"
+                ? { left: 0, borderBottomLeftRadius: 2 }
+                : { right: 0, borderBottomRightRadius: 2 },
             ]}
           >
             <Text style={[styles.bubbleText, { color: colors.text }]}>
@@ -334,12 +374,14 @@ export const SquirrelAgent: React.FC = () => {
               style={styles.squirrel}
               contentFit="contain"
             />
-            {state === "listening" && (
-              <View
-                style={[styles.indicator, { backgroundColor: "#FF4444" }]}
+            {state === "processing" && (
+              <Animated.View 
+                style={[
+                  styles.processingDot, 
+                  { transform: [{ rotate: spin }] }
+                ]} 
               />
             )}
-            {state === "processing" && <View style={styles.processingDot} />}
           </Animated.View>
         </TouchableOpacity>
       </Animated.View>
@@ -350,6 +392,8 @@ export const SquirrelAgent: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
+    width: SQUIRREL_SIZE,
+    height: SQUIRREL_SIZE,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 9999,
@@ -358,7 +402,7 @@ const styles = StyleSheet.create({
     width: SQUIRREL_SIZE,
     height: SQUIRREL_SIZE,
     borderRadius: SQUIRREL_SIZE / 2,
-    padding: 10,
+    padding: 5,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -373,12 +417,11 @@ const styles = StyleSheet.create({
   },
   bubble: {
     position: "absolute",
-    bottom: SQUIRREL_SIZE + 10,
-    minWidth: 300,
-    maxWidth: 350,
-    padding: 12,
-    borderRadius: 15,
-    borderBottomRightRadius: 2,
+    bottom: SQUIRREL_SIZE + 20,
+    minWidth: 250,
+    maxWidth: 300,
+    padding: 14,
+    borderRadius: 18,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,

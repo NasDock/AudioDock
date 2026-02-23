@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaClient, Track, TrackType } from '@soundx/db';
 import * as fs from 'fs';
 import * as path from 'path';
+import { toSimplified } from '../common/zh-utils';
 
 @Injectable()
 export class TrackService {
@@ -84,7 +85,8 @@ export class TrackService {
     }
 
     if (keyword) {
-      where.name = { contains: keyword };
+      const simplifiedKeyword = toSimplified(keyword);
+      where.name = { contains: simplifiedKeyword };
     }
 
     const tracks = await this.prisma.track.findMany({
@@ -122,7 +124,8 @@ export class TrackService {
     }
 
     if (keyword) {
-      where.name = { contains: keyword };
+      const simplifiedKeyword = toSimplified(keyword);
+      where.name = { contains: simplifiedKeyword };
     }
 
     return await this.prisma.track.count({
@@ -271,6 +274,7 @@ export class TrackService {
   }
 
   async searchTracks(keyword: string, type?: TrackType, limit: number = 10): Promise<Track[]> {
+    const simplifiedKeyword = toSimplified(keyword);
     const candidates = await this.prisma.track.findMany({
       where: {
         AND: [
@@ -278,9 +282,9 @@ export class TrackService {
           { status: 'ACTIVE' },
           {
             OR: [
-              { name: { contains: keyword } },
-              { artist: { contains: keyword } },
-              { album: { contains: keyword } },
+              { name: { contains: simplifiedKeyword } },
+              { artist: { contains: simplifiedKeyword } },
+              { album: { contains: simplifiedKeyword } },
             ],
           },
         ],

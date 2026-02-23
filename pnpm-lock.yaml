@@ -372,8 +372,8 @@ importers:
         specifier: ~4.16.0
         version: 4.16.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-track-player:
-        specifier: 4.1.2
-        version: 4.1.2(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+        specifier: 5.0.0-alpha0
+        version: 5.0.0-alpha0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-web:
         specifier: ~0.21.0
         version: 0.21.2(encoding@0.1.13)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -510,6 +510,9 @@ importers:
       '@types/chokidar':
         specifier: ^2.1.7
         version: 2.1.7
+      chinese-conv:
+        specifier: ^4.0.0
+        version: 4.0.0
       chokidar:
         specifier: ^5.0.0
         version: 5.0.0
@@ -5677,6 +5680,10 @@ packages:
 
   charenc@0.0.2:
     resolution: {integrity: sha512-yrLQ/yVUFXkzg7EDQsPieE/53+0RlaWTs+wBrvW36cyilJ2SaDWfl4Yj7MtLTXleV9uEKefbAGUPv2/iWSooRA==}
+
+  chinese-conv@4.0.0:
+    resolution: {integrity: sha512-PVBMzvv6CtX1cubaDXfxYscIdbOAHPuY/E2vnfJIzOACX+xIW4NRKRlNsZVI2p5KxGsXyUp7tVHfvQlqZ4yx/w==}
+    engines: {node: ^20.19.0 || >=22.12.0}
 
   chokidar@2.1.8:
     resolution: {integrity: sha512-ZmZUazfOzf0Nve7duiCKD23PFSCs4JPoYyccjUFF3aQkQadqBhfzhjkwBH2mNOG9cTBwhamM37EIsIkZw3nRgg==}
@@ -11946,16 +11953,13 @@ packages:
       react: '*'
       react-native: '*'
 
-  react-native-track-player@4.1.2:
-    resolution: {integrity: sha512-cIgMlqVJx/95hirUWPRW8CHxiBFj9Rjl/voKHh2jF/2URYMTQyt76t/m2FKvjeYUW2doKv4QSCBIOUmtyDLtJw==}
+  react-native-track-player@5.0.0-alpha0:
+    resolution: {integrity: sha512-dxMI8aX75wS9S5/DM7dWN060uGjEitX3fhvLGtrQ96AgIKvOorKy3HkBU7DgvCF/6YDAMxez2PaZA+4A3DQWAQ==}
     peerDependencies:
-      react: '>=16.8.6'
-      react-native: '>=0.60.0-rc.2'
-      react-native-windows: '>=0.63.0'
+      react: '*'
+      react-native: '*'
       shaka-player: ^4.7.9
     peerDependenciesMeta:
-      react-native-windows:
-        optional: true
       shaka-player:
         optional: true
 
@@ -21114,6 +21118,8 @@ snapshots:
 
   charenc@0.0.2: {}
 
+  chinese-conv@4.0.0: {}
+
   chokidar@2.1.8:
     dependencies:
       anymatch: 2.0.0
@@ -22611,7 +22617,7 @@ snapshots:
       '@typescript-eslint/eslint-plugin': 8.47.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3))(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3)
       '@typescript-eslint/parser': 8.47.0(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3)
       eslint: 9.39.1(jiti@2.4.2)
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.1(jiti@2.4.2))
+      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3))(eslint@9.39.1(jiti@2.4.2)))(eslint@9.39.1(jiti@2.4.2))
       eslint-plugin-expo: 1.0.0(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3)
       eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.4.2))
       eslint-plugin-react: 7.37.5(eslint@9.39.1(jiti@2.4.2))
@@ -22645,7 +22651,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.1(jiti@2.4.2)):
+  eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3))(eslint@9.39.1(jiti@2.4.2)))(eslint@9.39.1(jiti@2.4.2)):
     dependencies:
       '@nolyfill/is-core-module': 1.0.39
       debug: 4.4.1
@@ -22660,14 +22666,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.12.1(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.4.2)):
+  eslint-module-utils@2.12.1(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3))(eslint@9.39.1(jiti@2.4.2)))(eslint@9.39.1(jiti@2.4.2)))(eslint@9.39.1(jiti@2.4.2)):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
       '@typescript-eslint/parser': 8.47.0(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3)
       eslint: 9.39.1(jiti@2.4.2)
       eslint-import-resolver-node: 0.3.9
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.1(jiti@2.4.2))
+      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3))(eslint@9.39.1(jiti@2.4.2)))(eslint@9.39.1(jiti@2.4.2))
     transitivePeerDependencies:
       - supports-color
 
@@ -22691,7 +22697,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 9.39.1(jiti@2.4.2)
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.12.1(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.4.2))
+      eslint-module-utils: 2.12.1(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.4.2))(typescript@5.9.3))(eslint@9.39.1(jiti@2.4.2)))(eslint@9.39.1(jiti@2.4.2)))(eslint@9.39.1(jiti@2.4.2))
       hasown: 2.0.2
       is-core-module: 2.16.1
       is-glob: 4.0.3
@@ -29040,7 +29046,7 @@ snapshots:
       react-native-is-edge-to-edge: 1.2.1(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       warn-once: 0.1.1
 
-  react-native-track-player@4.1.2(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+  react-native-track-player@5.0.0-alpha0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
     dependencies:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
