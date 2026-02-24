@@ -7,6 +7,7 @@ interface SettingsState {
   cacheEnabled: boolean;
   autoOrientation: boolean;
   autoTheme: boolean;
+  voiceAssistantEnabled: boolean;
   eqGains: number[];
 }
 
@@ -24,6 +25,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     cacheEnabled: false,
     autoOrientation: true,
     autoTheme: true,
+    voiceAssistantEnabled: false,
     eqGains: [0, 0, 0, 0, 0],
   });
   const [isLoading, setIsLoading] = useState(true);

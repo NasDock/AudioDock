@@ -18,6 +18,7 @@ import { SyncProvider } from "../src/context/SyncContext";
 
 function RootLayoutNav() {
   const { token, isLoading, sourceType, plusToken } = useAuth();
+  const { voiceAssistantEnabled } = useSettings();
   const { theme } = useTheme();
   const segments = useSegments();
   const router = useRouter();
@@ -176,7 +177,7 @@ function RootLayoutNav() {
         />
       </Stack>
       {(segments[0] as string) !== "player" && <PlaylistModal />}
-      {(segments[0] as string) !== "player" && <SquirrelAgent />}
+      {(segments[0] as string) !== "player" && voiceAssistantEnabled && <SquirrelAgent />}
       {theme === 'festive' && segments[0] !== 'player' && (
         <Animated.View 
           pointerEvents="none" 

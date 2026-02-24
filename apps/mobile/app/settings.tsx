@@ -30,6 +30,7 @@ export default function SettingsScreen() {
     cacheEnabled,
     autoOrientation,
     autoTheme,
+    voiceAssistantEnabled,
     updateSetting,
   } = useSettings();
   const [detailedSizes, setDetailedSizes] = React.useState<{
@@ -219,6 +220,13 @@ export default function SettingsScreen() {
             "开启后应用将跟随手机重力感应自动旋转",
             autoOrientation,
             (val) => updateSetting("autoOrientation", val)
+          )}
+
+          {renderSettingRow(
+            "语音助手",
+            "开启后显示全局语音助手小松鼠",
+            voiceAssistantEnabled,
+            (val) => updateSetting("voiceAssistantEnabled", val)
           )}
 
 {sourceType !== "Subsonic" && renderSettingRow(
