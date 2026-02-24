@@ -5,6 +5,7 @@ import { downloadTrack, isCached, resolveLocalPath } from "./cache";
 interface ResolveOptions {
   cacheEnabled: boolean;
   shouldDownload?: boolean; // 新增：是否触发后台下载
+  fast?: boolean; // 新增：快速解析，不检查缓存
 }
 
 /**
@@ -18,7 +19,7 @@ export const resolveTrackUri = async (
   track: Track,
   options: ResolveOptions
 ): Promise<string> => {
-  const { cacheEnabled, shouldDownload } = options;
+  const { cacheEnabled, shouldDownload, fast } = options;
 
   // 1. Construct the remote URI
   const remoteUri = track.path.startsWith("http")
@@ -26,6 +27,8 @@ export const resolveTrackUri = async (
     : `${getBaseURL()}${track.path.split('/').map(encodeURIComponent).join('/')}`;
 
   // 2. Check for cached version if enabled
+  if (fast) return remoteUri;
+
   if (cacheEnabled && track.id) {
     const localPath = await isCached(track.id, track.path);
     if (localPath) {
