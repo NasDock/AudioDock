@@ -24,6 +24,7 @@ import {
   addSearchRecord,
   check,
   clearSearchHistory,
+  createCompactTask,
   createImportTask,
   getHotSearches,
   getImportTask,
@@ -411,17 +412,25 @@ const Header: React.FC = () => {
   const iconStyle = { color: token.colorTextSecondary };
   const actionIconStyle = { color: token.colorText };
 
-  const handleUpdateLibrary = async (mode: "incremental" | "full") => {
+  const handleUpdateLibrary = async (mode: "incremental" | "full" | "compact") => {
     message.loading(
-      `${mode === "incremental" ? "增量" : "全量"}更新任务创建中...`,
+      `${mode === "incremental" ? "增量" : mode === "full" ? "全量" : "精简"}任务创建中...`,
     );
 
     try {
-      const res = await createImportTask({ mode });
+      const res =
+        mode === "compact"
+          ? await createCompactTask()
+          : await createImportTask({ mode });
       if (res.code === 200 && res.data) {
         const taskId = res.data.id;
         setIsImportModalOpen(true);
-        setImportTask({ id: taskId, status: TaskStatus.INITIALIZING });
+        setImportTask({
+          id: taskId,
+          status: TaskStatus.INITIALIZING,
+          mode,
+          message: mode === "compact" ? "正在启动精简任务..." : "正在初始化...",
+        });
 
         // Clear previous timer if any
         if (pollTimerRef.current) clearInterval(pollTimerRef.current);
@@ -445,7 +454,11 @@ const Header: React.FC = () => {
         setImportTask(res.data);
         const { status, total } = res.data;
         if (status === TaskStatus.SUCCESS) {
-          message.success(`导入成功！共导入 ${total} 首歌曲`);
+          if (res.data.mode === "compact") {
+            message.success("精简完成");
+          } else {
+            message.success(`导入成功！共导入 ${total} 首歌曲`);
+          }
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           // Auto close modal after a short delay
           setTimeout(() => setIsImportModalOpen(false), 2000);
@@ -786,6 +799,22 @@ const Header: React.FC = () => {
               </div>
               <div
                 className={styles.userMenuItem}
+                onClick={() => {
+                  modal.confirm({
+                    title: "确认精简数据？",
+                    content:
+                      "将清除已标记为假死的数据，并核对数据库单曲路径。若文件不存在，将删除对应单曲及相关收藏/收听记录；若专辑无曲目会删除专辑；若艺术家无曲目和作品也会删除。",
+                    okText: "确认精简",
+                    cancelText: "取消",
+                    onOk: () => handleUpdateLibrary("compact"),
+                  });
+                }}
+              >
+                <DeleteOutlined />
+                精简数据
+              </div>
+              <div
+                className={styles.userMenuItem}
                 onClick={() => setIsDonationModalOpen(true)}
               >
                 <HeartOutlined />
@@ -833,7 +862,7 @@ const Header: React.FC = () => {
       </div>
       {contextHolder}
       <Modal
-        title="数据入库进度"
+        title={importTask?.mode === "compact" ? "精简数据进度" : "数据入库进度"}
         open={isImportModalOpen}
         onCancel={() => {
           if (
@@ -855,13 +884,15 @@ const Header: React.FC = () => {
             {importTask?.message && importTask.status !== TaskStatus.FAILED && importTask.status !== TaskStatus.SUCCESS
               ? importTask.message
               : importTask?.status === TaskStatus.INITIALIZING
-                ? "正在初始化..."
+                ? importTask?.mode === "compact" ? "正在初始化精简任务..." : "正在初始化..."
+                : importTask?.status === TaskStatus.PREPARING
+                  ? importTask?.mode === "compact" ? "正在精简数据库..." : "正在准备环境..."
                 : importTask?.status === TaskStatus.PARSING
                   ? "正在解析媒体文件..."
                   : importTask?.status === TaskStatus.SUCCESS
-                    ? "入库完成"
+                    ? importTask?.mode === "compact" ? "精简完成" : "入库完成"
                     : importTask?.status === TaskStatus.FAILED
-                      ? "入库失败"
+                      ? importTask?.mode === "compact" ? "精简失败" : "入库失败"
                       : "准备中"}
           </div>
           {importTask?.status === TaskStatus.FAILED && (
@@ -885,6 +916,7 @@ const Header: React.FC = () => {
                   : "active"
             }
           />
+          {importTask?.mode !== "compact" && (
           <Flex vertical gap={4} style={{ marginTop: 12 }}>
             <Flex justify="space-between" align="center">
               <Text type="secondary" style={{ fontSize: 12 }}>本地文件入库进度</Text>
@@ -905,7 +937,8 @@ const Header: React.FC = () => {
               </Text>
             </Flex>
           </Flex>
-          {importTask?.currentFileName && (
+          )}
+          {importTask?.mode !== "compact" && importTask?.currentFileName && (
             <div
               style={{
                 marginTop: 12,
