@@ -30,7 +30,7 @@ export interface ImportTask {
   webdavTotal?: number;
   webdavCurrent?: number;
   currentFileName?: string;
-  mode?: 'incremental' | 'full';
+  mode?: 'incremental' | 'full' | 'compact';
 }
 
 @Injectable()
@@ -182,7 +182,12 @@ export class ImportService implements OnModuleInit {
   }
 
   @LogMethod()
-  createTask(musicPath: string, audiobookPath: string, cachePath: string, mode: 'incremental' | 'full' = 'incremental'): string {
+  createTask(
+    musicPath: string,
+    audiobookPath: string,
+    cachePath: string,
+    mode: 'incremental' | 'full' | 'compact' = 'incremental'
+  ): string {
     const id = randomUUID();
     this.tasks.set(id, { id, status: TaskStatus.INITIALIZING, mode });
 
@@ -647,11 +652,28 @@ export class ImportService implements OnModuleInit {
     }
   }
 
-  private async startImport(id: string, musicPath: string, audiobookPath: string, cachePath: string, mode: 'incremental' | 'full') {
+  private async startImport(
+    id: string,
+    musicPath: string,
+    audiobookPath: string,
+    cachePath: string,
+    mode: 'incremental' | 'full' | 'compact'
+  ) {
     const task = this.tasks.get(id);
     if (!task) return;
 
+    console.log('Starting import for task', mode);
+
     try {
+      if (mode === 'compact') {
+        task.status = TaskStatus.PREPARING;
+        task.message = '正在精简数据库...';
+        await this.compactLibrary(task);
+        task.status = TaskStatus.SUCCESS;
+        task.message = '精简完成';
+        return;
+      }
+
       // 1. We no longer clear at the start to keep app data accessible during scan.
       // if (mode === 'full') {
       //   await this.clearLibraryData(task);
@@ -736,6 +758,195 @@ export class ImportService implements OnModuleInit {
       console.error('Import failed:', error);
       task.status = TaskStatus.FAILED;
       task.message = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  private async compactLibrary(task: ImportTask) {
+    let current = 0;
+    const totalSteps = 5;
+    task.total = totalSteps;
+    task.current = current;
+
+    const tick = (message: string) => {
+      current += 1;
+      task.current = current;
+      task.message = message;
+    };
+
+    tick('正在清理已标记为假死的数据...');
+    await this.purgeTrashedEntities();
+
+    tick('正在核对单曲文件路径...');
+    const missingTrackIds = await this.findMissingLocalTrackIds();
+
+    tick('正在删除失效单曲及其历史/收藏记录...');
+    if (missingTrackIds.length > 0) {
+      for (const id of missingTrackIds) {
+        await this.trackService.deleteTrack(id);
+      }
+    }
+
+    tick('正在清理空专辑...');
+    await this.cleanupOrphanAlbumsHardDelete();
+
+    tick('正在清理空艺术家...');
+    await this.cleanupOrphanArtistsHardDelete();
+  }
+
+  private async purgeTrashedEntities() {
+    const BATCH_SIZE = 300;
+
+    // 1) Purge trashed tracks in chunks to avoid SQLite variable limits.
+    while (true) {
+      const rows = await this.prisma.track.findMany({
+        where: { status: FileStatus.TRASHED },
+        select: { id: true },
+        take: BATCH_SIZE,
+      });
+      if (rows.length === 0) break;
+      const ids = rows.map((r) => r.id);
+
+      await this.prisma.userTrackLike.deleteMany({ where: { trackId: { in: ids } } });
+      await this.prisma.userTrackHistory.deleteMany({ where: { trackId: { in: ids } } });
+      await this.prisma.userAudiobookLike.deleteMany({ where: { trackId: { in: ids } } });
+      await this.prisma.userAudiobookHistory.deleteMany({ where: { trackId: { in: ids } } });
+      await this.prisma.track.deleteMany({ where: { id: { in: ids } } });
+    }
+
+    // 2) Purge trashed albums. Clear track references first to avoid FK blocking.
+    while (true) {
+      const rows = await this.prisma.album.findMany({
+        where: { status: FileStatus.TRASHED },
+        select: { id: true },
+        take: BATCH_SIZE,
+      });
+      if (rows.length === 0) break;
+      const ids = rows.map((r) => r.id);
+
+      await this.prisma.track.updateMany({
+        where: { albumId: { in: ids } },
+        data: { albumId: null },
+      });
+      await this.prisma.userAlbumLike.deleteMany({ where: { albumId: { in: ids } } });
+      await this.prisma.userAlbumHistory.deleteMany({ where: { albumId: { in: ids } } });
+      await this.prisma.album.deleteMany({ where: { id: { in: ids } } });
+    }
+
+    // 3) Purge trashed artists. Clear track references first to avoid FK blocking.
+    while (true) {
+      const rows = await this.prisma.artist.findMany({
+        where: { status: FileStatus.TRASHED },
+        select: { id: true },
+        take: BATCH_SIZE,
+      });
+      if (rows.length === 0) break;
+      const ids = rows.map((r) => r.id);
+
+      await this.prisma.track.updateMany({
+        where: { artistId: { in: ids } },
+        data: { artistId: null },
+      });
+      await this.prisma.artist.deleteMany({ where: { id: { in: ids } } });
+    }
+  }
+
+  private async findMissingLocalTrackIds(): Promise<number[]> {
+    const tracks = await this.prisma.track.findMany({
+      where: { status: FileStatus.ACTIVE },
+      select: { id: true, path: true }
+    });
+
+    const missingIds: number[] = [];
+    for (const track of tracks) {
+      const absolutePath = this.trackService.getFilePath(track.path);
+      if (!absolutePath) continue;
+      if (!fs.existsSync(absolutePath)) {
+        missingIds.push(track.id);
+      }
+    }
+    return missingIds;
+  }
+
+  private async cleanupOrphanAlbumsHardDelete() {
+    const albums = await this.prisma.album.findMany({
+      where: { status: FileStatus.ACTIVE },
+      select: { id: true }
+    });
+
+    for (const album of albums) {
+      const activeTrackCount = await this.prisma.track.count({
+        where: { albumId: album.id, status: FileStatus.ACTIVE }
+      });
+      if (activeTrackCount === 0) {
+        await this.prisma.userAlbumLike.deleteMany({ where: { albumId: album.id } });
+        await this.prisma.userAlbumHistory.deleteMany({ where: { albumId: album.id } });
+        await this.prisma.album.delete({ where: { id: album.id } });
+      }
+    }
+  }
+
+  private async cleanupOrphanArtistsHardDelete() {
+    const artists = await this.prisma.artist.findMany({
+      where: { status: FileStatus.ACTIVE },
+      select: { id: true, name: true, type: true }
+    });
+
+    for (const artist of artists) {
+      const sameNameArtists = await this.prisma.artist.findMany({
+        where: {
+          status: FileStatus.ACTIVE,
+          name: artist.name,
+          type: artist.type
+        },
+        select: { id: true }
+      });
+
+      const [activeLinkedTracks, activeAlbums] = await Promise.all([
+        this.prisma.track.count({
+          where: {
+            status: FileStatus.ACTIVE,
+            type: artist.type,
+            artistId: artist.id
+          }
+        }),
+        this.prisma.album.count({
+          where: {
+            status: FileStatus.ACTIVE,
+            type: artist.type,
+            artist: artist.name
+          }
+        })
+      ]);
+
+      // Legacy fallback: only when this is the only artist row with this name/type.
+      const legacyTracksByName =
+        sameNameArtists.length === 1
+          ? await this.prisma.track.count({
+              where: {
+                status: FileStatus.ACTIVE,
+                type: artist.type,
+                artist: artist.name,
+                artistId: null,
+              },
+            })
+          : 0;
+
+      const totalTracks = activeLinkedTracks + legacyTracksByName;
+
+      // If duplicated same-name artists exist, keep only one canonical row when works exist.
+      if (sameNameArtists.length > 1 && (totalTracks > 0 || activeAlbums > 0)) {
+        const canonicalId = sameNameArtists
+          .map((a) => a.id)
+          .sort((a, b) => a - b)[0];
+        if (artist.id !== canonicalId && activeLinkedTracks === 0) {
+          await this.prisma.artist.delete({ where: { id: artist.id } });
+        }
+        continue;
+      }
+
+      if (totalTracks === 0 && activeAlbums === 0) {
+        await this.prisma.artist.delete({ where: { id: artist.id } });
+      }
     }
   }
 
