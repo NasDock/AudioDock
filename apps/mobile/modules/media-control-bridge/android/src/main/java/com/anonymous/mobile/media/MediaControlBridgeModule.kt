@@ -2,61 +2,57 @@ package com.anonymous.mobile.media
 
 import android.content.Intent
 import android.media.AudioManager
-import android.os.Bundle
 import android.os.SystemClock
 import android.view.KeyEvent
 import androidx.media.session.MediaButtonReceiver
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
-import com.facebook.react.bridge.Arguments
-import com.facebook.react.bridge.LifecycleEventListener
-import com.facebook.react.bridge.Promise
-import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.bridge.ReactContextBaseJavaModule
-import com.facebook.react.bridge.ReactMethod
-import com.facebook.react.modules.core.DeviceEventManagerModule
+import expo.modules.kotlin.modules.Module
+import expo.modules.kotlin.modules.ModuleDefinition
+import java.lang.Exception
 
-class MediaControlBridgeModule(
-  private val reactContext: ReactApplicationContext
-) : ReactContextBaseJavaModule(reactContext), LifecycleEventListener {
-
+class MediaControlBridgeModule : Module() {
   private var mediaSession: MediaSessionCompat? = null
   private var lastEventAtMs: Long = 0
   private var started = false
 
-  init {
-    reactContext.addLifecycleEventListener(this)
-  }
+  override fun definition() = ModuleDefinition {
+    Name("MediaControlBridge")
 
-  override fun getName(): String = "MediaControlBridge"
+    // 定义事件
+    Events("MediaControlBridgeEvent")
 
-  @ReactMethod
-  fun startListening(promise: Promise) {
-    try {
-      ensureSession()
-      mediaSession?.isActive = true
-      started = true
-      promise.resolve(true)
-    } catch (e: Exception) {
-      promise.reject("E_MEDIA_BRIDGE_START", e)
+    // 开始监听
+    Function("startListening") {
+      try {
+        ensureSession()
+        mediaSession?.isActive = true
+        started = true
+        return@Function true
+      } catch (e: Exception) {
+        throw e
+      }
     }
-  }
 
-  @ReactMethod
-  fun stopListening(promise: Promise) {
-    try {
+    // 停止监听
+    Function("stopListening") {
       mediaSession?.isActive = false
       started = false
-      promise.resolve(true)
-    } catch (e: Exception) {
-      promise.reject("E_MEDIA_BRIDGE_STOP", e)
+      return@Function true
+    }
+
+    OnDestroy {
+      releaseSession()
     }
   }
 
   private fun ensureSession() {
     if (mediaSession != null) return
-
-    mediaSession = MediaSessionCompat(reactContext, "SoundXMediaBridge").apply {
+    
+    // 获取 Expo 提供的 Context
+    val context = appContext.reactContext ?: throw Exception("React context not available")
+    
+    mediaSession = MediaSessionCompat(context, "SoundXMediaBridge").apply {
       setFlags(
         MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
           MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
@@ -108,34 +104,20 @@ class MediaControlBridgeModule(
   }
 
   private fun emitAction(action: String, position: Double? = null, interval: Double? = null) {
-    // Basic debounce to avoid duplicated callbacks from different stacks.
     val now = SystemClock.elapsedRealtime()
     if (now - lastEventAtMs < 120) return
     lastEventAtMs = now
 
-    val params = Arguments.createMap().apply {
-      putString("action", action)
-      if (position != null) putDouble("position", position)
-      if (interval != null) putDouble("interval", interval)
-    }
+    val params = mapOf(
+      "action" to action,
+      "position" to position,
+      "interval" to interval
+    )
 
     sendEvent("MediaControlBridgeEvent", params)
   }
 
-  private fun sendEvent(eventName: String, params: Any?) {
-    if (!reactContext.hasActiveReactInstance()) return
-    reactContext
-      .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-      .emit(eventName, params)
-  }
-
-  override fun onHostResume() {
-    if (started) mediaSession?.isActive = true
-  }
-
-  override fun onHostPause() {}
-
-  override fun onHostDestroy() {
+  private fun releaseSession() {
     mediaSession?.setCallback(null)
     mediaSession?.release()
     mediaSession = null

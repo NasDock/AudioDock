@@ -1,6 +1,6 @@
 {
   "platforms": ["android"],
   "android": {
-    "packageNames": ["com.anonymous.mobile.media.MediaControlBridgePackage"]
+    "modules": ["com.anonymous.mobile.media.MediaControlBridgeModule"]
   }
 }

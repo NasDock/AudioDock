@@ -1,4 +1,5 @@
-import { NativeEventEmitter, NativeModules, Platform } from "react-native";
+import { EventEmitter, requireNativeModule } from "expo-modules-core";
+import { Platform } from "react-native";
 
 type BridgeAction =
   | "play"
@@ -16,11 +17,9 @@ export interface MediaControlBridgeEvent {
   interval?: number;
 }
 
-const moduleRef = NativeModules.MediaControlBridge;
-const emitter =
-  moduleRef && Platform.OS === "android"
-    ? new NativeEventEmitter(moduleRef)
-    : null;
+// 使用 requireNativeModule 获取 Expo 模块
+const moduleRef = Platform.OS === "android" ? requireNativeModule("MediaControlBridge") : null;
+const emitter = moduleRef ? new EventEmitter(moduleRef) : null;
 
 export const isMediaControlBridgeAvailable = (): boolean => {
   return Platform.OS === "android" && !!moduleRef;
@@ -50,4 +49,3 @@ export const subscribeMediaControlBridgeEvents = (
   if (!emitter) return { remove: () => {} };
   return emitter.addListener("MediaControlBridgeEvent", callback);
 };
-
