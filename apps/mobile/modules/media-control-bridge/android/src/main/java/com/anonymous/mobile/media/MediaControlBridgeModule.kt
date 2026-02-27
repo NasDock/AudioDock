@@ -19,10 +19,8 @@ class MediaControlBridgeModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("MediaControlBridge")
 
-    // 定义事件
     Events("MediaControlBridgeEvent")
 
-    // 开始监听
     Function("startListening") {
       try {
         ensureSession()
@@ -34,7 +32,6 @@ class MediaControlBridgeModule : Module() {
       }
     }
 
-    // 停止监听
     Function("stopListening") {
       mediaSession?.isActive = false
       started = false
@@ -49,7 +46,6 @@ class MediaControlBridgeModule : Module() {
   private fun ensureSession() {
     if (mediaSession != null) return
     
-    // 获取 Expo 提供的 Context
     val context = appContext.reactContext ?: throw Exception("React context not available")
     
     mediaSession = MediaSessionCompat(context, "SoundXMediaBridge").apply {
@@ -58,9 +54,11 @@ class MediaControlBridgeModule : Module() {
           MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
       )
       setPlaybackToLocal(AudioManager.STREAM_MUSIC)
+      
+      // 关键修复：初始状态必须为 STATE_PLAYING 才能让系统响应点击
       setPlaybackState(
         PlaybackStateCompat.Builder()
-          .setState(PlaybackStateCompat.STATE_PAUSED, 0L, 1f)
+          .setState(PlaybackStateCompat.STATE_PLAYING, 0L, 1f)
           .setActions(
             PlaybackStateCompat.ACTION_PLAY or
               PlaybackStateCompat.ACTION_PAUSE or
@@ -75,13 +73,13 @@ class MediaControlBridgeModule : Module() {
       )
 
       setCallback(object : MediaSessionCompat.Callback() {
-        override fun onPlay() = emitAction("play")
-        override fun onPause() = emitAction("pause")
-        override fun onSkipToNext() = emitAction("next")
-        override fun onSkipToPrevious() = emitAction("previous")
-        override fun onSeekTo(pos: Long) = emitAction("seek", pos / 1000.0)
-        override fun onFastForward() = emitAction("jumpForward", null, 15.0)
-        override fun onRewind() = emitAction("jumpBackward", null, 15.0)
+        override fun onPlay() { emitAction("play") }
+        override fun onPause() { emitAction("pause") }
+        override fun onSkipToNext() { emitAction("next") }
+        override fun onSkipToPrevious() { emitAction("previous") }
+        override fun onSeekTo(pos: Long) { emitAction("seek", pos / 1000.0) }
+        override fun onFastForward() { emitAction("jumpForward", null, 15.0) }
+        override fun onRewind() { emitAction("jumpBackward", null, 15.0) }
 
         override fun onMediaButtonEvent(mediaButtonEvent: Intent?): Boolean {
           val keyEvent = mediaButtonEvent?.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
@@ -94,9 +92,10 @@ class MediaControlBridgeModule : Module() {
               KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> emitAction("toggle")
               KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> emitAction("jumpForward", null, 15.0)
               KeyEvent.KEYCODE_MEDIA_REWIND -> emitAction("jumpBackward", null, 15.0)
+              KeyEvent.KEYCODE_HEADSETHOOK -> emitAction("toggle")
             }
           }
-          MediaButtonReceiver.handleIntent(this@apply, mediaButtonEvent)
+          // 重要：不调用 handleIntent，完全接管
           return true
         }
       })
@@ -105,7 +104,7 @@ class MediaControlBridgeModule : Module() {
 
   private fun emitAction(action: String, position: Double? = null, interval: Double? = null) {
     val now = SystemClock.elapsedRealtime()
-    if (now - lastEventAtMs < 120) return
+    if (now - lastEventAtMs < 200) return // 稍微增加抖动时间
     lastEventAtMs = now
 
     val params = mapOf(

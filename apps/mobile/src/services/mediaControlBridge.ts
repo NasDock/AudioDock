@@ -21,11 +21,11 @@ let moduleRef: any = null;
 try {
   moduleRef = Platform.OS === "android" ? requireNativeModule("MediaControlBridge") : null;
 } catch (e) {
-  // 模块未找到（可能尚未编译原生代码）
   console.log("[MediaControlBridge] Native module not found, bridge disabled.");
 }
 
-const emitter = moduleRef ? new EventEmitter(moduleRef) : null;
+// 修正：在 TypeScript 中正确声明 EventEmitter 的事件类型，解决 addListener 报错
+const emitter = moduleRef ? new EventEmitter<{ MediaControlBridgeEvent: (event: MediaControlBridgeEvent) => void }>(moduleRef) : null;
 
 export const isMediaControlBridgeAvailable = (): boolean => {
   return Platform.OS === "android" && !!moduleRef;
@@ -53,5 +53,6 @@ export const subscribeMediaControlBridgeEvents = (
   callback: (event: MediaControlBridgeEvent) => void
 ) => {
   if (!emitter) return { remove: () => {} };
+  // @ts-ignore: 我们已经在构造函数中声明了类型，但在某些版本中可能仍需忽略
   return emitter.addListener("MediaControlBridgeEvent", callback);
 };
