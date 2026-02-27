@@ -1,5 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import TrackPlayer, { Event } from 'react-native-track-player';
+import { Platform } from "react-native";
+import TrackPlayer, { Event, State } from 'react-native-track-player';
+import {
+    startMediaControlBridge,
+    subscribeMediaControlBridgeEvents,
+} from "./mediaControlBridge";
 
 const PLAYBACK_MODE_KEY = 'playerPlaybackMode';
 const LEGACY_PLAY_MODE_KEY = 'playMode';
@@ -15,57 +20,115 @@ const getPlaybackMode = async (): Promise<string | null> => {
 export const PlaybackService = async function () {
     console.log('[PlaybackService] Registered');
     let isSkippingOutro = false;
+    const useNativeMediaBridge = Platform.OS === "android";
 
-    TrackPlayer.addEventListener(Event.RemotePlay, () => {
-        console.log('[PlaybackService] Event.RemotePlay');
-        TrackPlayer.play();
-    });
-
-    TrackPlayer.addEventListener(Event.RemotePause, () => {
-        console.log('[PlaybackService] Event.RemotePause');
-        TrackPlayer.pause();
-    });
-
-    TrackPlayer.addEventListener(Event.RemoteNext, async () => {
-        console.log('[PlaybackService] Event.RemoteNext');
+    const handleRemoteNext = async () => {
         const queue = await TrackPlayer.getQueue();
         const index = await TrackPlayer.getActiveTrackIndex();
         if (index !== undefined && index < queue.length - 1) {
             await TrackPlayer.skipToNext();
         } else {
-            // Check playMode for looping
             const playMode = await getPlaybackMode();
             if (playMode === 'LOOP_LIST' || playMode === 'SHUFFLE') {
                 await TrackPlayer.skip(0);
             }
         }
-    });
+    };
 
-    TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
-        console.log('[PlaybackService] Event.RemotePrevious');
+    const handleRemotePrevious = async () => {
         const index = await TrackPlayer.getActiveTrackIndex();
         if (index !== undefined && index > 0) {
             await TrackPlayer.skipToPrevious();
         } else {
             const queue = await TrackPlayer.getQueue();
-            await TrackPlayer.skip(queue.length - 1);
+            if (queue.length > 0) {
+                await TrackPlayer.skip(queue.length - 1);
+            }
         }
-    });
+    };
 
-    TrackPlayer.addEventListener(Event.RemoteJumpForward, (event) => {
-        console.log('[PlaybackService] Event.RemoteJumpForward', event);
-        TrackPlayer.seekBy(event.interval || 15);
-    });
+    if (useNativeMediaBridge) {
+        await startMediaControlBridge();
+        subscribeMediaControlBridgeEvents(async (event) => {
+            try {
+                switch (event.action) {
+                    case "play":
+                        await TrackPlayer.play();
+                        break;
+                    case "pause":
+                        await TrackPlayer.pause();
+                        break;
+                    case "toggle": {
+                        const state = await TrackPlayer.getPlaybackState();
+                        if (state.state === State.Playing) {
+                            await TrackPlayer.pause();
+                        } else {
+                            await TrackPlayer.play();
+                        }
+                        break;
+                    }
+                    case "next":
+                        await handleRemoteNext();
+                        break;
+                    case "previous":
+                        await handleRemotePrevious();
+                        break;
+                    case "seek":
+                        if (typeof event.position === "number") {
+                            await TrackPlayer.seekTo(event.position);
+                        }
+                        break;
+                    case "jumpForward":
+                        await TrackPlayer.seekBy(event.interval || 15);
+                        break;
+                    case "jumpBackward":
+                        await TrackPlayer.seekBy(-(event.interval || 15));
+                        break;
+                    default:
+                        break;
+                }
+            } catch (e) {
+                console.warn("[PlaybackService] Media bridge action failed:", event, e);
+            }
+        });
+    }
 
-    TrackPlayer.addEventListener(Event.RemoteJumpBackward, (event) => {
-        console.log('[PlaybackService] Event.RemoteJumpBackward', event);
-        TrackPlayer.seekBy(-(event.interval || 15));
-    });
+    if (!useNativeMediaBridge) {
+        TrackPlayer.addEventListener(Event.RemotePlay, () => {
+            console.log('[PlaybackService] Event.RemotePlay');
+            TrackPlayer.play();
+        });
 
-    TrackPlayer.addEventListener(Event.RemoteSeek, (event) => {
-        console.log('[PlaybackService] Event.RemoteSeek:', event.position);
-        TrackPlayer.seekTo(event.position);
-    });
+        TrackPlayer.addEventListener(Event.RemotePause, () => {
+            console.log('[PlaybackService] Event.RemotePause');
+            TrackPlayer.pause();
+        });
+
+        TrackPlayer.addEventListener(Event.RemoteNext, async () => {
+            console.log('[PlaybackService] Event.RemoteNext');
+            await handleRemoteNext();
+        });
+
+        TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
+            console.log('[PlaybackService] Event.RemotePrevious');
+            await handleRemotePrevious();
+        });
+
+        TrackPlayer.addEventListener(Event.RemoteJumpForward, (event) => {
+            console.log('[PlaybackService] Event.RemoteJumpForward', event);
+            TrackPlayer.seekBy(event.interval || 15);
+        });
+
+        TrackPlayer.addEventListener(Event.RemoteJumpBackward, (event) => {
+            console.log('[PlaybackService] Event.RemoteJumpBackward', event);
+            TrackPlayer.seekBy(-(event.interval || 15));
+        });
+
+        TrackPlayer.addEventListener(Event.RemoteSeek, (event) => {
+            console.log('[PlaybackService] Event.RemoteSeek:', event.position);
+            TrackPlayer.seekTo(event.position);
+        });
+    }
 
     // ✨ 新增：背景切歌逻辑（解决熄屏不跳转/不跳片头问题）
     TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async (event) => {
