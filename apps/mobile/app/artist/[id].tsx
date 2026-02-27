@@ -1,5 +1,6 @@
 import { AddToPlaylistModal } from "@/src/components/AddToPlaylistModal";
 import PlayingIndicator from "@/src/components/PlayingIndicator";
+import { useAuth } from "@/src/context/AuthContext";
 import { TrackMoreModal } from "@/src/components/TrackMoreModal";
 import { usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -32,6 +33,7 @@ export default function ArtistDetailScreen() {
   const { colors } = useTheme();
   const { playTrackList, currentTrack, isPlaying } = usePlayer();
   const { mode } = usePlayMode();
+  const { sourceType } = useAuth();
   const router = useRouter();
   const [artist, setArtist] = useState<Artist | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -59,12 +61,13 @@ export default function ArtistDetailScreen() {
 
       if (artistRes.code === 200) {
         setArtist(artistRes.data);
-        // Fetch albums and tracks using the artist name
-        if (artistRes.data.name) {
+        const artistQueryKey =
+          sourceType === "Emby" ? String(artistId) : artistRes.data.name;
+        if (artistQueryKey) {
           const [albumsRes, collaborativeRes, tracksRes] = await Promise.all([
-            getAlbumsByArtist(artistRes.data.name),
-            getCollaborativeAlbumsByArtist(artistRes.data.name),
-            getTracksByArtist(artistRes.data.name),
+            getAlbumsByArtist(artistQueryKey),
+            getCollaborativeAlbumsByArtist(artistQueryKey),
+            getTracksByArtist(artistQueryKey),
           ]);
           if (albumsRes.code === 200) setAlbums(albumsRes.data);
           if (collaborativeRes.code === 200)

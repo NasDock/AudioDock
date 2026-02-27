@@ -16,9 +16,11 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [statusMessage, setStatusMessage] = useState<'ok' | 'error'>('error')
+  const [isAddingSource, setIsAddingSource] = useState(false)
 
   useEffect(() => {
     loadServerAddress()
+    checkIfAddingSource()
   }, [])
 
   useEffect(() => {
@@ -26,6 +28,14 @@ export default function Login() {
        Taro.reLaunch({ url: '/pages/index/index' })
     }
   }, [token])
+
+  const checkIfAddingSource = () => {
+    const params = Taro.getCurrentInstance().router?.params
+    if (params?.adding === 'true') {
+      setIsAddingSource(true)
+      setIsLogin(true) // 添加数据源时默认为登录模式
+    }
+  }
 
   const loadServerAddress = () => {
     try {
@@ -86,14 +96,24 @@ export default function Login() {
       Taro.setStorageSync('serverAddress', serverAddress)
       setBaseURL(serverAddress)
       console.log(username, password, isLogin)
+      
       if (isLogin) {
         await login({ username, password })
       } else {
         await register({ username, password })
       }
       
-      // Navigation is handled by useEffect on token change or we can do it here
-      Taro.showToast({ title: isLogin ? '登录成功' : '注册成功', icon: 'success' })
+      // 如果是添加数据源模式，保存数据源配置并返回
+      if (isAddingSource) {
+        await saveSourceConfig()
+        Taro.showToast({ title: '数据源添加成功', icon: 'success' })
+        setTimeout(() => {
+          Taro.navigateBack()
+        }, 1500)
+      } else {
+        // 正常登录/注册流程
+        Taro.showToast({ title: isLogin ? '登录成功' : '注册成功', icon: 'success' })
+      }
       
     } catch (error: any) {
       Taro.showToast({ title: error.message || '认证失败', icon: 'none' })
@@ -102,10 +122,47 @@ export default function Login() {
     }
   }
 
+  // 保存数据源配置
+  const saveSourceConfig = async () => {
+    try {
+      // 这里需要确定数据源类型，暂时默认为AudioDock
+      const sourceType = 'AudioDock'
+      const configKey = `sourceConfig_${sourceType}`
+      
+      // 获取现有的配置
+      const saved = await Taro.getStorage({ key: configKey })
+      let existingConfigs: any[] = []
+      
+      if (saved.data) {
+        existingConfigs = JSON.parse(saved.data)
+      }
+      
+      // 添加新的配置
+      const newConfig = {
+        id: Date.now().toString(),
+        internal: serverAddress,
+        external: serverAddress,
+        name: '新增服务器'
+      }
+      
+      existingConfigs.push(newConfig)
+      
+      // 保存配置
+      await Taro.setStorage({
+        key: configKey,
+        data: JSON.stringify(existingConfigs)
+      })
+      
+    } catch (error) {
+      console.error('Failed to save source config:', error)
+      throw error
+    }
+  }
+
   return (
     <View className='login-container'>
       <Text className='title'>
-        {isLogin ? '欢迎登录' : '欢迎注册'}
+        {isAddingSource ? '添加数据源' : (isLogin ? '欢迎登录' : '欢迎注册')}
       </Text>
 
       <View className='form'>

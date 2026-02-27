@@ -206,7 +206,7 @@ export default function SourceManageScreen() {
             return configList.map((config) => {
               const uniqueId = config.id;
               const isLoading = loadingId === uniqueId;
-              const isDisabled = key === "Emby"; // Global disable for Emby if needed
+              const isDisabled = false;
 
               const getLogo = (k: string) => {
                 switch (k) {

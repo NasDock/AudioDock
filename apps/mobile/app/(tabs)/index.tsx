@@ -366,7 +366,7 @@ export default function HomeScreen() {
           )}
           <Text style={[styles.headerTitle, { color: colors.text }]}>推荐</Text>
           <View style={styles.headerRight}>
-            {mode === "MUSIC" && (
+            {mode === "MUSIC" && sourceType !== "Emby" && (
               <TouchableOpacity
                 onPress={() => {
                   startRadioMode();

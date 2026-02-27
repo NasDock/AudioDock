@@ -42,7 +42,7 @@ const SourceManage: React.FC = () => {
 
         <div className={styles.grid}>
           {Object.keys(SOURCEMAP).map((key) => {
-            const isDisabled = key === "Emby";
+            const isDisabled = false;
             return (
               <Card
                 key={key}

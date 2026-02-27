@@ -4,6 +4,7 @@ export interface ServiceConfig {
   token?: string;    // For Native
   clientName?: string;
   baseUrl?: string;
+  userId?: string;
 }
 
 let globalConfig: ServiceConfig = {

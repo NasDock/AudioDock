@@ -10,7 +10,8 @@ export default defineAppConfig({
     'pages/album/index',
     'pages/album/index',
     'pages/settings/index',
-    'pages/admin/index'
+    'pages/admin/index',
+    'pages/source-manage/index'
   ],
   window: {
     backgroundTextStyle: 'light',

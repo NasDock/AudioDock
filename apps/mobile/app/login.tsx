@@ -3,12 +3,12 @@ import { SOURCEMAP, SOURCETIPSMAP } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../src/context/ThemeContext";
@@ -51,7 +51,7 @@ export default function LoginSelectionScreen() {
 
         <View style={styles.list}>
           {Object.keys(SOURCEMAP).map((key) => {
-            const isDisabled = key === "Emby"; // Keep existing disabled logic if any
+            const isDisabled = false;
             
             return (
               <TouchableOpacity

@@ -1,4 +1,5 @@
 import {
+  CloseOutlined,
   HddOutlined,
   LeftOutlined,
   LockOutlined,
@@ -11,6 +12,7 @@ import {
   setServiceConfig,
   SOURCEMAP,
   SOURCETIPSMAP,
+  useEmbyAdapter,
   useNativeAdapter,
   useSubsonicAdapter,
 } from "@soundx/services";
@@ -18,6 +20,7 @@ import {
   AutoComplete,
   Button,
   Checkbox,
+  Flex,
   Form,
   Input,
   message,
@@ -57,6 +60,12 @@ const Login: React.FC = () => {
   const [serverHistory, setServerHistory] = useState<{ value: string }[]>([]);
   const [rememberMe, setRememberMe] = useState(false);
   const [loginForm] = Form.useForm();
+
+  const normalizeLoginUser = (payload: any) => {
+    if (payload?.user?.id) return payload.user;
+    const { token, device, ...rest } = payload || {};
+    return rest;
+  };
 
   const getSourceHistoryKey = (type: string) => `serverHistory_${type}`;
   const getSourceAddressKey = (type: string) => `serverAddress_${type}`; // Active address (int or ext)
@@ -136,6 +145,17 @@ const Login: React.FC = () => {
 
     loadInitialValues();
   }, [sourceType, loginForm, navigate]);
+
+  const handleRemoveHistory = (e: React.MouseEvent, value: string) => {
+    e.stopPropagation();
+    const historyKey = getSourceHistoryKey(sourceType);
+    const history = localStorage.getItem(historyKey);
+    if (history) {
+      const list = JSON.parse(history).filter((item: any) => item.value !== value);
+      localStorage.setItem(historyKey, JSON.stringify(list));
+      setServerHistory(list);
+    }
+  };
 
   const restoreCredentials = (address: string, type: string) => {
     if (!address) return;
@@ -227,6 +247,7 @@ const Login: React.FC = () => {
       baseUrl: address,
     });
     if (mappedType === "subsonic") useSubsonicAdapter();
+    else if (mappedType === "emby") useEmbyAdapter();
     else useNativeAdapter();
   };
 
@@ -336,7 +357,8 @@ const Login: React.FC = () => {
       if (isLogin) {
         const res = await login({ username, password });
         if (res.data) {
-          const { token: newToken, device, ...userData } = res.data;
+          const { token: newToken, device } = res.data;
+          const userData = normalizeLoginUser(res.data);
           localStorage.setItem(tokenKey, newToken);
           localStorage.setItem(userKey, JSON.stringify(userData));
           if (device) localStorage.setItem(deviceKey, JSON.stringify(device));
@@ -345,19 +367,20 @@ const Login: React.FC = () => {
           messageApi.success("登录成功");
           // Navigate to home
           navigate("/");
-          window.location.reload(); // Reload to ensure full app init state
+          // window.location.reload(); // Reload to ensure full app init state
         }
       } else {
         const res = await register({ username, password });
         if (res.data) {
-          const { token: newToken, device, ...userData } = res.data;
+          const { token: newToken, device } = res.data;
+          const userData = normalizeLoginUser(res.data);
           localStorage.setItem(tokenKey, newToken);
           localStorage.setItem(userKey, JSON.stringify(userData));
           if (device) localStorage.setItem(deviceKey, JSON.stringify(device));
           setLogin(newToken, userData as any, device);
           messageApi.success("注册成功");
           navigate("/");
-          window.location.reload();
+          // window.location.reload();
         }
       }
     } catch (error: any) {
@@ -407,7 +430,20 @@ const Login: React.FC = () => {
         >
           <Form.Item label="内网地址" name="internalAddress">
             <AutoComplete
-              options={serverHistory}
+              options={serverHistory.map((item) => ({
+                value: item.value,
+                label: (
+                  <Flex justify="space-between" align="center">
+                    <Text>{item.value}</Text>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CloseOutlined style={{ fontSize: 10 }} />}
+                      onClick={(e) => handleRemoveHistory(e, item.value)}
+                    />
+                  </Flex>
+                ),
+              }))}
               onSelect={(val) => restoreCredentials(val, sourceType)}
             >
               <Input
@@ -419,7 +455,20 @@ const Login: React.FC = () => {
 
           <Form.Item label="外网地址" name="externalAddress">
             <AutoComplete
-              options={serverHistory}
+              options={serverHistory.map((item) => ({
+                value: item.value,
+                label: (
+                  <Flex justify="space-between" align="center">
+                    <Text>{item.value}</Text>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CloseOutlined style={{ fontSize: 10 }} />}
+                      onClick={(e) => handleRemoveHistory(e, item.value)}
+                    />
+                  </Flex>
+                ),
+              }))}
               onSelect={(val) => restoreCredentials(val, sourceType)}
             >
               <Input

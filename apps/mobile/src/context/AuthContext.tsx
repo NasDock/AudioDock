@@ -1,11 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  login as loginApi,
-  register as registerApi,
-  setServiceConfig,
-  SOURCEMAP,
-  useNativeAdapter,
-  useSubsonicAdapter,
+    login as loginApi,
+    register as registerApi,
+    setServiceConfig,
+    SOURCEMAP,
+    useEmbyAdapter,
+    useNativeAdapter,
+    useSubsonicAdapter
 } from "@soundx/services";
 import * as Device from 'expo-device';
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -58,6 +59,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setSourceTypeDirectly(type);
   };
 
+  const normalizeUserPayload = (payload: any): User | null => {
+    if (!payload) return null;
+    if (payload.user?.id) return payload.user as User;
+    if (payload.id) return payload as User;
+    return null;
+  };
+
+  const getUserId = (payload: any): string | undefined => {
+    const user = normalizeUserPayload(payload);
+    if (!user?.id) return undefined;
+    const id = String(user.id).trim();
+    return id && id !== "undefined" ? id : undefined;
+  };
+
   useEffect(() => {
     loadAuthData();
   }, []);
@@ -71,12 +86,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const savedToken = await AsyncStorage.getItem(`token_${savedAddress}`);
       const savedUser = await AsyncStorage.getItem(`user_${savedAddress}`);
+      const parsedSavedUser = savedUser ? normalizeUserPayload(JSON.parse(savedUser)) : null;
 
       if (savedToken) {
         setToken(savedToken);
       }
-      if (savedUser) {
-        setUser(JSON.parse(savedUser));
+      if (parsedSavedUser) {
+        setUser(parsedSavedUser);
       }
       const savedDevice = await AsyncStorage.getItem(`device_${savedAddress}`);
       if (savedDevice) {
@@ -98,10 +114,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         username = creds.username;
         password = creds.password;
       }
-      setServiceConfig({ username, password, clientName: "SoundX Mobile", baseUrl: savedAddress });
+      setServiceConfig({
+        username,
+        password,
+        token: savedToken || undefined,
+        userId: parsedSavedUser?.id ? String(parsedSavedUser.id) : undefined,
+        clientName: "SoundX Mobile",
+        baseUrl: savedAddress,
+      });
 
       if (mappedType === "subsonic") {
         useSubsonicAdapter();
+      } else if (mappedType === "emby") {
+        useEmbyAdapter();
       } else {
         useNativeAdapter();
       }
@@ -119,13 +144,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log("deviceName", deviceName);
       const res = await loginApi({ ...credentials, deviceName });
       if (res.code === 200 && res.data) {
-        const { token: newToken, device, ...userData } = res.data;
+        const { token: newToken, device } = res.data;
+        const normalizedUser = normalizeUserPayload(res.data);
+        if (!normalizedUser) {
+          throw new Error("Invalid user payload from server");
+        }
         const savedAddress = getBaseURL();
         
         setToken(newToken);
-        setUser(userData);
+        setUser(normalizedUser);
+        setServiceConfig({
+          token: newToken,
+          userId: getUserId(normalizedUser),
+          baseUrl: savedAddress,
+          clientName: "SoundX Mobile",
+        });
         await AsyncStorage.setItem(`token_${savedAddress}`, newToken);
-        await AsyncStorage.setItem(`user_${savedAddress}`, JSON.stringify(userData));
+        await AsyncStorage.setItem(`user_${savedAddress}`, JSON.stringify(normalizedUser));
         if (device) {
           setDevice(device);
           await AsyncStorage.setItem(`device_${savedAddress}`, JSON.stringify(device));
@@ -143,13 +178,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const deviceName = Device.modelName || 'Mobile Device';
       const res = await registerApi({ ...credentials, deviceName });
       if (res.code === 200 && res.data) {
-        const { token: newToken, device, ...userData } = res.data;
+        const { token: newToken, device } = res.data;
+        const normalizedUser = normalizeUserPayload(res.data);
+        if (!normalizedUser) {
+          throw new Error("Invalid user payload from server");
+        }
         const savedAddress = getBaseURL();
 
         setToken(newToken);
-        setUser(userData);
+        setUser(normalizedUser);
+        setServiceConfig({
+          token: newToken,
+          userId: getUserId(normalizedUser),
+          baseUrl: savedAddress,
+          clientName: "SoundX Mobile",
+        });
         await AsyncStorage.setItem(`token_${savedAddress}`, newToken);
-        await AsyncStorage.setItem(`user_${savedAddress}`, JSON.stringify(userData));
+        await AsyncStorage.setItem(`user_${savedAddress}`, JSON.stringify(normalizedUser));
         if (device) {
           setDevice(device);
           await AsyncStorage.setItem(`device_${savedAddress}`, JSON.stringify(device));
@@ -171,9 +216,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       await AsyncStorage.removeItem(`token_${savedAddress}`);
       await AsyncStorage.removeItem(`user_${savedAddress}`);
       await AsyncStorage.removeItem(`device_${savedAddress}`);
-      await AsyncStorage.removeItem("plus_token");
-      await AsyncStorage.removeItem("plus_user_id");
-      setPlusTokenState(null);
     } catch (error) {
       console.error("Failed to logout:", error);
     }
@@ -207,6 +249,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setServiceConfig({ username, password, clientName: "SoundX Mobile", baseUrl: url });
       if (mappedType === "subsonic") {
         useSubsonicAdapter();
+      } else if (mappedType === "emby") {
+        useEmbyAdapter();
       } else {
         useNativeAdapter();
       }
@@ -221,10 +265,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const savedToken = await AsyncStorage.getItem(`token_${url}`);
       const savedUser = await AsyncStorage.getItem(`user_${url}`);
       const savedDevice = await AsyncStorage.getItem(`device_${url}`);
+      const parsedSavedUser = savedUser ? normalizeUserPayload(JSON.parse(savedUser)) : null;
 
       setToken(savedToken || null);
-      setUser(savedUser ? JSON.parse(savedUser) : null);
+      setUser(parsedSavedUser);
       setDevice(savedDevice ? JSON.parse(savedDevice) : null);
+      setServiceConfig({
+        token: savedToken || undefined,
+        userId: parsedSavedUser?.id ? String(parsedSavedUser.id) : undefined,
+        baseUrl: url,
+        clientName: "SoundX Mobile",
+      });
     } catch (error) {
       console.error("Failed to switch server:", error);
     } finally {

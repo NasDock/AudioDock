@@ -28,7 +28,7 @@ type SubTabType = "track" | "album";
 export const PlaylistModal = () => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, sourceType } = useAuth();
   const { mode } = usePlayMode();
   const router = useRouter();
   const {
@@ -47,6 +47,12 @@ export const PlaylistModal = () => {
   const [listData, setListData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const flatListRef = React.useRef<FlatList>(null);
+
+  useEffect(() => {
+    if (sourceType === "Emby" && activeTab === "history") {
+      setActiveTab("current");
+    }
+  }, [sourceType, activeTab]);
 
   useEffect(() => {
     if (showPlaylist && user) {
@@ -217,7 +223,7 @@ export const PlaylistModal = () => {
                 { id: "current", label: `当前 (${trackList.length})` },
                 { id: "history", label: "听过" },
                 { id: "favorites", label: "收藏" },
-              ].map((tab) => (
+              ].filter((tab) => !(sourceType === "Emby" && tab.id === "history")).map((tab) => (
                 <TouchableOpacity
                   key={tab.id}
                   style={[

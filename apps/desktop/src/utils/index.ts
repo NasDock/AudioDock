@@ -15,3 +15,9 @@ export const isSubsonicSource = () => {
   const sourceType = SOURCEMAP[sourceName];
   return sourceType === SOURCEMAP.Subsonic;
 };
+
+export const isEmbySource = () => {
+  const sourceName = localStorage.getItem("selectedSourceType") as keyof typeof SOURCEMAP;
+  const sourceType = SOURCEMAP[sourceName];
+  return sourceType === SOURCEMAP.Emby;
+};

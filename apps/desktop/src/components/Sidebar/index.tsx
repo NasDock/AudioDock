@@ -16,7 +16,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
 import { useAuthStore } from "../../store/auth";
 import { usePlaylistStore } from "../../store/playlist";
-import { isSubsonicSource } from "../../utils";
+import { isEmbySource, isSubsonicSource } from "../../utils";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
 
@@ -127,7 +127,7 @@ const Sidebar: React.FC = () => {
           onClick={() => navigate("/favorites")}
           active={isActive("/favorites")}
         />
-        {!isSubsonicSource() && (
+        {!isSubsonicSource() && !isEmbySource() && (
           <MenuItem
             icon={<SoundOutlined />}
             text="听过"

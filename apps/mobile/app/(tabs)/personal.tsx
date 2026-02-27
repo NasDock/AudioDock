@@ -1,20 +1,20 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import {
-  createCompactTask,
-  createImportTask,
-  createPlaylist,
-  getAlbumHistory,
-  getFavoriteAlbums,
-  getFavoriteTracks,
-  getImportTask,
-  getPlaylists,
-  getRunningImportTask,
-  getTrackHistory,
-  plusGetMe,
-  setPlusToken,
-  TaskStatus,
-  type ImportTask
+    createCompactTask,
+    createImportTask,
+    createPlaylist,
+    getAlbumHistory,
+    getFavoriteAlbums,
+    getFavoriteTracks,
+    getImportTask,
+    getPlaylists,
+    getRunningImportTask,
+    getTrackHistory,
+    plusGetMe,
+    setPlusToken,
+    TaskStatus,
+    type ImportTask
 } from "@soundx/services";
 import { Asset } from "expo-asset";
 import { Image as ExpoImage } from "expo-image";
@@ -22,18 +22,18 @@ import * as MediaLibrary from "expo-media-library";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Easing,
-  FlatList,
-  Image,
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Easing,
+    FlatList,
+    Image,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../src/context/AuthContext";
@@ -41,8 +41,8 @@ import { usePlayer } from "../../src/context/PlayerContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { Playlist, Track } from "../../src/models";
 import {
-  getDownloadedTracks,
-  removeDownloadedTrack,
+    getDownloadedTracks,
+    removeDownloadedTrack,
 } from "../../src/services/cache";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
@@ -163,6 +163,12 @@ export default function PersonalScreen() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    if (sourceType === "Emby" && activeTab === "history") {
+      setActiveTab("playlists");
+    }
+  }, [sourceType, activeTab]);
 
   // Import task state
   const [menuVisible, setMenuVisible] = useState(false);
@@ -731,16 +737,7 @@ export default function PersonalScreen() {
                     const plusToken = await AsyncStorage.getItem("plus_token");
                     if (plusToken) {
                         if (isPlusVip) {
-                            const tierName = plusVipData?.vipTier === "LIFETIME" ? "永久会员" : "年度会员";
-                            const expiryDate = plusVipData?.vipTier === "LIFETIME" ? "永久有效" : (plusVipData?.vipExpiresAt ? new Date(plusVipData.vipExpiresAt).toLocaleDateString() : "未知");
-                            
-                            Alert.alert(
-                                "会员详情",
-                                `等级: ${tierName}\n到期时间: ${expiryDate}`,
-                                [
-                                    { text: "知道了" },
-                                ]
-                            );
+                            router.push("/member-detail");
                         } else {
                             router.push("/member-benefits" as any);
                         }
@@ -765,7 +762,7 @@ export default function PersonalScreen() {
           { key: "favorites", label: "收藏" },
           { key: "history", label: "听过" },
           { key: "downloads", label: "下载" },
-        ].map((tab) => (
+        ].filter((tab) => !(sourceType === "Emby" && tab.key === "history")).map((tab) => (
           <TouchableOpacity
             key={tab.key}
             style={[
@@ -1003,21 +1000,25 @@ export default function PersonalScreen() {
             <View
               style={[styles.menuDivider, { backgroundColor: colors.border }]}
             />
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                setMenuVisible(false);
-                router.push("/tts/tasks" as any);
-              }}
-            >
-              <Ionicons name="mic-outline" size={22} color={colors.text} />
-              <Text style={[styles.menuItemText, { color: colors.text }]}>
-                TTS 有声书转换
-              </Text>
-            </TouchableOpacity>
-            <View
-              style={[styles.menuDivider, { backgroundColor: colors.border }]}
-            />
+            {sourceType !== "Emby" && (
+              <>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    router.push("/tts/tasks" as any);
+                  }}
+                >
+                  <Ionicons name="mic-outline" size={22} color={colors.text} />
+                  <Text style={[styles.menuItemText, { color: colors.text }]}>
+                    TTS 有声书转换
+                  </Text>
+                </TouchableOpacity>
+                <View
+                  style={[styles.menuDivider, { backgroundColor: colors.border }]}
+                />
+              </>
+            )}
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => handleUpdateLibrary("compact")}

@@ -37,6 +37,34 @@
   "pnpm": {
     "overrides": {
       "esbuild": "0.21.4"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
+      "@prisma/engines",
+      "@prisma/client",
+      "prisma"
+    ],
+    "ignoredBuiltDependencies": [
+      "@nestjs/core@11.1.2(@nestjs/common@11.1.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.2)(@nestjs/websockets@11.1.9)(reflect-metadata@0.2.2)(rxjs@7.8.2)",
+      "@parcel/watcher@2.5.1",
+      "@prisma/client@6.8.2(prisma@6.8.2(typescript@5.9.3))(typescript@5.9.3)",
+      "@prisma/engines@6.8.2",
+      "@scarf/scarf@1.4.0",
+      "@swc/core@1.11.29",
+      "@swc/core@1.3.96",
+      "@tarojs/binding@3.6.34",
+      "core-js-pure@3.42.0",
+      "core-js-pure@3.47.0",
+      "core-js@3.34.0",
+      "electron-winstaller@5.4.0",
+      "electron@39.2.3",
+      "esbuild@0.21.4",
+      "fsevents@1.2.13",
+      "prisma@6.8.2(typescript@5.9.3)",
+      "protobufjs@7.5.4",
+      "swiper@6.8.0",
+      "unrs-resolver@1.11.1"
+    ]
   }
 }

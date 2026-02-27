@@ -277,28 +277,8 @@ export default function SettingsScreen() {
               } as any);
             }}
           >
-            <Text style={styles.logoutText}>退出登录</Text>
+            <Text style={styles.logoutText}>退出/切换服务端账号</Text>
           </TouchableOpacity>
-          {plusToken && (
-            <TouchableOpacity
-              style={[styles.logoutButton, { backgroundColor: colors.secondary, marginTop: 12 }]}
-              onPress={() => {
-                Alert.alert("退出会员", "确定要退出会员登录吗？", [
-                  { text: "取消", style: "cancel" },
-                  {
-                    text: "确定",
-                    style: "destructive",
-                    onPress: async () => {
-                      await setPlusToken(null);
-                      router.replace("/member-login");
-                    },
-                  },
-                ]);
-              }}
-            >
-              <Text style={styles.logoutText}>退出/更换会员账号</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         <View style={styles.footer}>

@@ -64,6 +64,7 @@ function RootLayoutNav() {
       segmentName === "member-login" ||
       segmentName === "member-benefits" ||
       segmentName === "forgot-password" ||
+      segmentName === "member-detail" ||
       segmentName === "tts";
 
     if (!token && inAuthGroup) {
@@ -126,6 +127,7 @@ function RootLayoutNav() {
         <Stack.Screen name="folder/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="notification.click" options={{ headerShown: false }} />
         <Stack.Screen name="source-manage" options={{ headerShown: false }} />
+        <Stack.Screen name="member-detail" options={{ headerShown: false }} />
         <Stack.Screen 
           name="login-form" 
           options={{ 

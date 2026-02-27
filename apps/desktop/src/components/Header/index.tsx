@@ -1,64 +1,64 @@
 import {
-  AppstoreOutlined,
-  CrownFilled,
-  CrownOutlined,
-  CustomerServiceOutlined,
-  DatabaseOutlined,
-  DeleteOutlined,
-  FolderOutlined,
-  GithubOutlined,
-  HeartOutlined,
-  ImportOutlined,
-  LeftOutlined,
-  LogoutOutlined,
-  MoonOutlined,
-  PlusOutlined,
-  ReadOutlined,
-  ReloadOutlined,
-  RetweetOutlined,
-  RightOutlined,
-  RollbackOutlined,
-  SearchOutlined,
-  SettingOutlined,
-  SunOutlined,
-  WifiOutlined,
+    AppstoreOutlined,
+    CrownFilled,
+    CrownOutlined,
+    CustomerServiceOutlined,
+    DatabaseOutlined,
+    DeleteOutlined,
+    FolderOutlined,
+    GithubOutlined,
+    HeartOutlined,
+    ImportOutlined,
+    LeftOutlined,
+    LogoutOutlined,
+    MoonOutlined,
+    PlusOutlined,
+    ReadOutlined,
+    ReloadOutlined,
+    RetweetOutlined,
+    RightOutlined,
+    RollbackOutlined,
+    SearchOutlined,
+    SettingOutlined,
+    SunOutlined,
+    WifiOutlined,
 } from "@ant-design/icons";
 import {
-  addSearchRecord,
-  check,
-  clearSearchHistory,
-  createCompactTask,
-  createImportTask,
-  getHotSearches,
-  getImportTask,
-  getRunningImportTask,
-  getSearchHistory,
-  plusGetMe,
-  removePlusToken,
-  searchAll,
-  setPlusToken,
-  setServiceConfig,
-  SOURCEMAP,
-  TaskStatus,
-  useNativeAdapter,
-  useSubsonicAdapter,
-  type ImportTask,
-  type SearchResults as SearchResultsType,
+    addSearchRecord,
+    check,
+    clearSearchHistory,
+    createCompactTask,
+    createImportTask,
+    getHotSearches,
+    getImportTask,
+    getRunningImportTask,
+    getSearchHistory,
+    plusGetMe,
+    removePlusToken,
+    searchAll,
+    setPlusToken,
+    setServiceConfig,
+    SOURCEMAP,
+    TaskStatus,
+    useNativeAdapter,
+    useSubsonicAdapter,
+    type ImportTask,
+    type SearchResults as SearchResultsType,
 } from "@soundx/services";
 import {
-  Button,
-  Card,
-  Empty,
-  Flex,
-  Input,
-  Modal,
-  Popover,
-  Progress,
-  Segmented,
-  Spin,
-  theme,
-  Tooltip,
-  Typography
+    Button,
+    Card,
+    Empty,
+    Flex,
+    Input,
+    Modal,
+    Popover,
+    Progress,
+    Segmented,
+    Spin,
+    theme,
+    Tooltip,
+    Typography
 } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -67,8 +67,8 @@ import { useTheme } from "../../context/ThemeContext";
 import { TrackType } from "../../models";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
-import { isSubsonicSource } from "../../utils";
-import { isWindows } from "../../utils/platform";
+import { isEmbySource, isSubsonicSource } from "../../utils";
+import { isWeb, isWindows } from "../../utils/platform";
 import { usePlayMode } from "../../utils/playMode";
 import SearchResults from "../SearchResults";
 import styles from "./index.module.less";
@@ -384,7 +384,7 @@ const Header: React.FC = () => {
 
   const handleLogout = () => {
     logout();
-    message.success("已退出登录");
+    message.success("已退出/切换服务端账号");
     // Optionally reload to reset app state
     window.location.reload();
   };
@@ -575,7 +575,7 @@ const Header: React.FC = () => {
   }, []);
 
   return (
-    <div className={styles.header}>
+    <div className={`${styles.header} ${isWindows() ? styles.winHeader : ""}`}>
       {/* Navigation Controls */}
       <div className={styles.navControls}>
         <div className={styles.navGroup}>
@@ -639,7 +639,7 @@ const Header: React.FC = () => {
 
       {/* User Actions */}
       <div className={styles.userActions}>
-        {playMode === TrackType.MUSIC && !isSubsonicSource() && (
+        {playMode === TrackType.MUSIC && !isSubsonicSource() && !isEmbySource() && (
           <Tooltip title="情景电台">
             <div
               className={`${styles.actionIcon} ${isRadioMode ? styles.radioActive : ""}`}
@@ -650,7 +650,7 @@ const Header: React.FC = () => {
             </div>
           </Tooltip>
         )}
-        {playMode !== TrackType.MUSIC && (
+        {playMode !== TrackType.MUSIC && !isEmbySource() && (
           <Tooltip title="TTS">
             <div
               className={styles.actionIcon}
@@ -683,17 +683,19 @@ const Header: React.FC = () => {
           </Tooltip>
         )}
 
-        <Tooltip title="mini播放器">
-          <ImportOutlined
-            className={styles.actionIcon}
-            style={actionIconStyle}
-            onClick={() => {
-              if ((window as any).ipcRenderer) {
-                (window as any).ipcRenderer.send("window:set-mini");
-              }
-            }}
-          />
-        </Tooltip>
+        {!isWeb() && (
+          <Tooltip title="mini播放器">
+            <ImportOutlined
+              className={styles.actionIcon}
+              style={actionIconStyle}
+              onClick={() => {
+                if ((window as any).ipcRenderer) {
+                  (window as any).ipcRenderer.send("window:set-mini");
+                }
+              }}
+            />
+          </Tooltip>
+        )}
 
         {!isSubsonicSource() && (
           <Tooltip title="文件夹">
@@ -825,6 +827,31 @@ const Header: React.FC = () => {
                                   : "未知"}
                             </Text>
                           </Flex>
+                          <Button 
+                            danger 
+                            ghost 
+                            size="small"
+                            style={{ marginTop: 8 }}
+                            onClick={() => {
+                              modal.confirm({
+                                title: "退出/切换会员账号",
+                                content: "确定要退出/切换会员账号吗？",
+                                okText: "确定",
+                                cancelText: "取消",
+                                onOk: () => {
+                                  localStorage.removeItem("plus_token");
+                                  localStorage.removeItem("plus_user_id");
+                                  removePlusToken();
+                                  setIsPlusVip(false);
+                                  setPlusVipData(null);
+                                  message.success("会员账号已退出/切换");
+                                  navigate("/member-login");
+                                }
+                              });
+                            }}
+                          >
+                            退出/切换会员账号
+                          </Button>
                         </Flex>
                       </div>
                     ),
@@ -944,25 +971,8 @@ const Header: React.FC = () => {
               </div>
               <div className={styles.userMenuItem} onClick={handleLogout}>
                 <LogoutOutlined />
-                退出登陆
+                退出/切换服务端账号
               </div>
-              {localStorage.getItem("plus_token") && (
-                <div
-                  className={styles.userMenuItem}
-                  onClick={() => {
-                    localStorage.removeItem("plus_token");
-                    localStorage.removeItem("plus_user_id");
-                    removePlusToken();
-                    setIsPlusVip(false);
-                    setPlusVipData(null);
-                    message.success("会员已退出登录");
-                    navigate("/member-login");
-                  }}
-                >
-                  <CrownOutlined />
-                  退出/更换会员账号
-                </div>
-              )}
             </div>
           }
         >
