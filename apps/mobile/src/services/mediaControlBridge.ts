@@ -17,8 +17,14 @@ export interface MediaControlBridgeEvent {
   interval?: number;
 }
 
-// 使用 requireNativeModule 获取 Expo 模块
-const moduleRef = Platform.OS === "android" ? requireNativeModule("MediaControlBridge") : null;
+let moduleRef: any = null;
+try {
+  moduleRef = Platform.OS === "android" ? requireNativeModule("MediaControlBridge") : null;
+} catch (e) {
+  // 模块未找到（可能尚未编译原生代码）
+  console.log("[MediaControlBridge] Native module not found, bridge disabled.");
+}
+
 const emitter = moduleRef ? new EventEmitter(moduleRef) : null;
 
 export const isMediaControlBridgeAvailable = (): boolean => {
