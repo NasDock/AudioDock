@@ -1,0 +1,61 @@
+version: "3.8"
+
+services:
+  # 1. API 后端服务 (Node.js)
+  api:
+    # 根据在自己系统架构选择对应的平台
+    # platform: linux/arm64
+    platform: linux/amd64
+    image: mmdctjj/audiodock-api:latest
+    container_name: audiodock-api
+
+    # 容器内部端口 (3000) 默认对内部网络开放，无需 ports 字段映射到宿主机
+    # 如果要直接测试 API，可以加上 ports: - "3000:3000"
+    ports:
+      - "8858:3000"
+
+    environment:
+      - AUDIO_BOOK_DIR=/audio
+      - MUSIC_BASE_DIR=/music
+      - CACHE_DIR=/covers
+      - DATABASE_URL=file:/data/dev.db
+      - JWT_SECRET=/.jwt_secret
+      - PORT=3000 # API 端口，可以修改，记得同步修改上面的端口
+      - STRM_ADDRESS=http://192.168.1.12:5244 # Strm 服务地址，如果不需要可以不配置
+      - WEBDAV_MUSIC_URL=http://192.168.1.12:5005/音乐 # WebDAV 服务地址，如果不需要可以不配置
+      - WEBDAV_AUDIOBOOK_URL=http://192.168.1.12:5005/有声书 # WebDAV 服务地址，如果不需要可以不配置
+      - WEBDAV_USER=admin # WebDAV 用户名
+      - WEBDAV_PASSWORD=123456 # WebDAV 密码
+
+    # 挂载数据文件和缓存，使用 Docker 命名卷更安全
+    volumes:
+      - /volume1/audio:/audio
+      - /volume1/music:/music
+      - ./covers:/covers
+      - api-db:/data
+      - ./.jwt_secret:/.jwt_secret
+
+    restart: unless-stopped
+    networks:
+      - audiodock-network
+
+  # 2. Web 前端服务 (Nginx) - 用于托管静态文件和反向代理
+  web:
+    platform: linux/amd64
+    image: mmdctjj/audiodock-web:latest
+    container_name: audiodock-web
+    ports:
+      - "9958:9958" # <--- 将 Web 服务的 80 端口映射到宿主机的 8080 端口
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api # 确保 API 容器先启动
+    networks:
+      - audiodock-network
+
+volumes:
+  api-cache: # 命名卷用于缓存
+  api-db: # 命名卷用于 SQLite 或其他数据文件
+
+networks:
+  audiodock-network:

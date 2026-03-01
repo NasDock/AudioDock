@@ -16,6 +16,8 @@ This project is licensed under a **Personal-Use Only License**.
 AudioDock（声仓） 是一个基于现代 Web 技术构建的音乐和有声书一体的本地化播放器，包含桌面端、移动端、web端、小程序。以及本地化后端服务
 
 - **多端支持 💻**：包含移动端、web端、桌面端、小程序、电视端！
+- **多端数据源支持 🔌**：支持 emby、jellyfin、Navidrome 数据源接入！
+- **多协议数据入库 ⚡️**：支持 strm、webdav 数据源入库！
 - **双模式无缝切换 ♻️**：有声书、音乐模式一键无缝切换，记忆不同模式下的播放信息！
 - **支持 docker 部署 📦**：可以通过 docker 部署服务端和 web 端！
 - **多用户支持 👥**：支持多用户交互联动！
