@@ -49,6 +49,46 @@ export const stopMediaControlBridge = async (): Promise<void> => {
   }
 };
 
+export const updateMediaControlBridgePlaybackState = async (params: {
+  state: "playing" | "paused" | "buffering" | "loading" | "stopped" | "none";
+  position?: number;
+  speed?: number;
+  canSkipNext?: boolean;
+  canSkipPrevious?: boolean;
+}) => {
+  if (!isMediaControlBridgeAvailable()) return;
+  try {
+    await moduleRef.updatePlaybackState(
+      params.state,
+      params.position ?? 0,
+      params.speed ?? 1,
+      params.canSkipNext ?? true,
+      params.canSkipPrevious ?? true
+    );
+  } catch (e) {
+    console.warn("[MediaControlBridge] updatePlaybackState failed:", e);
+  }
+};
+
+export const updateMediaControlBridgeMetadata = async (params: {
+  title?: string;
+  artist?: string;
+  album?: string;
+  duration?: number;
+}) => {
+  if (!isMediaControlBridgeAvailable()) return;
+  try {
+    await moduleRef.updateMetadata(
+      params.title ?? "",
+      params.artist ?? "",
+      params.album ?? "",
+      params.duration ?? 0
+    );
+  } catch (e) {
+    console.warn("[MediaControlBridge] updateMetadata failed:", e);
+  }
+};
+
 export const subscribeMediaControlBridgeEvents = (
   callback: (event: MediaControlBridgeEvent) => void
 ) => {

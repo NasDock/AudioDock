@@ -4,7 +4,7 @@ import android.content.Intent
 import android.media.AudioManager
 import android.os.SystemClock
 import android.view.KeyEvent
-import androidx.media.session.MediaButtonReceiver
+import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import expo.modules.kotlin.modules.Module
@@ -38,6 +38,30 @@ class MediaControlBridgeModule : Module() {
       return@Function true
     }
 
+    Function("updatePlaybackState") { state: String, position: Double?, speed: Double?, canSkipNext: Boolean, canSkipPrevious: Boolean ->
+      ensureSession()
+      applyPlaybackState(
+        state = state,
+        positionMs = ((position ?: 0.0) * 1000.0).toLong(),
+        speed = (speed ?: 1.0).toFloat(),
+        canSkipNext = canSkipNext,
+        canSkipPrevious = canSkipPrevious
+      )
+      return@Function true
+    }
+
+    Function("updateMetadata") { title: String?, artist: String?, album: String?, duration: Double? ->
+      ensureSession()
+      val metadata = MediaMetadataCompat.Builder().apply {
+        putString(MediaMetadataCompat.METADATA_KEY_TITLE, title ?: "")
+        putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist ?: "")
+        putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album ?: "")
+        putLong(MediaMetadataCompat.METADATA_KEY_DURATION, ((duration ?: 0.0) * 1000.0).toLong())
+      }.build()
+      mediaSession?.setMetadata(metadata)
+      return@Function true
+    }
+
     OnDestroy {
       releaseSession()
     }
@@ -51,25 +75,17 @@ class MediaControlBridgeModule : Module() {
     mediaSession = MediaSessionCompat(context, "SoundXMediaBridge").apply {
       setFlags(
         MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
-          MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+          MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS or
+          MediaSessionCompat.FLAG_HANDLES_QUEUE_COMMANDS
       )
       setPlaybackToLocal(AudioManager.STREAM_MUSIC)
-      
-      // 关键修复：初始状态必须为 STATE_PLAYING 才能让系统响应点击
-      setPlaybackState(
-        PlaybackStateCompat.Builder()
-          .setState(PlaybackStateCompat.STATE_PLAYING, 0L, 1f)
-          .setActions(
-            PlaybackStateCompat.ACTION_PLAY or
-              PlaybackStateCompat.ACTION_PAUSE or
-              PlaybackStateCompat.ACTION_PLAY_PAUSE or
-              PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-              PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-              PlaybackStateCompat.ACTION_SEEK_TO or
-              PlaybackStateCompat.ACTION_FAST_FORWARD or
-              PlaybackStateCompat.ACTION_REWIND
-          )
-          .build()
+
+      applyPlaybackState(
+        state = "paused",
+        positionMs = 0L,
+        speed = 1.0f,
+        canSkipNext = true,
+        canSkipPrevious = true
       )
 
       setCallback(object : MediaSessionCompat.Callback() {
@@ -100,6 +116,44 @@ class MediaControlBridgeModule : Module() {
         }
       })
     }
+  }
+
+  private fun applyPlaybackState(
+    state: String,
+    positionMs: Long,
+    speed: Float,
+    canSkipNext: Boolean,
+    canSkipPrevious: Boolean
+  ) {
+    val compatState = when (state.lowercase()) {
+      "playing" -> PlaybackStateCompat.STATE_PLAYING
+      "buffering", "loading" -> PlaybackStateCompat.STATE_BUFFERING
+      "stopped" -> PlaybackStateCompat.STATE_STOPPED
+      "none", "idle" -> PlaybackStateCompat.STATE_NONE
+      else -> PlaybackStateCompat.STATE_PAUSED
+    }
+
+    var actions =
+      PlaybackStateCompat.ACTION_PLAY or
+        PlaybackStateCompat.ACTION_PAUSE or
+        PlaybackStateCompat.ACTION_PLAY_PAUSE or
+        PlaybackStateCompat.ACTION_SEEK_TO or
+        PlaybackStateCompat.ACTION_FAST_FORWARD or
+        PlaybackStateCompat.ACTION_REWIND
+
+    if (canSkipNext) {
+      actions = actions or PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+    }
+    if (canSkipPrevious) {
+      actions = actions or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+    }
+
+    mediaSession?.setPlaybackState(
+      PlaybackStateCompat.Builder()
+        .setState(compatState, positionMs, speed)
+        .setActions(actions)
+        .build()
+    )
   }
 
   private fun emitAction(action: String, position: Double? = null, interval: Double? = null) {
