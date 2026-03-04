@@ -1,6 +1,12 @@
 import { getBaseURL } from "../https";
 import { Track } from "../models";
-import { downloadTrack, isCached, resolveLocalPath } from "./cache";
+import {
+  cacheCover,
+  downloadTrack,
+  getCachedCover,
+  isCached,
+  resolveLocalPath,
+} from "./cache";
 
 interface ResolveOptions {
   cacheEnabled: boolean;
@@ -58,4 +64,34 @@ export const resolveArtworkUri = (track: Track): string | undefined => {
   return track.cover.startsWith("http")
     ? track.cover
     : `${getBaseURL()}${track.cover.split('/').map(encodeURIComponent).join('/')}`;
+};
+
+interface ArtworkResolveOptions {
+  shouldDownload?: boolean;
+  fast?: boolean;
+}
+
+export const resolveArtworkUriForPlayer = async (
+  track: Track,
+  options: ArtworkResolveOptions = {}
+): Promise<string | undefined> => {
+  const remoteArtwork = resolveArtworkUri(track);
+  if (!remoteArtwork) return undefined;
+
+  if (options.fast) return remoteArtwork;
+
+  const cached = await getCachedCover(remoteArtwork);
+  if (cached) {
+    return resolveLocalPath(cached);
+  }
+
+  if (options.shouldDownload) {
+    const localOrRemote = await cacheCover(remoteArtwork);
+    if (localOrRemote.startsWith("http://") || localOrRemote.startsWith("https://")) {
+      return localOrRemote;
+    }
+    return resolveLocalPath(localOrRemote);
+  }
+
+  return remoteArtwork;
 };

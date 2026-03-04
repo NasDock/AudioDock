@@ -28,7 +28,10 @@ import TrackPlayer, {
 } from "react-native-track-player";
 import { Track, TrackType } from "../models";
 import { socketService } from "../services/socket";
-import { resolveArtworkUri, resolveTrackUri } from "../services/trackResolver";
+import {
+  resolveArtworkUriForPlayer,
+  resolveTrackUri,
+} from "../services/trackResolver";
 import {
   updateMediaControlBridgeMetadata,
   updateMediaControlBridgePlaybackState,
@@ -599,7 +602,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 shouldDownload: isNearCurrent,
                 fast: !isNearCurrent,
               });
-              const artwork = resolveArtworkUri(track);
+              const artwork = await resolveArtworkUriForPlayer(track, {
+                shouldDownload: isNearCurrent,
+                fast: !isNearCurrent,
+              });
               return {
                 id: String(track.id),
                 url: uri,
@@ -677,7 +683,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       isSkippingOutroRef.current = false;
 
       const playUri = await resolveTrackUri(track, { cacheEnabled });
-      const artwork = resolveArtworkUri(track);
+      const artwork = await resolveArtworkUriForPlayer(track, {
+        shouldDownload: true,
+      });
 
       console.log("Playing track:", track.id, "URI:", playUri);
 
@@ -745,7 +753,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             shouldDownload: isNearCurrent,
             fast: !isNearCurrent 
         });
-        const artwork = resolveArtworkUri(t);
+        const artwork = await resolveArtworkUriForPlayer(t, {
+          shouldDownload: isNearCurrent,
+          fast: !isNearCurrent,
+        });
         return {
           id: String(t.id),
           url: uri,
