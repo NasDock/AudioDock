@@ -54,8 +54,8 @@ import {
     Modal,
     Popover,
     Progress,
-    Segmented,
     Spin,
+    Tag,
     theme,
     Tooltip,
     Typography
@@ -83,27 +83,51 @@ const { Text } = Typography;
 const ServerSwitcherModal: React.FC<{
   onSelect: (url: string, type: string) => void;
 }> = ({ onSelect }) => {
-  const [sourceType, setSourceType] = useState<string>(
-    () => localStorage.getItem("selectedSourceType") || "AudioDock",
-  );
-  const [configs, setConfigs] = useState<any[]>([]);
+  const [configs, setConfigs] = useState<
+    Array<{
+      type: string;
+      list: Array<{
+        id: string;
+        internal: string;
+        external: string;
+        name?: string;
+      }>;
+    }>
+  >([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const { token: themeToken } = theme.useToken();
   const navigate = useNavigate();
 
   const loadConfigs = () => {
-    const configKey = `sourceConfig_${sourceType}`;
-    const data = localStorage.getItem(configKey);
-    if (data) {
-      try {
-        const parsed = JSON.parse(data);
-        setConfigs(Array.isArray(parsed) ? parsed : []);
-      } catch {
-        setConfigs([]);
+    const allConfigs: Array<{
+      type: string;
+      list: Array<{
+        id: string;
+        internal: string;
+        external: string;
+        name?: string;
+      }>;
+    }> = [];
+
+    Object.keys(SOURCEMAP).forEach((type) => {
+      const configKey = `sourceConfig_${type}`;
+      const data = localStorage.getItem(configKey);
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          allConfigs.push({
+            type,
+            list: Array.isArray(parsed) ? parsed : [],
+          });
+          return;
+        } catch {
+          allConfigs.push({ type, list: [] });
+          return;
+        }
       }
-    } else {
+
       // Migration from legacy history if exists
-      const historyKey = `serverHistory_${sourceType}`;
+      const historyKey = `serverHistory_${type}`;
       const historyData = localStorage.getItem(historyKey);
       if (historyData) {
         try {
@@ -114,31 +138,50 @@ const ServerSwitcherModal: React.FC<{
             external: "",
             name: `历史记录 ${index + 1}`,
           }));
-          setConfigs(migrated);
           localStorage.setItem(configKey, JSON.stringify(migrated));
+          allConfigs.push({ type, list: migrated });
+          return;
         } catch {
-          setConfigs([]);
+          allConfigs.push({ type, list: [] });
+          return;
         }
-      } else {
-        setConfigs([]);
       }
-    }
+
+      allConfigs.push({ type, list: [] });
+    });
+
+    setConfigs(allConfigs);
   };
 
   useEffect(() => {
     loadConfigs();
-  }, [sourceType]);
+  }, []);
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
+  const handleDelete = (type: string, id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const configKey = `sourceConfig_${sourceType}`;
-    const newConfigs = configs.filter((c) => c.id !== id);
+    const configKey = `sourceConfig_${type}`;
+    const currentTypeConfigs =
+      configs.find((item) => item.type === type)?.list || [];
+    const newConfigs = currentTypeConfigs.filter((c) => c.id !== id);
     localStorage.setItem(configKey, JSON.stringify(newConfigs));
-    setConfigs(newConfigs);
+    setConfigs((prev) =>
+      prev.map((item) =>
+        item.type === type
+          ? {
+              ...item,
+              list: newConfigs,
+            }
+          : item
+      )
+    );
   };
 
-  const handleConnect = async (address: string, configId: string) => {
-    setLoadingId(`${configId}_${address}`);
+  const handleConnect = async (
+    address: string,
+    configId: string,
+    sourceType: string
+  ) => {
+    setLoadingId(`${sourceType}_${configId}_${address}`);
     try {
       // Connect to the specific address chosen by the user
       onSelect(address, sourceType);
@@ -147,48 +190,26 @@ const ServerSwitcherModal: React.FC<{
     }
   };
 
-  const sourceOptions = Object.keys(SOURCEMAP).map((key) => ({
-    label: (
-      <Flex gap={8} align="center">
-        {key === "Emby" ? (
-          <img style={{ width: 20 }} src={emby} />
-        ) : key === "Subsonic" ? (
-          <img style={{ width: 20 }} src={subsonic} />
-        ) : (
-          <img style={{ width: 20 }} src={logo} />
-        )}
-        <span>{key}</span>
-      </Flex>
-    ),
-    value: key,
-    disabled: key === "Emby",
-  }));
-
   return (
     <div style={{ marginTop: 16 }}>
-      <div style={{ marginBottom: 16 }}>
-        <Segmented
-          options={sourceOptions}
-          value={sourceType}
-          onChange={(val) => setSourceType(val as string)}
-          block
-        />
-      </div>
-
       <Flex
         vertical
         gap={12}
         style={{ maxHeight: 400, overflowY: "auto", padding: "4px" }}
       >
-        {configs.map((item) => {
+        {configs.flatMap(({ type, list }) =>
+          list.map((item, index) => {
           const currentAddress = localStorage.getItem("serverAddress");
           const currentSource = localStorage.getItem("selectedSourceType");
-          const isSourceMatch = currentSource === sourceType;
+          const isSourceMatch = currentSource === type;
+          const sourceLogo =
+            type === "Emby" ? emby : type === "Subsonic" ? subsonic : logo;
+          const displayName = `${type}数据源[${index + 1}]`;
 
           const renderAddressRow = (label: string, address: string) => {
             if (!address) return null;
             const isActive = isSourceMatch && currentAddress === address;
-            const isConnecting = loadingId === `${item.id}_${address}`;
+            const isConnecting = loadingId === `${type}_${item.id}_${address}`;
 
             return (
               <Flex
@@ -228,11 +249,7 @@ const ServerSwitcherModal: React.FC<{
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
-                        // check().then(res => {
-                        // if (res.code === 200) {
-                        handleConnect(address, item.id);
-                        // }
-                        // })
+                        handleConnect(address, item.id, type);
                       }}
                       style={{ fontSize: 10 }}
                     >
@@ -247,7 +264,7 @@ const ServerSwitcherModal: React.FC<{
 
           return (
             <Card
-              key={item.id}
+              key={`${type}_${item.id}`}
               size="small"
               className={styles.switcherCard}
               style={{
@@ -261,9 +278,13 @@ const ServerSwitcherModal: React.FC<{
             >
               <Flex vertical gap={8}>
                 <Flex justify="space-between" align="center">
-                  <Text strong style={{ fontSize: 14 }}>
-                    {item.name || "默认服务器"}
-                  </Text>
+                  <Flex align="center" gap={8}>
+                    <img style={{ width: 18 }} src={sourceLogo} alt={type} />
+                    <Text strong style={{ fontSize: 14 }}>
+                      {displayName}
+                    </Text>
+                    <Tag>{type}</Tag>
+                  </Flex>
                   <Button
                     type="text"
                     size="small"
@@ -271,7 +292,7 @@ const ServerSwitcherModal: React.FC<{
                     icon={<DeleteOutlined />}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDelete(item.id, e);
+                      handleDelete(type, item.id, e);
                     }}
                   />
                 </Flex>
@@ -282,9 +303,10 @@ const ServerSwitcherModal: React.FC<{
               </Flex>
             </Card>
           );
-        })}
+        })
+        )}
 
-        {configs.length === 0 && (
+        {configs.every((item) => item.list.length === 0) && (
           <Empty
             description="暂无历史数据源"
             image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -298,10 +320,10 @@ const ServerSwitcherModal: React.FC<{
           style={{ marginTop: 8 }}
           onClick={() => {
             Modal.destroyAll();
-            navigate("/login", { state: { type: sourceType } });
+            navigate("/source-manage");
           }}
         >
-          添加新数据源
+          添加数据源
         </Button>
       </Flex>
     </div>
