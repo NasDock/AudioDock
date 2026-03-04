@@ -1,7 +1,7 @@
 {
   "name": "mobile",
   "main": "index.js",
-  "version": "1.0.83",
+  "version": "1.0.84",
   "author": "mmdctjj <mmdctjj@gmail.com>",
   "repository": {
     "type": "git",
