@@ -10,12 +10,13 @@ import {
 
 const PLAYBACK_MODE_KEY = 'playerPlaybackMode';
 const LEGACY_PLAY_MODE_KEY = 'playMode';
-const PLAYBACK_MODES = new Set(['SEQUENCE', 'LOOP_LIST', 'SHUFFLE', 'LOOP_SINGLE', 'SINGLE_ONCE']);
+const PLAYBACK_MODES = new Set(['SEQUENCE', 'LOOP_LIST', 'SHUFFLE', 'LOOP_SINGLE']);
 
 const getPlaybackMode = async (): Promise<string | null> => {
     const mode = await AsyncStorage.getItem(PLAYBACK_MODE_KEY);
     if (mode) return mode;
     const legacy = await AsyncStorage.getItem(LEGACY_PLAY_MODE_KEY);
+    if (legacy === 'SINGLE_ONCE') return 'SEQUENCE';
     return legacy && PLAYBACK_MODES.has(legacy) ? legacy : null;
 };
 

@@ -5,7 +5,7 @@ import { PlayMode, usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Track, TrackType, UserTrackLike } from "@/src/models";
 import { getImageUrl } from "@/src/utils/image";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Slider } from "@miblanchard/react-native-slider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
@@ -379,20 +379,18 @@ export default function PlayerScreen() {
     }
   };
 
-  const getModeIconName = (mode: PlayMode): any => {
+  const renderPlayModeIcon = (mode: PlayMode) => {
     switch (mode) {
       case PlayMode.SEQUENCE:
-        return "arrow-forward";
-      case PlayMode.LOOP_LIST:
-        return "repeat";
+        return <MaterialCommunityIcons name="playlist-music-outline" size={24} color={colors.secondary} />;
       case PlayMode.SHUFFLE:
-        return "shuffle";
+        return <Ionicons name="shuffle-outline" size={24} color={colors.secondary} />;
+      case PlayMode.LOOP_LIST:
+        return <Ionicons name="repeat-outline" size={24} color={colors.secondary} />;
       case PlayMode.LOOP_SINGLE:
-        return "sync";
-      case PlayMode.SINGLE_ONCE:
-        return "stop-circle-outline";
+        return <MaterialCommunityIcons name="repeat-once" size={24} color={colors.secondary} />;
       default:
-        return "repeat";
+        return <Ionicons name="repeat-outline" size={24} color={colors.secondary} />;
     }
   };
 
@@ -633,11 +631,7 @@ export default function PlayerScreen() {
               resetHideTimer();
             }}
           >
-            <Ionicons
-              name={getModeIconName(playMode)}
-              size={24}
-              color={colors.secondary}
-            />
+            {renderPlayModeIcon(playMode)}
           </TouchableOpacity>
         )}
 

@@ -44,7 +44,6 @@ export enum PlayMode {
   LOOP_LIST = "LOOP_LIST",
   SHUFFLE = "SHUFFLE",
   LOOP_SINGLE = "LOOP_SINGLE",
-  SINGLE_ONCE = "SINGLE_ONCE",
 }
 const PLAYBACK_MODE_KEY = "playerPlaybackMode";
 const LEGACY_PLAY_MODE_KEY = "playMode";
@@ -247,8 +246,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         const storedPlayMode =
           (await AsyncStorage.getItem(PLAYBACK_MODE_KEY)) ??
           (await AsyncStorage.getItem(LEGACY_PLAY_MODE_KEY));
-        if (storedPlayMode && Object.values(PlayMode).includes(storedPlayMode as PlayMode)) {
-          setPlayMode(storedPlayMode as PlayMode);
+        if (storedPlayMode) {
+          if (storedPlayMode === "SINGLE_ONCE") {
+            setPlayMode(PlayMode.SEQUENCE);
+          } else if (Object.values(PlayMode).includes(storedPlayMode as PlayMode)) {
+            setPlayMode(storedPlayMode as PlayMode);
+          }
         }
       } catch (e) {
         console.error("Failed to load skip settings", e);
@@ -417,8 +420,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         return Math.floor(Math.random() * list.length);
       case PlayMode.LOOP_SINGLE:
         return currentIndex;
-      case PlayMode.SINGLE_ONCE:
-        return -1;
       default:
         return currentIndex + 1 < list.length ? currentIndex + 1 : -1;
     }
@@ -539,7 +540,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const togglePlayMode = async () => {
-    const modes = Object.values(PlayMode);
+    const modes = [
+      PlayMode.SEQUENCE,
+      PlayMode.SHUFFLE,
+      PlayMode.LOOP_LIST,
+      PlayMode.LOOP_SINGLE,
+    ];
     const currentIndex = modes.indexOf(playMode);
     const nextMode = modes[(currentIndex + 1) % modes.length];
     setPlayMode(nextMode);

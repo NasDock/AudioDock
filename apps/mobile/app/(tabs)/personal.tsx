@@ -1000,7 +1000,19 @@ export default function PersonalScreen() {
             <View
               style={[styles.menuDivider, { backgroundColor: colors.border }]}
             />
-            {sourceType !== "Emby" && (
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleUpdateLibrary("full")}
+            >
+              <Ionicons name="sync-outline" size={22} color={colors.text} />
+              <Text style={[styles.menuItemText, { color: colors.text }]}>
+                全量更新音频文件
+              </Text>
+            </TouchableOpacity>
+            <View
+              style={[styles.menuDivider, { backgroundColor: colors.border }]}
+            />
+            {sourceType !== "Emby" && mode !== "MUSIC" && (
               <>
                 <TouchableOpacity
                   style={styles.menuItem}
