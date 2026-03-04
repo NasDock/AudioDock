@@ -1,13 +1,13 @@
 import {
-    AppstoreOutlined,
-    AudioOutlined,
-    CloudDownloadOutlined,
-    CompassOutlined,
-    CustomerServiceOutlined,
-    HeartOutlined,
-    PlusOutlined,
-    SoundOutlined,
-    TeamOutlined
+  AppstoreOutlined,
+  AudioOutlined,
+  CloudDownloadOutlined,
+  CompassOutlined,
+  CustomerServiceOutlined,
+  HeartOutlined,
+  PlusOutlined,
+  SoundOutlined,
+  TeamOutlined
 } from "@ant-design/icons";
 import { createPlaylist, TrackType } from "@soundx/services";
 import { Form, Input, Modal, theme, Typography } from "antd";
@@ -17,6 +17,7 @@ import { useMessage } from "../../context/MessageContext";
 import { useAuthStore } from "../../store/auth";
 import { usePlaylistStore } from "../../store/playlist";
 import { isEmbySource, isSubsonicSource } from "../../utils";
+import { isWeb } from "../../utils/platform";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
 
@@ -115,12 +116,14 @@ const Sidebar: React.FC = () => {
       </div>
 
       <div className={styles.playlistGroup}>
-        <MenuItem
-          icon={<CloudDownloadOutlined />}
-          text="下载"
-          onClick={() => navigate("/downloads")}
-          active={isActive("/downloads")}
-        />
+        {!isWeb() && (
+          <MenuItem
+            icon={<CloudDownloadOutlined />}
+            text="下载"
+            onClick={() => navigate("/downloads")}
+            active={isActive("/downloads")}
+          />
+        )}
         <MenuItem
           icon={<HeartOutlined />}
           text="收藏"

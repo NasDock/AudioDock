@@ -170,6 +170,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     [TrackType.AUDIOBOOK]: initialAudiobookState,
   };
 
+  const pickNextRadioTrack = async (activeMode: TrackType, currentTrackId?: number | string) => {
+    const res = await getLatestTracks(activeMode, true, 20);
+    if (res.code !== 200 || !res.data?.length) return null;
+
+    const candidates = res.data.filter((track) => track.id !== currentTrackId);
+    const trackPool = candidates.length > 0 ? candidates : res.data;
+    const randomIndex = Math.floor(Math.random() * trackPool.length);
+    return {
+      track: trackPool[randomIndex],
+      playlist: res.data,
+    };
+  };
+
   return {
     ...activeState,
     modes,
@@ -217,6 +230,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         currentAlbumId: nextModeState.currentAlbumId,
         playlistSource: nextModeState.playlistSource,
         isPlaying: false, // Pause on switch
+        isRadioMode: false, // Radio mode is music-only and should not leak to audiobook mode
       });
     },
 
@@ -333,14 +347,25 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
       if (isRadioMode) {
         try {
-          const res = await getLatestTracks();
-          if (res.code === 200 && res.data.length > 0) {
-            const nextTrack = res.data[0];
-            set({ currentTrack: nextTrack, currentTime: 0, isPlaying: true });
+          const radioData = await pickNextRadioTrack(
+            get().activeMode,
+            currentTrack?.id
+          );
+          if (radioData?.track) {
+            set({
+              playlist: radioData.playlist,
+              currentTrack: radioData.track,
+              currentTime: 0,
+              duration: radioData.track.duration || 0,
+              isPlaying: true,
+              isRadioMode: true,
+              playlistSource: null,
+            });
           }
         } catch (e) {
           console.error("Radio next error", e);
         }
+        get()._saveCurrentStateToMode();
         return;
       }
 
@@ -500,14 +525,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
     startRadioMode: async () => {
       const { activeMode } = get();
-      set({ isRadioMode: true });
+      const radioStartMode = activeMode;
+      set({ isRadioMode: true, currentTime: 0 });
 
       try {
-        const res = await getLatestTracks(activeMode, true, 1);
-        if (res.code === 200 && res.data && res.data.length > 0) {
+        const radioData = await pickNextRadioTrack(radioStartMode);
+        if (get().activeMode !== radioStartMode) {
+          return;
+        }
+        if (radioData?.track) {
           set({
-            playlist: res.data,
-            currentTrack: res.data[0],
+            playlist: radioData.playlist,
+            currentTrack: radioData.track,
+            currentTime: 0,
+            duration: radioData.track.duration || 0,
             isPlaying: true,
             isRadioMode: true,
             playlistSource: null,

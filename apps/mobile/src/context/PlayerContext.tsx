@@ -29,6 +29,10 @@ import TrackPlayer, {
 import { Track, TrackType } from "../models";
 import { socketService } from "../services/socket";
 import { resolveArtworkUri, resolveTrackUri } from "../services/trackResolver";
+import {
+  updateMediaControlBridgeMetadata,
+  updateMediaControlBridgePlaybackState,
+} from "../services/mediaControlBridge";
 import { usePlayMode } from "../utils/playMode";
 import { useAuth } from "./AuthContext";
 import { useNotification } from "./NotificationContext";
@@ -147,6 +151,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const [skipIntroDuration, setSkipIntroDurationState] = useState(0);
   const [skipOutroDuration, setSkipOutroDurationState] = useState(0);
   const isSkippingOutroRef = useRef(false); // 防止重复触发切歌
+  const lastAutoNextAtRef = useRef(0);
 
   const prevModeRef = useRef(mode);
   const isInitialLoadRef = useRef(true);
@@ -195,6 +200,41 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     playbackRateRef.current = playbackRate;
   }, [playbackRate]);
+
+  const syncMediaControlCenterState = async () => {
+    if (Platform.OS !== "android") return;
+    try {
+      const playback = await TrackPlayer.getPlaybackState();
+      const queue = await TrackPlayer.getQueue();
+      const hasTrack = !!currentTrackRef.current || queue.length > 0;
+
+      let state: "playing" | "paused" | "buffering" | "loading" | "stopped" | "none" = "paused";
+      if (playback.state === State.Playing) state = "playing";
+      else if (playback.state === State.Buffering) state = "buffering";
+      else if (playback.state === State.Loading) state = "loading";
+      else if (playback.state === State.Stopped) state = "stopped";
+
+      await updateMediaControlBridgePlaybackState({
+        state,
+        position: positionRef.current,
+        speed: state === "playing" ? 1 : 0,
+        // HyperOS 控制中心对 skip 能力比较敏感，这里稳定开启，具体是否可跳由业务逻辑决定
+        canSkipNext: hasTrack,
+        canSkipPrevious: hasTrack,
+      });
+
+      if (currentTrackRef.current) {
+        await updateMediaControlBridgeMetadata({
+          title: currentTrackRef.current.name,
+          artist: currentTrackRef.current.artist,
+          album: currentTrackRef.current.album || "Unknown Album",
+          duration: currentTrackRef.current.duration || 0,
+        });
+      }
+    } catch (e) {
+      console.warn("[MediaControlBridge] sync state failed", e);
+    }
+  };
 
   // ✨ 加载本地存储的跳过设置
   useEffect(() => {
@@ -260,10 +300,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       Event.PlaybackState,
       Event.PlaybackError,
       Event.PlaybackQueueEnded,
-      Event.RemoteNext,
-      Event.RemotePrevious,
-      Event.RemoteJumpForward,
-      Event.RemoteJumpBackward,
       Event.PlaybackActiveTrackChanged,
     ],
     async (event) => {
@@ -281,6 +317,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsLoading(
           event.state === State.Buffering || event.state === State.Loading
         );
+        await syncMediaControlCenterState();
       }
       if (event.type === Event.PlaybackActiveTrackChanged) {
         // ✨ 当切歌发生（无论是手动还是自动播放下一首）
@@ -308,25 +345,31 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             console.log(`[AutoSkip] Native transition detected, skipping intro: ${skipIntroDurationRef.current}s`);
             await TrackPlayer.seekTo(skipIntroDurationRef.current);
           }
+
+          await updateMediaControlBridgeMetadata({
+            title: nextTrack.name,
+            artist: nextTrack.artist,
+            album: nextTrack.album || "Unknown Album",
+            duration: nextTrack.duration || 0,
+          });
+          await syncMediaControlCenterState();
         }
       }
       if (event.type === Event.PlaybackQueueEnded) {
+        const now = Date.now();
+        if (now - lastAutoNextAtRef.current < 800) {
+          return;
+        }
+        lastAutoNextAtRef.current = now;
+
         // 如果是电台模式，需要手动加载下一首
         if (isRadioModeRef.current) {
-            playNext();
+            await playNext();
+            return;
         }
-      }
-      if (event.type === Event.RemoteNext) {
-        playNext();
-      }
-      if (event.type === Event.RemotePrevious) {
-        playPrevious();
-      }
-      if (event.type === Event.RemoteJumpForward) {
-        seekTo(positionRef.current + (event.interval || 15));
-      }
-      if (event.type === Event.RemoteJumpBackward) {
-        seekTo(Math.max(0, positionRef.current - (event.interval || 15)));
+
+        // 兜底：队列结束后按业务播放列表续播，避免依赖控制中心远程事件
+        await playNext();
       }
     }
   );
