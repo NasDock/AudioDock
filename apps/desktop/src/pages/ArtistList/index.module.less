@@ -72,3 +72,27 @@
   margin-top: 24px;
   color: var(--ant-color-text-secondary);
 }
+
+.skeletonCard {
+  width: 120px;
+}
+
+.skeletonName {
+  width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+
+  :global {
+    .ant-skeleton {
+      width: 100%;
+    }
+
+    .ant-skeleton-input {
+      width: 100% !important;
+      min-width: 0;
+      display: block;
+    }
+  }
+}

@@ -171,27 +171,20 @@ const ArtistList: React.FC = () => {
               </Flex>
             </Col>
           ))}
-        </Row>
-
-        {loadingMore && (
-          <Row gutter={[24, 24]}>
-            {Array.from({ length: 6 }).map((_, index) => (
-              <Col
-                key={`skeleton-${index}`}
-                xs={12}
-                sm={8}
-                md={6}
-                lg={4}
-                xl={4}
-              >
-                <Flex vertical align="center">
-                  <Skeleton.Avatar active size={120} shape="circle" />
-                  <Skeleton.Input active />
+          {loadingMore &&
+            Array.from({ length: 6 }).map((_, index) => (
+              <Col key={`skeleton-${index}`}>
+                <Flex vertical align="center" className={styles.skeletonCard}>
+                  <div className={styles.coverContainer}>
+                    <Skeleton.Avatar active size={120} shape="circle" />
+                  </div>
+                  <div className={styles.skeletonName}>
+                    <Skeleton.Input active size="small" style={{ width: "100%" }} />
+                  </div>
                 </Flex>
               </Col>
             ))}
-          </Row>
-        )}
+        </Row>
 
         {data && !data.hasMore && data.list.length > 0 && (
           <div
