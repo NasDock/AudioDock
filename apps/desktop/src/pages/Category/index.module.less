@@ -52,7 +52,7 @@
     overflow-y: hidden !important;
 
     &::-webkit-scrollbar {
-      height: 4px;
+      height: 5px;
     }
 
     &::-webkit-scrollbar-track {
@@ -60,12 +60,20 @@
     }
 
     &::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 2px;
+      background: transparent;
+      border-radius: 999px;
+    }
 
-      &:hover {
-        background: rgba(255, 255, 255, 0.3);
-      }
+    &:hover::-webkit-scrollbar-thumb,
+    &.scrollbar-visible::-webkit-scrollbar-thumb,
+    &:focus-within::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    &:hover::-webkit-scrollbar-thumb:hover,
+    &.scrollbar-visible::-webkit-scrollbar-thumb:hover,
+    &:focus-within::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.55);
     }
   }
 }

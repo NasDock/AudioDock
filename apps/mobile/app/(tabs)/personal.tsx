@@ -108,6 +108,7 @@ export default function PersonalScreen() {
   const {
     checkUpdate,
     progress,
+    isUpdating,
     updateInfo,
     startUpdate,
     ignoreUpdate,
@@ -872,6 +873,7 @@ export default function PersonalScreen() {
       <UpdateModal
         visible={isModalVisible}
         progress={progress}
+        isUpdating={isUpdating}
         updateInfo={updateInfo}
         onBackground={() => setModalVisible(false)}
         onUpdate={startUpdate}
