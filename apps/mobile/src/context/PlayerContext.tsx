@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   addAlbumToHistory,
   addToHistory,
+  getAlbumTracks,
   getLatestHistory,
   getLatestTracks,
   reportAudiobookProgress
@@ -27,15 +28,15 @@ import TrackPlayer, {
   useTrackPlayerEvents,
 } from "react-native-track-player";
 import { Track, TrackType } from "../models";
+import {
+  updateMediaControlBridgeMetadata,
+  updateMediaControlBridgePlaybackState,
+} from "../services/mediaControlBridge";
 import { socketService } from "../services/socket";
 import {
   resolveArtworkUriForPlayer,
   resolveTrackUri,
 } from "../services/trackResolver";
-import {
-  updateMediaControlBridgeMetadata,
-  updateMediaControlBridgePlaybackState,
-} from "../services/mediaControlBridge";
 import { usePlayMode } from "../utils/playMode";
 import { useAuth } from "./AuthContext";
 import { useNotification } from "./NotificationContext";
@@ -1135,7 +1136,34 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 track: history.track,
                 title: "继续播放",
                 description: `发现在设备 ${history.deviceName} 上的播放记录，是否从 ${m}:${s} 继续播放？`,
-                onAccept: () => playTrack(history.track, history.progress),
+                onAccept: async () => {
+                  const trackData = history.track;
+                  // ✨ 有声书恢复时同时恢复整个专辑的播放列表
+                  if (trackData.type === TrackType.AUDIOBOOK && trackData.albumId) {
+                    try {
+                      const tracksRes = await getAlbumTracks(
+                        trackData.albumId,
+                        20000,
+                        0,
+                        "asc",
+                        undefined,
+                        user.id,
+                        "episodeNumber"
+                      );
+                      if (tracksRes.code === 200 && tracksRes.data.list.length > 0) {
+                        const albumTracks = tracksRes.data.list;
+                        const trackIndex = albumTracks.findIndex((t: Track) => t.id === trackData.id);
+                        if (trackIndex !== -1) {
+                          await playTrackList(albumTracks, trackIndex, history.progress);
+                          return;
+                        }
+                      }
+                    } catch (e) {
+                      console.error("Failed to restore audiobook album tracks during resume", e);
+                    }
+                  }
+                  playTrack(trackData, history.progress);
+                },
                 onReject: () => {},
               });
             }
