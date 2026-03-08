@@ -1,0 +1,124 @@
+.folder-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f7f8fa;
+}
+
+.nav {
+  padding: 24rpx 24rpx 12rpx;
+  display: flex;
+  align-items: center;
+}
+
+.back-btn {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title {
+  flex: 1;
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.spacer {
+  width: 64rpx;
+}
+
+.content {
+  flex: 1;
+  padding: 0 24rpx;
+}
+
+.folder-row {
+  display: flex;
+  align-items: center;
+  padding: 18rpx 0;
+  border-bottom: 1px solid #eceef2;
+}
+
+.folder-icon {
+  font-size: 34rpx;
+  margin-right: 16rpx;
+}
+
+.folder-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.folder-name {
+  font-size: 28rpx;
+  color: #111827;
+}
+
+.folder-path {
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  color: #9ca3af;
+}
+
+.track-row {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 0;
+  border-bottom: 1px solid #eceef2;
+}
+
+.track-cover {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 10rpx;
+  margin-right: 14rpx;
+}
+
+.track-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.track-name {
+  font-size: 28rpx;
+  color: #111827;
+}
+
+.track-name.active {
+  color: #007aff;
+}
+
+.track-sub {
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+.track-right {
+  margin-left: 12rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4rpx;
+}
+
+.playing {
+  color: #007aff;
+  font-size: 22rpx;
+}
+
+.duration {
+  color: #9ca3af;
+  font-size: 22rpx;
+}
+
+.empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 120rpx 0;
+  color: #9ca3af;
+}

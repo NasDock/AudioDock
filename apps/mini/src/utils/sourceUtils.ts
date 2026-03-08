@@ -32,9 +32,6 @@ export async function checkServerConnectivity(address: string, sourceType: strin
   const mappedType = SOURCEMAP[sourceType as keyof typeof SOURCEMAP] || "audiodock";
   
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-
     // 根据数据源类型确定ping URL
     const pingUrl =
       mappedType === "subsonic"
@@ -43,12 +40,15 @@ export async function checkServerConnectivity(address: string, sourceType: strin
           ? `${address.replace(/\/+$/, "")}/emby/System/Info/Public`
         : `${address.replace(/\/+$/, "")}/hello`;
 
-    const response = await fetch(pingUrl, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const response = await Taro.request({
+      url: pingUrl,
+      method: "GET",
+      timeout: 3000,
+    });
 
     if (
-      response.ok ||
-      (mappedType === "subsonic" && response.status === 401)
+      (response.statusCode >= 200 && response.statusCode < 300) ||
+      (mappedType === "subsonic" && response.statusCode === 401)
     ) {
       return true;
     }
@@ -64,31 +64,37 @@ export async function selectBestServer(
   externalAddress: string, 
   sourceType: string
 ): Promise<string | null> {
-  // 小程序中获取网络类型
-  const networkInfo = await wx.getNetworkType();
-  const isWifi = networkInfo.networkType === 'wifi';
+  let networkType = "unknown";
+  try {
+    const networkInfo = await Taro.getNetworkType();
+    networkType = networkInfo.networkType || "unknown";
+  } catch (error) {
+    networkType = "unknown";
+  }
 
-  console.log('Network State:', networkInfo.networkType, 'Is WiFi:', isWifi);
+  const isWifi = networkType === "wifi";
+  const isCellular = ["2g", "3g", "4g", "5g"].includes(networkType);
+
+  console.log('Network State:', networkType, 'Is WiFi:', isWifi);
   console.log('Candidates:', { internalAddress, externalAddress });
 
-  // 优先级逻辑
-  if (isWifi) {
-    // 1. 先尝试内网
-    if (internalAddress) {
-      const internalAlive = await checkServerConnectivity(internalAddress, sourceType);
-      if (internalAlive) return internalAddress;
-    }
-    // 2. 再尝试外网
-    if (externalAddress) {
-      const externalAlive = await checkServerConnectivity(externalAddress, sourceType);
-      if (externalAlive) return externalAddress;
+  const candidates: string[] = [];
+  if (internalAddress && externalAddress) {
+    if (isWifi) {
+      candidates.push(internalAddress, externalAddress);
+    } else if (isCellular) {
+      candidates.push(externalAddress);
+    } else {
+      candidates.push(internalAddress, externalAddress);
     }
   } else {
-    // 移动网络/其他：只尝试外网
-    if (externalAddress) {
-      const externalAlive = await checkServerConnectivity(externalAddress, sourceType);
-      if (externalAlive) return externalAddress;
-    }
+    if (internalAddress) candidates.push(internalAddress);
+    if (externalAddress) candidates.push(externalAddress);
+  }
+
+  for (const candidate of candidates) {
+    const alive = await checkServerConnectivity(candidate, sourceType);
+    if (alive) return candidate;
   }
 
   return null;
@@ -105,3 +111,4 @@ export function getSourceLogo(sourceType: string): string {
       return "/assets/images/logo.png";
   }
 }
+import Taro from "@tarojs/taro";
