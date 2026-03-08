@@ -2,7 +2,7 @@ import {
   addAlbumToHistory,
   addToHistory,
   getAlbumTracks,
-  getLatestTracks,
+  getRecommendedTracks,
   getTrackHistory,
   loadMoreTrack,
   reportAudiobookProgress,
@@ -13,6 +13,7 @@ import { create } from "zustand";
 import { TrackType, type Track } from "../models";
 import { getPlayMode } from "../utils/playMode";
 import { useAuthStore } from "./auth";
+import { useSettingsStore } from "./settings";
 
 export interface PlaylistSource {
   type: "album" | "tracks" | "history" | "favorites" | "other";
@@ -171,7 +172,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
   };
 
   const pickNextRadioTrack = async (activeMode: TrackType, currentTrackId?: number | string) => {
-    const res = await getLatestTracks(activeMode, true, 20);
+    const likeRatio =
+      useSettingsStore.getState().general.recommendationLikeRatio ?? 50;
+    const res = await getRecommendedTracks(activeMode, 20, likeRatio);
     if (res.code !== 200 || !res.data?.length) return null;
 
     const candidates = res.data.filter((track) => track.id !== currentTrackId);

@@ -1,5 +1,5 @@
 import { FolderOpenOutlined } from "@ant-design/icons";
-import { Button, ColorPicker, Divider, Input, InputNumber, Select, Space, Switch, Typography, theme } from "antd";
+import { Button, ColorPicker, Divider, Input, InputNumber, Select, Slider, Space, Switch, Typography, theme } from "antd";
 import React from "react";
 import { useAuthStore } from "../../store/auth";
 import { useSettingsStore } from "../../store/settings";
@@ -112,6 +112,23 @@ const Settings: React.FC = () => {
                     <Switch checked={general.acceptSync} onChange={(val) => updateGeneral('acceptSync', val)} />
                     <Text className={styles.description}>是否接受同数据源下其他用户的同步控制请求</Text>
                 </Space>
+            </div>
+        </div>
+        <div className={styles.settingItem}>
+            <div className={styles.label}>推荐偏好</div>
+            <div className={styles.control}>
+                <div style={{ minWidth: 260 }}>
+                    <Slider
+                        min={0}
+                        max={100}
+                        step={5}
+                        value={general.recommendationLikeRatio}
+                        onChange={(val) => updateGeneral('recommendationLikeRatio', Number(val))}
+                    />
+                    <Text className={styles.description}>
+                        喜欢 {general.recommendationLikeRatio}% · 新鲜 {100 - general.recommendationLikeRatio}%
+                    </Text>
+                </div>
             </div>
         </div>
         <div className={styles.settingItem}>

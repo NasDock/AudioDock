@@ -4,7 +4,7 @@ import {
   addToHistory,
   getAlbumTracks,
   getLatestHistory,
-  getLatestTracks,
+  getRecommendedTracks,
   reportAudiobookProgress
 } from "@soundx/services";
 import * as Device from "expo-device";
@@ -143,7 +143,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const { user, device, isLoading: isAuthLoading } = useAuth();
   const { mode } = usePlayMode();
   const { showNotification } = useNotification();
-  const { acceptRelay, cacheEnabled } = useSettings();
+  const { acceptRelay, cacheEnabled, recommendationLikeRatio } = useSettings();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [trackList, setTrackList] = useState<Track[]>([]);
@@ -509,11 +509,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const playNext = async () => {
     if (isRadioModeRef.current) {
       try {
-        let res = await getLatestTracks(TrackType.MUSIC, true, 1);
+        let res = await getRecommendedTracks(TrackType.MUSIC, 1, recommendationLikeRatio);
         
         // If random track is the same as current, try one more time
         if (res.code === 200 && res.data && res.data[0]?.id === currentTrackRef.current?.id) {
-            res = await getLatestTracks(TrackType.MUSIC, true, 1);
+            res = await getRecommendedTracks(TrackType.MUSIC, 1, recommendationLikeRatio);
         }
 
         if (res.code === 200 && res.data && res.data.length > 0) {
@@ -870,7 +870,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsRadioMode(true);
     // Fetch a random track and start playing
     try {
-      const res = await getLatestTracks(TrackType.MUSIC, true, 1);
+      const res = await getRecommendedTracks(TrackType.MUSIC, 1, recommendationLikeRatio);
       if (res.code === 200 && res.data && res.data.length > 0) {
         await playTrack(res.data[0], undefined, true);
       }

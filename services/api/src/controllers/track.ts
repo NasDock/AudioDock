@@ -295,6 +295,36 @@ export class TrackController {
     }
   }
 
+  @Get('/track/recommend')
+  async getRecommendedTracks(
+    @Req() req: Request,
+    @Query('type') type?: TrackType,
+    @Query('pageSize') pageSize?: string,
+    @Query('likeRatio') likeRatio?: string,
+  ): Promise<ISuccessResponse<Track[]> | IErrorResponse> {
+    try {
+      const userId = (req.user as any)?.userId;
+      const limit = pageSize ? parseInt(pageSize, 10) : 8;
+      const ratio = likeRatio ? parseInt(likeRatio, 10) : 50;
+      const tracks = await this.trackService.getRecommendedTracks(
+        userId ? Number(userId) : null,
+        type,
+        limit,
+        ratio,
+      );
+      return {
+        code: 200,
+        message: 'success',
+        data: tracks,
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        message: error,
+      };
+    }
+  }
+
   @Get('/track/artist')
   async getTracksByArtist(
     @Query('artist') artist: string,

@@ -149,6 +149,10 @@ export class SubsonicTrackAdapter implements ITrackAdapter {
       return this.response(tracks);
   }
 
+  async getRecommendedTracks(type?: string, pageSize?: number, likeRatio?: number) {
+      return this.getLatestTracks(type, true, pageSize);
+  }
+
   async getTracksByArtist(artist: string) {
     // search3
     const res = await this.client.get<{searchResult3: { song: SubsonicChild[] }}>("search3", { query: artist, songCount: 50 });

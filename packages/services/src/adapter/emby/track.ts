@@ -193,6 +193,10 @@ export class EmbyTrackAdapter implements ITrackAdapter {
     };
   }
 
+  async getRecommendedTracks(type?: string, pageSize?: number, likeRatio?: number): Promise<ISuccessResponse<Track[]>> {
+    return this.getLatestTracks(type, true, pageSize);
+  }
+
   async getTracksByArtist(artist: string): Promise<ISuccessResponse<Track[]>> {
     const trackType = mediaModeToTrackType();
     const userId = await this.ensureUserId();

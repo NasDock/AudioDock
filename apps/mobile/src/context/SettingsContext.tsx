@@ -8,6 +8,7 @@ interface SettingsState {
   autoOrientation: boolean;
   autoTheme: boolean;
   voiceAssistantEnabled: boolean;
+  recommendationLikeRatio: number;
   eqGains: number[];
 }
 
@@ -26,6 +27,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     autoOrientation: true,
     autoTheme: true,
     voiceAssistantEnabled: false,
+    recommendationLikeRatio: 50,
     eqGains: [0, 0, 0, 0, 0],
   });
   const [isLoading, setIsLoading] = useState(true);

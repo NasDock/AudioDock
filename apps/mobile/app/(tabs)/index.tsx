@@ -33,6 +33,7 @@ import { initBaseURL } from "@/src/https";
 import { Image as ExpoImage } from "expo-image";
 import { CachedImage } from "../../src/components/CachedImage";
 import { useAuth } from "../../src/context/AuthContext";
+import { useSettings } from "../../src/context/SettingsContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { cacheUtils } from "../../src/utils/cache";
 import { getImageUrl } from "../../src/utils/image";
@@ -57,6 +58,7 @@ export default function HomeScreen() {
   } = usePlayer();
   const { mode, setMode } = usePlayMode();
   const { user, sourceType } = useAuth();
+  const { recommendationLikeRatio } = useSettings();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -112,6 +114,7 @@ export default function HomeScreen() {
 
   const isTablet = Device.deviceType === Device.DeviceType.TABLET;
   const pageSize = !isTablet ? 8 : 16;
+  const recommendCacheKey = `home_sections_${mode}_${recommendationLikeRatio}`;
 
   const loadData = useCallback(
     async (forceRefresh = false) => {
@@ -121,7 +124,7 @@ export default function HomeScreen() {
         // Try cache first if not refreshing
         if (!forceRefresh) {
           const cachedSections = await cacheUtils.get<Section[]>(
-            `home_sections_${mode}`,
+            recommendCacheKey,
           );
           if (cachedSections) {
             setSections(cachedSections);
@@ -133,7 +136,7 @@ export default function HomeScreen() {
         const promises: Promise<any>[] = [
           getLatestArtists(mode, true, pageSize),
           getRecentAlbums(mode, true, pageSize),
-          getRecommendedAlbums(mode, true, pageSize),
+          getRecommendedAlbums(mode, true, pageSize, recommendationLikeRatio),
         ];
 
         if (mode === "MUSIC") {
@@ -206,7 +209,7 @@ export default function HomeScreen() {
         }
 
         setSections(newSections);
-        await cacheUtils.set(`home_sections_${mode}`, newSections);
+        await cacheUtils.set(recommendCacheKey, newSections);
       } catch (error) {
         console.error("Failed to load home data:", error);
       } finally {
@@ -214,7 +217,7 @@ export default function HomeScreen() {
         setRefreshing(false);
       }
     },
-    [mode],
+    [mode, recommendationLikeRatio, recommendCacheKey],
   );
 
   useFocusEffect(
@@ -264,7 +267,12 @@ export default function HomeScreen() {
         const res = await getLatestArtists(mode, true, pageSize);
         if (res.code === 200) newData = res.data;
       } else if (sectionId === "recommended") {
-        const res = await getRecommendedAlbums(mode, true, pageSize);
+        const res = await getRecommendedAlbums(
+          mode,
+          true,
+          pageSize,
+          recommendationLikeRatio,
+        );
         if (res.code === 200) newData = res.data;
       } else if (sectionId === "recent") {
         const res = await getRecentAlbums(mode, true, pageSize);

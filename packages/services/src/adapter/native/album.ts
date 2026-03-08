@@ -59,9 +59,9 @@ export class NativeAlbumAdapter implements IAlbumAdapter {
     );
   }
 
-  getRecommendedAlbums(type?: string, random?: boolean, pageSize?: number) {
+  getRecommendedAlbums(type?: string, random?: boolean, pageSize?: number, likeRatio?: number) {
     return request.get<any, ISuccessResponse<Album[]>>("/album/recommend", {
-      params: { type, random, pageSize },
+      params: { type, random, pageSize, likeRatio },
     });
   }
 

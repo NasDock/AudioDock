@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Album, PrismaClient, TrackType } from '@soundx/db';
+import { Album, FileStatus, PrismaClient, TrackType } from '@soundx/db';
 import { toSimplified } from '../common/zh-utils';
 
 @Injectable()
@@ -199,58 +199,87 @@ export class AlbumService {
     return shuffled;
   }
 
-  // 随机推荐：用户未听过的专辑
-  async getRandomUnlistenedAlbums(userId: number, limit = 8, type?: TrackType): Promise<Album[]> {
-    // 1. 获取用户已听过的专辑 ID
-    const listened = await this.prisma.userAlbumHistory.findMany({
+  // 推荐算法：按“喜欢(已听过专辑/歌手)”与“新鲜(未听过专辑)”比例混合
+  async getRandomUnlistenedAlbums(
+    userId: number,
+    limit = 8,
+    type?: TrackType,
+    likeRatio = 50,
+  ): Promise<Album[]> {
+    const safeLikeRatio = this.clampRatio(likeRatio);
+    const likeCountTarget = Math.round((limit * safeLikeRatio) / 100);
+    const freshCountTarget = Math.max(0, limit - likeCountTarget);
+
+    const baseWhere = { status: FileStatus.ACTIVE, ...(type ? { type } : {}) };
+    const allAlbums = await this.prisma.album.findMany({
+      where: baseWhere,
+    });
+    if (allAlbums.length === 0) return [];
+
+    const listenedAlbums = await this.prisma.userAlbumHistory.findMany({
       where: { userId },
       select: { albumId: true },
     });
-    const listenedIds = listened.map((r) => r.albumId);
-    const listenedSet = new Set(listenedIds);
+    const listenedAlbumIdSet = new Set(listenedAlbums.map((a) => a.albumId));
 
-    // 2. 获取所有符合条件的专辑 ID (按类型和状态过滤)
-    const allMatchingAlbums = await this.prisma.album.findMany({
-      where: { status: 'ACTIVE', ...(type ? { type } : {}) },
-      select: { id: true },
-    });
-    const allIds = allMatchingAlbums.map(a => a.id);
+    const [trackHistory, trackLikes, albumLikes] = await Promise.all([
+      this.prisma.userTrackHistory.findMany({
+        where: { userId },
+        select: {
+          track: { select: { album: true, artist: true } },
+        },
+      }),
+      this.prisma.userTrackLike.findMany({
+        where: { userId },
+        select: {
+          track: { select: { album: true, artist: true } },
+        },
+      }),
+      this.prisma.userAlbumLike.findMany({
+        where: { userId },
+        select: {
+          album: { select: { name: true, artist: true } },
+        },
+      }),
+    ]);
 
-    // 3. 区分已听和未听的 ID
-    const unlistenedIds = allIds.filter(id => !listenedSet.has(id));
-    const matchedListenedIds = allIds.filter(id => listenedSet.has(id));
+    const preferredAlbumNames = new Set<string>();
+    const preferredArtists = new Set<string>();
 
-    // 4. 随机选取未听过的 ID
-    const pickedUnlistenedIds = unlistenedIds
-      .sort(() => Math.random() - 0.5)
-      .slice(0, limit);
-
-    // 5. 获取未听过专辑的详情
-    let result = await this.prisma.album.findMany({
-      where: { id: { in: pickedUnlistenedIds } },
-    });
-
-    // 6. 如果未听过的不足，从已听过的里面补充
-    if (result.length < limit) {
-      const needed = limit - result.length;
-      const pickedListenedIds = matchedListenedIds
-        .sort(() => Math.random() - 0.5)
-        .slice(0, needed);
-      
-      const fallbackResult = await this.prisma.album.findMany({
-        where: { id: { in: pickedListenedIds } },
-      });
-      result = [...result, ...fallbackResult];
+    for (const item of trackHistory) {
+      if (item.track?.album) preferredAlbumNames.add(item.track.album);
+      if (item.track?.artist) preferredArtists.add(item.track.artist);
+    }
+    for (const item of trackLikes) {
+      if (item.track?.album) preferredAlbumNames.add(item.track.album);
+      if (item.track?.artist) preferredArtists.add(item.track.artist);
+    }
+    for (const item of albumLikes) {
+      if (item.album?.name) preferredAlbumNames.add(item.album.name);
+      if (item.album?.artist) preferredArtists.add(item.album.artist);
     }
 
-    // 7. 最后随机打乱一次
-    result = result.sort(() => Math.random() - 0.5);
+    const freshPool = allAlbums.filter((album) => !listenedAlbumIdSet.has(album.id));
+    const preferredPool = allAlbums.filter(
+      (album) =>
+        preferredAlbumNames.has(album.name) || preferredArtists.has(album.artist),
+    );
 
+    const selected: Album[] = [];
+    const used = new Set<number>();
+
+    this.pickRandomFromPool(selected, used, freshPool, freshCountTarget);
+    this.pickRandomFromPool(selected, used, preferredPool, likeCountTarget);
+
+    if (selected.length < limit) {
+      this.pickRandomFromPool(selected, used, allAlbums, limit - selected.length);
+    }
+
+    const shuffled = [...selected].sort(() => Math.random() - 0.5);
     if (type === 'AUDIOBOOK') {
-      return await this.attachProgressToAlbums(result, userId);
+      return await this.attachProgressToAlbums(shuffled, userId);
     }
-
-    return result;
+    return shuffled;
   }
 
   // 搜索专辑
@@ -308,6 +337,29 @@ export class AlbumService {
   }
 
   // Helper: Attach progress to audiobook albums
+  private clampRatio(value?: number): number {
+    if (typeof value !== 'number' || Number.isNaN(value)) return 50;
+    return Math.max(0, Math.min(100, Math.round(value)));
+  }
+
+  private pickRandomFromPool(
+    target: Album[],
+    used: Set<number>,
+    pool: Album[],
+    count: number,
+  ) {
+    if (count <= 0 || pool.length === 0) return;
+    const startLength = target.length;
+    const limit = startLength + count;
+    const candidates = [...pool].sort(() => Math.random() - 0.5);
+    for (const item of candidates) {
+      if (target.length >= limit) break;
+      if (used.has(item.id)) continue;
+      used.add(item.id);
+      target.push(item);
+    }
+  }
+
   private async attachProgressToAlbums(albums: Album[], userId: number): Promise<Album[]> {
     if (albums.length === 0) return albums;
 

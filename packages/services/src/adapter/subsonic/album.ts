@@ -80,7 +80,7 @@ export class SubsonicAlbumAdapter implements IAlbumAdapter {
     throw new Error("Batch Delete Album not supported");
   }
 
-  async getRecommendedAlbums(type?: string, random?: boolean, pageSize?: number) {
+  async getRecommendedAlbums(type?: string, random?: boolean, pageSize?: number, likeRatio?: number) {
     // frequent, recent...
     const res = await this.client.get<SubsonicAlbumList>("getAlbumList2", { type: "frequent", size: pageSize || 10 });
     const list = (res.albumList2?.album || []).map(a => mapSubsonicAlbumToAlbum(a, (id) => this.client.getCoverUrl(id)));

@@ -155,7 +155,7 @@ export class EmbyAlbumAdapter implements IAlbumAdapter {
     throw new Error("Not supported for remote source");
   }
 
-  async getRecommendedAlbums(type?: string, random?: boolean, pageSize?: number): Promise<ISuccessResponse<Album[]>> {
+  async getRecommendedAlbums(type?: string, random?: boolean, pageSize?: number, likeRatio?: number): Promise<ISuccessResponse<Album[]>> {
     const mode = mediaModeToTrackType(type);
     const finalUserId = this.normalizeUserId((this.client.getConfig() as any).userId);
     const parentId = await getModeParentId(this.client, type);

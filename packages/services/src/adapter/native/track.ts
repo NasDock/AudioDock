@@ -78,6 +78,12 @@ export class NativeTrackAdapter implements ITrackAdapter {
     });
   }
 
+  getRecommendedTracks(type?: string, pageSize?: number, likeRatio?: number) {
+    return request.get<any, ISuccessResponse<Track[]>>("/track/recommend", {
+      params: { type, pageSize, likeRatio },
+    });
+  }
+
   getTracksByArtist(artist: string) {
     return request.get<any, ISuccessResponse<Track[]>>("/track/artist", {
       params: { artist },

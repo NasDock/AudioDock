@@ -308,10 +308,12 @@ export class AlbumController {
     @Req() req: Request,
     @Query('type') type: TrackType,
     @Query('pageSize') pageSize?: string,
+    @Query('likeRatio') likeRatio?: string,
   ): Promise<ISuccessResponse<Album[]> | IErrorResponse> {
     try {
       const userId = (req.user as any)?.userId;
       const limit = pageSize ? parseInt(pageSize, 10) : 8;
+      const ratio = likeRatio ? parseInt(likeRatio, 10) : 50;
       
       let list: Album[] = [];
       if (userId) {
@@ -319,6 +321,7 @@ export class AlbumController {
           Number(userId),
           limit,
           type,
+          ratio,
         );
       } else {
         // Guest user: just return random albums
