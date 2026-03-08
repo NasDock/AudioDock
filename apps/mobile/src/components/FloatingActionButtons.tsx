@@ -26,6 +26,15 @@ export const FloatingActionButtons: React.FC<FloatingActionButtonsProps> = ({
     flatListRef.current?.scrollToEnd({ animated: true });
   };
 
+  const handleLocatePress = () => {
+    if (!onLocateCurrent || locateDisabled) return;
+    try {
+      onLocateCurrent();
+    } catch (error) {
+      console.warn("[FloatingActionButtons] locate failed:", error);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <TouchableOpacity
@@ -41,7 +50,7 @@ export const FloatingActionButtons: React.FC<FloatingActionButtonsProps> = ({
             styles.button,
             { backgroundColor: colors.card, opacity: locateDisabled ? 0.3 : 1 },
           ]}
-          onPress={onLocateCurrent}
+          onPress={handleLocatePress}
           disabled={locateDisabled}
         >
           <Ionicons name="locate" size={24} color={colors.primary} />

@@ -56,12 +56,20 @@ const SongList = ({
   const handleLocateCurrent = () => {
     if (!currentTrack || !tracks.length) return;
     const index = tracks.findIndex((t) => t.id === currentTrack.id);
-    if (index !== -1) {
-      flatListRef.current?.scrollToIndex({
-        index,
-        animated: true,
-        viewPosition: 0.5,
-      });
+    if (index !== -1 && index < tracks.length) {
+      try {
+        flatListRef.current?.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0.5,
+        });
+      } catch {
+        const estimatedItemHeight = 68;
+        flatListRef.current?.scrollToOffset({
+          offset: Math.max(0, index * estimatedItemHeight),
+          animated: true,
+        });
+      }
     }
   };
 
@@ -300,12 +308,21 @@ const ArtistList = () => {
   const handleLocateCurrent = () => {
     if (!currentTrack || !artists.length) return;
     const index = artists.findIndex((a) => a.name === currentTrack.artist);
-    if (index !== -1) {
-      flatListRef.current?.scrollToIndex({
-        index,
-        animated: true,
-        viewPosition: 0.5,
-      });
+    if (index !== -1 && index < artists.length) {
+      try {
+        flatListRef.current?.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0.5,
+        });
+      } catch {
+        const rowIndex = Math.floor(index / numColumns);
+        const rowHeight = itemWidth + 15;
+        flatListRef.current?.scrollToOffset({
+          offset: Math.max(0, rowIndex * rowHeight),
+          animated: true,
+        });
+      }
     }
   };
 
