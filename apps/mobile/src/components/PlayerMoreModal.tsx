@@ -19,6 +19,7 @@ import { isCached } from "../services/cache";
 import { downloadTrack } from "../services/downloadManager";
 import { AddToPlaylistModal } from "./AddToPlaylistModal";
 import { EqualizerModal } from "./EqualizerModal";
+import { FilePathModal } from "./FilePathModal";
 import { LyricsFontSizeModal } from "./LyricsFontSizeModal";
 import SleepTimerModal from "./SleepTimerModal";
 
@@ -64,6 +65,7 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
   const [isDownloading, setIsDownloading] = useState(false);
   const [lyricsSizeVisible, setLyricsSizeVisible] = useState(false);
   const [eqVisible, setEqVisible] = useState(false);
+  const [trackPathVisible, setTrackPathVisible] = useState(false);
 
   // 跳过片头/片尾 modal 状态
   const [skipModalVisible, setSkipModalVisible] = useState(false);
@@ -243,6 +245,15 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
       onPress: () => {
         setVisible(false);
         setAddToPlaylistVisible(true);
+      },
+      disabled: !currentTrack,
+    },
+    {
+      icon: "document-text-outline" as const,
+      label: "曲目详情",
+      onPress: () => {
+        setVisible(false);
+        setTrackPathVisible(true);
       },
       disabled: !currentTrack,
     },
@@ -658,6 +669,13 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
       <EqualizerModal
         visible={Platform.OS === 'android' && eqVisible}
         onClose={() => setEqVisible(false)}
+      />
+
+      <FilePathModal
+        visible={trackPathVisible}
+        title={currentTrack ? `曲目详情 · ${currentTrack.name}` : "曲目详情"}
+        path={currentTrack?.path}
+        onClose={() => setTrackPathVisible(false)}
       />
     </>
   );

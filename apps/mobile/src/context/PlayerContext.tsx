@@ -58,7 +58,12 @@ interface PlayerContextType {
   position: number;
   duration: number;
   isLoading: boolean;
-  playTrack: (track: Track, initialPosition?: number, fromRadio?: boolean) => Promise<void>;
+  playTrack: (
+    track: Track,
+    initialPosition?: number,
+    fromRadio?: boolean,
+    forceReload?: boolean
+  ) => Promise<void>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
   seekTo: (position: number) => Promise<void>;
@@ -328,15 +333,22 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       if (event.type === Event.PlaybackActiveTrackChanged) {
         // ✨ 当切歌发生（无论是手动还是自动播放下一首）
-        if (event.index !== undefined && trackListRef.current[event.index]) {
-          const nextTrack = trackListRef.current[event.index];
+        if (event.index !== undefined) {
+          const queueTrack = await TrackPlayer.getTrack(event.index);
+          const nextTrack =
+            trackListRef.current.find(
+              (track) => String(track.id) === String((queueTrack as any)?.id)
+            ) || trackListRef.current[event.index];
+          if (!nextTrack) return;
+
           console.log(`[Player] Active track changed to index ${event.index}: ${nextTrack.name}`);
           
           setCurrentTrack(nextTrack);
           isSkippingOutroRef.current = false;
 
           // ✨ 智能预缓存：当当前歌曲开始播放时，自动触发下一首的后台下载
-          const nextIndexForCache = event.index + 1;
+          const currentListIndex = trackListRef.current.findIndex((t) => t.id === nextTrack.id);
+          const nextIndexForCache = currentListIndex + 1;
           if (nextIndexForCache < trackListRef.current.length) {
               const preCacheTrack = trackListRef.current[nextIndexForCache];
               console.log(`[Player] Pre-caching next song: ${preCacheTrack.name}`);
@@ -421,12 +433,21 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       case PlayMode.LOOP_LIST:
         return (currentIndex + 1) % list.length;
       case PlayMode.SHUFFLE:
-        return Math.floor(Math.random() * list.length);
+        return getRandomIndex(list.length, currentIndex);
       case PlayMode.LOOP_SINGLE:
         return currentIndex;
       default:
         return currentIndex + 1 < list.length ? currentIndex + 1 : -1;
     }
+  };
+
+  const getRandomIndex = (listLength: number, excludeIndex: number) => {
+    if (listLength <= 1) return listLength === 1 ? 0 : -1;
+    let randomIndex = Math.floor(Math.random() * listLength);
+    if (randomIndex === excludeIndex) {
+      randomIndex = (randomIndex + 1) % listLength;
+    }
+    return randomIndex;
   };
 
   const getPreviousIndex = (
@@ -435,6 +456,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     list: Track[]
   ) => {
     if (list.length === 0) return -1;
+    if (mode === PlayMode.SHUFFLE) {
+      return getRandomIndex(list.length, currentIndex);
+    }
     if (currentIndex > 0) return currentIndex - 1;
     return list.length - 1;
   };
@@ -507,9 +531,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
     
-    // ✨ 优化：如果已经在用原生队列，手动 playNext 只需调用原生 skipToNext
+    // 非随机模式下，优先使用原生队列切歌，减少重建队列开销
     const queue = await TrackPlayer.getQueue();
-    if (queue.length > 1) {
+    if (playModeRef.current !== PlayMode.SHUFFLE && queue.length > 1) {
         await TrackPlayer.skipToNext();
         return;
     }
@@ -554,6 +578,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     const nextMode = modes[(currentIndex + 1) % modes.length];
     setPlayMode(nextMode);
     await AsyncStorage.setItem(PLAYBACK_MODE_KEY, nextMode);
+    if (nextMode === PlayMode.SHUFFLE && currentTrackRef.current) {
+      await playTrack(currentTrackRef.current, undefined, false, true);
+    }
     savePlaybackState(mode);
   };
 
@@ -595,33 +622,58 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             list.findIndex((t: Track) => t.id === state.currentTrack.id)
           );
 
-          const queue = await Promise.all(
-            list.map(async (track: Track, i: number) => {
-              const isNearCurrent = i === activeIndex || i === activeIndex + 1;
-              const uri = await resolveTrackUri(track, {
-                cacheEnabled,
-                shouldDownload: isNearCurrent,
-                fast: !isNearCurrent,
-              });
-              const artwork = await resolveArtworkUriForPlayer(track, {
-                shouldDownload: isNearCurrent,
-                fast: !isNearCurrent,
-              });
-              return {
-                id: String(track.id),
+          const shouldUseSingleTrackQueue = state.playMode === PlayMode.SHUFFLE;
+          if (shouldUseSingleTrackQueue) {
+            const activeTrack = list[activeIndex];
+            const uri = await resolveTrackUri(activeTrack, {
+              cacheEnabled,
+              shouldDownload: true,
+            });
+            const artwork = await resolveArtworkUriForPlayer(activeTrack, {
+              shouldDownload: true,
+            });
+            await TrackPlayer.setQueue([
+              {
+                id: String(activeTrack.id),
                 url: uri,
-                title: track.name,
-                artist: track.artist,
-                album: track.album || "Unknown Album",
+                title: activeTrack.name,
+                artist: activeTrack.artist,
+                album: activeTrack.album || "Unknown Album",
                 artwork,
-                duration: track.duration || 0,
-                type: track.type,
-              } as any;
-            })
-          );
+                duration: activeTrack.duration || 0,
+                type: activeTrack.type,
+              } as any,
+            ]);
+            await TrackPlayer.skip(0);
+          } else {
+            const queue = await Promise.all(
+              list.map(async (track: Track, i: number) => {
+                const isNearCurrent = i === activeIndex || i === activeIndex + 1;
+                const uri = await resolveTrackUri(track, {
+                  cacheEnabled,
+                  shouldDownload: isNearCurrent,
+                  fast: !isNearCurrent,
+                });
+                const artwork = await resolveArtworkUriForPlayer(track, {
+                  shouldDownload: isNearCurrent,
+                  fast: !isNearCurrent,
+                });
+                return {
+                  id: String(track.id),
+                  url: uri,
+                  title: track.name,
+                  artist: track.artist,
+                  album: track.album || "Unknown Album",
+                  artwork,
+                  duration: track.duration || 0,
+                  type: track.type,
+                } as any;
+              })
+            );
 
-          await TrackPlayer.setQueue(queue);
-          await TrackPlayer.skip(activeIndex);
+            await TrackPlayer.setQueue(queue);
+            await TrackPlayer.skip(activeIndex);
+          }
 
           if (state.position) {
             await TrackPlayer.seekTo(state.position);
@@ -665,14 +717,19 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => clearInterval(interval);
   }, [isPlaying, isSetup, mode]);
 
-  const playTrack = async (track: Track, initialPosition?: number, fromRadio = false) => {
+  const playTrack = async (
+    track: Track,
+    initialPosition?: number,
+    fromRadio = false,
+    forceReload = false
+  ) => {
     if (!isSetup) return;
     if (!fromRadio) {
       setIsRadioMode(false);
     }
     try {
       // ✨ 幂等性检查：如果已经是当前歌曲，且没有大幅度进度偏差，则不重置播放器
-      if (currentTrackRef.current?.id === track.id) {
+      if (!forceReload && currentTrackRef.current?.id === track.id) {
         console.log("[Player] Already playing this track, skipping reset.");
         if (initialPosition !== undefined) {
           await TrackPlayer.seekTo(initialPosition);
@@ -743,36 +800,60 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const playTrackList = async (tracks: Track[], index: number, initialPosition?: number) => {
     setIsRadioMode(false);
     setTrackList(tracks);
-    
-    // ✨ 核心改进：预加载整个列表进入原生队列，但仅触发当前和下一首的下载
-    const playerTracks = await Promise.all(tracks.map(async (t, i) => {
-        // 核心优化：仅当前曲目 (index) 和下一首 (index + 1) 会触发耗时的缓存检查和预下载
-        // 其他歌曲使用 fast 模式直接返回远程 URL，稍后真正切到它们时再由 resolveTrackUri 处理缓存
-        const isNearCurrent = (i === index || i === index + 1);
-        const uri = await resolveTrackUri(t, { 
-            cacheEnabled, 
-            shouldDownload: isNearCurrent,
-            fast: !isNearCurrent 
-        });
-        const artwork = await resolveArtworkUriForPlayer(t, {
-          shouldDownload: isNearCurrent,
-          fast: !isNearCurrent,
-        });
-        return {
-          id: String(t.id),
+    const shouldUseSingleTrackQueue = playModeRef.current === PlayMode.SHUFFLE;
+    if (shouldUseSingleTrackQueue) {
+      const track = tracks[index];
+      const uri = await resolveTrackUri(track, {
+        cacheEnabled,
+        shouldDownload: true,
+      });
+      const artwork = await resolveArtworkUriForPlayer(track, {
+        shouldDownload: true,
+      });
+      await TrackPlayer.setQueue([
+        {
+          id: String(track.id),
           url: uri,
-          title: t.name,
-          artist: t.artist,
-          album: t.album || "Unknown Album",
-          artwork: artwork,
-          duration: t.duration || 0,
-          // ✨ 附加自定义字段，方便背景服务识别
-          type: t.type 
-        } as any;
-    }));
+          title: track.name,
+          artist: track.artist,
+          album: track.album || "Unknown Album",
+          artwork,
+          duration: track.duration || 0,
+          type: track.type,
+        } as any,
+      ]);
+      await TrackPlayer.skip(0);
+    } else {
+      // ✨ 核心改进：预加载整个列表进入原生队列，但仅触发当前和下一首的下载
+      const playerTracks = await Promise.all(tracks.map(async (t, i) => {
+          // 核心优化：仅当前曲目 (index) 和下一首 (index + 1) 会触发耗时的缓存检查和预下载
+          // 其他歌曲使用 fast 模式直接返回远程 URL，稍后真正切到它们时再由 resolveTrackUri 处理缓存
+          const isNearCurrent = (i === index || i === index + 1);
+          const uri = await resolveTrackUri(t, { 
+              cacheEnabled, 
+              shouldDownload: isNearCurrent,
+              fast: !isNearCurrent 
+          });
+          const artwork = await resolveArtworkUriForPlayer(t, {
+            shouldDownload: isNearCurrent,
+            fast: !isNearCurrent,
+          });
+          return {
+            id: String(t.id),
+            url: uri,
+            title: t.name,
+            artist: t.artist,
+            album: t.album || "Unknown Album",
+            artwork: artwork,
+            duration: t.duration || 0,
+            // ✨ 附加自定义字段，方便背景服务识别
+            type: t.type 
+          } as any;
+      }));
 
-    await TrackPlayer.setQueue(playerTracks);
-    await TrackPlayer.skip(index);
+      await TrackPlayer.setQueue(playerTracks);
+      await TrackPlayer.skip(index);
+    }
     
     if (initialPosition !== undefined) {
       await TrackPlayer.seekTo(initialPosition);

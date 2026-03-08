@@ -1,4 +1,5 @@
 import { AddToPlaylistModal } from "@/src/components/AddToPlaylistModal";
+import { FilePathModal } from "@/src/components/FilePathModal";
 import PlayingIndicator from "@/src/components/PlayingIndicator";
 import { useAuth } from "@/src/context/AuthContext";
 import { TrackMoreModal } from "@/src/components/TrackMoreModal";
@@ -43,6 +44,8 @@ export default function ArtistDetailScreen() {
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [moreModalVisible, setMoreModalVisible] = useState(false);
   const [addToPlaylistVisible, setAddToPlaylistVisible] = useState(false);
+  const [filePathVisible, setFilePathVisible] = useState(false);
+  const [propertyTrack, setPropertyTrack] = useState<Track | null>(null);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedTrackIds, setSelectedTrackIds] = useState<(number | string)[]>(
     [],
@@ -485,6 +488,10 @@ export default function ArtistDetailScreen() {
           setSelectedTrack(track);
           setAddToPlaylistVisible(true);
         }}
+        onShowProperties={(track) => {
+          setPropertyTrack(track);
+          setFilePathVisible(true);
+        }}
         onDeleteSuccess={(id) => {
           setTracks(tracks.filter((t) => t.id !== id));
         }}
@@ -496,6 +503,13 @@ export default function ArtistDetailScreen() {
         trackIds={isSelectionMode ? selectedTrackIds : undefined}
         tracks={tracks}
         onClose={() => setAddToPlaylistVisible(false)}
+      />
+
+      <FilePathModal
+        visible={filePathVisible}
+        title={propertyTrack ? `曲目属性 · ${propertyTrack.name}` : "曲目属性"}
+        path={propertyTrack?.path}
+        onClose={() => setFilePathVisible(false)}
       />
     </View>
   );
