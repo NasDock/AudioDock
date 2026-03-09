@@ -3,6 +3,7 @@ import { Image, ScrollView, Text, View } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { useEffect, useState } from 'react';
 import MiniPlayer from '../../components/MiniPlayer';
+import QuickLocate from '../../components/QuickLocate';
 import { usePlayer } from '../../context/PlayerContext';
 import { getBaseURL } from '../../utils/request';
 import './index.scss';
@@ -17,6 +18,7 @@ export default function ArtistDetail() {
   const [collabAlbums, setCollabAlbums] = useState<Album[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scrollIntoView, setScrollIntoView] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -61,6 +63,19 @@ export default function ArtistDetail() {
       return `${m}:${s.toString()}`;
   };
 
+  const scrollToAnchor = (anchorId: string) => {
+    setScrollIntoView('');
+    setTimeout(() => setScrollIntoView(anchorId), 0);
+  };
+
+  const handleLocateCurrent = () => {
+    if (!currentTrack || tracks.length === 0) return;
+    const index = tracks.findIndex((item) => item.id === currentTrack.id);
+    if (index > -1) {
+      scrollToAnchor(`track-${index}`);
+    }
+  };
+
   if (loading) return <View className='loading'><Text>Loading...</Text></View>;
   if (!artist) return <View className='error'><Text>Artist not found</Text></View>;
 
@@ -71,7 +86,8 @@ export default function ArtistDetail() {
                  <Text className='back-icon icon icon-back' />
              </View>
          </View>
-         <ScrollView scrollY className='content-scroll'>
+         <ScrollView scrollY className='content-scroll' scrollWithAnimation scrollIntoView={scrollIntoView}>
+             <View id='top-anchor' />
              <View className='header'>
                  <Image src={getImageUrl(artist.avatar)} className='avatar' mode='aspectFill' />
                  <Text className='name'>{artist.name}</Text>
@@ -124,6 +140,7 @@ export default function ArtistDetail() {
                      {tracks.map((track, index) => (
                          <View 
                             key={track.id} 
+                            id={`track-${index}`}
                             className='track-item'
                             onClick={() => playTrackList(tracks, index)}
                          >
@@ -145,8 +162,15 @@ export default function ArtistDetail() {
              </View>
              
              {/* Padding for MiniPlayer */}
+             <View id='bottom-anchor' />
              <View style={{ height: '160rpx' }}></View>
          </ScrollView>
+         <QuickLocate
+            onTop={() => scrollToAnchor('top-anchor')}
+            onBottom={() => scrollToAnchor('bottom-anchor')}
+            onLocate={handleLocateCurrent}
+            locateDisabled={!currentTrack || !tracks.some((item) => item.id === currentTrack.id)}
+         />
          <MiniPlayer />
     </View>
   );

@@ -129,6 +129,17 @@ export default function Player() {
     Taro.navigateTo({ url: `/pages/album/index?id=${currentTrack.albumId}` });
   };
 
+  const handleShowTrackProperty = async () => {
+    if (!currentTrack) return;
+    setShowMoreMenu(false);
+    await Taro.showModal({
+      title: `曲目属性 · ${currentTrack.name}`,
+      content: currentTrack.path?.trim() || '暂无文件路径',
+      showCancel: false,
+      confirmText: '关闭',
+    });
+  };
+
   const handleSkip = (seconds: number) => {
     const newTime = Math.max(0, Math.min(duration, currentTime + seconds));
     seek(newTime);
@@ -309,6 +320,9 @@ export default function Player() {
                   <Text className='menu-item-text'>专辑详情</Text>
                 </View>
               )}
+              <View className='menu-item' onClick={handleShowTrackProperty}>
+                <Text className='menu-item-text'>属性</Text>
+              </View>
               {mode === 'AUDIOBOOK' && (
                 <View className='menu-section'>
                   <View className='menu-section-title'>

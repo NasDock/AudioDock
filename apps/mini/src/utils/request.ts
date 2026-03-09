@@ -1,4 +1,4 @@
-import { setRequestInstance } from '@soundx/services';
+import { setAsrBaseURL, setRequestInstance } from '@soundx/services';
 import Taro from '@tarojs/taro';
 import axios, { AxiosAdapter, AxiosError, AxiosResponse } from 'axios';
 
@@ -59,6 +59,7 @@ export function getBaseURL(): string {
 export function setBaseURL(url: string) {
   activeBaseURL = url;
   instance.defaults.baseURL = url;
+  setAsrBaseURL(`${url}/asr`);
 }
 
 const instance = axios.create({
@@ -66,6 +67,7 @@ const instance = axios.create({
   timeout: 10000,
   baseURL: activeBaseURL
 })
+setAsrBaseURL(`${activeBaseURL}/asr`);
 
 const messageContent: { [key in number]: string } = {
   0: "未知错误",

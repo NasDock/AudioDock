@@ -21,6 +21,11 @@ export default defineAppConfig({
     navigationBarTitleText: 'SoundX',
     navigationBarTextStyle: 'black'
   },
+  permission: {
+    'scope.record': {
+      desc: '用于语音搜索'
+    }
+  },
   tabBar: {
     color: '#999999',
     selectedColor: '#007aff',
