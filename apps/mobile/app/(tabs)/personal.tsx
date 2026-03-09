@@ -1,39 +1,37 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import {
-    createCompactTask,
-    createImportTask,
-    createPlaylist,
-    getAlbumHistory,
-    getFavoriteAlbums,
-    getFavoriteTracks,
-    getImportTask,
-    getPlaylists,
-    getRunningImportTask,
-    getTrackHistory,
-    plusGetMe,
-    setPlusToken,
-    TaskStatus,
-    type ImportTask
+  createCompactTask,
+  createImportTask,
+  createPlaylist,
+  getAlbumHistory,
+  getFavoriteAlbums,
+  getFavoriteTracks,
+  getImportTask,
+  getPlaylists,
+  getRunningImportTask,
+  getTrackHistory,
+  plusGetMe,
+  setPlusToken,
+  TaskStatus,
+  type ImportTask
 } from "@soundx/services";
-import { Asset } from "expo-asset";
 import { Image as ExpoImage } from "expo-image";
-import * as MediaLibrary from "expo-media-library";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Easing,
-    FlatList,
-    Image,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Easing,
+  FlatList,
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../src/context/AuthContext";
@@ -41,8 +39,8 @@ import { usePlayer } from "../../src/context/PlayerContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { Playlist, Track } from "../../src/models";
 import {
-    getDownloadedTracks,
-    removeDownloadedTrack,
+  getDownloadedTracks,
+  removeDownloadedTrack,
 } from "../../src/services/cache";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
@@ -173,7 +171,6 @@ export default function PersonalScreen() {
 
   // Import task state
   const [menuVisible, setMenuVisible] = useState(false);
-  const [donationModalVisible, setDonationModalVisible] = useState(false);
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importTask, setImportTask] = useState<ImportTask | null>(null);
   const pollTimerRef = React.useRef<any>(null);
@@ -697,12 +694,7 @@ export default function PersonalScreen() {
               </Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            onPress={() => setDonationModalVisible(true)}
-            style={[styles.iconBtn, { marginRight: 10 }]}
-          >
-            <Ionicons name="heart-outline" size={22} color={colors.text} />
-          </TouchableOpacity>
+
           <TouchableOpacity
             onPress={() => router.push("/source-manage" as any)}
             style={[styles.iconBtn, { marginRight: 10 }]}
@@ -1235,81 +1227,7 @@ export default function PersonalScreen() {
         </View>
       </Modal>
 
-      {/* Donation Modal */}
-      <Modal
-        visible={donationModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setDonationModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.importModalOverlay}
-          activeOpacity={1}
-          onPress={() => setDonationModalVisible(false)}
-        >
-          <View
-            style={[
-              styles.importModalContent,
-              { backgroundColor: colors.card, alignItems: "center" },
-            ]}
-          >
-            <Text
-              style={[
-                styles.importModalTitle,
-                { color: colors.text, textAlign: "center" },
-              ]}
-            >
-              赞赏开发者
-            </Text>
 
-            <Text
-              style={{
-                color: colors.secondary,
-                marginBottom: 20,
-                textAlign: "center",
-              }}
-            >
-              如果您觉得 AudioDock 对您有帮助{"\n"}欢迎赞赏支持！
-            </Text>
-
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onLongPress={async () => {
-                try {
-                  const { status } =
-                    await MediaLibrary.requestPermissionsAsync();
-                  if (status === "granted") {
-                    const asset = Asset.fromModule(ctjjLogo);
-                    await asset.downloadAsync();
-                    await MediaLibrary.saveToLibraryAsync(
-                      asset.localUri || asset.uri,
-                    );
-                    Alert.alert("保存成功", "赞赏码已保存到相册");
-                  } else {
-                    Alert.alert("权限不足", "请允许访问相册以保存图片");
-                  }
-                } catch (error) {
-                  Alert.alert("保存失败", "无法保存图片");
-                }
-              }}
-            >
-              <Image
-                source={ctjjLogo}
-                style={{
-                  width: 200,
-                  height: 200,
-                  borderRadius: 10,
-                  marginBottom: 10,
-                }}
-              />
-            </TouchableOpacity>
-
-            <Text style={{ color: colors.secondary, fontSize: 12 }}>
-              长按图片保存或截图到相册
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </View>
   );
 }

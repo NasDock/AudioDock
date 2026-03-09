@@ -1,64 +1,63 @@
 import {
-    AppstoreOutlined,
-    CrownFilled,
-    CrownOutlined,
-    CustomerServiceOutlined,
-    DatabaseOutlined,
-    DeleteOutlined,
-    FolderOutlined,
-    GithubOutlined,
-    HeartOutlined,
-    ImportOutlined,
-    LeftOutlined,
-    LogoutOutlined,
-    MoonOutlined,
-    PlusOutlined,
-    ReadOutlined,
-    ReloadOutlined,
-    RetweetOutlined,
-    RightOutlined,
-    RollbackOutlined,
-    SearchOutlined,
-    SettingOutlined,
-    SunOutlined,
-    WifiOutlined,
+  AppstoreOutlined,
+  CrownFilled,
+  CrownOutlined,
+  CustomerServiceOutlined,
+  DatabaseOutlined,
+  DeleteOutlined,
+  FolderOutlined,
+  GithubOutlined,
+  ImportOutlined,
+  LeftOutlined,
+  LogoutOutlined,
+  MoonOutlined,
+  PlusOutlined,
+  ReadOutlined,
+  ReloadOutlined,
+  RetweetOutlined,
+  RightOutlined,
+  RollbackOutlined,
+  SearchOutlined,
+  SettingOutlined,
+  SunOutlined,
+  WifiOutlined
 } from "@ant-design/icons";
 import {
-    addSearchRecord,
-    check,
-    clearSearchHistory,
-    createCompactTask,
-    createImportTask,
-    getHotSearches,
-    getImportTask,
-    getRunningImportTask,
-    getSearchHistory,
-    plusGetMe,
-    removePlusToken,
-    searchAll,
-    setPlusToken,
-    setServiceConfig,
-    SOURCEMAP,
-    TaskStatus,
-    useNativeAdapter,
-    useSubsonicAdapter,
-    type ImportTask,
-    type SearchResults as SearchResultsType,
+  addSearchRecord,
+  check,
+  clearSearchHistory,
+  createCompactTask,
+  createImportTask,
+  getHotSearches,
+  getImportTask,
+  getRunningImportTask,
+  getSearchHistory,
+  plusGetMe,
+  removePlusToken,
+  searchAll,
+  setPlusToken,
+  setServiceConfig,
+  SOURCEMAP,
+  TaskStatus,
+  useNativeAdapter,
+  useSubsonicAdapter,
+  type ImportTask,
+  type SearchResults as SearchResultsType,
 } from "@soundx/services";
 import {
-    Button,
-    Card,
-    Empty,
-    Flex,
-    Input,
-    Modal,
-    Popover,
-    Progress,
-    Spin,
-    Tag,
-    theme,
-    Tooltip,
-    Typography
+  Button,
+  Card,
+  Empty,
+  Flex,
+  Input,
+  Modal,
+  Popover,
+  Progress,
+  Spin,
+  Tag,
+  theme,
+  Tooltip,
+  Typography
 } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -73,7 +72,6 @@ import { usePlayMode } from "../../utils/playMode";
 import SearchResults from "../SearchResults";
 import styles from "./index.module.less";
 
-import ctjj from "../../assets/ctjj.png";
 import emby from "../../assets/emby.png";
 import logo from "../../assets/logo.png";
 import subsonic from "../../assets/subsonic.png";
@@ -359,7 +357,6 @@ const Header: React.FC = () => {
 
   // Import task state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
   const [importTask, setImportTask] = useState<ImportTask | null>(null);
   const [isPlusVip, setIsPlusVip] = useState(false);
   const [plusVipData, setPlusVipData] = useState<any>(null);
@@ -965,13 +962,7 @@ const Header: React.FC = () => {
                 <DeleteOutlined />
                 精简数据
               </div>
-              <div
-                className={styles.userMenuItem}
-                onClick={() => setIsDonationModalOpen(true)}
-              >
-                <HeartOutlined />
-                赞赏我
-              </div>
+
               <div className={styles.userMenuItem}>
                 <DeleteOutlined />
                 清空缓存文件
@@ -1128,35 +1119,6 @@ const Header: React.FC = () => {
         </div>
       </Modal>
 
-      <Modal
-        title="赞赏开发者"
-        open={isDonationModalOpen}
-        onCancel={() => setIsDonationModalOpen(false)}
-        footer={null}
-        width={340}
-        centered
-      >
-        <div style={{ textAlign: "center", padding: "10px 0" }}>
-          <Typography.Text
-            type="secondary"
-            style={{ marginBottom: 16, display: "block" }}
-          >
-            如果您觉得 AudioDock 对您有帮助
-            <br />
-            欢迎赞赏支持！
-          </Typography.Text>
-          <img
-            src={ctjj}
-            alt="Donation QR Code"
-            style={{
-              width: "100%",
-              maxWidth: 280,
-              borderRadius: 8,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            }}
-          />
-        </div>
-      </Modal>
     </div>
   );
 };
