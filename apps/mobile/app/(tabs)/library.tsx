@@ -36,6 +36,8 @@ interface SongListProps {
   setIsSelectionMode: (value: boolean) => void;
   selectedTrackIds: (number | string)[];
   setSelectedTrackIds: (value: (number | string)[]) => void;
+  heartbeatModeActive: boolean;
+  onToggleHeartbeatMode: () => void;
 }
 
 const SongList = ({
@@ -43,6 +45,8 @@ const SongList = ({
   setIsSelectionMode,
   selectedTrackIds,
   setSelectedTrackIds,
+  heartbeatModeActive,
+  onToggleHeartbeatMode,
 }: SongListProps) => {
   const { colors } = useTheme();
   const { mode } = usePlayMode();
@@ -75,7 +79,7 @@ const SongList = ({
 
   useEffect(() => {
     loadTracks();
-  }, [mode]);
+  }, [mode, heartbeatModeActive]);
 
   const loadTracks = async () => {
     try {
@@ -84,6 +88,7 @@ const SongList = ({
         pageSize: 2000,
         loadCount: 0,
         type: mode,
+        sortBy: heartbeatModeActive ? "heartbeat" : undefined,
       });
 
       if (res.code === 200 && res.data) {
@@ -91,7 +96,11 @@ const SongList = ({
         const mappedTracks = list.map((item: any) =>
           item.track ? item.track : item,
         );
-        setTracks(mappedTracks.sort((a, b) => a.name.localeCompare(b.name)));
+        setTracks(
+          heartbeatModeActive
+            ? mappedTracks
+            : mappedTracks.sort((a, b) => a.name.localeCompare(b.name)),
+        );
       }
     } catch (error) {
       console.error("Failed to load tracks:", error);
@@ -290,12 +299,21 @@ const SongList = ({
         locateDisabled={
           !currentTrack || !tracks.some((t) => t.id === currentTrack.id)
         }
+        showHeartbeatMode={mode === "MUSIC"}
+        heartbeatModeActive={heartbeatModeActive}
+        onToggleHeartbeatMode={onToggleHeartbeatMode}
       />
     </>
   );
 };
 
-const ArtistList = () => {
+const ArtistList = ({
+  heartbeatModeActive,
+  onToggleHeartbeatMode,
+}: {
+  heartbeatModeActive: boolean;
+  onToggleHeartbeatMode: () => void;
+}) => {
   const { colors } = useTheme();
   const router = useRouter();
   const { mode } = usePlayMode();
@@ -336,16 +354,25 @@ const ArtistList = () => {
 
   useEffect(() => {
     loadArtists();
-  }, [mode]);
+  }, [mode, heartbeatModeActive]);
 
   const loadArtists = async () => {
     try {
       setLoading(true);
-      const res = await getArtistList(1000, 0, mode);
+      const res = await getArtistList(
+        1000,
+        0,
+        mode,
+        heartbeatModeActive ? "heartbeat" : undefined,
+      );
 
       if (res.code === 200 && res.data) {
         const { list } = res.data;
-        setArtists(list.sort((a, b) => a.name.localeCompare(b.name)));
+        setArtists(
+          heartbeatModeActive
+            ? list
+            : list.sort((a, b) => a.name.localeCompare(b.name)),
+        );
       }
     } catch (error) {
       console.error("Failed to load artists:", error);
@@ -434,12 +461,21 @@ const ArtistList = () => {
           !currentTrack || !artists.some((a) => a.name === currentTrack.artist)
         }
         onLocateCurrent={handleLocateCurrent}
+        showHeartbeatMode={mode === "MUSIC"}
+        heartbeatModeActive={heartbeatModeActive}
+        onToggleHeartbeatMode={onToggleHeartbeatMode}
       />
     </View>
   );
 };
 
-const AlbumList = () => {
+const AlbumList = ({
+  heartbeatModeActive,
+  onToggleHeartbeatMode,
+}: {
+  heartbeatModeActive: boolean;
+  onToggleHeartbeatMode: () => void;
+}) => {
   const { colors } = useTheme();
   const router = useRouter();
   const { mode } = usePlayMode();
@@ -484,7 +520,7 @@ const AlbumList = () => {
 
   useEffect(() => {
     loadAlbums();
-  }, [mode]);
+  }, [mode, heartbeatModeActive]);
 
   const loadAlbums = async () => {
     try {
@@ -493,11 +529,16 @@ const AlbumList = () => {
         pageSize: 1000,
         loadCount: 0,
         type: mode,
+        sortBy: heartbeatModeActive ? "heartbeat" : undefined,
       });
 
       if (res.code === 200 && res.data) {
         const { list } = res.data;
-        setAlbums(list.sort((a, b) => a.name.localeCompare(b.name)));
+        setAlbums(
+          heartbeatModeActive
+            ? list
+            : list.sort((a, b) => a.name.localeCompare(b.name)),
+        );
       }
     } catch (error) {
       console.error("Failed to load albums:", error);
@@ -613,6 +654,9 @@ const AlbumList = () => {
         }
         flatListRef={flatListRef}
         onLocateCurrent={handleLocateCurrent}
+        showHeartbeatMode={mode === "MUSIC"}
+        heartbeatModeActive={heartbeatModeActive}
+        onToggleHeartbeatMode={onToggleHeartbeatMode}
       />
     </View>
   );
@@ -632,6 +676,7 @@ export default function LibraryScreen() {
   const [selectedTrackIds, setSelectedTrackIds] = useState<(number | string)[]>(
     [],
   );
+  const [heartbeatModeActive, setHeartbeatModeActive] = useState(false);
   const swingAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -667,6 +712,12 @@ export default function LibraryScreen() {
       setSelectedTrackIds([]);
     }
   }, [mode, activeTab]);
+
+  useEffect(() => {
+    if (mode !== "MUSIC" && heartbeatModeActive) {
+      setHeartbeatModeActive(false);
+    }
+  }, [mode, heartbeatModeActive]);
 
   return (
     <View
@@ -734,13 +785,17 @@ export default function LibraryScreen() {
                         pageSize: 2000,
                         loadCount: 0,
                         type: "MUSIC",
+                        sortBy: heartbeatModeActive ? "heartbeat" : undefined,
                       });
                       if (res.code === 200 && res.data) {
                         const list = res.data.list;
                         const tracks = list.map((item: any) =>
                           item.track ? item.track : item,
                         );
-                        playTrackList(tracks, 0);
+                        const finalTracks = heartbeatModeActive
+                          ? tracks
+                          : tracks.sort((a, b) => a.name.localeCompare(b.name));
+                        playTrackList(finalTracks, 0);
                       }
                     }}
                     style={[
@@ -868,11 +923,25 @@ export default function LibraryScreen() {
           setIsSelectionMode={setIsSelectionMode}
           selectedTrackIds={selectedTrackIds}
           setSelectedTrackIds={setSelectedTrackIds}
+          heartbeatModeActive={heartbeatModeActive}
+          onToggleHeartbeatMode={() =>
+            setHeartbeatModeActive((prev) => !prev)
+          }
         />
       ) : activeTab === "artists" ? (
-        <ArtistList />
+        <ArtistList
+          heartbeatModeActive={heartbeatModeActive}
+          onToggleHeartbeatMode={() =>
+            setHeartbeatModeActive((prev) => !prev)
+          }
+        />
       ) : (
-        <AlbumList />
+        <AlbumList
+          heartbeatModeActive={heartbeatModeActive}
+          onToggleHeartbeatMode={() =>
+            setHeartbeatModeActive((prev) => !prev)
+          }
+        />
       )}
     </View>
   );

@@ -8,6 +8,9 @@ interface FloatingActionButtonsProps {
   onLocateCurrent?: () => void;
   showLocate?: boolean;
   locateDisabled?: boolean;
+  onToggleHeartbeatMode?: () => void;
+  heartbeatModeActive?: boolean;
+  showHeartbeatMode?: boolean;
 }
 
 export const FloatingActionButtons: React.FC<FloatingActionButtonsProps> = ({
@@ -15,6 +18,9 @@ export const FloatingActionButtons: React.FC<FloatingActionButtonsProps> = ({
   onLocateCurrent,
   showLocate = true,
   locateDisabled = false,
+  onToggleHeartbeatMode,
+  heartbeatModeActive = false,
+  showHeartbeatMode = false,
 }) => {
   const { colors } = useTheme();
 
@@ -54,6 +60,26 @@ export const FloatingActionButtons: React.FC<FloatingActionButtonsProps> = ({
           disabled={locateDisabled}
         >
           <Ionicons name="locate" size={24} color={colors.primary} />
+        </TouchableOpacity>
+      )}
+
+      {showHeartbeatMode && onToggleHeartbeatMode && (
+        <TouchableOpacity
+          style={[
+            styles.button,
+            {
+              backgroundColor: heartbeatModeActive
+                ? colors.primary
+                : colors.card,
+            },
+          ]}
+          onPress={onToggleHeartbeatMode}
+        >
+          <Ionicons
+            name={heartbeatModeActive ? "heart" : "heart-outline"}
+            size={24}
+            color={heartbeatModeActive ? colors.background : colors.primary}
+          />
         </TouchableOpacity>
       )}
 
