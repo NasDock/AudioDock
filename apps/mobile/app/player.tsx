@@ -28,6 +28,7 @@ import { PlayerMoreModal } from "../src/components/PlayerMoreModal";
 import { PlaylistModal } from "../src/components/PlaylistModal";
 import SyncModal from "../src/components/SyncModal";
 import { isCached } from "../src/services/cache";
+import { useSettings } from "@/src/context/SettingsContext";
 
 const { width } = Dimensions.get("window");
 
@@ -35,6 +36,11 @@ const { width } = Dimensions.get("window");
 interface LyricLine {
   time: number;
   text: string;
+}
+
+interface PlayerDetailViewProps {
+  embedded?: boolean;
+  renderPlaylistModal?: boolean;
 }
 
 export const parseLyrics = (lyrics: string): LyricLine[] => {
@@ -144,10 +150,14 @@ const AnimatedLyricLine = ({
   );
 };
 
-export default function PlayerScreen() {
+export function PlayerDetailView({
+  embedded = false,
+  renderPlaylistModal = true,
+}: PlayerDetailViewProps) {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { carModeEnabled } = useSettings();
   const top = insets.top;
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
@@ -408,17 +418,19 @@ export default function PlayerScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Text style={{ color: colors.text }}>No track playing</Text>
-        <TouchableOpacity
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace("/(tabs)");
-            }
-          }}
-        >
-          <Text style={{ color: colors.primary, marginTop: 20 }}>Go Back</Text>
-        </TouchableOpacity>
+        {!embedded && (
+          <TouchableOpacity
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace("/(tabs)");
+              }
+            }}
+          >
+            <Text style={{ color: colors.primary, marginTop: 20 }}>Go Back</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -561,7 +573,7 @@ export default function PlayerScreen() {
           lyricFontSize={lyricFontSize}
           setLyricFontSize={setLyricFontSize}
         />
-        <PlaylistModal />
+        {renderPlaylistModal && <PlaylistModal />}
         {currentTrack.type !== TrackType.AUDIOBOOK && (
           <TouchableOpacity
             onPress={() => {
@@ -684,7 +696,7 @@ export default function PlayerScreen() {
     </View>
   );
 
-  if (isLandscape) {
+  if (isLandscape && !carModeEnabled) {
     return (
       <View
         style={[
@@ -699,18 +711,20 @@ export default function PlayerScreen() {
         <View style={styles.landscapeContainer}>
           <View style={[styles.landscapeLeft]}>
             <View style={styles.landscapeBackBtn}>
-              <TouchableOpacity
-                onPress={() => {
-                  if (router.canGoBack()) {
-                    router.back();
-                  } else {
-                    router.replace("/(tabs)");
-                  }
-                }}
-                style={styles.landscapeBackBtn}
-              >
-                <Ionicons name="chevron-down" size={30} color={colors.text} />
-              </TouchableOpacity>
+              {!embedded && (
+                <TouchableOpacity
+                  onPress={() => {
+                    if (router.canGoBack()) {
+                      router.back();
+                    } else {
+                      router.replace("/(tabs)");
+                    }
+                  }}
+                  style={styles.landscapeBackBtn}
+                >
+                  <Ionicons name="chevron-down" size={30} color={colors.text} />
+                </TouchableOpacity>
+              )}
             </View>
             <TouchableOpacity
               onPress={() => {
@@ -823,27 +837,29 @@ export default function PlayerScreen() {
         { backgroundColor: colors.background, paddingTop: insets.top },
       ]}
     >
-      <View style={[styles.header, { top }]}>
-        <TouchableOpacity
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace("/(tabs)");
-            }
-          }}
-          style={styles.headerButton}
-        >
-          <Ionicons name="chevron-down" size={30} color={colors.text} />
-        </TouchableOpacity>
+      {!embedded && (
+        <View style={[styles.header, { top }]}>
+          <TouchableOpacity
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace("/(tabs)");
+              }
+            }}
+            style={styles.headerButton}
+          >
+            <Ionicons name="chevron-down" size={30} color={colors.text} />
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => setMoreModalVisible(true)}
-        >
-          <Ionicons name="ellipsis-vertical" size={24} color={colors.text} />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => setMoreModalVisible(true)}
+          >
+            <Ionicons name="ellipsis-vertical" size={24} color={colors.text} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={styles.content}>
         <View style={{ flex: 1, width: "100%", justifyContent: "center" }}>
@@ -940,6 +956,10 @@ export default function PlayerScreen() {
       </View>
     </View>
   );
+}
+
+export default function PlayerScreen() {
+  return <PlayerDetailView />;
 }
 
 const styles = StyleSheet.create({

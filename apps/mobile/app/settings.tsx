@@ -24,87 +24,53 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, theme, toggleTheme, setTheme } = useTheme();
   const { mode, setMode } = usePlayMode();
-  const { logout, user, sourceType, setPlusToken, plusToken } = useAuth();
+  const { logout, user, sourceType, plusToken } = useAuth();
   const {
     acceptRelay,
     acceptSync,
     cacheEnabled,
     autoOrientation,
     autoTheme,
+    carModeEnabled,
+    carLayoutMode,
     voiceAssistantEnabled,
     recommendationLikeRatio,
     updateSetting,
   } = useSettings();
-  const [detailedSizes, setDetailedSizes] = React.useState<{
-    covers: string;
-    music: string;
-    audiobooks: string;
-    apks: string;
-  }>({
-    covers: "0 B",
-    music: "0 B",
-    audiobooks: "0 B",
-    apks: "0 B",
-  });
 
-  const formatSize = (size: number) => {
-    if (size === 0) return "0 B";
-    if (size < 1024) return `${size} B`;
-    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-    if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-    return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-  };
-
-  const fetchCacheSize = async () => {
-    const sizes = await getDetailedCacheSize();
-    setDetailedSizes({
-      covers: formatSize(sizes.covers),
-      music: formatSize(sizes.music),
-      audiobooks: formatSize(sizes.audiobooks),
-      apks: formatSize(sizes.apks),
-    });
-  };
+  const [cacheSize, setCacheSize] = React.useState<string>("0 B");
+  const [localVersion, setLocalVersion] = React.useState<string>("");
 
   React.useEffect(() => {
-    fetchCacheSize();
+    const loadCacheSize = async () => {
+      const size = await getDetailedCacheSize();
+      setCacheSize(size);
+    };
+    loadCacheSize();
+    getLocalVersion().then(setLocalVersion);
   }, []);
 
-  const handleClearCache = async (category: 'covers' | 'music' | 'audiobooks' | 'apks', label: string) => {
-    Alert.alert("清除缓存", `确定要清除${label}缓存吗？`, [
+  const handleClearCache = async () => {
+    Alert.alert("确认", "确定要清空缓存吗？", [
       { text: "取消", style: "cancel" },
       {
-        text: "确定",
+        text: "清空",
+        style: "destructive",
         onPress: async () => {
-          await clearSpecificCache(category);
-          await fetchCacheSize();
-          Alert.alert("已清除", `${label}缓存已清空`);
+          await clearSpecificCache("all");
+          const size = await getDetailedCacheSize();
+          setCacheSize(size);
         },
       },
     ]);
   };
 
-  const renderCacheRow = (label: string, size: string, category: 'covers' | 'music' | 'audiobooks' | 'apks') => (
-    <TouchableOpacity
-      style={[styles.settingRow, { borderBottomColor: colors.border }]}
-      onPress={() => handleClearCache(category, label)}
-    >
-      <View style={styles.settingInfo}>
-        <Text style={[styles.settingLabel, { color: colors.text }]}>
-          {label} ({size})
-        </Text>
-        <Text style={[styles.settingDescription, { color: colors.secondary }]}>
-          点击清除
-        </Text>
-      </View>
-      <Ionicons name="trash-outline" size={20} color={colors.secondary} />
-    </TouchableOpacity>
-  );
-
   const renderSettingRow = (
     label: string,
     description: string,
     value: boolean,
-    onValueChange: (val: boolean) => void
+    onValueChange: (val: boolean) => void,
+    disabled?: boolean
   ) => (
     <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
       <View style={styles.settingInfo}>
@@ -118,202 +84,269 @@ export default function SettingsScreen() {
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: "#767577", true: colors.primary }}
-        thumbColor={"#f4f3f4"}
+        disabled={disabled}
+        trackColor={{ false: colors.border, true: colors.primary }}
+        thumbColor={colors.card}
       />
     </View>
   );
 
+  const handleToggleCarMode = (val: boolean) => {
+    if (val && !plusToken) {
+      Alert.alert("会员功能", "车机模式为会员权益，请先登录/开通会员。", [
+        { text: "取消", style: "cancel" },
+        { text: "去开通", onPress: () => router.push("/member-benefits" as any) },
+      ]);
+      return;
+    }
+    void updateSetting("carModeEnabled", val);
+  };
+
+  const handleToggleCarLayoutMode = (val: boolean) => {
+    if (val && !plusToken) {
+      Alert.alert("会员功能", "车机布局模式为会员权益，请先登录/开通会员。", [
+        { text: "取消", style: "cancel" },
+        { text: "去开通", onPress: () => router.push("/member-benefits" as any) },
+      ]);
+      return;
+    }
+    void updateSetting("carLayoutMode", val);
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Ionicons name="chevron-back" size={28} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>设置</Text>
-        <View style={{ width: 40 }} />
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+    >
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          播放设置
+        </Text>
+
+        {renderSettingRow(
+          "切换音乐与有声书的显示内容",
+          mode === "AUDIOBOOK",
+          (val) => setMode(val ? "AUDIOBOOK" : "MUSIC")
+        )}
+
+        {renderSettingRow(
+          "接力播放",
+          "是否接受多设备之间播放接力",
+          acceptRelay,
+          (val) => updateSetting("acceptRelay", val)
+        )}
+
+        {renderSettingRow(
+          "同步控制",
+          "是否接受同数据源下其他用户的同步控制请求",
+          acceptSync,
+          (val) => updateSetting("acceptSync", val)
+        )}
+
+        {renderSettingRow(
+          "自动横竖屏",
+          "开启后应用将跟随手机重力感应自动旋转",
+          autoOrientation,
+          (val) => updateSetting("autoOrientation", val)
+        )}
+
+        {renderSettingRow(
+          "车机模式",
+          "播放器使用大按钮和简化交互，更适合驾驶场景",
+          carModeEnabled,
+          handleToggleCarMode
+        )}
+
+        {renderSettingRow(
+          "车机布局模式",
+          "左侧固定播放器(9:16)，右侧显示其他页面和导航",
+          carLayoutMode,
+          handleToggleCarLayoutMode
+        )}
+
+        {renderSettingRow(
+          "语音助手",
+          "开启后显示全局语音助手小松鼠",
+          voiceAssistantEnabled,
+          (val) => updateSetting("voiceAssistantEnabled", val)
+        )}
+
+        <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
+          <View style={styles.settingInfo}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>
+              推荐偏好（喜欢/新鲜）
+            </Text>
+            <Text style={[styles.settingDescription, { color: colors.secondary }]}>
+              调整推荐算法中喜欢与新鲜内容的比例
+            </Text>
+          </View>
+          <Slider
+            value={recommendationLikeRatio}
+            onValueChange={(value) =>
+              updateSetting("recommendationLikeRatio", Array.isArray(value) ? value[0] : value)
+            }
+            minimumValue={0}
+            maximumValue={100}
+            step={10}
+            containerStyle={{ width: 120 }}
+            minimumTrackTintColor={colors.primary}
+            maximumTrackTintColor={colors.border}
+            thumbTintColor={colors.primary}
+          />
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.primary }]}>
-              账户
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          缓存管理
+        </Text>
+
+        <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
+          <View style={styles.settingInfo}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>
+              缓存大小
             </Text>
+            <Text style={[styles.settingDescription, { color: colors.secondary }]}>
+              当前已缓存 {cacheSize}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={handleClearCache}>
+            <Text style={{ color: colors.primary, fontWeight: "600" }}>
+              清空
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-            {user?.is_admin && (
-              <TouchableOpacity
-                style={[
-                  styles.settingRow,
-                  { borderBottomColor: colors.border },
-                ]}
-                onPress={() => router.push("/admin")}
-              >
-                <View style={styles.settingInfo}>
-                  <Text style={[styles.settingLabel, { color: colors.text }]}>
-                    管理后台
-                  </Text>
-                  <Text
-                    style={[
-                      styles.settingDescription,
-                      { color: colors.secondary },
-                    ]}
-                  >
-                    用户与系统设置
-                  </Text>
-                </View>
-                <Ionicons
-                  name="settings-outline"
-                  size={20}
-                  color={colors.secondary}
-                />
-              </TouchableOpacity>
-            )}
+        {renderSettingRow(
+          "启用缓存",
+          "开启后会将部分数据缓存到本地，提升加载速度",
+          cacheEnabled,
+          (val) => updateSetting("cacheEnabled", val)
+        )}
+      </View>
 
-          <Text style={[styles.sectionTitle, { color: colors.primary, marginTop: 20 }]}>
-            关于
-          </Text>
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          主题设置
+        </Text>
+
+        <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
+          <View style={styles.settingInfo}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>
+              当前主题
+            </Text>
+            <Text style={[styles.settingDescription, { color: colors.secondary }]}>
+              {theme === "dark" ? "深色" : "浅色"}
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => setTheme("light")}
+              style={[
+                styles.themeButton,
+                {
+                  backgroundColor:
+                    theme === "light" ? colors.primary : colors.card,
+                },
+              ]}
+            >
+              <Ionicons
+                name="sunny"
+                size={20}
+                color={theme === "light" ? colors.card : colors.text}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setTheme("dark")}
+              style={[
+                styles.themeButton,
+                {
+                  backgroundColor:
+                    theme === "dark" ? colors.primary : colors.card,
+                },
+              ]}
+            >
+              <Ionicons
+                name="moon"
+                size={20}
+                color={theme === "dark" ? colors.card : colors.text}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={toggleTheme}
+              style={[styles.themeButton, { backgroundColor: colors.card }]}
+            >
+              <Ionicons name="sync" size={20} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {renderSettingRow(
+          "自动主题",
+          "根据系统设置自动切换深色/浅色主题",
+          autoTheme,
+          (val) => updateSetting("autoTheme", val)
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          关于
+        </Text>
+
+        <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
+          <View style={styles.settingInfo}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>
+              版本
+            </Text>
+            <Text style={[styles.settingDescription, { color: colors.secondary }]}>
+              {localVersion}
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.settingRow, { borderBottomColor: colors.border }]}
+          onPress={() => router.push("/admin" as any)}
+        >
+          <View style={styles.settingInfo}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>
+              管理后台
+            </Text>
+            <Text style={[styles.settingDescription, { color: colors.secondary }]}>
+              查看系统状态和管理用户
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.secondary} />
+        </TouchableOpacity>
+
+        {user && (
           <TouchableOpacity
             style={[styles.settingRow, { borderBottomColor: colors.border }]}
-            onPress={() => router.push("/product-updates")}
-          >
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>
-                产品动态
-              </Text>
-              <Text style={[styles.settingDescription, { color: colors.secondary }]}>
-                查看最新功能与版本更新
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.secondary} />
-          </TouchableOpacity>
-
-          <Text style={[styles.sectionTitle, { color: colors.primary, marginTop: 20 }]}>
-            通用
-          </Text>
-
-          {renderSettingRow(
-            "跟随系统主题",
-            "开启后将根据系统设置自动切换浅色/深色模式",
-            autoTheme,
-            (val) => updateSetting("autoTheme", val)
-          )}
-
-          <View style={{ opacity: autoTheme ? 0.5 : 1 }}>
-            {renderSettingRow(
-              "深色模式",
-              "开启或关闭应用的深色外观",
-              theme === "dark",
-              autoTheme ? () => {} : toggleTheme
-            )}
-
-            {renderSettingRow(
-              "春日主题",
-              "开启具有新春氛围的红金配色主题",
-              theme === "festive",
-              autoTheme ? () => {} : (val) => setTheme(val ? "festive" : "light")
-            )}
-          </View>
-
-          {renderSettingRow(
-            "自动横竖屏",
-            "开启后应用将跟随手机重力感应自动旋转",
-            autoOrientation,
-            (val) => updateSetting("autoOrientation", val)
-          )}
-
-          {renderSettingRow(
-            "语音助手",
-            "开启后显示全局语音助手小松鼠",
-            voiceAssistantEnabled,
-            (val) => updateSetting("voiceAssistantEnabled", val)
-          )}
-
-          <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>
-                推荐偏好（喜欢/新鲜）
-              </Text>
-              <Text style={[styles.settingDescription, { color: colors.secondary }]}>
-                喜欢 {recommendationLikeRatio}% · 新鲜 {100 - recommendationLikeRatio}%
-              </Text>
-              <Slider
-                minimumValue={0}
-                maximumValue={100}
-                step={5}
-                value={[recommendationLikeRatio]}
-                onValueChange={(val) =>
-                  void updateSetting("recommendationLikeRatio", Math.round(val[0] || 0))
-                }
-                minimumTrackTintColor={colors.primary}
-                maximumTrackTintColor={colors.border}
-                thumbTintColor={colors.primary}
-                containerStyle={styles.ratioSlider}
-              />
-            </View>
-          </View>
-
-{sourceType !== "Subsonic" && renderSettingRow(
-  "有声书模式",
-  "切换音乐与有声书的显示内容",
-  mode === "AUDIOBOOK",
-  (val) => setMode(val ? "AUDIOBOOK" : "MUSIC")
-)}
-
-          {renderSettingRow(
-            "接力播放",
-            "是否接受多设备之间播放接力",
-            acceptRelay,
-            (val) => updateSetting("acceptRelay", val)
-          )}
-
-          {renderSettingRow(
-            "同步控制",
-            "是否接受同数据源下其他用户的同步控制请求",
-            acceptSync,
-            (val) => updateSetting("acceptSync", val)
-          )}
-
-          {renderSettingRow(
-            "边听边存",
-            "播放时自动缓存到本地，下次播放优先使用本地文件",
-            cacheEnabled,
-            (val) => updateSetting("cacheEnabled", val)
-          )}
-
-          <Text style={[styles.sectionTitle, { color: colors.primary, marginTop: 20 }]}>
-            存储管理
-          </Text>
-          {renderCacheRow("封面缓存", detailedSizes.covers, "covers")}
-          {renderCacheRow("音乐缓存", detailedSizes.music, "music")}
-          {renderCacheRow("有声书缓存", detailedSizes.audiobooks, "audiobooks")}
-          {renderCacheRow("安装包文件", detailedSizes.apks, "apks")}
-        </View>
-
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.logoutButton}
             onPress={() => {
-              logout();
-              router.replace({
-                pathname: "/login-form",
-                params: { type: sourceType },
-              } as any);
+              Alert.alert("确认退出", "确定要退出登录吗？", [
+                { text: "取消", style: "cancel" },
+                {
+                  text: "退出",
+                  style: "destructive",
+                  onPress: logout,
+                },
+              ]);
             }}
           >
-            <Text style={styles.logoutText}>退出/切换服务端账号</Text>
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                退出登录
+              </Text>
+              <Text style={[styles.settingDescription, { color: colors.secondary }]}>
+                {user.name} ({sourceType})
+              </Text>
+            </View>
+            <Ionicons name="log-out-outline" size={20} color={colors.secondary} />
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={[styles.versionText, { color: colors.secondary }]}>
-            AudioDock Mobile v{getLocalVersion()}
-          </Text>
-        </View>
-      </ScrollView>
-    </View>
+        )}
+      </View>
+    </ScrollView>
   );
 }
 
@@ -321,77 +354,38 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 15,
-    paddingBottom: 15,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  backButton: {
-    padding: 5,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
   section: {
-    marginTop: 30,
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "600",
     marginBottom: 10,
-    opacity: 0.6,
-    textTransform: "uppercase",
   },
   settingRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 15,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
   },
   settingInfo: {
     flex: 1,
-    marginRight: 20,
+    marginRight: 10,
   },
   settingLabel: {
-    fontSize: 17,
-    fontWeight: "500",
-    marginBottom: 4,
+    fontSize: 16,
+    marginBottom: 2,
   },
   settingDescription: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  logoutButton: {
-    marginTop: 20,
-    backgroundColor: "#FF3B30",
-    paddingVertical: 15,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  logoutText: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "600",
-  },
-  footer: {
-    marginTop: 50,
-    alignItems: "center",
-  },
-  ratioSlider: {
-    width: "100%",
-    height: 28,
-    marginTop: 8,
-    marginBottom: -4,
-  },
-  versionText: {
     fontSize: 12,
+  },
+  themeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

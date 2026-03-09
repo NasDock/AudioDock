@@ -1,17 +1,20 @@
 import { useAuth } from "@/src/context/AuthContext";
+import { useSettings } from "@/src/context/SettingsContext";
 import { initBaseURL } from "@/src/https";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomTabBar } from "@react-navigation/bottom-tabs";
 import { check } from "@soundx/services";
 import { Tabs } from "expo-router";
 import React, { useEffect } from "react";
-import { Platform, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
+import { PlayerDetailView } from "../player";
 import { MiniPlayer } from "../../src/components/MiniPlayer";
 import { useTheme } from "../../src/context/ThemeContext";
 
 export default function TabLayout() {
   const { colors } = useTheme();
   const { logout } = useAuth();
+  const { carModeEnabled } = useSettings();
 
   useEffect(() => {
     initBaseURL().then(() => {
@@ -23,11 +26,11 @@ export default function TabLayout() {
     });
   }, []);
 
-  return (
+  const renderTabs = (showMiniPlayer: boolean) => (
     <Tabs
       tabBar={(props) => (
         <View>
-          <MiniPlayer />
+          {showMiniPlayer && <MiniPlayer />}
           <BottomTabBar {...props} />
         </View>
       )}
@@ -76,4 +79,32 @@ export default function TabLayout() {
       />
     </Tabs>
   );
+
+  if (carModeEnabled) {
+    return (
+      <View style={[styles.carModeContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.leftPlayerPanel, { borderRightColor: colors.border }]}>
+          <PlayerDetailView embedded renderPlaylistModal={false} />
+        </View>
+        <View style={styles.rightContent}>{renderTabs(false)}</View>
+      </View>
+    );
+  }
+
+  return renderTabs(true);
 }
+
+const styles = StyleSheet.create({
+  carModeContainer: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  leftPlayerPanel: {
+    height: "100%",
+    aspectRatio: 9 / 16,
+    borderRightWidth: StyleSheet.hairlineWidth,
+  },
+  rightContent: {
+    flex: 1,
+  },
+});
