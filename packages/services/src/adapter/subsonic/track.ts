@@ -104,6 +104,7 @@ export class SubsonicTrackAdapter implements ITrackAdapter {
     pageSize: number;
     loadCount: number;
     type?: string;
+    sortBy?: string;
   }) {
       const tracks = await this.getAllTracks();
      // Similar limitation.

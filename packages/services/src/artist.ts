@@ -3,13 +3,14 @@ import type {
   Artist
 } from "./models";
   
-  export const getArtistList = (
-    pageSize: number,
-    loadCount: number,
-    type?: string
-  ) => {
-    return getAdapter().artist.getArtistList(pageSize, loadCount, type);
-  };
+export const getArtistList = (
+  pageSize: number,
+  loadCount: number,
+  type?: string,
+  sortBy?: string,
+) => {
+  return getAdapter().artist.getArtistList(pageSize, loadCount, type, sortBy);
+};
   
   export const getArtistTableList = (params: {
     pageSize: number;

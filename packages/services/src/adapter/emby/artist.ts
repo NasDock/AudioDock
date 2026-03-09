@@ -35,7 +35,7 @@ export class EmbyArtistAdapter implements IArtistAdapter {
     throw new Error("Emby userId is required for user-scoped request");
   }
 
-  async getArtistList(pageSize: number, loadCount: number, type?: string): Promise<ISuccessResponse<ILoadMoreData<Artist>>> {
+  async getArtistList(pageSize: number, loadCount: number, type?: string, sortBy?: string): Promise<ISuccessResponse<ILoadMoreData<Artist>>> {
     const startIndex = loadCount * pageSize;
     const artistType = mediaModeToTrackType(type);
     const userId = sanitizeUserId((this.client.getConfig() as any).userId);

@@ -1,7 +1,9 @@
 import { getArtistList } from "@soundx/services";
 import { useInfiniteScroll } from "ahooks";
+import { HeartFilled, HeartOutlined } from "@ant-design/icons";
 import {
   Avatar,
+  Button,
   Col,
   Empty,
   Flex,
@@ -15,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { getBaseURL } from "../../https";
 import { type Artist } from "../../models";
 import { useArtistListCache } from "../../store/artist";
+import { useLibraryStore } from "../../store/library";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
 
@@ -31,11 +34,12 @@ const ArtistList: React.FC = () => {
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const { mode } = usePlayMode();
+  const { heartbeatModeActive, toggleHeartbeatMode } = useLibraryStore();
   const { token } = theme.useToken();
 
   const { listMap, loadCountMap, scrollMap, setList, setLoadCount, setScroll } =
     useArtistListCache();
-  const key = `${CACHE_KEY}_${mode}`;
+  const key = `${CACHE_KEY}_${mode}_${heartbeatModeActive ? "heartbeat" : "default"}`;
 
   const loadMoreArtists = async (d: Result | undefined): Promise<Result> => {
     const current = d?.loadCount || d?.loadCount === 0 ? d?.loadCount + 1 : 0; // 当前已经加载的页数
@@ -45,7 +49,12 @@ const ArtistList: React.FC = () => {
       // TODO: Update getArtistList to support pagination and type filtering
       // For now, we might need to fetch all or use existing API
       // Assuming we will update the service to support these params
-      const res = await getArtistList(pageSize, current, mode);
+      const res = await getArtistList(
+        pageSize,
+        current,
+        mode,
+        mode === "MUSIC" && heartbeatModeActive ? "heartbeat" : undefined,
+      );
       const { list } = res.data;
       const newList = d?.list ? [...d.list, ...list] : list;
       setList(key, newList);
@@ -79,7 +88,7 @@ const ArtistList: React.FC = () => {
     {
       target: scrollRef,
       isNoMore: (d) => !d?.hasMore,
-      reloadDeps: [mode],
+      reloadDeps: [mode, heartbeatModeActive],
       manual: true,
     }
   );
@@ -106,7 +115,7 @@ const ArtistList: React.FC = () => {
     } else {
       reload();
     }
-  }, [mode]); // Re-run when mode changes (key changes)
+  }, [key]); // Re-run when mode/sort mode changes
 
   // Save scroll on unmount or key change
   useEffect(() => {
@@ -131,6 +140,20 @@ const ArtistList: React.FC = () => {
 
   return (
     <div ref={scrollRef} className={styles.container}>
+      <div className={styles.pageHeader}>
+        <Typography.Title level={2} className={styles.title}>
+          艺术家
+        </Typography.Title>
+        {mode === "MUSIC" && (
+          <Button
+            type={heartbeatModeActive ? "primary" : "default"}
+            icon={heartbeatModeActive ? <HeartFilled /> : <HeartOutlined />}
+            onClick={toggleHeartbeatMode}
+          >
+            心动模式
+          </Button>
+        )}
+      </div>
       <div className={styles.content}>
         <Row gutter={[24, 24]}>
           {data?.list.map((artist) => (

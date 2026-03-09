@@ -110,7 +110,7 @@ export class EmbyTrackAdapter implements ITrackAdapter {
     };
   }
 
-  async loadMoreTrack(params: { pageSize: number; loadCount: number; type?: string }): Promise<ISuccessResponse<ILoadMoreData<Track>>> {
+  async loadMoreTrack(params: { pageSize: number; loadCount: number; type?: string; sortBy?: string }): Promise<ISuccessResponse<ILoadMoreData<Track>>> {
     const trackType = mediaModeToTrackType(params.type);
     const modeParams = await this.buildModeScopedTrackParams(params.type);
     if (!modeParams) {

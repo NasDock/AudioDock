@@ -2,6 +2,8 @@ import {
   CheckSquareOutlined,
   CloseOutlined,
   DownloadOutlined,
+  HeartFilled,
+  HeartOutlined,
   PlayCircleOutlined,
   PlusOutlined
 } from "@ant-design/icons";
@@ -21,6 +23,7 @@ import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import TrackList from "../../components/TrackList";
 import { type Track } from "../../models";
 import { downloadTracks } from "../../services/downloadManager";
+import { useLibraryStore } from "../../store/library";
 import { usePlayerStore } from "../../store/player";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
@@ -48,6 +51,7 @@ const Songs: React.FC = () => {
 
 
   const { mode } = usePlayMode();
+  const { heartbeatModeActive, toggleHeartbeatMode } = useLibraryStore();
 
   const loadMore = async (d: Result | undefined): Promise<Result> => {
     const currentLoadCount = d?.nextId || 0;
@@ -57,7 +61,9 @@ const Songs: React.FC = () => {
       const res = await loadMoreTrack({
         pageSize,
         loadCount: currentLoadCount,
-        type: mode === "MUSIC" ? "MUSIC" : "AUDIOBOOK"
+        type: mode === "MUSIC" ? "MUSIC" : "AUDIOBOOK",
+        sortBy:
+          mode === "MUSIC" && heartbeatModeActive ? "heartbeat" : undefined,
       });
       console.log(res, 'res');
       if (res.code === 200 && res.data) {
@@ -94,7 +100,7 @@ const Songs: React.FC = () => {
     {
       target: scrollRef,
       isNoMore: (d) => !d?.hasMore,
-      reloadDeps: [mode],
+      reloadDeps: [mode, heartbeatModeActive],
     }
   );
 
@@ -133,6 +139,15 @@ const Songs: React.FC = () => {
         </Title>
         {isSelectionMode ? (
             <Flex gap={8}>
+              {mode === "MUSIC" && (
+                <Button
+                  type={heartbeatModeActive ? "primary" : "default"}
+                  icon={heartbeatModeActive ? <HeartFilled /> : <HeartOutlined />}
+                  onClick={toggleHeartbeatMode}
+                >
+                  心动模式
+                </Button>
+              )}
               <Button type="text" onClick={handleToggleSelectionMode} icon={<CloseOutlined />}>
                 取消
               </Button>
@@ -156,6 +171,15 @@ const Songs: React.FC = () => {
             </Flex>
         ) : (
             <Flex gap={8} align="center">
+              {mode === "MUSIC" && (
+                <Button
+                  type={heartbeatModeActive ? "primary" : "default"}
+                  icon={heartbeatModeActive ? <HeartFilled /> : <HeartOutlined />}
+                  onClick={toggleHeartbeatMode}
+                >
+                  心动模式
+                </Button>
+              )}
               <Button 
                 icon={<PlayCircleOutlined />} 
                 onClick={handlePlayAll}

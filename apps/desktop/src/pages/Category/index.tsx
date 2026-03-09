@@ -1,10 +1,12 @@
 import { loadMoreAlbum } from "@soundx/services";
 import { useInfiniteScroll } from "ahooks";
-import { Col, Row, theme } from "antd";
+import { HeartFilled, HeartOutlined } from "@ant-design/icons";
+import { Button, Col, Row, Typography, theme } from "antd";
 import React, { useEffect, useLayoutEffect, useRef } from "react";
 import Cover from "../../components/Cover/index";
 import type { Album } from "../../models";
 import { useAlbumListCache } from "../../store/category";
+import { useLibraryStore } from "../../store/library";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
 
@@ -21,9 +23,10 @@ const Category: React.FC = () => {
   // const [activeTab, setActiveTab] = useState<string>("1");
   const scrollRef = useRef<HTMLDivElement>(null);
   const { mode } = usePlayMode();
+  const { heartbeatModeActive, toggleHeartbeatMode } = useLibraryStore();
   const { token } = theme.useToken();
   const { setList, listMap, loadCountMap, scrollMap, setLoadCount, setScroll } = useAlbumListCache();
-  const key = `${CACHE_KEY}_${mode}`;
+  const key = `${CACHE_KEY}_${mode}_${heartbeatModeActive ? "heartbeat" : "default"}`;
 
   const loadMoreAlbums = async (d: Result | undefined): Promise<Result> => {
     const pageSize = 12;
@@ -34,6 +37,8 @@ const Category: React.FC = () => {
         pageSize,
         loadCount: loadCount, // 使用 nextPage，不用试图从已有数据推算
         type: mode,
+        sortBy:
+          mode === "MUSIC" && heartbeatModeActive ? "heartbeat" : undefined,
       });
 
       if (res.code === 200 && res.data) {
@@ -58,7 +63,7 @@ const Category: React.FC = () => {
     {
       target: scrollRef,
       isNoMore: (d) => !d?.hasMore,
-      reloadDeps: [mode],
+      reloadDeps: [mode, heartbeatModeActive],
       direction: "bottom",
       threshold: 100,
       manual: true,
@@ -90,7 +95,7 @@ const Category: React.FC = () => {
     } else {
       reload();
     }
-  }, [mode]); // Re-run when mode changes (key changes)
+  }, [key]); // Re-run when mode/sort mode changes
 
   // Save scroll on unmount or key change
   useEffect(() => {
@@ -118,17 +123,19 @@ const Category: React.FC = () => {
 
   return (
     <div className={styles.container} ref={scrollRef}>
-      {/* Tabs */}
-      <div>
-        {/* <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={tabItems}
-          tabBarStyle={{
-            marginBottom: "30px",
-            borderBottom: "none",
-          }}
-        /> */}
+      <div className={styles.pageHeader}>
+        <Typography.Title level={2} className={styles.title}>
+          专辑
+        </Typography.Title>
+        {mode === "MUSIC" && (
+          <Button
+            type={heartbeatModeActive ? "primary" : "default"}
+            icon={heartbeatModeActive ? <HeartFilled /> : <HeartOutlined />}
+            onClick={toggleHeartbeatMode}
+          >
+            心动模式
+          </Button>
+        )}
       </div>
 
       {/* Cover Grid with Infinite Scroll */}

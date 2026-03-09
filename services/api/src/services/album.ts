@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Album, FileStatus, PrismaClient, TrackType } from '@soundx/db';
+import { getTrackHeartbeatScoreMap } from './heartbeat-score';
 import { toSimplified } from '../common/zh-utils';
 
 @Injectable()
@@ -103,7 +104,64 @@ export class AlbumService {
     });
   }
 
-  async loadMoreAlbum(pageSize: number, loadCount: number, type: TrackType, userId: number): Promise<Album[]> {
+  async loadMoreAlbum(
+    pageSize: number,
+    loadCount: number,
+    type: TrackType,
+    userId: number,
+    sortBy?: string,
+  ): Promise<Album[]> {
+    if (sortBy === 'heartbeat' && userId) {
+      const scoreMap = await getTrackHeartbeatScoreMap(this.prisma, userId, type);
+      const [allAlbums, tracks] = await Promise.all([
+        this.prisma.album.findMany({
+          where: { type, status: 'ACTIVE' },
+        }),
+        this.prisma.track.findMany({
+          where: { type, status: 'ACTIVE' },
+          select: { id: true, albumId: true, album: true, artist: true },
+        }),
+      ]);
+
+      const albumIdScoreMap = new Map<number, number>();
+      const albumNameArtistScoreMap = new Map<string, number>();
+      for (const track of tracks) {
+        const score = scoreMap.get(track.id) ?? 0;
+        if (!score) continue;
+        if (track.albumId) {
+          albumIdScoreMap.set(
+            track.albumId,
+            (albumIdScoreMap.get(track.albumId) ?? 0) + score,
+          );
+          continue;
+        }
+        const key = `${track.album}__${track.artist}`;
+        albumNameArtistScoreMap.set(
+          key,
+          (albumNameArtistScoreMap.get(key) ?? 0) + score,
+        );
+      }
+
+      const sorted = allAlbums.sort((a, b) => {
+        const scoreA =
+          (albumIdScoreMap.get(a.id) ?? 0) +
+          (albumNameArtistScoreMap.get(`${a.name}__${a.artist}`) ?? 0);
+        const scoreB =
+          (albumIdScoreMap.get(b.id) ?? 0) +
+          (albumNameArtistScoreMap.get(`${b.name}__${b.artist}`) ?? 0);
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return a.name.localeCompare(b.name);
+      });
+
+      const start = loadCount * pageSize;
+      const end = start + pageSize;
+      const page = sorted.slice(start, end);
+      if (type === 'AUDIOBOOK') {
+        return await this.attachProgressToAlbums(page, userId);
+      }
+      return page;
+    }
+
     const result = await this.prisma.album.findMany({
       skip: loadCount * pageSize,
       take: pageSize,

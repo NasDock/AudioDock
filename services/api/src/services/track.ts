@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { FileStatus, PrismaClient, Track, TrackType } from '@soundx/db';
 import * as fs from 'fs';
 import * as path from 'path';
+import { getTrackHeartbeatScoreMap } from './heartbeat-score';
 import { toSimplified } from '../common/zh-utils';
 
 @Injectable()
@@ -146,12 +147,42 @@ export class TrackService {
     });
   }
 
-  async loadMoreTrack(pageSize: number, loadCount: number, type?: TrackType): Promise<Track[]> {
+  async loadMoreTrack(
+    pageSize: number,
+    loadCount: number,
+    type?: TrackType,
+    userId?: number,
+    sortBy?: string,
+  ): Promise<Track[]> {
+    if (sortBy === 'heartbeat' && userId) {
+      const where: any = { status: 'ACTIVE' };
+      if (type) {
+        where.type = type;
+      }
+      const list = await this.prisma.track.findMany({
+        where,
+        include: {
+          artistEntity: true,
+          albumEntity: true,
+          likedByUsers: true,
+        },
+      });
+      const scoreMap = await getTrackHeartbeatScoreMap(this.prisma, userId, type);
+      const sorted = list.sort((a, b) => {
+        const scoreDiff = (scoreMap.get(b.id) ?? 0) - (scoreMap.get(a.id) ?? 0);
+        if (scoreDiff !== 0) return scoreDiff;
+        return a.name.localeCompare(b.name);
+      });
+      const start = loadCount * pageSize;
+      const end = start + pageSize;
+      return await this.attachProgressToTracks(sorted.slice(start, end), userId);
+    }
+
     const where: any = { status: 'ACTIVE' };
     if (type) {
       where.type = type;
     }
-    return await this.prisma.track.findMany({
+    const list = await this.prisma.track.findMany({
       where,
       skip: loadCount * pageSize,
       take: pageSize,
@@ -161,6 +192,7 @@ export class TrackService {
         likedByUsers: true,
       },
     });
+    return await this.attachProgressToTracks(list, userId || 1);
   }
 
   async trackCount(type?: TrackType): Promise<number> {

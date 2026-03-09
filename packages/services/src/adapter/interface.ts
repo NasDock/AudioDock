@@ -4,7 +4,7 @@ export interface ITrackAdapter {
   getTrackList(): Promise<ISuccessResponse<Track[]>>;
   getAllTracks(): Promise<ISuccessResponse<Track[]>>;
   getTrackTableList(params: { pageSize: number; current: number }): Promise<ISuccessResponse<ITableData<Track[]>>>;
-  loadMoreTrack(params: { pageSize: number; loadCount: number; type?: string }): Promise<ISuccessResponse<ILoadMoreData<Track>>>;
+  loadMoreTrack(params: { pageSize: number; loadCount: number; type?: string; sortBy?: string }): Promise<ISuccessResponse<ILoadMoreData<Track>>>;
   createTrack(data: Omit<Track, "id">): Promise<ISuccessResponse<Track>>;
   updateTrack(id: number | string, data: Partial<Track>): Promise<ISuccessResponse<Track>>;
   deleteTrack(id: number | string, deleteAlbum?: boolean): Promise<ISuccessResponse<boolean>>;
@@ -23,7 +23,7 @@ export interface ITrackAdapter {
 export interface IAlbumAdapter {
   getAlbumList(): Promise<ISuccessResponse<Album[]>>;
   getAlbumTableList(params: { pageSize: number; current: number }): Promise<ISuccessResponse<ITableData<Album[]>>>;
-  loadMoreAlbum(params: { pageSize: number; loadCount: number; type?: string }): Promise<ISuccessResponse<ILoadMoreData<Album>>>;
+  loadMoreAlbum(params: { pageSize: number; loadCount: number; type?: string; sortBy?: string }): Promise<ISuccessResponse<ILoadMoreData<Album>>>;
   createAlbum(data: Omit<Album, "id">): Promise<ISuccessResponse<Album>>;
   updateAlbum(id: number | string, data: Partial<Album>): Promise<ISuccessResponse<Album>>;
   deleteAlbum(id: number | string): Promise<ISuccessResponse<boolean>>;
@@ -41,7 +41,7 @@ export interface IAlbumAdapter {
 }
 
 export interface IArtistAdapter {
-  getArtistList(pageSize: number, loadCount: number, type?: string): Promise<ISuccessResponse<ILoadMoreData<Artist>>>;
+  getArtistList(pageSize: number, loadCount: number, type?: string, sortBy?: string): Promise<ISuccessResponse<ILoadMoreData<Artist>>>;
   getArtistTableList(params: { pageSize: number; current: number }): Promise<ISuccessResponse<ITableData<Artist[]>>>;
   loadMoreArtist(params: { pageSize: number; loadCount: number }): Promise<ISuccessResponse<ILoadMoreData<Artist>>>;
   createArtist(data: Omit<Artist, "id">): Promise<ISuccessResponse<Artist>>;

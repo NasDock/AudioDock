@@ -23,6 +23,14 @@
   opacity: 0.35;
 }
 
+.quick-locate-btn.heartbeat-btn.active {
+  background: #111;
+
+  .quick-locate-icon {
+    color: #fff;
+  }
+}
+
 .quick-locate-icon {
   font-size: 28rpx;
   color: #111;

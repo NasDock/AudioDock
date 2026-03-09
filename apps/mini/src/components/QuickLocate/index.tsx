@@ -7,6 +7,9 @@ interface QuickLocateProps {
   onLocate?: () => void;
   showLocate?: boolean;
   locateDisabled?: boolean;
+  onHeartbeatToggle?: () => void;
+  showHeartbeat?: boolean;
+  heartbeatActive?: boolean;
 }
 
 export default function QuickLocate({
@@ -15,6 +18,9 @@ export default function QuickLocate({
   onLocate,
   showLocate = true,
   locateDisabled = false,
+  onHeartbeatToggle,
+  showHeartbeat = false,
+  heartbeatActive = false,
 }: QuickLocateProps) {
   return (
     <View className='quick-locate'>
@@ -30,6 +36,15 @@ export default function QuickLocate({
           }}
         >
           <Text className='quick-locate-icon'>◎</Text>
+        </View>
+      )}
+
+      {showHeartbeat && onHeartbeatToggle && (
+        <View
+          className={`quick-locate-btn heartbeat-btn ${heartbeatActive ? 'active' : ''}`}
+          onClick={onHeartbeatToggle}
+        >
+          <Text className='quick-locate-icon'>♥</Text>
         </View>
       )}
 

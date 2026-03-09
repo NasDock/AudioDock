@@ -45,6 +45,7 @@ export class SubsonicAlbumAdapter implements IAlbumAdapter {
     pageSize: number;
     loadCount: number;
     type?: string;
+    sortBy?: string;
   }) {
     const offset = 0; // Assuming loadCount is total items loaded so far? Or offset?
     const res = await this.client.get<SubsonicAlbumList>("getAlbumList2", { type: "alphabeticalByName", size: 1000000, offset });

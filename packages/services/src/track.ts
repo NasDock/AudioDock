@@ -18,6 +18,7 @@ import type {
     pageSize: number;
     loadCount: number;
     type?: string;
+    sortBy?: string;
   }) => {
     return getAdapter().track.loadMoreTrack(params);
   };

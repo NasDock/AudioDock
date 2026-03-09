@@ -95,7 +95,7 @@ export class EmbyAlbumAdapter implements IAlbumAdapter {
     };
   }
 
-  async loadMoreAlbum(params: { pageSize: number; loadCount: number; type?: string }): Promise<ISuccessResponse<ILoadMoreData<Album>>> {
+  async loadMoreAlbum(params: { pageSize: number; loadCount: number; type?: string; sortBy?: string }): Promise<ISuccessResponse<ILoadMoreData<Album>>> {
     const startIndex = params.loadCount * params.pageSize;
     const mode = mediaModeToTrackType(params.type);
     const finalUserId = this.normalizeUserId((this.client.getConfig() as any).userId);

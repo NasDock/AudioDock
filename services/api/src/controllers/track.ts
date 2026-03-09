@@ -82,17 +82,22 @@ export class TrackController {
 
   @Get('/load-more')
   async loadMoreTrack(
+    @Req() req: Request,
     @Query('pageSize') pageSize: any,
     @Query('loadCount') loadCount: any,
     @Query('type') type?: TrackType,
+    @Query('sortBy') sortBy?: string,
   ): Promise<ISuccessResponse<ILoadMoreData<Track[]>> | IErrorResponse> {
     try {
+      const userId = Number((req.user as any)?.userId);
       const size = Number(pageSize);
       const count = Number(loadCount);
       const trackList = await this.trackService.loadMoreTrack(
         size,
         count,
         type,
+        userId,
+        sortBy,
       );
       const total = await this.trackService.trackCount(type);
       return {

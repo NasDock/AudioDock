@@ -23,6 +23,7 @@ export default function Library() {
   const [scrollIntoView, setScrollIntoView] = useState('');
   const [showTrackMoreMenu, setShowTrackMoreMenu] = useState(false);
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
+  const [heartbeatModeActive, setHeartbeatModeActive] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -34,24 +35,46 @@ export default function Library() {
           pageSize: 2000,
           loadCount: 0,
           type: mode,
+          sortBy:
+            mode === 'MUSIC' && heartbeatModeActive ? 'heartbeat' : undefined,
         });
         if (res.code === 200 && res.data) {
           const list = res.data.list.map((item: any) => (item.track ? item.track : item)) as Track[];
-          const sorted = [...list].sort((a, b) => a.name.localeCompare(b.name));
+          const sorted =
+            mode === 'MUSIC' && heartbeatModeActive
+              ? [...list]
+              : [...list].sort((a, b) => a.name.localeCompare(b.name));
           setSortedItems(sorted);
           setSections(groupAndSort(sorted, (item) => item.name));
         }
       } else if (activeTab === 'artists') {
-         const res = await getArtistList(1000, 0, mode);
+         const res = await getArtistList(
+           1000,
+           0,
+           mode,
+           mode === 'MUSIC' && heartbeatModeActive ? 'heartbeat' : undefined,
+         );
          if (res.code === 200 && res.data) {
-             const sorted = [...(res.data.list as Artist[])].sort((a, b) => a.name.localeCompare(b.name));
+             const sorted =
+               mode === 'MUSIC' && heartbeatModeActive
+                 ? [...(res.data.list as Artist[])]
+                 : [...(res.data.list as Artist[])].sort((a, b) => a.name.localeCompare(b.name));
              setSortedItems(sorted);
              setSections(groupAndSort(sorted, (item) => item.name));
          }
       } else {
-          const res = await loadMoreAlbum({ pageSize: 1000, loadCount: 0, type: mode });
+          const res = await loadMoreAlbum({
+            pageSize: 1000,
+            loadCount: 0,
+            type: mode,
+            sortBy:
+              mode === 'MUSIC' && heartbeatModeActive ? 'heartbeat' : undefined,
+          });
           if (res.code === 200 && res.data) {
-             const sorted = [...(res.data.list as Album[])].sort((a, b) => a.name.localeCompare(b.name));
+             const sorted =
+               mode === 'MUSIC' && heartbeatModeActive
+                 ? [...(res.data.list as Album[])]
+                 : [...(res.data.list as Album[])].sort((a, b) => a.name.localeCompare(b.name));
              setSortedItems(sorted);
              setSections(groupAndSort(sorted, (item) => item.name));
           }
@@ -65,12 +88,18 @@ export default function Library() {
 
   useEffect(() => {
     loadData();
-  }, [mode, activeTab]);
+  }, [mode, activeTab, heartbeatModeActive]);
 
   useEffect(() => {
     setShowTrackMoreMenu(false);
     setSelectedTrack(null);
   }, [activeTab, mode]);
+
+  useEffect(() => {
+    if (mode !== 'MUSIC' && heartbeatModeActive) {
+      setHeartbeatModeActive(false);
+    }
+  }, [mode, heartbeatModeActive]);
 
   useDidShow(() => {
       // noop
@@ -289,6 +318,9 @@ export default function Library() {
         onBottom={() => scrollToAnchor('bottom-anchor')}
         onLocate={handleLocateCurrent}
         locateDisabled={locateDisabled}
+        showHeartbeat={mode === 'MUSIC'}
+        heartbeatActive={heartbeatModeActive}
+        onHeartbeatToggle={() => setHeartbeatModeActive((prev) => !prev)}
       />
       <MiniPlayer />
     </View>

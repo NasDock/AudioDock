@@ -132,6 +132,7 @@ export class AlbumController {
     @Query('pageSize') pageSize: number,
     @Query('loadCount') loadCount: number,
     @Query('type') type: TrackType,
+    @Query('sortBy') sortBy?: string,
   ): Promise<ISuccessResponse<ILoadMoreData<Album[]>> | IErrorResponse> {
     try {
       const userId = (req.user as any)?.userId;
@@ -140,6 +141,7 @@ export class AlbumController {
         Number(loadCount),
         type,
         Number(userId),
+        sortBy,
       );
       const total = await this.albumService.albumCount(type);
       return {
