@@ -206,12 +206,17 @@ function RootLayoutNav() {
             >
               <PlayerDetailView embedded renderPlaylistModal={false} />
             </View>
-            <View style={styles.rightContent}>{stack}</View>
+            <View style={styles.rightContent}>
+              {stack}
+              {showBottomBar && <GlobalBottomBar />}
+            </View>
           </View>
         ) : (
-          <View style={styles.stackRoot}>{stack}</View>
+          <View style={styles.stackRoot}>
+            {stack}
+            {showBottomBar && <GlobalBottomBar />}
+          </View>
         )}
-        {showBottomBar && <GlobalBottomBar />}
       </View>
       {(segments[0] as string) !== "player" && <PlaylistModal />}
       {(segments[0] as string) !== "player" && voiceAssistantEnabled && <SquirrelAgent />}
@@ -249,12 +254,16 @@ import PlaybackNotification from "../src/components/PlaybackNotification";
 import { NotificationProvider } from "../src/context/NotificationContext";
 
 function OrientationHandler() {
-  const { autoOrientation } = useSettings();
+  const { autoOrientation, carLayoutMode } = useSettings();
 
   useEffect(() => {
     const handleOrientation = async () => {
       try {
-        if (autoOrientation) {
+        if (carLayoutMode) {
+          await ScreenOrientation.lockAsync(
+            ScreenOrientation.OrientationLock.LANDSCAPE
+          );
+        } else if (autoOrientation) {
           await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.DEFAULT);
         } else {
           await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
@@ -264,7 +273,7 @@ function OrientationHandler() {
       }
     };
     handleOrientation();
-  }, [autoOrientation]);
+  }, [autoOrientation, carLayoutMode]);
 
   return <View />;
 }

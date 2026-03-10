@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSettings } from "../context/SettingsContext";
 import { usePlayer } from "../context/PlayerContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -26,6 +27,7 @@ type AgentState = "idle" | "listening" | "processing" | "result";
 
 export const SquirrelAgent: React.FC = () => {
   const { colors, theme } = useTheme();
+  const { carLayoutMode } = useSettings();
   const [state, setState] = useState<AgentState>("idle");
   const [resultText, setResultText] = useState("");
   const [side, setSide] = useState<"left" | "right">("right");
@@ -79,12 +81,13 @@ export const SquirrelAgent: React.FC = () => {
       onPanResponderRelease: (e, gestureState) => {
         pan.flattenOffset();
 
-        const targetX =
-          gestureState.moveX > SCREEN_WIDTH / 2
+        const targetX = carLayoutMode
+          ? 10
+          : gestureState.moveX > SCREEN_WIDTH / 2
             ? SCREEN_WIDTH - SQUIRREL_SIZE - 10
             : 10;
 
-        setSide(gestureState.moveX > SCREEN_WIDTH / 2 ? "right" : "left");
+        setSide(carLayoutMode ? "left" : gestureState.moveX > SCREEN_WIDTH / 2 ? "right" : "left");
 
         Animated.spring(pan, {
           toValue: { x: targetX, y: (pan.y as any)._value },
@@ -114,6 +117,16 @@ export const SquirrelAgent: React.FC = () => {
       pulseAnim.setValue(1);
     }
   }, [state]);
+
+  useEffect(() => {
+    if (carLayoutMode) {
+      setSide("left");
+      Animated.spring(pan, {
+        toValue: { x: 10, y: (pan.y as any)._value || SCREEN_HEIGHT / 2 },
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [carLayoutMode, pan]);
   
   useEffect(() => {
     if (state === "processing") {

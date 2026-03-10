@@ -3,6 +3,7 @@ import { useRouter, useSegments } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSettings } from "../context/SettingsContext";
 import { useTheme } from "../context/ThemeContext";
 import { MiniPlayer } from "./MiniPlayer";
 
@@ -17,13 +18,14 @@ export const GlobalBottomBar = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const segments = useSegments();
+  const { carLayoutMode } = useSettings();
 
   const activeKey =
     segments[0] === "(tabs)" ? ((segments[1] as string) || "index") : "";
 
   return (
     <View style={styles.container}>
-      <MiniPlayer />
+      {!carLayoutMode && <MiniPlayer />}
       <View
         style={[
           styles.tabBar,
@@ -33,6 +35,7 @@ export const GlobalBottomBar = () => {
             height: 49 + insets.bottom,
             paddingTop: 6,
             paddingBottom: insets.bottom,
+            width: "100%",
           },
         ]}
       >

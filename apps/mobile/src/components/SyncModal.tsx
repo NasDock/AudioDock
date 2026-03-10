@@ -11,8 +11,10 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { usePlayer } from '../context/PlayerContext';
+import { useSettings } from '../context/SettingsContext';
 import { useSync } from '../context/SyncContext';
 import { useTheme } from '../context/ThemeContext';
 import { User } from '../models';
@@ -31,6 +33,8 @@ const SyncModal: React.FC<SyncModalProps> = ({ visible, onClose }) => {
   const { currentTrack, position, trackList, pause } = usePlayer();
   const { isSynced, sessionId } = useSync();
   const { colors } = useTheme();
+  const { carLayoutMode } = useSettings();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (visible) {
@@ -107,12 +111,20 @@ const SyncModal: React.FC<SyncModalProps> = ({ visible, onClose }) => {
       onRequestClose={onClose}
     >
       <TouchableOpacity 
-        style={styles.overlay} 
+        style={[styles.overlay, carLayoutMode && styles.overlayCar]} 
         activeOpacity={1} 
         onPress={onClose}
       >
         <TouchableOpacity 
-            style={[styles.content, { backgroundColor: colors.card, width: '100%', maxWidth: 450 }]} 
+            style={[
+              styles.content,
+              carLayoutMode ? styles.contentCar : styles.contentDefault,
+              {
+                backgroundColor: colors.card,
+                marginTop: carLayoutMode ? insets.top + 12 : 0,
+                marginLeft: carLayoutMode ? 12 : 0,
+              },
+            ]} 
             activeOpacity={1}
             onPress={() => {}}
         >
@@ -161,12 +173,25 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
   },
+  overlayCar: {
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+  },
   content: {
+    padding: 20,
+    paddingBottom: 15
+  },
+  contentDefault: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     height: Dimensions.get('window').height * 0.6,
-    padding: 20,
-    paddingBottom: 15
+    width: '100%',
+    maxWidth: 450,
+  },
+  contentCar: {
+    borderRadius: 12,
+    height: Dimensions.get('window').height * 0.6,
+    width: Math.min(420, Dimensions.get('window').width - 24),
   },
   header: {
     flexDirection: 'row',
