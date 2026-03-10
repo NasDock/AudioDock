@@ -19,7 +19,10 @@ export interface MediaControlBridgeEvent {
 
 let moduleRef: any = null;
 try {
-  moduleRef = Platform.OS === "android" ? requireNativeModule("MediaControlBridge") : null;
+  moduleRef =
+    Platform.OS === "android" || Platform.OS === "ios"
+      ? requireNativeModule("MediaControlBridge")
+      : null;
 } catch (e) {
   console.log("[MediaControlBridge] Native module not found, bridge disabled.");
 }
@@ -28,7 +31,7 @@ try {
 const emitter = moduleRef ? new EventEmitter<{ MediaControlBridgeEvent: (event: MediaControlBridgeEvent) => void }>(moduleRef) : null;
 
 export const isMediaControlBridgeAvailable = (): boolean => {
-  return Platform.OS === "android" && !!moduleRef;
+  return (Platform.OS === "android" || Platform.OS === "ios") && !!moduleRef;
 };
 
 export const startMediaControlBridge = async (): Promise<void> => {

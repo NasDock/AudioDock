@@ -23,7 +23,7 @@ const getPlaybackMode = async (): Promise<string | null> => {
 export const PlaybackService = async function () {
     console.log('[PlaybackService] Registered');
     let isSkippingOutro = false;
-    const useNativeMediaBridge = Platform.OS === "android";
+    const useNativeMediaBridge = Platform.OS === "android" || Platform.OS === "ios";
     const lastTransportEventAt = new Map<string, number>();
 
     const shouldHandleTransportEvent = (key: string, windowMs = 350) => {
