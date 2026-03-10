@@ -53,13 +53,13 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const updateSetting = async (key: keyof SettingsState, value: any) => {
-    const newSettings = { ...settings, [key]: value };
-    setSettings(newSettings);
-    try {
-      await AsyncStorage.setItem('mobile-settings', JSON.stringify(newSettings));
-    } catch (e) {
-      console.error('Failed to save settings', e);
-    }
+    setSettings((prev) => {
+      const next = { ...prev, [key]: value };
+      AsyncStorage.setItem('mobile-settings', JSON.stringify(next)).catch((e) => {
+        console.error('Failed to save settings', e);
+      });
+      return next;
+    });
   };
 
   return (

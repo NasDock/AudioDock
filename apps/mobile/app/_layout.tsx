@@ -15,11 +15,12 @@ import { PlaylistModal } from "../src/components/PlaylistModal";
 import { SquirrelAgent } from "../src/components/SquirrelAgent";
 import { SettingsProvider, useSettings } from "../src/context/SettingsContext";
 import { SyncProvider } from "../src/context/SyncContext";
+import { PlayerDetailView } from "./player";
 
 function RootLayoutNav() {
   const { token, isLoading, sourceType, plusToken } = useAuth();
-  const { voiceAssistantEnabled } = useSettings();
-  const { theme } = useTheme();
+  const { voiceAssistantEnabled, carLayoutMode } = useSettings();
+  const { theme, colors } = useTheme();
   const segments = useSegments();
   const router = useRouter();
   const fuAnim = useRef(new Animated.Value(0)).current;
@@ -79,105 +80,120 @@ function RootLayoutNav() {
     }
   }, [token, plusToken, segments, isLoading, sourceType]);
 
+  const stack = (
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="modal"
+        options={{
+          headerShown: false,
+          animation: "slide_from_right",
+        }}
+      />
+      <Stack.Screen
+        name="player"
+        options={{
+          presentation: "fullScreenModal",
+          headerShown: false,
+          animation: "slide_from_bottom",
+        }}
+      />
+      <Stack.Screen
+        name="search"
+        options={{
+          headerShown: false,
+          animation: "fade",
+        }}
+      />
+      <Stack.Screen
+        name="settings"
+        options={{
+          headerShown: false,
+          animation: "slide_from_right",
+        }}
+      />
+      <Stack.Screen
+        name="admin"
+        options={{
+          headerShown: false,
+          animation: "slide_from_right",
+        }}
+      />
+      <Stack.Screen name="playlist/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="album/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="artist/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="folder/index" options={{ headerShown: false }} />
+      <Stack.Screen name="folder/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="notification.click" options={{ headerShown: false }} />
+      <Stack.Screen name="source-manage" options={{ headerShown: false }} />
+      <Stack.Screen name="member-detail" options={{ headerShown: false }} />
+      <Stack.Screen 
+        name="login-form" 
+        options={{ 
+          headerShown: false, 
+          animation: 'slide_from_left' 
+        }} 
+      />
+      <Stack.Screen 
+        name="member-login" 
+        options={{ 
+          headerShown: false,
+          animation: 'slide_from_left' 
+        }} 
+      />
+      <Stack.Screen 
+        name="member-benefits" 
+        options={{ 
+          headerShown: false,
+          animation: 'slide_from_right' 
+        }} 
+      />
+      <Stack.Screen 
+        name="forgot-password" 
+        options={{ 
+          headerShown: false,
+          animation: 'slide_from_right'
+        }} 
+      />
+      <Stack.Screen 
+        name="product-updates" 
+        options={{ 
+          headerShown: false,
+          animation: 'slide_from_right'
+        }} 
+      />
+      <Stack.Screen 
+        name="tts/create" 
+        options={{ 
+          headerShown: false,
+          animation: 'slide_from_right'
+        }} 
+      />
+      <Stack.Screen 
+        name="tts/tasks" 
+        options={{ 
+          headerShown: false,
+          animation: 'slide_from_right'
+        }} 
+      />
+    </Stack>
+  );
+
+  const showCarLayout = carLayoutMode && (segments[0] as string) !== "player";
+
   return (
     <>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="modal"
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-          }}
-        />
-        <Stack.Screen
-          name="player"
-          options={{
-            presentation: "fullScreenModal",
-            headerShown: false,
-            animation: "slide_from_bottom",
-          }}
-        />
-        <Stack.Screen
-          name="search"
-          options={{
-            headerShown: false,
-            animation: "fade",
-          }}
-        />
-        <Stack.Screen
-          name="settings"
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-          }}
-        />
-        <Stack.Screen
-          name="admin"
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-          }}
-        />
-        <Stack.Screen name="playlist/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="album/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="artist/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="folder/index" options={{ headerShown: false }} />
-        <Stack.Screen name="folder/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="notification.click" options={{ headerShown: false }} />
-        <Stack.Screen name="source-manage" options={{ headerShown: false }} />
-        <Stack.Screen name="member-detail" options={{ headerShown: false }} />
-        <Stack.Screen 
-          name="login-form" 
-          options={{ 
-            headerShown: false, 
-            animation: 'slide_from_left' 
-          }} 
-        />
-        <Stack.Screen 
-          name="member-login" 
-          options={{ 
-            headerShown: false,
-            animation: 'slide_from_left' 
-          }} 
-        />
-        <Stack.Screen 
-          name="member-benefits" 
-          options={{ 
-            headerShown: false,
-            animation: 'slide_from_right' 
-          }} 
-        />
-        <Stack.Screen 
-          name="forgot-password" 
-          options={{ 
-            headerShown: false,
-            animation: 'slide_from_right'
-          }} 
-        />
-        <Stack.Screen 
-          name="product-updates" 
-          options={{ 
-            headerShown: false,
-            animation: 'slide_from_right'
-          }} 
-        />
-        <Stack.Screen 
-          name="tts/create" 
-          options={{ 
-            headerShown: false,
-            animation: 'slide_from_right'
-          }} 
-        />
-        <Stack.Screen 
-          name="tts/tasks" 
-          options={{ 
-            headerShown: false,
-            animation: 'slide_from_right'
-          }} 
-        />
-      </Stack>
+      {showCarLayout ? (
+        <View style={[styles.carModeContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.leftPlayerPanel, { borderRightColor: colors.border }]}>
+            <PlayerDetailView embedded renderPlaylistModal={false} />
+          </View>
+          <View style={styles.rightContent}>{stack}</View>
+        </View>
+      ) : (
+        stack
+      )}
       {(segments[0] as string) !== "player" && <PlaylistModal />}
       {(segments[0] as string) !== "player" && voiceAssistantEnabled && <SquirrelAgent />}
       {theme === 'festive' && segments[0] !== 'player' && (
@@ -259,6 +275,18 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  carModeContainer: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  leftPlayerPanel: {
+    height: "100%",
+    aspectRatio: 9 / 16,
+    borderRightWidth: StyleSheet.hairlineWidth,
+  },
+  rightContent: {
+    flex: 1,
+  },
   festiveOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 9999,
