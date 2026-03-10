@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useSegments } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,6 +16,10 @@ export const GlobalBottomBar = () => {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const segments = useSegments();
+
+  const activeKey =
+    segments[0] === "(tabs)" ? ((segments[1] as string) || "index") : "";
 
   return (
     <View style={styles.container}>
@@ -26,26 +30,30 @@ export const GlobalBottomBar = () => {
           {
             backgroundColor: colors.tabBar,
             borderTopColor: colors.border,
-            paddingBottom: Math.max(insets.bottom, 8),
+            height: 49 + insets.bottom,
+            paddingTop: 6,
+            paddingBottom: insets.bottom,
           },
         ]}
       >
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.href}
-            style={styles.tabItem}
-            onPress={() => router.push(tab.href as any)}
-          >
-            <Ionicons
-              size={28}
-              name={tab.icon as any}
-              color={colors.tabIconInactive}
-            />
-            <Text style={[styles.tabLabel, { color: colors.tabIconInactive }]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {tabs.map((tab) => {
+          const tabKey = tab.href === "/(tabs)" ? "index" : tab.href.split("/").pop();
+          const isActive = activeKey === tabKey;
+          const iconColor = isActive ? colors.tabIconActive : colors.tabIconInactive;
+          const textColor = isActive ? colors.tabIconActive : colors.tabIconInactive;
+          return (
+            <TouchableOpacity
+              key={tab.href}
+              style={styles.tabItem}
+              onPress={() => router.push(tab.href as any)}
+            >
+              <Ionicons size={28} name={tab.icon as any} color={iconColor} />
+              <Text style={[styles.tabLabel, { color: textColor }]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -59,13 +67,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    paddingVertical: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   tabItem: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 2,
     flex: 1,
   },
   tabLabel: {

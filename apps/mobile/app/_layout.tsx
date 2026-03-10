@@ -184,13 +184,14 @@ function RootLayoutNav() {
   const showCarLayout = carLayoutMode && (segments[0] as string) !== "player";
   const rootSegment = segments[0] as string;
   const hideBottomBar =
-    rootSegment === "(tabs)" ||
     rootSegment === "login" ||
     rootSegment === "login-form" ||
     rootSegment === "member-login" ||
     rootSegment === "forgot-password" ||
     rootSegment === "settings" ||
-    rootSegment === "source-manage";
+    rootSegment === "source-manage" ||
+    rootSegment === "player" ||
+    rootSegment === "modal";
   const showBottomBar = !hideBottomBar;
 
   return (
