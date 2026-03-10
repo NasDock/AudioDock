@@ -13,6 +13,7 @@ export const unstable_settings = {
 
 import { PlaylistModal } from "../src/components/PlaylistModal";
 import { SquirrelAgent } from "../src/components/SquirrelAgent";
+import { GlobalBottomBar } from "../src/components/GlobalBottomBar";
 import { SettingsProvider, useSettings } from "../src/context/SettingsContext";
 import { SyncProvider } from "../src/context/SyncContext";
 import { PlayerDetailView } from "./player";
@@ -181,19 +182,36 @@ function RootLayoutNav() {
   );
 
   const showCarLayout = carLayoutMode && (segments[0] as string) !== "player";
+  const rootSegment = segments[0] as string;
+  const hideBottomBar =
+    rootSegment === "(tabs)" ||
+    rootSegment === "login" ||
+    rootSegment === "login-form" ||
+    rootSegment === "member-login" ||
+    rootSegment === "forgot-password" ||
+    rootSegment === "settings" ||
+    rootSegment === "source-manage";
+  const showBottomBar = !hideBottomBar;
 
   return (
     <>
-      {showCarLayout ? (
-        <View style={[styles.carModeContainer, { backgroundColor: colors.background }]}>
-          <View style={[styles.leftPlayerPanel, { borderRightColor: colors.border }]}>
-            <PlayerDetailView embedded renderPlaylistModal={false} />
+      <View style={styles.pageRoot}>
+        {showCarLayout ? (
+          <View
+            style={[styles.carModeContainer, { backgroundColor: colors.background }]}
+          >
+            <View
+              style={[styles.leftPlayerPanel, { borderRightColor: colors.border }]}
+            >
+              <PlayerDetailView embedded renderPlaylistModal={false} />
+            </View>
+            <View style={styles.rightContent}>{stack}</View>
           </View>
-          <View style={styles.rightContent}>{stack}</View>
-        </View>
-      ) : (
-        stack
-      )}
+        ) : (
+          <View style={styles.stackRoot}>{stack}</View>
+        )}
+        {showBottomBar && <GlobalBottomBar />}
+      </View>
       {(segments[0] as string) !== "player" && <PlaylistModal />}
       {(segments[0] as string) !== "player" && voiceAssistantEnabled && <SquirrelAgent />}
       {theme === 'festive' && segments[0] !== 'player' && (
@@ -275,6 +293,12 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  pageRoot: {
+    flex: 1,
+  },
+  stackRoot: {
+    flex: 1,
+  },
   carModeContainer: {
     flex: 1,
     flexDirection: "row",
