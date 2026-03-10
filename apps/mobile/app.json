@@ -17,6 +17,11 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.soundx.mobile.dev",
       "infoPlist": {
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ],
         "UIBackgroundModes": [
           "audio"
         ],
