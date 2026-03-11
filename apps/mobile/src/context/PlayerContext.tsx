@@ -41,6 +41,7 @@ import { usePlayMode } from "../utils/playMode";
 import { updateWidget } from "../native/WidgetBridge";
 import { cacheCover } from "../services/cache";
 import { resolveArtworkUri } from "../services/trackResolver";
+import { getActiveLyricLine } from "../utils/lyrics";
 import { useAuth } from "./AuthContext";
 import { useNotification } from "./NotificationContext";
 import { useSettings } from "./SettingsContext";
@@ -174,6 +175,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const playModeRef = React.useRef(playMode);
   const trackListRef = React.useRef(trackList);
   const currentTrackRef = React.useRef(currentTrack);
+  const lastWidgetStateRef = React.useRef({
+    trackId: null as number | string | null,
+    lyric: "",
+    progressBucket: -1,
+    isPlaying: false,
+    coverPath: "",
+  });
   const positionRef = React.useRef(position);
   const playbackRateRef = React.useRef(playbackRate);
   const isRadioModeRef = React.useRef(isRadioMode);
@@ -214,7 +222,16 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           artist: "",
           coverPath: null,
           isPlaying: false,
+          lyric: "",
+          progress: 0,
         });
+        lastWidgetStateRef.current = {
+          trackId: null,
+          lyric: "",
+          progressBucket: -1,
+          isPlaying: false,
+          coverPath: "",
+        };
         return;
       }
 
@@ -229,11 +246,37 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (cancelled) return;
 
+      const lyric = getActiveLyricLine(currentTrack.lyrics || "", position);
+      const progress = currentTrack.duration ? Math.min(1, Math.max(0, position / currentTrack.duration)) : 0;
+      const progressBucket = Math.floor(progress * 100);
+
+      const lastState = lastWidgetStateRef.current;
+      const nextCoverPath = coverPath || "";
+      if (
+        lastState.trackId === currentTrack.id &&
+        lastState.lyric === lyric &&
+        lastState.progressBucket === progressBucket &&
+        lastState.isPlaying === isPlaying &&
+        lastState.coverPath === nextCoverPath
+      ) {
+        return;
+      }
+
+      lastWidgetStateRef.current = {
+        trackId: currentTrack.id,
+        lyric,
+        progressBucket,
+        isPlaying,
+        coverPath: nextCoverPath,
+      };
+
       await updateWidget({
         title: currentTrack.name,
         artist: currentTrack.artist,
         coverPath,
         isPlaying,
+        lyric,
+        progress,
       });
     };
 
@@ -241,7 +284,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       cancelled = true;
     };
-  }, [currentTrack?.id, isPlaying]);
+  }, [currentTrack?.id, isPlaying, position]);
 
   useEffect(() => {
     positionRef.current = position;

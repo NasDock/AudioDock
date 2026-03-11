@@ -1,19 +1,17 @@
 import Foundation
-import React
+import UIKit
 import WidgetKit
 
 @objc(WidgetBridge)
-class WidgetBridge: NSObject, RCTBridgeModule {
-  static func moduleName() -> String! {
-    return "WidgetBridge"
-  }
-
-  static func requiresMainQueueSetup() -> Bool {
-    return false
+class WidgetBridge: NSObject {
+  @objc static func requiresMainQueueSetup() -> Bool {
+    false
   }
 
   private static let suiteName = "group.com.soundx.mobile"
   private static let coverFileKey = "widget_cover_file"
+  private static let colorPrimaryKey = "widget_color_primary"
+  private static let colorSecondaryKey = "widget_color_secondary"
 
   @objc(updateWidget:resolver:rejecter:)
   func updateWidget(
@@ -29,10 +27,14 @@ class WidgetBridge: NSObject, RCTBridgeModule {
     let title = payload["title"] as? String ?? "未在播放"
     let artist = payload["artist"] as? String ?? ""
     let isPlaying = payload["isPlaying"] as? Bool ?? false
+    let lyric = payload["lyric"] as? String ?? ""
+    let progress = payload["progress"] as? Double ?? 0
 
     defaults.set(title, forKey: "widget_title")
     defaults.set(artist, forKey: "widget_artist")
     defaults.set(isPlaying, forKey: "widget_is_playing")
+    defaults.set(lyric, forKey: "widget_lyric")
+    defaults.set(progress, forKey: "widget_progress")
 
     if let coverPath = payload["coverPath"] as? String, !coverPath.isEmpty {
       let normalizedPath = coverPath.hasPrefix("file://")
@@ -47,15 +49,87 @@ class WidgetBridge: NSObject, RCTBridgeModule {
           }
           try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
           defaults.set(destinationURL.lastPathComponent, forKey: Self.coverFileKey)
+          if let image = UIImage(contentsOfFile: destinationURL.path) {
+            let primary = Self.averageColor(from: image) ?? UIColor.black
+            let secondary = primary.darker(by: 0.45)
+            defaults.set(primary.toHexString(), forKey: Self.colorPrimaryKey)
+            defaults.set(secondary.toHexString(), forKey: Self.colorSecondaryKey)
+          }
         } catch {
           defaults.removeObject(forKey: Self.coverFileKey)
         }
       }
     } else {
       defaults.removeObject(forKey: Self.coverFileKey)
+      defaults.set("#000000", forKey: Self.colorPrimaryKey)
+      defaults.set("#000000", forKey: Self.colorSecondaryKey)
     }
 
     WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockWidget")
     resolve(nil)
+  }
+
+  private static func averageColor(from image: UIImage) -> UIColor? {
+    guard let cgImage = image.cgImage else { return nil }
+    let width = 8
+    let height = 8
+    let bytesPerRow = width * 4
+    let colorSpace = CGColorSpaceCreateDeviceRGB()
+    var pixelData = [UInt8](repeating: 0, count: width * height * 4)
+    guard let context = CGContext(
+      data: &pixelData,
+      width: width,
+      height: height,
+      bitsPerComponent: 8,
+      bytesPerRow: bytesPerRow,
+      space: colorSpace,
+      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ) else { return nil }
+
+    context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+    var r: Int = 0
+    var g: Int = 0
+    var b: Int = 0
+    let count = width * height
+    for i in 0..<count {
+      let index = i * 4
+      r += Int(pixelData[index])
+      g += Int(pixelData[index + 1])
+      b += Int(pixelData[index + 2])
+    }
+
+    return UIColor(
+      red: CGFloat(r) / CGFloat(count) / 255.0,
+      green: CGFloat(g) / CGFloat(count) / 255.0,
+      blue: CGFloat(b) / CGFloat(count) / 255.0,
+      alpha: 1.0
+    )
+  }
+}
+
+private extension UIColor {
+  func darker(by percentage: CGFloat) -> UIColor {
+    var r: CGFloat = 0
+    var g: CGFloat = 0
+    var b: CGFloat = 0
+    var a: CGFloat = 0
+    guard getRed(&r, green: &g, blue: &b, alpha: &a) else { return self }
+    return UIColor(
+      red: max(r - percentage, 0),
+      green: max(g - percentage, 0),
+      blue: max(b - percentage, 0),
+      alpha: a
+    )
+  }
+
+  func toHexString() -> String {
+    var r: CGFloat = 0
+    var g: CGFloat = 0
+    var b: CGFloat = 0
+    var a: CGFloat = 0
+    getRed(&r, green: &g, blue: &b, alpha: &a)
+    let rgb = (Int(r * 255) << 16) | (Int(g * 255) << 8) | Int(b * 255)
+    return String(format: "#%06X", rgb)
   }
 }

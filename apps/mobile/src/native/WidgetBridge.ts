@@ -5,6 +5,8 @@ type WidgetUpdatePayload = {
   artist: string;
   coverPath?: string | null;
   isPlaying: boolean;
+  lyric?: string;
+  progress?: number;
 };
 
 type WidgetBridgeModule = {

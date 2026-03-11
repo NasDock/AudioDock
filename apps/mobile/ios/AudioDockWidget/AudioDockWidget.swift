@@ -11,6 +11,10 @@ struct AudioDockEntry: TimelineEntry {
   let artist: String
   let isPlaying: Bool
   let cover: UIImage?
+  let lyric: String
+  let progress: Double
+  let colorPrimary: Color
+  let colorSecondary: Color
 }
 
 struct AudioDockProvider: TimelineProvider {
@@ -20,7 +24,11 @@ struct AudioDockProvider: TimelineProvider {
       title: "AudioDock",
       artist: "正在播放",
       isPlaying: false,
-      cover: nil
+      cover: nil,
+      lyric: "",
+      progress: 0,
+      colorPrimary: Color.black,
+      colorSecondary: Color.black
     )
   }
 
@@ -39,6 +47,10 @@ struct AudioDockProvider: TimelineProvider {
     let title = defaults?.string(forKey: "widget_title") ?? "未在播放"
     let artist = defaults?.string(forKey: "widget_artist") ?? ""
     let isPlaying = defaults?.bool(forKey: "widget_is_playing") ?? false
+    let lyric = defaults?.string(forKey: "widget_lyric") ?? ""
+    let progress = defaults?.double(forKey: "widget_progress") ?? 0
+    let primaryHex = defaults?.string(forKey: "widget_color_primary") ?? "#000000"
+    let secondaryHex = defaults?.string(forKey: "widget_color_secondary") ?? "#000000"
 
     var coverImage: UIImage? = nil
     if let coverName = defaults?.string(forKey: coverFileKey),
@@ -54,7 +66,11 @@ struct AudioDockProvider: TimelineProvider {
       title: title,
       artist: artist,
       isPlaying: isPlaying,
-      cover: coverImage
+      cover: coverImage,
+      lyric: lyric,
+      progress: progress,
+      colorPrimary: Color(hex: primaryHex),
+      colorSecondary: Color(hex: secondaryHex)
     )
   }
 }
@@ -74,10 +90,9 @@ struct AudioDockWidgetEntryView: View {
         smallView
       }
     }
-    .padding(12)
-    .background(Color.black)
     .foregroundColor(.white)
-    .modifier(WidgetBackground())
+    .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary))
+    .widgetURL(URL(string: "audiodock://widget?open=player"))
   }
 
   private var coverView: some View {
@@ -96,7 +111,6 @@ struct AudioDockWidgetEntryView: View {
       }
     }
     .clipped()
-    .cornerRadius(10)
   }
 
   private var titleView: some View {
@@ -113,7 +127,7 @@ struct AudioDockWidgetEntryView: View {
   }
 
   private var controlsView: some View {
-    HStack(spacing: 16) {
+    HStack(spacing: 18) {
       controlButton(systemName: "backward.fill", action: "prev")
       controlButton(systemName: entry.isPlaying ? "pause.fill" : "play.fill", action: entry.isPlaying ? "pause" : "play")
       controlButton(systemName: "forward.fill", action: "next")
@@ -121,45 +135,83 @@ struct AudioDockWidgetEntryView: View {
   }
 
   private var largeView: some View {
-    VStack(alignment: .leading, spacing: 8) {
+    VStack(spacing: 8) {
       coverView
-        .frame(maxWidth: .infinity, maxHeight: 160)
+        .frame(width: 198, height: 198)
+        .cornerRadius(14)
       titleView
+        .frame(maxWidth: .infinity, alignment: .center)
       artistView
-      Spacer(minLength: 4)
+        .frame(maxWidth: .infinity, alignment: .center)
+      lyricView
+        .frame(maxWidth: .infinity, alignment: .center)
       controlsView
+      progressView
     }
+    .padding(14)
   }
 
   private var mediumView: some View {
-    HStack(spacing: 12) {
-      coverView
-        .frame(width: 64, height: 64)
-      VStack(alignment: .leading, spacing: 6) {
+    HStack(spacing: 8) {
+      ZStack(alignment: .leading) {
+        Color.black.opacity(0.01)
+        coverView
+          .frame(width: 104, height: 104)
+          .cornerRadius(12)
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+
+      VStack(spacing: 6) {
         titleView
+          .frame(maxWidth: .infinity, alignment: .center)
         artistView
-        Spacer(minLength: 4)
+          .frame(maxWidth: .infinity, alignment: .center)
         controlsView
       }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+    .padding(12)
   }
 
   private var smallView: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      HStack(spacing: 8) {
-        coverView
-          .frame(width: 42, height: 42)
-        VStack(alignment: .leading, spacing: 4) {
-          titleView
-          artistView
-        }
-      }
+    VStack(spacing: 8) {
+      coverView
+        .frame(width: 72, height: 72)
+        .cornerRadius(12)
+        .padding(.top, 8)
+      titleView
+        .frame(maxWidth: .infinity, alignment: .center)
       controlsView
     }
+    .padding(10)
+  }
+
+  private var lyricView: some View {
+    Text(entry.lyric)
+      .font(.system(size: 11, weight: .medium))
+      .foregroundColor(.white.opacity(0.8))
+      .lineLimit(1)
+  }
+
+  private var progressView: some View {
+    GeometryReader { proxy in
+      let width = proxy.size.width
+      let progressWidth = max(0, min(width, width * entry.progress))
+      ZStack(alignment: .leading) {
+        Capsule()
+          .fill(Color.white.opacity(0.2))
+          .frame(height: 4)
+        Capsule()
+          .fill(Color.white.opacity(0.85))
+          .frame(width: progressWidth, height: 4)
+      }
+    }
+    .frame(height: 6)
+    .padding(.top, 4)
   }
 
   private func controlButton(systemName: String, action: String) -> some View {
-    let url = URL(string: "audiodock://widget?action=\(action)")
+    let url = URL(string: "audiodock://widget?action=\(action)&open=player")
     return Link(destination: url!) {
       Image(systemName: systemName)
         .font(.system(size: 16, weight: .semibold))
@@ -169,12 +221,40 @@ struct AudioDockWidgetEntryView: View {
 }
 
 struct WidgetBackground: ViewModifier {
+  let primary: Color
+  let secondary: Color
+
   func body(content: Content) -> some View {
     if #available(iOS 17.0, *) {
-      content.containerBackground(Color.black, for: .widget)
+      content.containerBackground(
+        LinearGradient(
+          gradient: Gradient(colors: [primary.opacity(0.9), secondary.opacity(0.9)]),
+          startPoint: .topLeading,
+          endPoint: .bottomTrailing
+        ),
+        for: .widget
+      )
     } else {
-      content
+      content.background(
+        LinearGradient(
+          gradient: Gradient(colors: [primary.opacity(0.9), secondary.opacity(0.9)]),
+          startPoint: .topLeading,
+          endPoint: .bottomTrailing
+        )
+      )
     }
+  }
+}
+
+private extension Color {
+  init(hex: String) {
+    let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+    var int: UInt64 = 0
+    Scanner(string: hex).scanHexInt64(&int)
+    let r = Double((int >> 16) & 0xFF) / 255.0
+    let g = Double((int >> 8) & 0xFF) / 255.0
+    let b = Double(int & 0xFF) / 255.0
+    self.init(red: r, green: g, blue: b)
   }
 }
 

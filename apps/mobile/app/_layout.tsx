@@ -88,7 +88,6 @@ function RootLayoutNav() {
     if (path !== "widget") return;
 
     const action = String(queryParams?.action || "").toLowerCase();
-    if (!action) return;
 
     const handle = async () => {
       switch (action) {
@@ -112,6 +111,8 @@ function RootLayoutNav() {
         default:
           break;
       }
+
+      router.replace("/player");
     };
 
     handle();
@@ -163,6 +164,7 @@ function RootLayoutNav() {
       <Stack.Screen name="folder/index" options={{ headerShown: false }} />
       <Stack.Screen name="folder/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="notification.click" options={{ headerShown: false }} />
+      <Stack.Screen name="widget" options={{ headerShown: false }} />
       <Stack.Screen name="source-manage" options={{ headerShown: false }} />
       <Stack.Screen name="member-detail" options={{ headerShown: false }} />
       <Stack.Screen 
