@@ -43,5 +43,12 @@
       </intent-filter>
       <meta-data android:name="android.appwidget.provider" android:resource="@xml/audiodock_widget_info"/>
     </receiver>
+    <receiver android:name=".widget.WidgetCommandReceiver" android:exported="false">
+      <intent-filter>
+        <action android:name="com.soundx.widget.MODE"/>
+        <action android:name="com.soundx.widget.LIKE"/>
+        <action android:name="com.soundx.widget.UNLIKE"/>
+      </intent-filter>
+    </receiver>
   </application>
 </manifest>

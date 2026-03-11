@@ -7,7 +7,10 @@ import com.facebook.react.uimanager.ViewManager
 
 class WidgetBridgePackage : ReactPackage {
   override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-    return listOf(WidgetBridgeModule(reactContext))
+    return listOf(
+      WidgetBridgeModule(reactContext),
+      WidgetCommandEmitterModule(reactContext)
+    )
   }
 
   override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {

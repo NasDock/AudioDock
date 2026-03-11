@@ -13,7 +13,6 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Shader
-import android.net.Uri
 import android.os.Bundle
 import android.widget.RemoteViews
 import androidx.core.content.ContextCompat
@@ -61,9 +60,9 @@ class AudioDockWidgetProvider : AppWidgetProvider() {
     private const val ACTION_WIDGET_PAUSE = "com.soundx.widget.PAUSE"
     private const val ACTION_WIDGET_NEXT = "com.soundx.widget.NEXT"
     private const val ACTION_WIDGET_PREV = "com.soundx.widget.PREV"
-    private const val ACTION_MODE = "mode"
-    private const val ACTION_LIKE = "like"
-    private const val ACTION_UNLIKE = "unlike"
+    private const val ACTION_MODE = WidgetCommandReceiver.ACTION_WIDGET_MODE
+    private const val ACTION_LIKE = WidgetCommandReceiver.ACTION_WIDGET_LIKE
+    private const val ACTION_UNLIKE = WidgetCommandReceiver.ACTION_WIDGET_UNLIKE
 
     fun updateAllWidgets(context: Context) {
       val manager = AppWidgetManager.getInstance(context)
@@ -106,9 +105,11 @@ class AudioDockWidgetProvider : AppWidgetProvider() {
         }
 
         if (layoutId == R.layout.widget_large) {
-          val modeIcon = when (state.playMode) {
+          val modeIcon = when (normalizePlayMode(state.playMode)) {
             "SHUFFLE" -> R.drawable.ic_widget_shuffle
             "LOOP_SINGLE" -> R.drawable.ic_widget_repeat_one
+            "LOOP_LIST" -> R.drawable.ic_widget_repeat
+            "SEQUENCE" -> R.drawable.ic_widget_sequence
             else -> R.drawable.ic_widget_repeat
           }
           val likeIcon = if (state.isLiked) R.drawable.ic_widget_heart_filled else R.drawable.ic_widget_heart
@@ -147,11 +148,14 @@ class AudioDockWidgetProvider : AppWidgetProvider() {
         if (layoutId == R.layout.widget_large) {
           views.setOnClickPendingIntent(
             R.id.widget_mode,
-            actionPendingIntent(context, ACTION_MODE)
+            commandPendingIntent(context, ACTION_MODE)
           )
           views.setOnClickPendingIntent(
             R.id.widget_like,
-            actionPendingIntent(context, if (state.isLiked) ACTION_UNLIKE else ACTION_LIKE)
+            commandPendingIntent(
+              context,
+              if (state.isLiked) ACTION_UNLIKE else ACTION_LIKE
+            )
           )
         }
 
@@ -173,11 +177,9 @@ class AudioDockWidgetProvider : AppWidgetProvider() {
     }
 
     private fun openPendingIntent(context: Context): PendingIntent {
-      val uri = Uri.parse("audiodock://widget?open=player")
-      val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-        `package` = context.packageName
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-      }
+      val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        ?: Intent(context, com.anonymous.mobile.MainActivity::class.java)
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
       val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
       return PendingIntent.getActivity(context, "open".hashCode(), intent, flags)
     }
@@ -191,14 +193,22 @@ class AudioDockWidgetProvider : AppWidgetProvider() {
       return PendingIntent.getBroadcast(context, action.hashCode(), intent, flags)
     }
 
-    private fun actionPendingIntent(context: Context, action: String): PendingIntent {
-      val uri = Uri.parse("audiodock://widget?action=$action&open=player")
-      val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-        `package` = context.packageName
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+    private fun commandPendingIntent(context: Context, action: String): PendingIntent {
+      val intent = Intent(context, WidgetCommandReceiver::class.java).apply {
+        this.action = action
       }
       val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-      return PendingIntent.getActivity(context, action.hashCode(), intent, flags)
+      return PendingIntent.getBroadcast(context, action.hashCode(), intent, flags)
+    }
+
+    private fun normalizePlayMode(raw: String): String {
+      return when (raw.uppercase()) {
+        "SHUFFLE", "RANDOM" -> "SHUFFLE"
+        "LOOP_SINGLE", "SINGLE_LOOP", "SINGLE" -> "LOOP_SINGLE"
+        "LOOP_LIST", "LIST_LOOP", "LOOP" -> "LOOP_LIST"
+        "SEQUENCE", "ORDER", "DEFAULT" -> "SEQUENCE"
+        else -> raw
+      }
     }
 
     private fun resolveWidgetSize(context: Context, options: Bundle?): Pair<Int, Int> {

@@ -235,7 +235,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 coverPath = cached;
               }
             }
-            const isPlayingNow = playbackState === State.Playing;
+            const isPlayingNow = playbackState.state === State.Playing;
         await updateWidget({
           title,
           artist,
@@ -1341,7 +1341,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [trackList, isSynced, sessionId]);
 
   useEffect(() => {
-    if (Platform.OS !== "ios") return;
     const module = NativeModules.WidgetCommandEmitter;
     if (!module) return;
 
