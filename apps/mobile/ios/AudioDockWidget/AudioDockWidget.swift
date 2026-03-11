@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import AppIntents
 
 private let widgetKind = "AudioDockWidget"
 private let widgetSuite = "group.com.soundx.mobile"
@@ -210,12 +211,23 @@ struct AudioDockWidgetEntryView: View {
     .padding(.top, 4)
   }
 
+  @ViewBuilder
   private func controlButton(systemName: String, action: String) -> some View {
-    let url = URL(string: "audiodock://widget?action=\(action)&open=player")
-    return Link(destination: url!) {
-      Image(systemName: systemName)
-        .font(.system(size: 16, weight: .semibold))
-        .frame(width: 24, height: 24)
+    if #available(iOS 17.0, *) {
+      let widgetAction = WidgetAction(rawValue: action) ?? .play
+      Button(intent: WidgetControlIntent(action: widgetAction)) {
+        Image(systemName: systemName)
+          .font(.system(size: 16, weight: .semibold))
+          .frame(width: 24, height: 24)
+      }
+      .buttonStyle(.plain)
+    } else {
+      let url = URL(string: "audiodock://widget?action=\(action)&open=player")
+      Link(destination: url!) {
+        Image(systemName: systemName)
+          .font(.system(size: 16, weight: .semibold))
+          .frame(width: 24, height: 24)
+      }
     }
   }
 }

@@ -12,7 +12,9 @@
 		56F6F6DE45504B328BF291BE /* AudioDockWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 6C789DA2D8F9483CBADFC60D /* AudioDockWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		6D4DAAF2EB374DC68CD867E4 /* AudioDockWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E89F43F0F724A41BBB71CAB /* AudioDockWidget.swift */; };
 		07B4C0793F7D42C9A2F877C2 /* AudioDockWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9593B26AEBAD4EB4987BBAB9 /* AudioDockWidgetBundle.swift */; };
+		BD7A6B0963E941E2A8F15E11 /* WidgetIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EC477208124843925C0326 /* WidgetIntents.swift */; };
 		4CA432E294EE46F2AC2F683C /* WidgetBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 3B8C3A28D594467BBB735F3A /* WidgetBridge.m */; };
+		3672991D2F634CC8ABB36E3E /* WidgetCommandEmitter.m in Sources */ = {isa = PBXBuildFile; fileRef = 94D7316243074F0CAB29E881 /* WidgetCommandEmitter.m */; };
 		BCC2C8051E8C4B159F50FCD4 /* WidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BE2C3FC39E34876BE39DB52 /* WidgetBridge.swift */; };
 		63355FBCD351674D68A4728C /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A9ABFCA3E15919BB20B2A3D /* ExpoModulesProvider.swift */; };
 		84CF6712F8FD2249A87E6427 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 27AD97A087BB945B53384A8E /* PrivacyInfo.xcprivacy */; };
@@ -38,8 +40,11 @@
 /* Begin PBXFileReference section */
 		0A9ABFCA3E15919BB20B2A3D /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-AudioDock/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		1BE2C3FC39E34876BE39DB52 /* WidgetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WidgetBridge.swift; path = AudioDock/WidgetBridge.swift; sourceTree = "<group>"; };
+		94D7316243074F0CAB29E881 /* WidgetCommandEmitter.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = WidgetCommandEmitter.m; path = AudioDock/WidgetCommandEmitter.m; sourceTree = "<group>"; };
+		ADD011114BE8400399854CF5 /* WidgetCommandEmitter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = WidgetCommandEmitter.h; path = AudioDock/WidgetCommandEmitter.h; sourceTree = "<group>"; };
 		3B8C3A28D594467BBB735F3A /* WidgetBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = WidgetBridge.m; path = AudioDock/WidgetBridge.m; sourceTree = "<group>"; };
 		1E89F43F0F724A41BBB71CAB /* AudioDockWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDockWidget/AudioDockWidget.swift; sourceTree = "<group>"; };
+		D3EC477208124843925C0326 /* WidgetIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDockWidget/WidgetIntents.swift; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* AudioDock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AudioDock.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = AudioDock/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = AudioDock/Info.plist; sourceTree = "<group>"; };
@@ -83,6 +88,8 @@
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
 				1BE2C3FC39E34876BE39DB52 /* WidgetBridge.swift */,
 				3B8C3A28D594467BBB735F3A /* WidgetBridge.m */,
+				94D7316243074F0CAB29E881 /* WidgetCommandEmitter.m */,
+				ADD011114BE8400399854CF5 /* WidgetCommandEmitter.h */,
 				F11748442D0722820044C1D9 /* AudioDock-Bridging-Header.h */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
@@ -98,6 +105,7 @@
 			children = (
 				1E89F43F0F724A41BBB71CAB /* AudioDockWidget.swift */,
 				9593B26AEBAD4EB4987BBAB9 /* AudioDockWidgetBundle.swift */,
+				D3EC477208124843925C0326 /* WidgetIntents.swift */,
 				71F6B6AE041B44208AE3D7CC /* Info.plist */,
 				9963079F7F8C43CAAB91726A /* AudioDockWidget.entitlements */,
 			);
@@ -411,6 +419,7 @@
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
 				BCC2C8051E8C4B159F50FCD4 /* WidgetBridge.swift in Sources */,
 				4CA432E294EE46F2AC2F683C /* WidgetBridge.m in Sources */,
+				3672991D2F634CC8ABB36E3E /* WidgetCommandEmitter.m in Sources */,
 				63355FBCD351674D68A4728C /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -421,6 +430,7 @@
 			files = (
 				6D4DAAF2EB374DC68CD867E4 /* AudioDockWidget.swift in Sources */,
 				07B4C0793F7D42C9A2F877C2 /* AudioDockWidgetBundle.swift in Sources */,
+				BD7A6B0963E941E2A8F15E11 /* WidgetIntents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

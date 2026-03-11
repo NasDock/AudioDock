@@ -15,7 +15,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Alert, Platform } from "react-native";
+import { Alert, NativeEventEmitter, NativeModules, Platform } from "react-native";
 import TrackPlayer, {
   AppKilledPlaybackBehavior,
   Capability,
@@ -1252,6 +1252,40 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       });
     }
   }, [trackList, isSynced, sessionId]);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    const module = NativeModules.WidgetCommandEmitter;
+    if (!module) return;
+
+    const emitter = new NativeEventEmitter(module);
+    const subscription = emitter.addListener("widgetCommand", async (payload) => {
+      const action = String(payload?.action || "").toLowerCase();
+      switch (action) {
+        case "play":
+          if (isPlaying) {
+            await pause();
+          } else {
+            await resume();
+          }
+          break;
+        case "pause":
+          await pause();
+          break;
+        case "next":
+          await playNext();
+          break;
+        case "prev":
+        case "previous":
+          await playPrevious();
+          break;
+        default:
+          break;
+      }
+    });
+
+    return () => subscription.remove();
+  }, [isPlaying, pause, resume, playNext, playPrevious]);
 
   // Force report on track change
   useEffect(() => {

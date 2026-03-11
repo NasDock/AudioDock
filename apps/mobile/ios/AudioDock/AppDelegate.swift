@@ -1,6 +1,11 @@
 import Expo
 import React
 import ReactAppDependencyProvider
+import Foundation
+
+private let widgetSuiteName = "group.com.soundx.mobile"
+private let widgetCommandKey = "widget_command"
+private let widgetCommandNotification = "com.soundx.widget.command" as CFString
 
 @UIApplicationMain
 public class AppDelegate: ExpoAppDelegate {
@@ -28,6 +33,7 @@ public class AppDelegate: ExpoAppDelegate {
       in: window,
       launchOptions: launchOptions)
 #endif
+    WidgetCommandObserver.shared.start()
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
@@ -67,4 +73,40 @@ class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
     return Bundle.main.url(forResource: "main", withExtension: "jsbundle")
 #endif
   }
+}
+
+private final class WidgetCommandObserver {
+  static let shared = WidgetCommandObserver()
+  private var isStarted = false
+
+  func start() {
+    guard !isStarted else { return }
+    isStarted = true
+    CFNotificationCenterAddObserver(
+      CFNotificationCenterGetDarwinNotifyCenter(),
+      Unmanaged.passUnretained(self).toOpaque(),
+      widgetCommandCallback,
+      widgetCommandNotification,
+      nil,
+      .deliverImmediately
+    )
+  }
+
+  func handle() {
+    guard let defaults = UserDefaults(suiteName: widgetSuiteName) else { return }
+    guard let command = defaults.string(forKey: widgetCommandKey), !command.isEmpty else { return }
+    WidgetCommandEmitter.sendCommand(command)
+  }
+}
+
+private func widgetCommandCallback(
+  center: CFNotificationCenter?,
+  observer: UnsafeMutableRawPointer?,
+  name: CFNotificationName?,
+  object: UnsafeRawPointer?,
+  userInfo: CFDictionary?
+) {
+  guard let observer = observer else { return }
+  let instance = Unmanaged<WidgetCommandObserver>.fromOpaque(observer).takeUnretainedValue()
+  instance.handle()
 }
