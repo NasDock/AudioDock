@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import "react-native-reanimated";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
-import { PlayerProvider } from "../src/context/PlayerContext";
+import { PlayerProvider, usePlayer } from "../src/context/PlayerContext";
 import { ThemeProvider, useTheme } from "../src/context/ThemeContext";
 import { PlayModeProvider } from "../src/utils/playMode";
 
@@ -22,6 +22,7 @@ function RootLayoutNav() {
   const { token, isLoading, sourceType, plusToken } = useAuth();
   const { voiceAssistantEnabled, carLayoutMode } = useSettings();
   const { theme, colors } = useTheme();
+  const { pause, resume, playNext, playPrevious, isPlaying } = usePlayer();
   const segments = useSegments();
   const router = useRouter();
   const fuAnim = useRef(new Animated.Value(0)).current;
@@ -39,7 +40,6 @@ function RootLayoutNav() {
     }
   }, [theme]);
   const url = Linking.useURL();
-  const handledUrlsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (isLoading) return;
@@ -80,6 +80,42 @@ function RootLayoutNav() {
       router.replace("/(tabs)");
     }
   }, [token, plusToken, segments, isLoading, sourceType]);
+
+  useEffect(() => {
+    if (!url) return;
+
+    const { path, queryParams } = Linking.parse(url);
+    if (path !== "widget") return;
+
+    const action = String(queryParams?.action || "").toLowerCase();
+    if (!action) return;
+
+    const handle = async () => {
+      switch (action) {
+        case "play":
+          if (isPlaying) {
+            await pause();
+          } else {
+            await resume();
+          }
+          break;
+        case "pause":
+          await pause();
+          break;
+        case "next":
+          await playNext();
+          break;
+        case "prev":
+        case "previous":
+          await playPrevious();
+          break;
+        default:
+          break;
+      }
+    };
+
+    handle();
+  }, [url, isPlaying, pause, resume, playNext, playPrevious]);
 
   const stack = (
     <Stack>

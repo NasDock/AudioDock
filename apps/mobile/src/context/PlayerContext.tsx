@@ -38,6 +38,9 @@ import {
   resolveTrackUri,
 } from "../services/trackResolver";
 import { usePlayMode } from "../utils/playMode";
+import { updateWidget } from "../native/WidgetBridge";
+import { cacheCover } from "../services/cache";
+import { resolveArtworkUri } from "../services/trackResolver";
 import { useAuth } from "./AuthContext";
 import { useNotification } from "./NotificationContext";
 import { useSettings } from "./SettingsContext";
@@ -200,6 +203,45 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     currentTrackRef.current = currentTrack;
   }, [currentTrack]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncWidget = async () => {
+      if (!currentTrack) {
+        await updateWidget({
+          title: "未在播放",
+          artist: "",
+          coverPath: null,
+          isPlaying: false,
+        });
+        return;
+      }
+
+      let coverPath: string | null = null;
+      const artworkUrl = resolveArtworkUri(currentTrack);
+      if (artworkUrl) {
+        const cached = await cacheCover(artworkUrl);
+        if (!cached.startsWith("http://") && !cached.startsWith("https://")) {
+          coverPath = cached;
+        }
+      }
+
+      if (cancelled) return;
+
+      await updateWidget({
+        title: currentTrack.name,
+        artist: currentTrack.artist,
+        coverPath,
+        isPlaying,
+      });
+    };
+
+    syncWidget();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTrack?.id, isPlaying]);
 
   useEffect(() => {
     positionRef.current = position;

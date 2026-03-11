@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/widget_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:orientation="horizontal"
+  android:padding="12dp"
+  android:background="@android:color/black">
+
+  <ImageView
+    android:id="@+id/widget_cover"
+    android:layout_width="64dp"
+    android:layout_height="64dp"
+    android:layout_gravity="center_vertical"
+    android:scaleType="centerCrop"
+    android:src="@mipmap/ic_launcher" />
+
+  <LinearLayout
+    android:layout_width="0dp"
+    android:layout_height="match_parent"
+    android:layout_weight="1"
+    android:layout_marginStart="12dp"
+    android:orientation="vertical">
+
+    <TextView
+      android:id="@+id/widget_title"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:text="Title"
+      android:textColor="@android:color/white"
+      android:textSize="14sp"
+      android:maxLines="1"
+      android:ellipsize="end" />
+
+    <TextView
+      android:id="@+id/widget_artist"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:text="Artist"
+      android:textColor="#B3FFFFFF"
+      android:textSize="12sp"
+      android:maxLines="1"
+      android:ellipsize="end" />
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:gravity="start"
+      android:layout_marginTop="8dp">
+
+      <ImageView
+        android:id="@+id/widget_prev"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_widget_prev"
+        android:tint="@android:color/white" />
+
+      <ImageView
+        android:id="@+id/widget_play_pause"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="10dp"
+        android:src="@drawable/ic_widget_play"
+        android:tint="@android:color/white" />
+
+      <ImageView
+        android:id="@+id/widget_next"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_widget_next"
+        android:tint="@android:color/white" />
+    </LinearLayout>
+  </LinearLayout>
+</LinearLayout>

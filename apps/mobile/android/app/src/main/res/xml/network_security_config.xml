@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 全局基础配置：允许明文流量（但通过 domain-config 精准控制范围） -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- 允许所有私有局域网段的明文流量（覆盖用户可能填写的所有本地IP） -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- 回环地址 -->
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <!-- Android 模拟器专属 -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <!-- 私有网络 IP 段（覆盖所有本地局域网IP） -->
+        <ip-config match="10.0.0.0/8" />       <!-- 10.x.x.x 段 -->
+        <ip-config match="172.16.0.0/12" />    <!-- 172.16.x.x ~ 172.31.x.x 段 -->
+        <ip-config match="192.168.0.0/16" />   <!-- 192.168.x.x 段（最常用） -->
+        <ip-config match="169.254.0.0/16" />   <!-- 链路本地地址 -->
+    </domain-config>
+</network-security-config>
