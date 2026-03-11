@@ -61,6 +61,9 @@ class AudioDockWidgetProvider : AppWidgetProvider() {
     private const val ACTION_WIDGET_PAUSE = "com.soundx.widget.PAUSE"
     private const val ACTION_WIDGET_NEXT = "com.soundx.widget.NEXT"
     private const val ACTION_WIDGET_PREV = "com.soundx.widget.PREV"
+    private const val ACTION_MODE = "mode"
+    private const val ACTION_LIKE = "like"
+    private const val ACTION_UNLIKE = "unlike"
 
     fun updateAllWidgets(context: Context) {
       val manager = AppWidgetManager.getInstance(context)
@@ -96,15 +99,21 @@ class AudioDockWidgetProvider : AppWidgetProvider() {
           views.setImageViewResource(R.id.widget_cover, R.mipmap.ic_launcher)
         }
 
-        if (layoutId == R.layout.widget_large) {
-          views.setTextViewText(R.id.widget_lyric, state.lyric)
-          views.setProgressBar(R.id.widget_progress, 1000, (state.progress * 1000).toInt(), false)
-        }
-
         val (widthPx, heightPx) = resolveWidgetSize(context, options)
         val bgBitmap = gradientBitmap(widthPx, heightPx, state.colorPrimary, state.colorSecondary)
         if (bgBitmap != null) {
           views.setImageViewBitmap(R.id.widget_bg, bgBitmap)
+        }
+
+        if (layoutId == R.layout.widget_large) {
+          val modeIcon = when (state.playMode) {
+            "SHUFFLE" -> R.drawable.ic_widget_shuffle
+            "LOOP_SINGLE" -> R.drawable.ic_widget_repeat_one
+            else -> R.drawable.ic_widget_repeat
+          }
+          val likeIcon = if (state.isLiked) R.drawable.ic_widget_heart_filled else R.drawable.ic_widget_heart
+          views.setImageViewResource(R.id.widget_mode, modeIcon)
+          views.setImageViewResource(R.id.widget_like, likeIcon)
         }
 
         val playIcon = if (state.isPlaying) {
@@ -134,6 +143,17 @@ class AudioDockWidgetProvider : AppWidgetProvider() {
           R.id.widget_next,
           broadcastPendingIntent(context, ACTION_WIDGET_NEXT, appWidgetId)
         )
+
+        if (layoutId == R.layout.widget_large) {
+          views.setOnClickPendingIntent(
+            R.id.widget_mode,
+            actionPendingIntent(context, ACTION_MODE)
+          )
+          views.setOnClickPendingIntent(
+            R.id.widget_like,
+            actionPendingIntent(context, if (state.isLiked) ACTION_UNLIKE else ACTION_LIKE)
+          )
+        }
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
       }
@@ -169,6 +189,16 @@ class AudioDockWidgetProvider : AppWidgetProvider() {
       }
       val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
       return PendingIntent.getBroadcast(context, action.hashCode(), intent, flags)
+    }
+
+    private fun actionPendingIntent(context: Context, action: String): PendingIntent {
+      val uri = Uri.parse("audiodock://widget?action=$action&open=player")
+      val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+        `package` = context.packageName
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+      }
+      val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+      return PendingIntent.getActivity(context, action.hashCode(), intent, flags)
     }
 
     private fun resolveWidgetSize(context: Context, options: Bundle?): Pair<Int, Int> {

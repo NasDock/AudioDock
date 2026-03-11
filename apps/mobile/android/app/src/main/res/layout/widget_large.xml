@@ -48,28 +48,6 @@
       android:maxLines="1"
       android:ellipsize="end" />
 
-    <TextView
-      android:id="@+id/widget_lyric"
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:layout_marginTop="4dp"
-      android:gravity="center"
-      android:text=""
-      android:textColor="#CCFFFFFF"
-      android:textSize="11sp"
-      android:maxLines="1"
-      android:ellipsize="end" />
-
-    <ProgressBar
-      android:id="@+id/widget_progress"
-      style="@android:style/Widget.ProgressBar.Horizontal"
-      android:layout_width="match_parent"
-      android:layout_height="4dp"
-      android:layout_marginTop="8dp"
-      android:progressDrawable="@drawable/widget_progress"
-      android:max="1000"
-      android:progress="0" />
-
     <LinearLayout
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
@@ -78,9 +56,17 @@
       android:layout_marginTop="10dp">
 
       <ImageView
+        android:id="@+id/widget_mode"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_widget_repeat"
+        android:tint="@android:color/white" />
+
+      <ImageView
         android:id="@+id/widget_prev"
         android:layout_width="26dp"
         android:layout_height="26dp"
+        android:layout_marginStart="12dp"
         android:src="@drawable/ic_widget_prev"
         android:tint="@android:color/white" />
 
@@ -98,6 +84,14 @@
         android:layout_width="26dp"
         android:layout_height="26dp"
         android:src="@drawable/ic_widget_next"
+        android:tint="@android:color/white" />
+
+      <ImageView
+        android:id="@+id/widget_like"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="12dp"
+        android:src="@drawable/ic_widget_heart"
         android:tint="@android:color/white" />
     </LinearLayout>
   </LinearLayout>

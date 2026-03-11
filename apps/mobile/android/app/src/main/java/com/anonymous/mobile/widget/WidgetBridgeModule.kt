@@ -25,11 +25,11 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
       } else {
         null
       }
-      val lyric = payload.getString("lyric") ?: ""
-      val progress = if (payload.hasKey("progress") && !payload.isNull("progress")) {
-        payload.getDouble("progress").toFloat()
+      val playMode = payload.getString("playMode") ?: ""
+      val isLiked = if (payload.hasKey("isLiked") && !payload.isNull("isLiked")) {
+        payload.getBoolean("isLiked")
       } else {
-        0f
+        false
       }
       val isPlaying = payload.getBoolean("isPlaying")
 
@@ -41,8 +41,8 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
         artist,
         coverPath,
         isPlaying,
-        lyric,
-        progress,
+        playMode,
+        isLiked,
         primaryColor,
         secondaryColor
       )

@@ -8,9 +8,12 @@ static WidgetCommandEmitter *_shared = nil;
 
 RCT_EXPORT_MODULE();
 
-+ (void)sendCommand:(NSString *)command {
++ (void)sendCommand:(NSString *)command payload:(NSDictionary *)payload {
   if (_shared && _shared->hasListeners) {
-    [_shared sendEventWithName:@"widgetCommand" body:@{ @"action": command ?: @"" }];
+    NSDictionary *safePayload = payload ?: @{};
+    [_shared sendEventWithName:@"widgetCommand"
+                          body:@{ @"action": command ?: @"",
+                                  @"payload": safePayload }];
   }
 }
 

@@ -94,8 +94,17 @@ private final class WidgetCommandObserver {
 
   func handle() {
     guard let defaults = UserDefaults(suiteName: widgetSuiteName) else { return }
+    defaults.synchronize()
     guard let command = defaults.string(forKey: widgetCommandKey), !command.isEmpty else { return }
-    WidgetCommandEmitter.sendCommand(command)
+    let playMode = defaults.string(forKey: "widget_play_mode") ?? ""
+    let nextPlayMode = defaults.string(forKey: "widget_play_mode_next") ?? ""
+    let isLiked = defaults.bool(forKey: "widget_is_liked")
+    let payload: [String: Any] = [
+      "playMode": playMode,
+      "nextPlayMode": nextPlayMode,
+      "isLiked": isLiked
+    ]
+    WidgetCommandEmitter.sendCommand(command, payload: payload)
   }
 }
 

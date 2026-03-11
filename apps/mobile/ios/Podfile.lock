@@ -137,6 +137,8 @@ PODS:
   - libwebp/sharpyuv (1.5.0)
   - libwebp/webp (1.5.0):
     - libwebp/sharpyuv
+  - MediaControlBridge (1.0.0):
+    - ExpoModulesCore
   - RCTDeprecation (0.81.5)
   - RCTRequired (0.81.5)
   - RCTTypeSafety (0.81.5):
@@ -2068,6 +2070,51 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - RNSVG (15.12.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - RNSVG/common (= 15.12.0)
+    - Yoga
+  - RNSVG/common (15.12.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - RNWorklets (0.5.1):
     - hermes-engine
     - RCTRequired
@@ -2178,6 +2225,7 @@ DEPENDENCIES:
   - "ExpoWebBrowser (from `../../../node_modules/.pnpm/expo-web-browser@15.0.10_expo@54.0.27_react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0_/node_modules/expo-web-browser/ios`)"
   - "FBLazyVector (from `../../../node_modules/.pnpm/react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0/node_modules/react-native/Libraries/FBLazyVector`)"
   - "hermes-engine (from `../../../node_modules/.pnpm/react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0/node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)"
+  - MediaControlBridge (from `../modules/media-control-bridge/ios`)
   - "RCTDeprecation (from `../../../node_modules/.pnpm/react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0/node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)"
   - "RCTRequired (from `../../../node_modules/.pnpm/react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0/node_modules/react-native/Libraries/Required`)"
   - "RCTTypeSafety (from `../../../node_modules/.pnpm/react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0/node_modules/react-native/Libraries/TypeSafety`)"
@@ -2250,6 +2298,7 @@ DEPENDENCIES:
   - "RNGestureHandler (from `../../../node_modules/.pnpm/react-native-gesture-handler@2.28.0_react-native@0.81.5_@babel+core@7.28.5_@types+react_6878821a9d189a2f0ab87558d9bf061a/node_modules/react-native-gesture-handler`)"
   - "RNReanimated (from `../../../node_modules/.pnpm/react-native-reanimated@4.1.6_@babel+core@7.28.5_react-native-worklets@0.5.1_@babel+cor_bd2a48a573a4926ac2161342942dcf35/node_modules/react-native-reanimated`)"
   - "RNScreens (from `../../../node_modules/.pnpm/react-native-screens@4.16.0_react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-screens`)"
+  - "RNSVG (from `../../../node_modules/.pnpm/react-native-svg@15.12.0_react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-svg`)"
   - "RNWorklets (from `../../../node_modules/.pnpm/react-native-worklets@0.5.1_@babel+core@7.28.5_react-native@0.81.5_@babel+core@7.28.5_@_475598bffd18458016f257ef2eebee20/node_modules/react-native-worklets`)"
   - "Yoga (from `../../../node_modules/.pnpm/react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0/node_modules/react-native/ReactCommon/yoga`)"
 
@@ -2314,6 +2363,8 @@ EXTERNAL SOURCES:
   hermes-engine:
     :podspec: "../../../node_modules/.pnpm/react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0/node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec"
     :tag: hermes-2025-07-07-RNv0.81.0-e0fc67142ec0763c6b6153ca2bf96df815539782
+  MediaControlBridge:
+    :path: "../modules/media-control-bridge/ios"
   RCTDeprecation:
     :path: "../../../node_modules/.pnpm/react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0/node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation"
   RCTRequired:
@@ -2456,6 +2507,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/react-native-reanimated@4.1.6_@babel+core@7.28.5_react-native-worklets@0.5.1_@babel+cor_bd2a48a573a4926ac2161342942dcf35/node_modules/react-native-reanimated"
   RNScreens:
     :path: "../../../node_modules/.pnpm/react-native-screens@4.16.0_react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-screens"
+  RNSVG:
+    :path: "../../../node_modules/.pnpm/react-native-svg@15.12.0_react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-svg"
   RNWorklets:
     :path: "../../../node_modules/.pnpm/react-native-worklets@0.5.1_@babel+core@7.28.5_react-native@0.81.5_@babel+core@7.28.5_@_475598bffd18458016f257ef2eebee20/node_modules/react-native-worklets"
   Yoga:
@@ -2489,6 +2542,7 @@ SPEC CHECKSUMS:
   libavif: 84bbb62fb232c3018d6f1bab79beea87e35de7b7
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
+  MediaControlBridge: ec8e734b4828f74e85f1ffa5dfaab5353f4d7360
   RCTDeprecation: 943572d4be82d480a48f4884f670135ae30bf990
   RCTRequired: 8f3cfc90cc25cf6e420ddb3e7caaaabc57df6043
   RCTTypeSafety: 16a4144ca3f959583ab019b57d5633df10b5e97c
@@ -2560,6 +2614,7 @@ SPEC CHECKSUMS:
   RNGestureHandler: 2914750df066d89bf9d8f48a10ad5f0051108ac3
   RNReanimated: 20ba04700aea63a3a6b153efa0c82956f2361aee
   RNScreens: d8d6f1792f6e7ac12b0190d33d8d390efc0c1845
+  RNSVG: 1f1ee0c928caa9177d427a6a2fe604fe07acabf8
   RNWorklets: d7f4b899893b84a705087a314f553c5a749b34f9
   SDWebImage: e9c98383c7572d713c1a0d7dd2783b10599b9838
   SDWebImageAVIFCoder: afe194a084e851f70228e4be35ef651df0fc5c57

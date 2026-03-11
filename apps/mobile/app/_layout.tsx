@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from "react";
 import "react-native-reanimated";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { PlayerProvider, usePlayer } from "../src/context/PlayerContext";
+import { toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
 import { ThemeProvider, useTheme } from "../src/context/ThemeContext";
 import { PlayModeProvider } from "../src/utils/playMode";
 
@@ -19,10 +20,10 @@ import { SyncProvider } from "../src/context/SyncContext";
 import { PlayerDetailView } from "./player";
 
 function RootLayoutNav() {
-  const { token, isLoading, sourceType, plusToken } = useAuth();
+  const { token, isLoading, sourceType, plusToken, user } = useAuth();
   const { voiceAssistantEnabled, carLayoutMode } = useSettings();
   const { theme, colors } = useTheme();
-  const { pause, resume, playNext, playPrevious, isPlaying } = usePlayer();
+  const { pause, resume, playNext, playPrevious, togglePlayMode, isPlaying, currentTrack } = usePlayer();
   const segments = useSegments();
   const router = useRouter();
   const fuAnim = useRef(new Animated.Value(0)).current;
@@ -100,6 +101,19 @@ function RootLayoutNav() {
           break;
         case "pause":
           await pause();
+          break;
+        case "mode":
+          togglePlayMode();
+          break;
+        case "like":
+          if (currentTrack && user) {
+            await toggleTrackLike(currentTrack.id, user.id);
+          }
+          break;
+        case "unlike":
+          if (currentTrack && user) {
+            await toggleTrackUnLike(currentTrack.id, user.id);
+          }
           break;
         case "next":
           await playNext();

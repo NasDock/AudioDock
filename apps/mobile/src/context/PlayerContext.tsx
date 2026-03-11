@@ -41,7 +41,7 @@ import { usePlayMode } from "../utils/playMode";
 import { updateWidget } from "../native/WidgetBridge";
 import { cacheCover } from "../services/cache";
 import { resolveArtworkUri } from "../services/trackResolver";
-import { getActiveLyricLine } from "../utils/lyrics";
+import { toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
 import { useAuth } from "./AuthContext";
 import { useNotification } from "./NotificationContext";
 import { useSettings } from "./SettingsContext";
@@ -177,11 +177,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const currentTrackRef = React.useRef(currentTrack);
   const lastWidgetStateRef = React.useRef({
     trackId: null as number | string | null,
-    lyric: "",
-    progressBucket: -1,
     isPlaying: false,
     coverPath: "",
+    playMode: "",
+    isLiked: false,
   });
+  const widgetModeLockRef = React.useRef<{
+    until: number;
+    playMode: PlayMode | null;
+  }>({ until: 0, playMode: null });
   const positionRef = React.useRef(position);
   const playbackRateRef = React.useRef(playbackRate);
   const isRadioModeRef = React.useRef(isRadioMode);
@@ -217,20 +221,56 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const syncWidget = async () => {
       if (!currentTrack) {
+        try {
+          const playbackState = await TrackPlayer.getPlaybackState();
+          const activeTrack: any = await TrackPlayer.getActiveTrack();
+          if (activeTrack) {
+            const title = activeTrack.title || activeTrack.name || "未在播放";
+            const artist = activeTrack.artist || "";
+            const artwork = typeof activeTrack.artwork === "string" ? activeTrack.artwork : "";
+            let coverPath: string | null = null;
+            if (artwork) {
+              const cached = await cacheCover(artwork);
+              if (!cached.startsWith("http://") && !cached.startsWith("https://")) {
+                coverPath = cached;
+              }
+            }
+            const isPlayingNow = playbackState === State.Playing;
+        await updateWidget({
+          title,
+          artist,
+          coverPath,
+          isPlaying: isPlayingNow,
+          playMode: playMode,
+          isLiked: false,
+        });
+        lastWidgetStateRef.current = {
+          trackId: activeTrack.id ?? null,
+          isPlaying: isPlayingNow,
+          coverPath: coverPath || "",
+          playMode: playMode,
+          isLiked: false,
+        };
+            return;
+          }
+        } catch {
+          // fall through
+        }
+
         await updateWidget({
           title: "未在播放",
           artist: "",
           coverPath: null,
           isPlaying: false,
-          lyric: "",
-          progress: 0,
+          playMode: "",
+          isLiked: false,
         });
         lastWidgetStateRef.current = {
           trackId: null,
-          lyric: "",
-          progressBucket: -1,
           isPlaying: false,
           coverPath: "",
+          playMode: "",
+          isLiked: false,
         };
         return;
       }
@@ -246,28 +286,29 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (cancelled) return;
 
-      const lyric = getActiveLyricLine(currentTrack.lyrics || "", position);
-      const progress = currentTrack.duration ? Math.min(1, Math.max(0, position / currentTrack.duration)) : 0;
-      const progressBucket = Math.floor(progress * 100);
+      const isLiked = !!currentTrack.likedByUsers?.some((like: any) => like.userId === user?.id);
+      const lock = widgetModeLockRef.current;
+      const playModeValue =
+        lock.until > Date.now() && lock.playMode ? lock.playMode : playModeRef.current;
 
       const lastState = lastWidgetStateRef.current;
       const nextCoverPath = coverPath || "";
       if (
         lastState.trackId === currentTrack.id &&
-        lastState.lyric === lyric &&
-        lastState.progressBucket === progressBucket &&
         lastState.isPlaying === isPlaying &&
-        lastState.coverPath === nextCoverPath
+        lastState.coverPath === nextCoverPath &&
+        lastState.playMode === playModeValue &&
+        lastState.isLiked === isLiked
       ) {
         return;
       }
 
       lastWidgetStateRef.current = {
         trackId: currentTrack.id,
-        lyric,
-        progressBucket,
         isPlaying,
         coverPath: nextCoverPath,
+        playMode: playModeValue,
+        isLiked,
       };
 
       await updateWidget({
@@ -275,8 +316,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         artist: currentTrack.artist,
         coverPath,
         isPlaying,
-        lyric,
-        progress,
+        playMode: playModeValue,
+        isLiked,
       });
     };
 
@@ -284,7 +325,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       cancelled = true;
     };
-  }, [currentTrack?.id, isPlaying, position]);
+  }, [currentTrack?.id, isPlaying, playMode, user?.id]);
 
   useEffect(() => {
     positionRef.current = position;
@@ -652,21 +693,67 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const togglePlayMode = async () => {
+  const getNextPlayMode = (current: PlayMode) => {
     const modes = [
       PlayMode.SEQUENCE,
       PlayMode.SHUFFLE,
       PlayMode.LOOP_LIST,
       PlayMode.LOOP_SINGLE,
     ];
-    const currentIndex = modes.indexOf(playMode);
-    const nextMode = modes[(currentIndex + 1) % modes.length];
+    const currentIndex = modes.indexOf(current);
+    return modes[(currentIndex + 1) % modes.length];
+  };
+
+  const updateWidgetWithOverrides = async (overrides: {
+    playMode?: PlayMode;
+    isLiked?: boolean;
+    isPlaying?: boolean;
+  }) => {
+    const track = currentTrackRef.current;
+    if (!track) return;
+
+    const liked =
+      overrides.isLiked ??
+      !!track.likedByUsers?.some((like: any) => like.userId === user?.id);
+    const lock = widgetModeLockRef.current;
+    const nextPlayMode =
+      overrides.playMode ??
+      (lock.until > Date.now() && lock.playMode ? lock.playMode : playModeRef.current);
+    const nextIsPlaying = overrides.isPlaying ?? lastWidgetStateRef.current.isPlaying;
+    const coverPath = lastWidgetStateRef.current.coverPath || null;
+
+    await updateWidget({
+      title: track.name,
+      artist: track.artist,
+      coverPath,
+      isPlaying: nextIsPlaying,
+      playMode: nextPlayMode,
+      isLiked: liked,
+    });
+
+    lastWidgetStateRef.current = {
+      trackId: track.id,
+      isPlaying: nextIsPlaying,
+      coverPath: coverPath || "",
+      playMode: nextPlayMode,
+      isLiked: liked,
+    };
+  };
+
+  const applyPlayMode = async (nextMode: PlayMode) => {
+    // Update ref immediately to avoid widget refresh reverting during state lag.
+    playModeRef.current = nextMode;
     setPlayMode(nextMode);
     await AsyncStorage.setItem(PLAYBACK_MODE_KEY, nextMode);
     if (nextMode === PlayMode.SHUFFLE && currentTrackRef.current) {
       await playTrack(currentTrackRef.current, undefined, false, true);
     }
     savePlaybackState(mode);
+  };
+
+  const togglePlayMode = async () => {
+    const nextMode = getNextPlayMode(playModeRef.current);
+    await applyPlayMode(nextMode);
   };
 
   const savePlaybackState = async (targetMode: string) => {
@@ -1275,6 +1362,36 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         case "next":
           await playNext();
           break;
+        case "mode":
+          {
+            const explicitNext = String(payload?.payload?.nextPlayMode || "");
+            const explicitMode = Object.values(PlayMode).includes(explicitNext as PlayMode)
+              ? (explicitNext as PlayMode)
+              : null;
+            const incoming = String(payload?.payload?.playMode || "");
+            const nextMode =
+              explicitMode ??
+              (Object.values(PlayMode).includes(incoming as PlayMode)
+                ? getNextPlayMode(incoming as PlayMode)
+                : getNextPlayMode(playModeRef.current));
+            widgetModeLockRef.current = {
+              until: Date.now() + 2000,
+              playMode: nextMode,
+            };
+            await applyPlayMode(nextMode);
+            await updateWidgetWithOverrides({ playMode: nextMode });
+          }
+          break;
+        case "like":
+          if (currentTrack && user) {
+            await toggleTrackLike(currentTrack.id, user.id);
+          }
+          break;
+        case "unlike":
+          if (currentTrack && user) {
+            await toggleTrackUnLike(currentTrack.id, user.id);
+          }
+          break;
         case "prev":
         case "previous":
           await playPrevious();
@@ -1285,7 +1402,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     return () => subscription.remove();
-  }, [isPlaying, pause, resume, playNext, playPrevious]);
+  }, [isPlaying, pause, resume, playNext, playPrevious, togglePlayMode, currentTrack, user]);
 
   // Force report on track change
   useEffect(() => {

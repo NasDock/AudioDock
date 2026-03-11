@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Slider } from "@miblanchard/react-native-slider";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -34,6 +35,8 @@ export default function SettingsScreen() {
     autoOrientation,
     autoTheme,
     carLayoutMode,
+    voiceAssistantEnabled,
+    recommendationLikeRatio,
     carModeEnabled,
     updateSetting,
   } = useSettings();
@@ -264,6 +267,45 @@ export default function SettingsScreen() {
             (val) => updateSetting("autoOrientation", val),
           )}
 
+          {renderSettingRow(
+            "语音助手",
+            "开启后显示全局语音助手小松鼠",
+            voiceAssistantEnabled,
+            (val) => updateSetting("voiceAssistantEnabled", val),
+          )}
+
+          <View
+            style={[styles.settingRow, { borderBottomColor: colors.border }]}
+          >
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                推荐偏好（喜欢/新鲜）
+              </Text>
+              <Text
+                style={[styles.settingDescription, { color: colors.secondary }]}
+              >
+                喜欢 {recommendationLikeRatio}% · 新鲜{" "}
+                {100 - recommendationLikeRatio}%
+              </Text>
+              <Slider
+                minimumValue={0}
+                maximumValue={100}
+                step={5}
+                value={[recommendationLikeRatio]}
+                onValueChange={(val) =>
+                  void updateSetting(
+                    "recommendationLikeRatio",
+                    Math.round(val[0] || 0),
+                  )
+                }
+                minimumTrackTintColor={colors.primary}
+                maximumTrackTintColor={colors.border}
+                thumbTintColor={colors.primary}
+                containerStyle={styles.ratioSlider}
+              />
+            </View>
+          </View>
+
           {sourceType !== "Subsonic" &&
             renderSettingRow(
               "有声书模式",
@@ -399,6 +441,12 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 50,
     alignItems: "center",
+  },
+  ratioSlider: {
+    width: "100%",
+    height: 28,
+    marginTop: 8,
+    marginBottom: -4,
   },
   versionText: {
     fontSize: 12,

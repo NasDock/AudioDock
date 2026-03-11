@@ -12,6 +12,10 @@ class WidgetBridge: NSObject {
   private static let coverFileKey = "widget_cover_file"
   private static let colorPrimaryKey = "widget_color_primary"
   private static let colorSecondaryKey = "widget_color_secondary"
+  private static let playModeKey = "widget_play_mode"
+  private static let playModeOverrideKey = "widget_play_mode_override"
+  private static let playModeOverrideUntilKey = "widget_play_mode_override_until"
+  private static let likedKey = "widget_is_liked"
 
   @objc(updateWidget:resolver:rejecter:)
   func updateWidget(
@@ -27,14 +31,17 @@ class WidgetBridge: NSObject {
     let title = payload["title"] as? String ?? "未在播放"
     let artist = payload["artist"] as? String ?? ""
     let isPlaying = payload["isPlaying"] as? Bool ?? false
-    let lyric = payload["lyric"] as? String ?? ""
-    let progress = payload["progress"] as? Double ?? 0
+    let playMode = payload["playMode"] as? String ?? ""
+    let isLiked = payload["isLiked"] as? Bool ?? false
 
     defaults.set(title, forKey: "widget_title")
     defaults.set(artist, forKey: "widget_artist")
     defaults.set(isPlaying, forKey: "widget_is_playing")
-    defaults.set(lyric, forKey: "widget_lyric")
-    defaults.set(progress, forKey: "widget_progress")
+    let overrideUntil = defaults.double(forKey: Self.playModeOverrideUntilKey)
+    if overrideUntil <= Date().timeIntervalSince1970 {
+      defaults.set(playMode, forKey: Self.playModeKey)
+    }
+    defaults.set(isLiked, forKey: Self.likedKey)
 
     if let coverPath = payload["coverPath"] as? String, !coverPath.isEmpty {
       let normalizedPath = coverPath.hasPrefix("file://")

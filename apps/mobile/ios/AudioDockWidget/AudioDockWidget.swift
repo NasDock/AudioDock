@@ -5,6 +5,8 @@ import AppIntents
 private let widgetKind = "AudioDockWidget"
 private let widgetSuite = "group.com.soundx.mobile"
 private let coverFileKey = "widget_cover_file"
+private let playModeOverrideKey = "widget_play_mode_override"
+private let playModeOverrideUntilKey = "widget_play_mode_override_until"
 
 struct AudioDockEntry: TimelineEntry {
   let date: Date
@@ -12,8 +14,8 @@ struct AudioDockEntry: TimelineEntry {
   let artist: String
   let isPlaying: Bool
   let cover: UIImage?
-  let lyric: String
-  let progress: Double
+  let playMode: String
+  let isLiked: Bool
   let colorPrimary: Color
   let colorSecondary: Color
 }
@@ -26,8 +28,8 @@ struct AudioDockProvider: TimelineProvider {
       artist: "正在播放",
       isPlaying: false,
       cover: nil,
-      lyric: "",
-      progress: 0,
+      playMode: "",
+      isLiked: false,
       colorPrimary: Color.black,
       colorSecondary: Color.black
     )
@@ -48,8 +50,8 @@ struct AudioDockProvider: TimelineProvider {
     let title = defaults?.string(forKey: "widget_title") ?? "未在播放"
     let artist = defaults?.string(forKey: "widget_artist") ?? ""
     let isPlaying = defaults?.bool(forKey: "widget_is_playing") ?? false
-    let lyric = defaults?.string(forKey: "widget_lyric") ?? ""
-    let progress = defaults?.double(forKey: "widget_progress") ?? 0
+    let playMode = resolvePlayMode(defaults: defaults) ?? ""
+    let isLiked = defaults?.bool(forKey: "widget_is_liked") ?? false
     let primaryHex = defaults?.string(forKey: "widget_color_primary") ?? "#000000"
     let secondaryHex = defaults?.string(forKey: "widget_color_secondary") ?? "#000000"
 
@@ -68,11 +70,20 @@ struct AudioDockProvider: TimelineProvider {
       artist: artist,
       isPlaying: isPlaying,
       cover: coverImage,
-      lyric: lyric,
-      progress: progress,
+      playMode: playMode,
+      isLiked: isLiked,
       colorPrimary: Color(hex: primaryHex),
       colorSecondary: Color(hex: secondaryHex)
     )
+  }
+
+  private func resolvePlayMode(defaults: UserDefaults?) -> String? {
+    guard let defaults else { return nil }
+    let overrideUntil = defaults.double(forKey: playModeOverrideUntilKey)
+    if overrideUntil > Date().timeIntervalSince1970 {
+      return defaults.string(forKey: playModeOverrideKey)
+    }
+    return defaults.string(forKey: "widget_play_mode")
   }
 }
 
@@ -129,9 +140,19 @@ struct AudioDockWidgetEntryView: View {
 
   private var controlsView: some View {
     HStack(spacing: 18) {
-      controlButton(systemName: "backward.fill", action: "prev")
+      controlButton(systemName: "backward.end.fill", action: "prev")
       controlButton(systemName: entry.isPlaying ? "pause.fill" : "play.fill", action: entry.isPlaying ? "pause" : "play")
-      controlButton(systemName: "forward.fill", action: "next")
+      controlButton(systemName: "forward.end.fill", action: "next")
+    }
+  }
+
+  private var largeControlsView: some View {
+    HStack(spacing: 16) {
+      controlButton(systemName: modeIconName, action: "mode")
+      controlButton(systemName: "backward.end.fill", action: "prev")
+      controlButton(systemName: entry.isPlaying ? "pause.fill" : "play.fill", action: entry.isPlaying ? "pause" : "play")
+      controlButton(systemName: "forward.end.fill", action: "next")
+      controlButton(systemName: entry.isLiked ? "heart.fill" : "heart", action: entry.isLiked ? "unlike" : "like")
     }
   }
 
@@ -144,10 +165,7 @@ struct AudioDockWidgetEntryView: View {
         .frame(maxWidth: .infinity, alignment: .center)
       artistView
         .frame(maxWidth: .infinity, alignment: .center)
-      lyricView
-        .frame(maxWidth: .infinity, alignment: .center)
-      controlsView
-      progressView
+      largeControlsView
     }
     .padding(14)
   }
@@ -187,28 +205,19 @@ struct AudioDockWidgetEntryView: View {
     .padding(10)
   }
 
-  private var lyricView: some View {
-    Text(entry.lyric)
-      .font(.system(size: 11, weight: .medium))
-      .foregroundColor(.white.opacity(0.8))
-      .lineLimit(1)
-  }
-
-  private var progressView: some View {
-    GeometryReader { proxy in
-      let width = proxy.size.width
-      let progressWidth = max(0, min(width, width * entry.progress))
-      ZStack(alignment: .leading) {
-        Capsule()
-          .fill(Color.white.opacity(0.2))
-          .frame(height: 4)
-        Capsule()
-          .fill(Color.white.opacity(0.85))
-          .frame(width: progressWidth, height: 4)
-      }
+  private var modeIconName: String {
+    switch entry.playMode.uppercased() {
+    case "SHUFFLE", "RANDOM":
+      return "shuffle"
+    case "LOOP_SINGLE", "SINGLE_LOOP", "SINGLE":
+      return "repeat.1"
+    case "LOOP_LIST", "LIST_LOOP", "LOOP":
+      return "repeat"
+    case "SEQUENCE", "ORDER", "DEFAULT":
+      return "list.bullet"
+    default:
+      return "repeat"
     }
-    .frame(height: 6)
-    .padding(.top, 4)
   }
 
   @ViewBuilder
