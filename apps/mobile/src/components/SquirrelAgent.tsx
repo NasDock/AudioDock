@@ -4,13 +4,12 @@ import {
   speechToText,
 } from "@soundx/services";
 import { Audio } from "expo-av";
-import { Asset } from "expo-asset";
-import { SvgUri } from "react-native-svg";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
   Easing,
+  Image,
   PanResponder,
   StyleSheet,
   Text,
@@ -23,7 +22,7 @@ import { useTheme } from "../context/ThemeContext";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SQUIRREL_SIZE = 70;
-const squirrelAsset = Asset.fromModule(require("../../assets/dexopt/squirrel.svg"));
+const squirrelAsset = require("../../assets/images/logo.png");
 
 type AgentState = "idle" | "listening" | "processing" | "result";
 
@@ -384,11 +383,10 @@ export const SquirrelAgent: React.FC = () => {
               },
             ]}
           >
-            <SvgUri
-              uri={squirrelAsset.uri}
-              width="100%"
-              height="100%"
+            <Image
+              source={squirrelAsset}
               style={styles.squirrel}
+              resizeMode="contain"
             />
             {state === "processing" && (
               <Animated.View 
