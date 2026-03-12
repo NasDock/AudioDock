@@ -2,7 +2,10 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:id="@+id/widget_root"
   android:layout_width="match_parent"
-  android:layout_height="match_parent">
+  android:layout_height="match_parent"
+  android:background="@drawable/widget_rounded_bg"
+  android:clipToOutline="true"
+  android:outlineProvider="background">
 
   <ImageView
     android:id="@+id/widget_bg"

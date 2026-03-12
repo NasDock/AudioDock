@@ -9,7 +9,6 @@ import {
   Animated,
   Dimensions,
   Easing,
-  Image,
   PanResponder,
   StyleSheet,
   Text,
@@ -22,7 +21,6 @@ import { useTheme } from "../context/ThemeContext";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SQUIRREL_SIZE = 70;
-const squirrelAsset = require("../../assets/images/logo.png");
 
 type AgentState = "idle" | "listening" | "processing" | "result";
 
@@ -383,11 +381,7 @@ export const SquirrelAgent: React.FC = () => {
               },
             ]}
           >
-            <Image
-              source={squirrelAsset}
-              style={styles.squirrel}
-              resizeMode="contain"
-            />
+            <View style={styles.squirrelPlaceholder} />
             {state === "processing" && (
               <Animated.View 
                 style={[
@@ -424,6 +418,10 @@ const styles = StyleSheet.create({
     elevation: 8,
     alignItems: "center",
     justifyContent: "center",
+  },
+  squirrelPlaceholder: {
+    width: "100%",
+    height: "100%",
   },
   squirrel: {
     width: "100%",
