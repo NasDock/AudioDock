@@ -66,7 +66,9 @@ class AudioDockWidgetProvider : AppWidgetProvider() {
 
     fun updateAllWidgets(context: Context) {
       val manager = AppWidgetManager.getInstance(context)
-      val ids = manager.getAppWidgetIds(ComponentName(context, AudioDockWidgetProvider::class.java))
+      val smallIds = manager.getAppWidgetIds(ComponentName(context, AudioDockWidgetProvider::class.java))
+      val mediumIds = manager.getAppWidgetIds(ComponentName(context, AudioDockWidgetProviderMedium::class.java))
+      val ids = (smallIds + mediumIds).distinct().toIntArray()
       updateWidgets(context, manager, ids)
     }
 
@@ -92,10 +94,10 @@ class AudioDockWidgetProvider : AppWidgetProvider() {
           if (bitmap != null) {
             views.setImageViewBitmap(R.id.widget_cover, bitmap)
           } else {
-            views.setImageViewResource(R.id.widget_cover, R.mipmap.ic_launcher)
+            views.setImageViewResource(R.id.widget_cover, android.R.color.transparent)
           }
         } else {
-          views.setImageViewResource(R.id.widget_cover, R.mipmap.ic_launcher)
+          views.setImageViewResource(R.id.widget_cover, android.R.color.transparent)
         }
 
         val (widthPx, heightPx) = resolveWidgetSize(context, options)
