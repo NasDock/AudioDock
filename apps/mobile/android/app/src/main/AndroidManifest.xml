@@ -43,6 +43,12 @@
       </intent-filter>
       <meta-data android:name="android.appwidget.provider" android:resource="@xml/audiodock_widget_info"/>
     </receiver>
+    <receiver android:name=".widget.AudioDockWidgetProviderMedium" android:exported="false">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/audiodock_widget_medium_info"/>
+    </receiver>
     <receiver android:name=".widget.WidgetCommandReceiver" android:exported="false">
       <intent-filter>
         <action android:name="com.soundx.widget.MODE"/>
