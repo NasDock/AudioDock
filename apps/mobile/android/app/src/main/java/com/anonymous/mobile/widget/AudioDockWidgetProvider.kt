@@ -21,7 +21,7 @@ import androidx.media3.session.SessionToken
 import com.doublesymmetry.trackplayer.service.MusicService
 import com.anonymous.mobile.R
 
-class AudioDockWidgetProvider : AppWidgetProvider() {
+open class AudioDockWidgetProvider : AppWidgetProvider() {
 
   override fun onReceive(context: Context, intent: Intent) {
     super.onReceive(context, intent)

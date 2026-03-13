@@ -2,7 +2,7 @@ import axios from "axios";
 import { ISuccessResponse } from "./models";
 
 const plusRequest = axios.create({
-  baseURL: "https://www.audiodock.cn/api",
+  baseURL: "http://8.136.115.52/api",
 });
 
 /**
