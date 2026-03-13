@@ -48,6 +48,30 @@ export interface CreatePaymentDto {
   pointsAmount: number;
 }
 
+export interface WechatPayPayload {
+  appId: string;
+  partnerId: string;
+  prepayId: string;
+  nonceStr: string;
+  timeStamp: string;
+  sign: string;
+  package?: string;
+  signType?: string;
+}
+
+export interface AlipayPayPayload {
+  orderString: string;
+  scheme?: string;
+}
+
+export interface CreatePaymentResponse {
+  orderId: string;
+  paymentUrl?: string;
+  qrCode?: string;
+  wechatPay?: WechatPayPayload;
+  alipayPay?: AlipayPayPayload;
+}
+
 export interface ConsumePointsDto {
   userId: string;
   amount: number;
@@ -81,7 +105,7 @@ export const plusGetMe = async (userId: string) => {
  * PaymentController_create: Create a payment order
  */
 export const plusCreatePayment = async (data: CreatePaymentDto) => {
-  return plusRequest.post<ISuccessResponse<{ orderId: string; paymentUrl?: string; qrCode?: string }>>("/payment/create", data);
+  return plusRequest.post<ISuccessResponse<CreatePaymentResponse>>("/payment/create", data);
 };
 
 /**

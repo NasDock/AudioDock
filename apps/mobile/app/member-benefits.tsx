@@ -1,11 +1,11 @@
 import { AntDesign, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { plusCreatePayment } from "@soundx/services";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,13 +14,83 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../src/context/ThemeContext";
+import {
+  assertIosIapPolicy,
+  createPlusPayment,
+  endIapConnection,
+  ensureWeChatRegistered,
+  finalizeIapPurchase,
+  IAP_PRODUCT_IDS,
+  initIapConnection,
+  payWithAlipay,
+  payWithWeChat,
+  registerIapListeners,
+  requestIapPurchase,
+  type PaymentPlan,
+} from "../src/services/payments";
+
+const WECHAT_APP_ID = "wx_mock_appid";
+const WECHAT_UNIVERSAL_LINK = "https://mock.example.com/";
+const ALIPAY_SCHEME = "alipaymock";
 
 export default function MemberBenefitsScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [selectedPlan, setSelectedPlan] = useState<'annual' | 'lifetime'>('lifetime');
+  const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>('lifetime');
   const [loading, setLoading] = useState(false);
+  const [iapReady, setIapReady] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    let cleanup: (() => void) | null = null;
+
+    const bootstrapIap = async () => {
+      try {
+        await initIapConnection(Object.values(IAP_PRODUCT_IDS));
+        setIapReady(true);
+      } catch (error) {
+        console.warn("IAP init failed", error);
+        Alert.alert("提示", "Apple 内购初始化失败，请稍后重试");
+      }
+    };
+
+    bootstrapIap();
+
+    cleanup = registerIapListeners(
+      async (purchase) => {
+        try {
+          // TODO: 将 purchase.transactionReceipt 上报服务端校验并开通会员权益
+          await finalizeIapPurchase(purchase);
+          Alert.alert("支付完成", "购买成功，会员权益将在校验后生效");
+        } catch (error) {
+          console.warn("IAP finalize failed", error);
+          Alert.alert("提示", "支付成功但确认失败，请联系客服");
+        }
+      },
+      (error) => {
+        console.warn("IAP purchase error", error);
+        Alert.alert("支付失败", error?.message || "Apple 内购失败");
+      }
+    );
+
+    return () => {
+      cleanup?.();
+      endIapConnection();
+    };
+  }, []);
+
+  const getUserId = async () => {
+    const userIdStr = await AsyncStorage.getItem("plus_user_id");
+    if (!userIdStr) {
+      Alert.alert("提示", "请先登录会员账号", [
+        { text: "取消" },
+        { text: "去登录", onPress: () => router.push("/member-login" as any) }
+      ]);
+      return null;
+    }
+    return userIdStr;
+  };
 
   const handlePayment = async (method: 'WECHAT' | 'ALIPAY') => {
     const userIdStr = await AsyncStorage.getItem("plus_user_id");
@@ -32,42 +102,70 @@ export default function MemberBenefitsScreen() {
       return;
     }
 
-    let userId = userIdStr;
-    try {
-        userId = JSON.parse(userIdStr);
-    } catch(e) {}
-
     setLoading(true);
     try {
-      const res = await plusCreatePayment({
-        userId,
-        amount: selectedPlan === 'lifetime' ? 60 : 20,
-        currency: "CNY",
-        method,
-        forVip: true,
-        vipTier: selectedPlan === 'lifetime' ? "LIFETIME" : "BASIC",
-        forPoints: false,
-        pointsAmount: 0
-      });
+      const res = await createPlusPayment(userIdStr, selectedPlan, method);
 
       if (res.data.code === 201 || res.data.code === 200) {
-        const { paymentUrl, qrCode } = res.data.data;
-        if (paymentUrl) {
-            // 在移动端通常跳转到支付页
+        const { paymentUrl, wechatPay, alipayPay } = res.data.data || {};
+        if (method === "WECHAT") {
+          if (wechatPay) {
+            await ensureWeChatRegistered(WECHAT_APP_ID, WECHAT_UNIVERSAL_LINK);
+            await payWithWeChat(wechatPay, paymentUrl);
+          } else if (paymentUrl) {
             const supported = await Linking.canOpenURL(paymentUrl);
             if (supported) {
-                await Linking.openURL(paymentUrl);
+              await Linking.openURL(paymentUrl);
             } else {
-                Alert.alert("提示", "订单创建成功，但无法自动打开支付链接，请尝试手动支付。");
+              Alert.alert("提示", "订单创建成功，但无法自动打开支付链接，请尝试手动支付。");
             }
-        } else {
-            Alert.alert("提示", "订单创建成功，请按照提示完成支付");
+          } else {
+            Alert.alert("支付失败", "后端未返回微信支付参数");
+          }
+          return;
+        }
+
+        if (method === "ALIPAY") {
+          if (alipayPay?.orderString) {
+            await payWithAlipay({ orderString: alipayPay.orderString, scheme: ALIPAY_SCHEME }, paymentUrl);
+          } else if (paymentUrl) {
+            const supported = await Linking.canOpenURL(paymentUrl);
+            if (supported) {
+              await Linking.openURL(paymentUrl);
+            } else {
+              Alert.alert("提示", "订单创建成功，但无法自动打开支付链接，请尝试手动支付。");
+            }
+          } else {
+            Alert.alert("支付失败", "后端未返回支付宝支付参数");
+          }
+          return;
         }
       } else {
         Alert.alert("支付失败", res.data.message || "请求失败，请稍后重试");
       }
     } catch (e: any) {
       Alert.alert("错误", e.response?.data?.message || "网络请求失败，请检查网络设置");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApplePurchase = async () => {
+    assertIosIapPolicy();
+    if (!iapReady) {
+      Alert.alert("提示", "Apple 内购初始化中，请稍后重试");
+      return;
+    }
+
+    const userIdStr = await getUserId();
+    if (!userIdStr) return;
+
+    try {
+      setLoading(true);
+      await requestIapPurchase(IAP_PRODUCT_IDS[selectedPlan]);
+    } catch (error: any) {
+      console.warn("IAP request failed", error);
+      Alert.alert("支付失败", error?.message || "Apple 内购发起失败");
     } finally {
       setLoading(false);
     }
@@ -174,22 +272,35 @@ export default function MemberBenefitsScreen() {
         </View>
 
         <View style={styles.paymentMethods}>
-            <TouchableOpacity 
+          {Platform.OS === "ios" ? (
+            <TouchableOpacity
               style={[styles.paymentItem, { backgroundColor: colors.card, borderColor: colors.border, opacity: loading ? 0.6 : 1 }]}
-              onPress={() => handlePayment('WECHAT')}
+              onPress={handleApplePurchase}
               disabled={loading}
             >
-                <AntDesign name="wechat" size={24} color={'#1AAD19'} />
-                <Text style={[styles.paymentText, { color: colors.text }]}>微信</Text>
+              <Ionicons name="logo-apple" size={22} color={colors.text} />
+              <Text style={[styles.paymentText, { color: colors.text }]}>App Store 内购</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.paymentItem, { backgroundColor: colors.card, borderColor: colors.border, opacity: loading ? 0.6 : 1 }]}
-              onPress={() => handlePayment('ALIPAY')}
-              disabled={loading}
-            >
-                <AntDesign name="alipay-circle" size={24} color={'#02A9F1'} />
-                <Text style={[styles.paymentText, { color: colors.text }]}>支付宝</Text>
-            </TouchableOpacity>
+          ) : (
+            <>
+              <TouchableOpacity 
+                style={[styles.paymentItem, { backgroundColor: colors.card, borderColor: colors.border, opacity: loading ? 0.6 : 1 }]}
+                onPress={() => handlePayment('WECHAT')}
+                disabled={loading}
+              >
+                  <AntDesign name="wechat" size={24} color={'#1AAD19'} />
+                  <Text style={[styles.paymentText, { color: colors.text }]}>微信</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.paymentItem, { backgroundColor: colors.card, borderColor: colors.border, opacity: loading ? 0.6 : 1 }]}
+                onPress={() => handlePayment('ALIPAY')}
+                disabled={loading}
+              >
+                  <AntDesign name="alipay-circle" size={24} color={'#02A9F1'} />
+                  <Text style={[styles.paymentText, { color: colors.text }]}>支付宝</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </ScrollView>
     </View>

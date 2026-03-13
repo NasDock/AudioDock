@@ -233,6 +233,9 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@0x5e/react-native-alipay':
+        specifier: 0.2.7-beta.2
+        version: 0.2.7-beta.2(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))
       '@expo/config-plugins':
         specifier: ~54.0.4
         version: 54.0.4
@@ -359,6 +362,9 @@ importers:
       react-native-gesture-handler:
         specifier: ~2.28.0
         version: 2.28.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      react-native-iap:
+        specifier: ^12.15.7
+        version: 12.16.4(expo@54.0.27)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-markdown-display:
         specifier: ^7.0.2
         version: 7.0.2(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -374,15 +380,15 @@ importers:
       react-native-screens:
         specifier: ~4.16.0
         version: 4.16.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
-      react-native-svg:
-        specifier: 15.12.0
-        version: 15.12.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-track-player:
         specifier: 5.0.0-alpha0
         version: 5.0.0-alpha0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-web:
         specifier: ~0.21.0
         version: 0.21.2(encoding@0.1.13)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      react-native-wechat-lib:
+        specifier: 1.1.27
+        version: 1.1.27(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))
       react-native-worklets:
         specifier: 0.5.1
         version: 0.5.1(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -653,6 +659,11 @@ packages:
     peerDependenciesMeta:
       graphql:
         optional: true
+
+  '@0x5e/react-native-alipay@0.2.7-beta.2':
+    resolution: {integrity: sha512-vcEXhmsi75cudoiJI2ZhTWeSgzG7Yq92kLMfAbhu6iJw11xhBYLbNRsC68DLPv7sefo0SbskzaRf36fZ6HiwgQ==}
+    peerDependencies:
+      react-native: '>=0.20'
 
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
@@ -7672,6 +7683,10 @@ packages:
   eventemitter3@4.0.7:
     resolution: {integrity: sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==}
 
+  events@1.0.1:
+    resolution: {integrity: sha512-Ee2RsyA5p9FyGVnVvbb1j7VKg+ezi6IOcgis2crSNo1V7S/M0eUnMABobd/fRhm6L3p/jGhPJzDFQDRpYw3O+g==}
+    engines: {node: '>=0.4.x'}
+
   events@3.3.0:
     resolution: {integrity: sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==}
     engines: {node: '>=0.8.x'}
@@ -9746,6 +9761,9 @@ packages:
   jsprim@1.4.2:
     resolution: {integrity: sha512-P2bSOMAc/ciLz6DzgjVlGJP9+BrJWu5UDGK70C2iweC5QBIeFf0ZXRvGjEj2uYgrY2MkAAhsSWHDWlFtEroZWw==}
     engines: {node: '>=0.6.0'}
+
+  jsrsasign@8.0.24:
+    resolution: {integrity: sha512-u45jAyusqUpyGbFc2IbHoeE4rSkoBWQgLe/w99temHenX+GyCz4nflU5sjK7ajU1ffZTezl6le7u43Yjr/lkQg==}
 
   jsx-ast-utils@3.3.5:
     resolution: {integrity: sha512-ZZow9HBI5O6EPgSJLUb8n2NKgmVWTwCvHGwFuJlMjvLFqlGG6pjirPhtdsseaLZjSibD8eegzmYpUZwoIlj2cQ==}
@@ -12453,6 +12471,16 @@ packages:
       react: '*'
       react-native: '*'
 
+  react-native-iap@12.16.4:
+    resolution: {integrity: sha512-3l3/k5ho2hzVCyfwlPRTrdn4gY1ku3dZFN9qJ7giZUBGr3wffciL5WRKxVUs7jQAXOgAtea9JexrMrgvEXSO/w==}
+    peerDependencies:
+      expo: '>=47.0.0'
+      react: '>=16.13.1'
+      react-native: '>=0.65.1'
+    peerDependenciesMeta:
+      expo:
+        optional: true
+
   react-native-image-pan-zoom@2.1.12:
     resolution: {integrity: sha512-BF66XeP6dzuANsPmmFsJshM2Jyh/Mo1t8FsGc1L9Q9/sVP8MJULDabB1hms+eAoqgtyhMr5BuXV3E1hJ5U5H6Q==}
     peerDependencies:
@@ -12561,6 +12589,11 @@ packages:
     peerDependencies:
       react: '*'
       react-native: '*'
+
+  react-native-wechat-lib@1.1.27:
+    resolution: {integrity: sha512-OstWvE0vaBvIGqAegaCIS/jvsVg5bH1IYk/EU8flmDRPl3mMlraG2C2AnvzHkrzXbJLJamQigA44CDoYj2p/4g==}
+    peerDependencies:
+      react-native: '>=0.40'
 
   react-native-worklets@0.5.1:
     resolution: {integrity: sha512-lJG6Uk9YuojjEX/tQrCbcbmpdLCSFxDK1rJlkDhgqkVi1KZzG7cdcBFQRqyNOOzR9Y0CXNuldmtWTGOyM0k0+w==}
@@ -15193,6 +15226,12 @@ snapshots:
   7zip-bin@5.2.0: {}
 
   '@0no-co/graphql.web@1.2.0': {}
+
+  '@0x5e/react-native-alipay@0.2.7-beta.2(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))':
+    dependencies:
+      buffer: 5.7.1
+      jsrsasign: 8.0.24
+      react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
 
   '@ampproject/remapping@2.3.0':
     dependencies:
@@ -24775,6 +24814,8 @@ snapshots:
 
   eventemitter3@4.0.7: {}
 
+  events@1.0.1: {}
+
   events@3.3.0: {}
 
   evp_bytestokey@1.0.3:
@@ -27627,6 +27668,8 @@ snapshots:
       extsprintf: 1.3.0
       json-schema: 0.4.0
       verror: 1.10.0
+
+  jsrsasign@8.0.24: {}
 
   jsx-ast-utils@3.3.5:
     dependencies:
@@ -31033,6 +31076,13 @@ snapshots:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
 
+  react-native-iap@12.16.4(expo@54.0.27)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
+    optionalDependencies:
+      expo: 54.0.27(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.17)(react-native-webview@13.6.4(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+
   react-native-image-pan-zoom@2.1.12(react-native@0.81.5(@babel/core@7.28.5)(@types/react@18.3.27)(react@18.3.1))(react@18.3.1):
     dependencies:
       react: 18.3.1
@@ -31151,14 +31201,6 @@ snapshots:
       react-native: 0.81.5(@babel/core@7.28.5)(@types/react@18.3.27)(react@18.3.1)
       warn-once: 0.1.1
 
-  react-native-svg@15.12.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
-    dependencies:
-      css-select: 5.2.2
-      css-tree: 1.1.3
-      react: 19.1.0
-      react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
-      warn-once: 0.1.1
-
   react-native-track-player@5.0.0-alpha0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
     dependencies:
       react: 19.1.0
@@ -31209,6 +31251,11 @@ snapshots:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
     optional: true
+
+  react-native-wechat-lib@1.1.27(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)):
+    dependencies:
+      events: 1.0.1
+      react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
 
   react-native-worklets@0.5.1(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@18.3.27)(react@18.3.1))(react@18.3.1):
     dependencies:
