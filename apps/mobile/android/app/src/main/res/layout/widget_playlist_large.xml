@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/widget_playlist_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="@drawable/widget_rounded_bg"
+  android:clipToOutline="true"
+  android:outlineProvider="background">
+
+  <ImageView
+    android:id="@+id/widget_bg"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:scaleType="centerCrop" />
+
+  <ImageView
+    android:id="@+id/widget_glass"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_glass_overlay" />
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:gravity="center_vertical">
+
+      <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="播放列表"
+        android:textColor="@android:color/white"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+      <ImageView
+        android:id="@+id/widget_playlist_play_pause"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:src="@drawable/ic_widget_play"
+        android:tint="@android:color/white" />
+    </LinearLayout>
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="vertical"
+      android:layout_marginTop="10dp"
+      android:gravity="top">
+
+      <LinearLayout
+        android:id="@+id/widget_playlist_row_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+          android:id="@+id/widget_playlist_cover_1"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:background="@drawable/widget_cover_rounded"
+          android:clipToOutline="true"
+          android:scaleType="centerCrop" />
+
+        <TextView
+          android:id="@+id/widget_playlist_name_1"
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_weight="1"
+          android:layout_marginStart="10dp"
+          android:text="播放列表"
+          android:textColor="@android:color/white"
+          android:textSize="13sp"
+          android:maxLines="1"
+          android:ellipsize="end" />
+
+        <ImageView
+          android:id="@+id/widget_playlist_play_1"
+          android:layout_width="28dp"
+          android:layout_height="28dp"
+          android:src="@drawable/ic_widget_play"
+          android:tint="@android:color/white" />
+      </LinearLayout>
+
+      <LinearLayout
+        android:id="@+id/widget_playlist_row_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+          android:id="@+id/widget_playlist_cover_2"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:background="@drawable/widget_cover_rounded"
+          android:clipToOutline="true"
+          android:scaleType="centerCrop" />
+
+        <TextView
+          android:id="@+id/widget_playlist_name_2"
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_weight="1"
+          android:layout_marginStart="10dp"
+          android:text="播放列表"
+          android:textColor="@android:color/white"
+          android:textSize="13sp"
+          android:maxLines="1"
+          android:ellipsize="end" />
+
+        <ImageView
+          android:id="@+id/widget_playlist_play_2"
+          android:layout_width="28dp"
+          android:layout_height="28dp"
+          android:src="@drawable/ic_widget_play"
+          android:tint="@android:color/white" />
+      </LinearLayout>
+
+      <LinearLayout
+        android:id="@+id/widget_playlist_row_3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+          android:id="@+id/widget_playlist_cover_3"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:background="@drawable/widget_cover_rounded"
+          android:clipToOutline="true"
+          android:scaleType="centerCrop" />
+
+        <TextView
+          android:id="@+id/widget_playlist_name_3"
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_weight="1"
+          android:layout_marginStart="10dp"
+          android:text="播放列表"
+          android:textColor="@android:color/white"
+          android:textSize="13sp"
+          android:maxLines="1"
+          android:ellipsize="end" />
+
+        <ImageView
+          android:id="@+id/widget_playlist_play_3"
+          android:layout_width="28dp"
+          android:layout_height="28dp"
+          android:src="@drawable/ic_widget_play"
+          android:tint="@android:color/white" />
+      </LinearLayout>
+    </LinearLayout>
+  </LinearLayout>
+</FrameLayout>

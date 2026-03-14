@@ -96,6 +96,8 @@ android {
         versionName "1.0.84"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
+        // Resolve react-native-iap's store flavor when app has no flavors.
+        missingDimensionStrategy "store", "play"
     }
     signingConfigs {
         debug {

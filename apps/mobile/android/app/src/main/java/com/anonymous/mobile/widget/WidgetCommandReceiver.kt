@@ -23,6 +23,7 @@ class WidgetCommandReceiver : BroadcastReceiver() {
           state.colorPrimary,
           state.colorSecondary
         )
+        WidgetStore.setPlayModeOverride(context, nextMode)
         AudioDockWidgetProvider.updateAllWidgets(context)
         WidgetCommandEmitterModule.sendCommand(
           "mode",
@@ -41,6 +42,7 @@ class WidgetCommandReceiver : BroadcastReceiver() {
           state.colorPrimary,
           state.colorSecondary
         )
+        WidgetStore.setLikedOverride(context, true)
         AudioDockWidgetProvider.updateAllWidgets(context)
         WidgetCommandEmitterModule.sendCommand("like")
       }
@@ -56,8 +58,30 @@ class WidgetCommandReceiver : BroadcastReceiver() {
           state.colorPrimary,
           state.colorSecondary
         )
+        WidgetStore.setLikedOverride(context, false)
         AudioDockWidgetProvider.updateAllWidgets(context)
         WidgetCommandEmitterModule.sendCommand("unlike")
+      }
+      ACTION_WIDGET_PLAYLIST -> {
+        val id = intent.getStringExtra("id") ?: ""
+        if (id.isNotEmpty()) {
+          WidgetCommandEmitterModule.sendCommand("play_playlist", mapOf("id" to id))
+        }
+      }
+      ACTION_WIDGET_HISTORY -> {
+        val id = intent.getStringExtra("id") ?: ""
+        if (id.isNotEmpty()) {
+          WidgetCommandEmitterModule.sendCommand("play_history", mapOf("id" to id))
+        }
+      }
+      ACTION_WIDGET_LATEST -> {
+        val id = intent.getStringExtra("id") ?: ""
+        if (id.isNotEmpty()) {
+          WidgetCommandEmitterModule.sendCommand("play_latest", mapOf("id" to id))
+        }
+      }
+      ACTION_WIDGET_REFRESH_LATEST -> {
+        WidgetCommandEmitterModule.sendCommand("refresh_latest")
       }
     }
   }
@@ -83,5 +107,9 @@ class WidgetCommandReceiver : BroadcastReceiver() {
     const val ACTION_WIDGET_MODE = "com.soundx.widget.MODE"
     const val ACTION_WIDGET_LIKE = "com.soundx.widget.LIKE"
     const val ACTION_WIDGET_UNLIKE = "com.soundx.widget.UNLIKE"
+    const val ACTION_WIDGET_PLAYLIST = "com.soundx.widget.PLAYLIST"
+    const val ACTION_WIDGET_HISTORY = "com.soundx.widget.HISTORY"
+    const val ACTION_WIDGET_LATEST = "com.soundx.widget.LATEST"
+    const val ACTION_WIDGET_REFRESH_LATEST = "com.soundx.widget.REFRESH_LATEST"
   }
 }

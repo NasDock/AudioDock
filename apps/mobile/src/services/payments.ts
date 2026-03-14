@@ -1,11 +1,82 @@
 import { Alert, Linking, Platform } from "react-native";
-import {
-  plusCreatePayment,
-  CreatePaymentDto,
-} from "@soundx/services";
-import * as WeChat from "react-native-wechat-lib";
-import Alipay from "@0x5e/react-native-alipay";
-import * as RNIap from "react-native-iap";
+import { plusCreatePayment, CreatePaymentDto } from "@soundx/services";
+import type * as WeChatTypes from "react-native-wechat-lib";
+import type AlipayTypes from "@0x5e/react-native-alipay";
+import type * as RNIapTypes from "react-native-iap";
+
+type WeChatModule = typeof WeChatTypes;
+type AlipayModule = typeof AlipayTypes;
+type RNIapModule = typeof RNIapTypes;
+
+let cachedWeChatModule: WeChatModule | null | undefined;
+let cachedAlipayModule: AlipayModule | null | undefined;
+let cachedIapModule: RNIapModule | null | undefined;
+
+const loadWeChatModule = (): WeChatModule | null => {
+  if (cachedWeChatModule !== undefined) return cachedWeChatModule;
+  try {
+    cachedWeChatModule = require("react-native-wechat-lib") as WeChatModule;
+  } catch (error) {
+    console.warn("Native module missing: react-native-wechat-lib", error);
+    cachedWeChatModule = null;
+  }
+  return cachedWeChatModule;
+};
+
+const loadAlipayModule = (): AlipayModule | null => {
+  if (cachedAlipayModule !== undefined) return cachedAlipayModule;
+  try {
+    cachedAlipayModule = require("@0x5e/react-native-alipay") as AlipayModule;
+  } catch (error) {
+    console.warn("Native module missing: @0x5e/react-native-alipay", error);
+    cachedAlipayModule = null;
+  }
+  return cachedAlipayModule;
+};
+
+const loadIapModule = (): RNIapModule | null => {
+  if (cachedIapModule !== undefined) return cachedIapModule;
+  try {
+    cachedIapModule = require("react-native-iap") as RNIapModule;
+  } catch (error) {
+    console.warn("Native module missing: react-native-iap", error);
+    cachedIapModule = null;
+  }
+  return cachedIapModule;
+};
+
+const getWeChatModule = (): WeChatModule => {
+  if (Platform.OS === "web") {
+    throw new Error("Web 端不支持微信支付");
+  }
+  const mod = loadWeChatModule();
+  if (!mod || !mod.registerApp) {
+    throw new Error("微信支付模块不可用（已禁用或未集成）");
+  }
+  return mod;
+};
+
+const getAlipayModule = (): AlipayModule => {
+  if (Platform.OS === "web") {
+    throw new Error("Web 端不支持支付宝支付");
+  }
+  const mod = loadAlipayModule();
+  if (!mod || !(mod as any).pay) {
+    throw new Error("支付宝模块不可用（已禁用或未集成）");
+  }
+  return mod;
+};
+
+const getIapModule = (): RNIapModule => {
+  if (Platform.OS === "web") {
+    throw new Error("Web 端不支持 Apple 内购");
+  }
+  const mod = loadIapModule();
+  if (!mod) {
+    throw new Error("IAP 模块不可用（已禁用或未集成）");
+  }
+  return mod;
+};
 
 export type PaymentPlan = "annual" | "lifetime";
 export type PaymentMethod = "WECHAT" | "ALIPAY";
@@ -80,6 +151,7 @@ export const ensureWeChatRegistered = async (appId: string, universalLink?: stri
   if (!appId) {
     throw new Error("WeChat AppID 缺失");
   }
+  const WeChat = getWeChatModule();
   await WeChat.registerApp(appId, universalLink);
 };
 
@@ -88,6 +160,7 @@ export const payWithWeChat = async (
   fallbackUrl?: string
 ) => {
   try {
+    const WeChat = getWeChatModule();
     await WeChat.pay({
       appId: payload.appId,
       partnerId: payload.partnerId,
@@ -116,7 +189,8 @@ export const payWithAlipay = async (
   fallbackUrl?: string
 ) => {
   try {
-    await Alipay.pay(payload.orderString, true);
+    const Alipay = getAlipayModule();
+    await (Alipay as any).pay(payload.orderString, true);
     return;
   } catch (error) {
     if (fallbackUrl) {
@@ -131,9 +205,10 @@ export const payWithAlipay = async (
 };
 
 export const initIapConnection = async (productIds: string[]) => {
-  if (Platform.OS !== "ios") return [] as RNIap.Product[];
+  if (Platform.OS !== "ios") return [] as RNIapTypes.Product[];
+  const RNIap = getIapModule();
   await RNIap.initConnection();
-  let products: RNIap.Product[] = [];
+  let products: RNIapTypes.Product[] = [];
   try {
     products = await (RNIap.getProducts as any)({ skus: productIds });
   } catch {
@@ -144,11 +219,13 @@ export const initIapConnection = async (productIds: string[]) => {
 
 export const endIapConnection = async () => {
   if (Platform.OS !== "ios") return;
+  const RNIap = getIapModule();
   await RNIap.endConnection();
 };
 
 export const requestIapPurchase = async (productId: string) => {
   if (Platform.OS !== "ios") return;
+  const RNIap = getIapModule();
   try {
     await (RNIap.requestPurchase as any)({ sku: productId });
   } catch {
@@ -157,19 +234,30 @@ export const requestIapPurchase = async (productId: string) => {
 };
 
 export const registerIapListeners = (
-  onPurchase: (purchase: RNIap.Purchase) => void,
-  onError: (error: RNIap.PurchaseError) => void
+  onPurchase: (purchase: RNIapTypes.Purchase) => void,
+  onError: (error: RNIapTypes.PurchaseError) => void
 ) => {
-  const purchaseSub = RNIap.purchaseUpdatedListener(onPurchase);
-  const errorSub = RNIap.purchaseErrorListener(onError);
+  if (Platform.OS !== "ios") {
+    return () => {};
+  }
 
-  return () => {
-    purchaseSub.remove();
-    errorSub.remove();
-  };
+  try {
+    const RNIap = getIapModule();
+    const purchaseSub = RNIap.purchaseUpdatedListener(onPurchase);
+    const errorSub = RNIap.purchaseErrorListener(onError);
+
+    return () => {
+      purchaseSub.remove();
+      errorSub.remove();
+    };
+  } catch (error) {
+    console.warn("IAP listeners unavailable", error);
+    return () => {};
+  }
 };
 
-export const finalizeIapPurchase = async (purchase: RNIap.Purchase) => {
+export const finalizeIapPurchase = async (purchase: RNIapTypes.Purchase) => {
+  const RNIap = getIapModule();
   await RNIap.finishTransaction({ purchase, isConsumable: false });
 };
 

@@ -6,4 +6,8 @@ RCT_EXTERN_METHOD(updateWidget:(NSDictionary *)payload
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(updateWidgetCollections:(NSDictionary *)payload
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 @end
