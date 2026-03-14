@@ -103,7 +103,7 @@ struct AudioDockWidgetEntryView: View {
       }
     }
     .foregroundColor(.white)
-    .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary))
+    .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary, cover: entry.cover))
     .widgetURL(URL(string: "audiodock://widget?open=player"))
   }
 
@@ -244,30 +244,40 @@ struct AudioDockWidgetEntryView: View {
 struct WidgetBackground: ViewModifier {
   let primary: Color
   let secondary: Color
+  let cover: UIImage?
+
+  @ViewBuilder
+  private var glassBackground: some View {
+    if let cover {
+      Image(uiImage: cover)
+        .resizable()
+        .scaledToFill()
+        .blur(radius: 18)
+        .overlay(Color.white.opacity(0.08))
+        .overlay(Color.black.opacity(0.22))
+    } else {
+      LinearGradient(
+        gradient: Gradient(colors: [primary.opacity(0.9), secondary.opacity(0.9)]),
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+      )
+    }
+  }
 
   func body(content: Content) -> some View {
     if #available(iOS 17.0, *) {
-      content.containerBackground(
-        LinearGradient(
-          gradient: Gradient(colors: [primary.opacity(0.9), secondary.opacity(0.9)]),
-          startPoint: .topLeading,
-          endPoint: .bottomTrailing
-        ),
-        for: .widget
-      )
+      content.containerBackground(for: .widget) {
+        glassBackground
+      }
     } else {
       content.background(
-        LinearGradient(
-          gradient: Gradient(colors: [primary.opacity(0.9), secondary.opacity(0.9)]),
-          startPoint: .topLeading,
-          endPoint: .bottomTrailing
-        )
+        glassBackground
       )
     }
   }
 }
 
-private extension Color {
+extension Color {
   init(hex: String) {
     let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
     var int: UInt64 = 0

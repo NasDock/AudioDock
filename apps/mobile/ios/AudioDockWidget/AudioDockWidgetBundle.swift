@@ -6,5 +6,8 @@ struct AudioDockWidgetBundle: WidgetBundle {
   @WidgetBundleBuilder
   var body: some Widget {
     AudioDockWidget()
+    AudioDockPlaylistWidget()
+    AudioDockPlayerHistoryWidget()
+    AudioDockLatestWidget()
   }
 }

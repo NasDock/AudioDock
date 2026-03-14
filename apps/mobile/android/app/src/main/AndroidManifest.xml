@@ -58,23 +58,46 @@
       </intent-filter>
     </activity>
     <receiver android:name=".widget.AudioDockWidgetProvider" android:exported="false">
-      <intent-filter>
-        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
-      </intent-filter>
-      <meta-data android:name="android.appwidget.provider" android:resource="@xml/audiodock_widget_info"/>
+        <intent-filter>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+        </intent-filter>
+        <meta-data android:name="android.appwidget.provider" android:resource="@xml/audiodock_widget_info"/>
     </receiver>
     <receiver android:name=".widget.AudioDockWidgetProviderMedium" android:exported="false">
-      <intent-filter>
-        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
-      </intent-filter>
-      <meta-data android:name="android.appwidget.provider" android:resource="@xml/audiodock_widget_medium_info"/>
+        <intent-filter>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+        </intent-filter>
+        <meta-data android:name="android.appwidget.provider" android:resource="@xml/audiodock_widget_medium_info"/>
+    </receiver>
+    <receiver android:name=".widget.AudioDockPlaylistWidgetProvider" android:exported="false">
+        <intent-filter>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+        </intent-filter>
+        <meta-data android:name="android.appwidget.provider" android:resource="@xml/audiodock_widget_playlist_info"/>
+    </receiver>
+    <receiver android:name=".widget.AudioDockPlayerHistoryWidgetProvider" android:exported="false">
+        <intent-filter>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+        </intent-filter>
+        <meta-data android:name="android.appwidget.provider" android:resource="@xml/audiodock_widget_player_history_info"/>
+    </receiver>
+    <receiver android:name=".widget.AudioDockLatestTracksWidgetProvider" android:exported="false">
+        <intent-filter>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+        </intent-filter>
+        <meta-data android:name="android.appwidget.provider" android:resource="@xml/audiodock_widget_latest_info"/>
     </receiver>
     <receiver android:name=".widget.WidgetCommandReceiver" android:exported="false">
-      <intent-filter>
-        <action android:name="com.soundx.widget.MODE"/>
-        <action android:name="com.soundx.widget.LIKE"/>
-        <action android:name="com.soundx.widget.UNLIKE"/>
-      </intent-filter>
+        <intent-filter>
+            <action android:name="com.soundx.widget.MODE"/>
+            <action android:name="com.soundx.widget.LIKE"/>
+            <action android:name="com.soundx.widget.UNLIKE"/>
+            <action android:name="com.soundx.widget.PLAYLIST"/>
+            <action android:name="com.soundx.widget.HISTORY"/>
+            <action android:name="com.soundx.widget.LATEST"/>
+            <action android:name="com.soundx.widget.REFRESH_LATEST"/>
+        </intent-filter>
     </receiver>
+    <service android:name=".widget.WidgetTransportService" android:exported="false"/>
   </application>
 </manifest>

@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		07B4C0793F7D42C9A2F877C2 /* AudioDockWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9593B26AEBAD4EB4987BBAB9 /* AudioDockWidgetBundle.swift */; };
+		0B5C8D7C9A9D4D86B1B2C100 /* AudioDockPlaylistWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B5C8D7B9A9D4D86B1B2C100 /* AudioDockPlaylistWidget.swift */; };
+		0B5C8D7E9A9D4D86B1B2C100 /* AudioDockPlayerHistoryWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B5C8D7D9A9D4D86B1B2C100 /* AudioDockPlayerHistoryWidget.swift */; };
+		0B5C8D809A9D4D86B1B2C100 /* AudioDockLatestWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B5C8D7F9A9D4D86B1B2C100 /* AudioDockLatestWidget.swift */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3672991D2F634CC8ABB36E3E /* WidgetCommandEmitter.m in Sources */ = {isa = PBXBuildFile; fileRef = 94D7316243074F0CAB29E881 /* WidgetCommandEmitter.m */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
@@ -38,6 +41,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0B5C8D7B9A9D4D86B1B2C100 /* AudioDockPlaylistWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDockWidget/AudioDockPlaylistWidget.swift; sourceTree = "<group>"; };
+		0B5C8D7D9A9D4D86B1B2C100 /* AudioDockPlayerHistoryWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDockWidget/AudioDockPlayerHistoryWidget.swift; sourceTree = "<group>"; };
+		0B5C8D7F9A9D4D86B1B2C100 /* AudioDockLatestWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDockWidget/AudioDockLatestWidget.swift; sourceTree = "<group>"; };
 		0A9ABFCA3E15919BB20B2A3D /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-AudioDock/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* AudioDock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AudioDock.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = AudioDock/Images.xcassets; sourceTree = "<group>"; };
@@ -161,6 +167,9 @@
 			isa = PBXGroup;
 			children = (
 				1E89F43F0F724A41BBB71CAB /* AudioDockWidget.swift */,
+				0B5C8D7B9A9D4D86B1B2C100 /* AudioDockPlaylistWidget.swift */,
+				0B5C8D7D9A9D4D86B1B2C100 /* AudioDockPlayerHistoryWidget.swift */,
+				0B5C8D7F9A9D4D86B1B2C100 /* AudioDockLatestWidget.swift */,
 				9593B26AEBAD4EB4987BBAB9 /* AudioDockWidgetBundle.swift */,
 				D3EC477208124843925C0326 /* WidgetIntents.swift */,
 				71F6B6AE041B44208AE3D7CC /* Info.plist */,
@@ -241,9 +250,13 @@
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
 						LastSwiftMigration = 1250;
+						DevelopmentTeam = "P89GY96426";
+						ProvisioningStyle = Automatic;
 					};
 					1D811B2D950D4E8EABF2D4FC = {
 						LastSwiftMigration = 1250;
+						DevelopmentTeam = "P89GY96426";
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -429,6 +442,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				6D4DAAF2EB374DC68CD867E4 /* AudioDockWidget.swift in Sources */,
+				0B5C8D7C9A9D4D86B1B2C100 /* AudioDockPlaylistWidget.swift in Sources */,
+				0B5C8D7E9A9D4D86B1B2C100 /* AudioDockPlayerHistoryWidget.swift in Sources */,
+				0B5C8D809A9D4D86B1B2C100 /* AudioDockLatestWidget.swift in Sources */,
 				07B4C0793F7D42C9A2F877C2 /* AudioDockWidgetBundle.swift in Sources */,
 				BD7A6B0963E941E2A8F15E11 /* WidgetIntents.swift in Sources */,
 			);
@@ -470,6 +486,9 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
+				DEVELOPMENT_TEAM = "P89GY96426";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 			};
 			name = Debug;
 		};
@@ -500,6 +519,9 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
+				DEVELOPMENT_TEAM = "P89GY96426";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 			};
 			name = Release;
 		};
@@ -522,6 +544,9 @@
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				DEVELOPMENT_TEAM = "P89GY96426";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 			};
 			name = Debug;
 		};
@@ -662,6 +687,9 @@
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				DEVELOPMENT_TEAM = "P89GY96426";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 			};
 			name = Release;
 		};

@@ -15,10 +15,6 @@ import android.graphics.Rect
 import android.graphics.Shader
 import android.os.Bundle
 import android.widget.RemoteViews
-import androidx.core.content.ContextCompat
-import androidx.media3.session.MediaController
-import androidx.media3.session.SessionToken
-import com.doublesymmetry.trackplayer.service.MusicService
 import com.anonymous.mobile.R
 
 open class AudioDockWidgetProvider : AppWidgetProvider() {
@@ -26,10 +22,15 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
   override fun onReceive(context: Context, intent: Intent) {
     super.onReceive(context, intent)
     when (intent.action) {
-      ACTION_WIDGET_PLAY -> sendTransportAction(context) { it.play() }
-      ACTION_WIDGET_PAUSE -> sendTransportAction(context) { it.pause() }
-      ACTION_WIDGET_NEXT -> sendTransportAction(context) { it.seekToNext() }
-      ACTION_WIDGET_PREV -> sendTransportAction(context) { it.seekToPrevious() }
+      ACTION_WIDGET_PLAY,
+      ACTION_WIDGET_PAUSE,
+      ACTION_WIDGET_NEXT,
+      ACTION_WIDGET_PREV -> {
+        val serviceIntent = Intent(context, WidgetTransportService::class.java).apply {
+          action = intent.action
+        }
+        context.startService(serviceIntent)
+      }
     }
   }
 
@@ -56,10 +57,10 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
     private const val ACTION_PREV = "prev"
     private const val ACTION_NEXT = "next"
 
-    private const val ACTION_WIDGET_PLAY = "com.soundx.widget.PLAY"
-    private const val ACTION_WIDGET_PAUSE = "com.soundx.widget.PAUSE"
-    private const val ACTION_WIDGET_NEXT = "com.soundx.widget.NEXT"
-    private const val ACTION_WIDGET_PREV = "com.soundx.widget.PREV"
+    const val ACTION_WIDGET_PLAY = "com.soundx.widget.PLAY"
+    const val ACTION_WIDGET_PAUSE = "com.soundx.widget.PAUSE"
+    const val ACTION_WIDGET_NEXT = "com.soundx.widget.NEXT"
+    const val ACTION_WIDGET_PREV = "com.soundx.widget.PREV"
     private const val ACTION_MODE = WidgetCommandReceiver.ACTION_WIDGET_MODE
     private const val ACTION_LIKE = WidgetCommandReceiver.ACTION_WIDGET_LIKE
     private const val ACTION_UNLIKE = WidgetCommandReceiver.ACTION_WIDGET_UNLIKE
@@ -82,16 +83,23 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
       val state = WidgetStore.load(context)
       for (appWidgetId in appWidgetIds) {
         val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
-        val layoutId = resolveLayout(options)
+        val providerInfo = appWidgetManager.getAppWidgetInfo(appWidgetId)
+        val layoutId = if (providerInfo?.provider?.className == AudioDockWidgetProviderMedium::class.java.name) {
+          R.layout.widget_medium
+        } else {
+          resolveLayout(options)
+        }
         val views = RemoteViews(context.packageName, layoutId)
 
         views.setTextViewText(R.id.widget_title, state.title)
         views.setTextViewText(R.id.widget_artist, state.artist)
 
         val coverPath = state.coverPath
+        var coverBitmap: Bitmap? = null
         if (!coverPath.isNullOrBlank()) {
           val bitmap = BitmapFactory.decodeFile(coverPath)
           if (bitmap != null) {
+            coverBitmap = bitmap
             views.setImageViewBitmap(R.id.widget_cover, bitmap)
           } else {
             views.setImageViewResource(R.id.widget_cover, android.R.color.transparent)
@@ -101,12 +109,15 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
         }
 
         val (widthPx, heightPx) = resolveWidgetSize(context, options)
-        val bgBitmap = gradientBitmap(widthPx, heightPx, state.colorPrimary, state.colorSecondary)
+        val bgBitmap = when {
+          coverBitmap != null -> blurredBackground(coverBitmap!!, widthPx, heightPx)
+          else -> gradientBitmap(widthPx, heightPx, state.colorPrimary, state.colorSecondary)
+        }
         if (bgBitmap != null) {
           views.setImageViewBitmap(R.id.widget_bg, bgBitmap)
         }
 
-        if (layoutId == R.layout.widget_large) {
+        if (layoutId == R.layout.widget_large || layoutId == R.layout.widget_medium) {
           val modeIcon = when (normalizePlayMode(state.playMode)) {
             "SHUFFLE" -> R.drawable.ic_widget_shuffle
             "LOOP_SINGLE" -> R.drawable.ic_widget_repeat_one
@@ -126,10 +137,14 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
         }
         views.setImageViewResource(R.id.widget_play_pause, playIcon)
 
-        views.setOnClickPendingIntent(
-          R.id.widget_root,
-          openPendingIntent(context)
-        )
+        if (layoutId == R.layout.widget_medium) {
+          views.setOnClickPendingIntent(R.id.widget_root, null)
+        } else {
+          views.setOnClickPendingIntent(
+            R.id.widget_root,
+            openPendingIntent(context)
+          )
+        }
         views.setOnClickPendingIntent(
           R.id.widget_prev,
           broadcastPendingIntent(context, ACTION_WIDGET_PREV, appWidgetId)
@@ -147,7 +162,7 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
           broadcastPendingIntent(context, ACTION_WIDGET_NEXT, appWidgetId)
         )
 
-        if (layoutId == R.layout.widget_large) {
+        if (layoutId == R.layout.widget_large || layoutId == R.layout.widget_medium) {
           views.setOnClickPendingIntent(
             R.id.widget_mode,
             commandPendingIntent(context, ACTION_MODE)
@@ -235,18 +250,15 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
       return bitmap
     }
 
-    private fun sendTransportAction(context: Context, action: (MediaController) -> Unit) {
-      val sessionToken = SessionToken(context, ComponentName(context, MusicService::class.java))
-      val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
-      controllerFuture.addListener({
-        try {
-          val controller = controllerFuture.get()
-          action(controller)
-          controller.release()
-        } catch (_: Exception) {
-          // no-op
-        }
-      }, ContextCompat.getMainExecutor(context))
+    private fun blurredBackground(source: Bitmap, targetWidth: Int, targetHeight: Int): Bitmap? {
+      if (targetWidth <= 0 || targetHeight <= 0) return null
+      val scale = 0.12f
+      val downW = (targetWidth * scale).toInt().coerceAtLeast(1)
+      val downH = (targetHeight * scale).toInt().coerceAtLeast(1)
+      val down = Bitmap.createScaledBitmap(source, downW, downH, true)
+      return Bitmap.createScaledBitmap(down, targetWidth, targetHeight, true)
     }
+
+    // Transport actions are handled in WidgetTransportService to avoid binding in a receiver.
   }
 }

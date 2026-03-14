@@ -6,6 +6,7 @@ import Foundation
 private let widgetSuiteName = "group.com.soundx.mobile"
 private let widgetCommandKey = "widget_command"
 private let widgetCommandNotification = "com.soundx.widget.command" as CFString
+private let widgetCommandPayloadKey = "widget_command_payload"
 
 @UIApplicationMain
 public class AppDelegate: ExpoAppDelegate {
@@ -99,11 +100,15 @@ private final class WidgetCommandObserver {
     let playMode = defaults.string(forKey: "widget_play_mode") ?? ""
     let nextPlayMode = defaults.string(forKey: "widget_play_mode_next") ?? ""
     let isLiked = defaults.bool(forKey: "widget_is_liked")
-    let payload: [String: Any] = [
+    var payload: [String: Any] = [
       "playMode": playMode,
       "nextPlayMode": nextPlayMode,
       "isLiked": isLiked
     ]
+    if let data = defaults.data(forKey: widgetCommandPayloadKey),
+       let extra = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+      payload.merge(extra) { _, new in new }
+    }
     WidgetCommandEmitter.sendCommand(command, payload: payload)
   }
 }

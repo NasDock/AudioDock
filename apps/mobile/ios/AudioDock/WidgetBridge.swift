@@ -16,6 +16,9 @@ class WidgetBridge: NSObject {
   private static let playModeOverrideKey = "widget_play_mode_override"
   private static let playModeOverrideUntilKey = "widget_play_mode_override_until"
   private static let likedKey = "widget_is_liked"
+  private static let playlistsKey = "widget_playlists"
+  private static let historyKey = "widget_history"
+  private static let latestKey = "widget_latest_tracks"
 
   @objc(updateWidget:resolver:rejecter:)
   func updateWidget(
@@ -73,7 +76,107 @@ class WidgetBridge: NSObject {
     }
 
     WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockWidget")
+    WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockPlaylistWidget")
+    WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockPlayerHistoryWidget")
     resolve(nil)
+  }
+
+  @objc(updateWidgetCollections:resolver:rejecter:)
+  func updateWidgetCollections(
+    _ payload: NSDictionary,
+    resolver resolve: RCTPromiseResolveBlock,
+    rejecter reject: RCTPromiseRejectBlock
+  ) {
+    guard let defaults = UserDefaults(suiteName: Self.suiteName) else {
+      reject("WIDGET_STORE_UNAVAILABLE", "App group UserDefaults unavailable", nil)
+      return
+    }
+
+    let playlists = payload["playlists"] as? [NSDictionary] ?? []
+    let history = payload["history"] as? [NSDictionary] ?? []
+    let latest = payload["latest"] as? [NSDictionary] ?? []
+
+    let storedPlaylists = playlists.compactMap { item -> [String: Any]? in
+      guard let rawId = item["id"] else { return nil }
+      let name = item["name"] as? String ?? "播放列表"
+      let coverFile = storeCoverIfNeeded(item["coverPath"] as? String, nameHint: "playlist_\(rawId)")
+      return [
+        "id": rawId,
+        "name": name,
+        "cover": coverFile ?? ""
+      ]
+    }
+
+    let storedHistory = history.compactMap { item -> [String: Any]? in
+      guard let rawId = item["id"] else { return nil }
+      let title = item["title"] as? String ?? "未命名"
+      let artist = item["artist"] as? String ?? ""
+      let album = item["album"] as? String ?? ""
+      let type = item["type"] as? String ?? ""
+      let coverFile = storeCoverIfNeeded(item["coverPath"] as? String, nameHint: "history_\(rawId)")
+      return [
+        "id": rawId,
+        "title": title,
+        "artist": artist,
+        "album": album,
+        "type": type,
+        "cover": coverFile ?? ""
+      ]
+    }
+
+    let storedLatest = latest.compactMap { item -> [String: Any]? in
+      guard let rawId = item["id"] else { return nil }
+      let title = item["title"] as? String ?? "未命名"
+      let artist = item["artist"] as? String ?? ""
+      let type = item["type"] as? String ?? ""
+      let coverFile = storeCoverIfNeeded(item["coverPath"] as? String, nameHint: "latest_\(rawId)")
+      return [
+        "id": rawId,
+        "title": title,
+        "artist": artist,
+        "type": type,
+        "cover": coverFile ?? ""
+      ]
+    }
+
+    if let data = try? JSONSerialization.data(withJSONObject: storedPlaylists) {
+      defaults.set(data, forKey: Self.playlistsKey)
+    }
+    if let data = try? JSONSerialization.data(withJSONObject: storedHistory) {
+      defaults.set(data, forKey: Self.historyKey)
+    }
+    if let data = try? JSONSerialization.data(withJSONObject: storedLatest) {
+      defaults.set(data, forKey: Self.latestKey)
+    }
+
+    WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockWidget")
+    WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockPlaylistWidget")
+    WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockPlayerHistoryWidget")
+    WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockLatestWidget")
+    resolve(nil)
+  }
+
+  private func storeCoverIfNeeded(_ coverPath: String?, nameHint: String) -> String? {
+    guard let coverPath, !coverPath.isEmpty else { return nil }
+    let normalizedPath = coverPath.hasPrefix("file://")
+      ? String(coverPath.dropFirst("file://".count))
+      : coverPath
+    let sourceURL = URL(fileURLWithPath: normalizedPath)
+    guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Self.suiteName) else {
+      return nil
+    }
+    let ext = sourceURL.pathExtension.isEmpty ? "jpg" : sourceURL.pathExtension
+    let fileName = "\(nameHint).\(ext)"
+    let destinationURL = containerURL.appendingPathComponent(fileName)
+    do {
+      if FileManager.default.fileExists(atPath: destinationURL.path) {
+        try FileManager.default.removeItem(at: destinationURL)
+      }
+      try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+      return destinationURL.lastPathComponent
+    } catch {
+      return nil
+    }
   }
 
   private static func averageColor(from image: UIImage) -> UIColor? {

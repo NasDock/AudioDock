@@ -5,9 +5,12 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.bridge.ReadableArray
 import android.graphics.BitmapFactory
 import androidx.core.graphics.ColorUtils
 import androidx.palette.graphics.Palette
+import org.json.JSONArray
+import org.json.JSONObject
 
 class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
@@ -47,10 +50,45 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
         secondaryColor
       )
       AudioDockWidgetProvider.updateAllWidgets(reactContext)
+      AudioDockPlaylistWidgetProvider.updateAllWidgets(reactContext)
+      AudioDockPlayerHistoryWidgetProvider.updateAllWidgets(reactContext)
       promise.resolve(null)
     } catch (e: Exception) {
       promise.reject("WIDGET_UPDATE_FAILED", e)
     }
+  }
+
+  @ReactMethod
+  fun updateWidgetCollections(payload: ReadableMap, promise: Promise) {
+    try {
+      val playlistsJson = serializeList(payload.getArray("playlists"))
+      val historyJson = serializeList(payload.getArray("history"))
+      val latestJson = serializeList(payload.getArray("latest"))
+      WidgetStore.saveCollections(reactContext, playlistsJson, historyJson, latestJson)
+      AudioDockWidgetProvider.updateAllWidgets(reactContext)
+      AudioDockPlaylistWidgetProvider.updateAllWidgets(reactContext)
+      AudioDockPlayerHistoryWidgetProvider.updateAllWidgets(reactContext)
+      AudioDockLatestTracksWidgetProvider.updateAllWidgets(reactContext)
+      promise.resolve(null)
+    } catch (e: Exception) {
+      promise.reject("WIDGET_COLLECTIONS_UPDATE_FAILED", e)
+    }
+  }
+
+  private fun serializeList(array: ReadableArray?): String {
+    if (array == null) return "[]"
+    val json = JSONArray()
+    for (i in 0 until array.size()) {
+      val map = array.getMap(i)
+      if (map != null) {
+        val obj = JSONObject()
+        map.toHashMap().forEach { (key, value) ->
+          obj.put(key, value)
+        }
+        json.put(obj)
+      }
+    }
+    return json.toString()
   }
 
   private fun resolveColors(coverPath: String?): Pair<Int, Int> {

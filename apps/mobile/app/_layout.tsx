@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "react";
 import "react-native-reanimated";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { PlayerProvider, usePlayer } from "../src/context/PlayerContext";
-import { toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
+import { getLatestTracks, getPlaylistById, getTrackHistory, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
 import { ThemeProvider, useTheme } from "../src/context/ThemeContext";
 import { PlayModeProvider } from "../src/utils/playMode";
 
@@ -23,7 +23,7 @@ function RootLayoutNav() {
   const { token, isLoading, sourceType, plusToken, user } = useAuth();
   const { voiceAssistantEnabled, carLayoutMode } = useSettings();
   const { theme, colors } = useTheme();
-  const { pause, resume, playNext, playPrevious, togglePlayMode, isPlaying, currentTrack } = usePlayer();
+  const { pause, resume, playNext, playPrevious, togglePlayMode, isPlaying, currentTrack, playTrackList } = usePlayer();
   const segments = useSegments();
   const router = useRouter();
   const fuAnim = useRef(new Animated.Value(0)).current;
@@ -122,6 +122,67 @@ function RootLayoutNav() {
         case "previous":
           await playPrevious();
           break;
+        case "play_playlist": {
+          const rawId = String(queryParams?.id || "");
+          const playlistId = rawId ? Number(rawId) : NaN;
+          if (!Number.isNaN(playlistId)) {
+            try {
+              const res = await getPlaylistById(playlistId);
+              if (res.code === 200 && res.data?.tracks?.length) {
+                await playTrackList(res.data.tracks, 0);
+              }
+            } catch (error) {
+              console.warn("Failed to play playlist from widget", error);
+            }
+          }
+          break;
+        }
+        case "play_history": {
+          const rawId = String(queryParams?.id || "");
+          const trackId = rawId ? Number(rawId) : NaN;
+          if (!Number.isNaN(trackId) && user) {
+            try {
+              const res = await getTrackHistory(user.id, 0, 50, "MUSIC");
+              if (res.code === 200) {
+                const list = res.data.list.map((item: any) => item.track).filter(Boolean);
+                const index = list.findIndex((t: any) => Number(t.id) === trackId);
+                if (index >= 0) {
+                  await playTrackList(list, index);
+                }
+              }
+            } catch (error) {
+              console.warn("Failed to play history track from widget", error);
+            }
+          }
+          break;
+        }
+        case "play_latest": {
+          const rawId = String(queryParams?.id || "");
+          const trackId = rawId ? Number(rawId) : NaN;
+          if (!Number.isNaN(trackId)) {
+            try {
+              const res = await getLatestTracks("MUSIC", false, 50);
+              if (res.code === 200) {
+                const list = res.data || [];
+                const index = list.findIndex((t: any) => Number(t.id) === trackId);
+                if (index >= 0) {
+                  await playTrackList(list, index);
+                }
+              }
+            } catch (error) {
+              console.warn("Failed to play latest track from widget", error);
+            }
+          }
+          break;
+        }
+        case "refresh_latest": {
+          try {
+            await getLatestTracks("MUSIC", false, 5);
+          } catch (error) {
+            console.warn("Failed to refresh latest tracks", error);
+          }
+          break;
+        }
         default:
           break;
       }
@@ -243,6 +304,9 @@ function RootLayoutNav() {
     rootSegment === "settings" ||
     rootSegment === "source-manage" ||
     rootSegment === "player" ||
+    rootSegment === "product-updates" ||
+    rootSegment === "member-detail" ||
+    rootSegment === "member-benefits" ||
     rootSegment === "modal";
   const showBottomBar = !hideBottomBar;
 

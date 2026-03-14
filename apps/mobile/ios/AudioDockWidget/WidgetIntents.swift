@@ -7,6 +7,7 @@ private let widgetCommandKey = "widget_command"
 private let widgetCommandTimestampKey = "widget_command_ts"
 private let widgetCommandNotification = "com.soundx.widget.command"
 private let widgetKind = "AudioDockWidget"
+private let widgetCommandPayloadKey = "widget_command_payload"
 private let widgetPlayModeOverrideKey = "widget_play_mode_override"
 private let widgetPlayModeOverrideUntilKey = "widget_play_mode_override_until"
 private let widgetPlayModeNextKey = "widget_play_mode_next"
@@ -55,11 +56,89 @@ struct WidgetControlIntent: AppIntent {
 }
 
 @available(iOS 17.0, *)
+struct WidgetPlayPlaylistIntent: AppIntent {
+  static var title: LocalizedStringResource = "Play Playlist"
+  static var description = IntentDescription("Play a playlist from the widget")
+
+  @Parameter(title: "Playlist ID")
+  var playlistId: String
+
+  init() {}
+
+  init(playlistId: String) {
+    self.playlistId = playlistId
+  }
+
+  func perform() async throws -> some IntentResult {
+    WidgetCommandCenter.send(action: "play_playlist", payload: ["id": playlistId])
+    return .result()
+  }
+}
+
+@available(iOS 17.0, *)
+struct WidgetPlayHistoryIntent: AppIntent {
+  static var title: LocalizedStringResource = "Play History"
+  static var description = IntentDescription("Play a history item from the widget")
+
+  @Parameter(title: "Track ID")
+  var trackId: String
+
+  init() {}
+
+  init(trackId: String) {
+    self.trackId = trackId
+  }
+
+  func perform() async throws -> some IntentResult {
+    WidgetCommandCenter.send(action: "play_history", payload: ["id": trackId])
+    return .result()
+  }
+}
+
+@available(iOS 17.0, *)
+struct WidgetPlayLatestIntent: AppIntent {
+  static var title: LocalizedStringResource = "Play Latest"
+  static var description = IntentDescription("Play a latest track from the widget")
+
+  @Parameter(title: "Track ID")
+  var trackId: String
+
+  init() {}
+
+  init(trackId: String) {
+    self.trackId = trackId
+  }
+
+  func perform() async throws -> some IntentResult {
+    WidgetCommandCenter.send(action: "play_latest", payload: ["id": trackId])
+    return .result()
+  }
+}
+
+@available(iOS 17.0, *)
+struct WidgetRefreshLatestIntent: AppIntent {
+  static var title: LocalizedStringResource = "Refresh Latest"
+  static var description = IntentDescription("Refresh latest tracks")
+
+  init() {}
+
+  func perform() async throws -> some IntentResult {
+    WidgetCommandCenter.send(action: "refresh_latest")
+    return .result()
+  }
+}
+
+@available(iOS 17.0, *)
 enum WidgetCommandCenter {
-  static func send(action: String) {
+  static func send(action: String, payload: [String: Any] = [:]) {
     guard let defaults = UserDefaults(suiteName: widgetSuite) else { return }
     defaults.set(action, forKey: widgetCommandKey)
     defaults.set(Date().timeIntervalSince1970, forKey: widgetCommandTimestampKey)
+    if let data = try? JSONSerialization.data(withJSONObject: payload) {
+      defaults.set(data, forKey: widgetCommandPayloadKey)
+    } else {
+      defaults.removeObject(forKey: widgetCommandPayloadKey)
+    }
     applyOptimisticStateUpdate(action: action, defaults: defaults)
     defaults.synchronize()
     WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)

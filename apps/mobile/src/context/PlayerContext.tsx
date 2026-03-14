@@ -4,6 +4,10 @@ import {
   addToHistory,
   getAlbumTracks,
   getLatestHistory,
+  getLatestTracks,
+  getPlaylistById,
+  getPlaylists,
+  getTrackHistory,
   getRecommendedTracks,
   reportAudiobookProgress
 } from "@soundx/services";
@@ -11,6 +15,7 @@ import * as Device from "expo-device";
 import React, {
   createContext,
   useContext,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -38,7 +43,7 @@ import {
   resolveTrackUri,
 } from "../services/trackResolver";
 import { usePlayMode } from "../utils/playMode";
-import { updateWidget } from "../native/WidgetBridge";
+import { updateWidget, updateWidgetCollections } from "../native/WidgetBridge";
 import { cacheCover } from "../services/cache";
 import { resolveArtworkUri } from "../services/trackResolver";
 import { toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
@@ -326,6 +331,42 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       cancelled = true;
     };
   }, [currentTrack?.id, isPlaying, playMode, user?.id]);
+
+  const refreshWidgetCollections = useCallback(async () => {
+    if (!user) return;
+    try {
+      const playlistsRes = await getPlaylists(mode as any, user.id);
+      const historyRes = await getTrackHistory(user.id, 0, 3, "MUSIC");
+      const latestRes = await getLatestTracks("MUSIC", false, 5);
+      const playlists = playlistsRes.code === 200 ? playlistsRes.data : [];
+      const history = historyRes.code === 200
+        ? historyRes.data.list.map((item: any) => item.track).filter(Boolean)
+        : [];
+      const latest = latestRes.code === 200 ? latestRes.data : [];
+      await updateWidgetCollections({
+        playlists,
+        history,
+        latest,
+      });
+    } catch (error) {
+      if (__DEV__) {
+        console.warn("[Widget] Failed to sync collections", error);
+      }
+    }
+  }, [user?.id, mode]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      await refreshWidgetCollections();
+    };
+    if (!cancelled) {
+      run();
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshWidgetCollections, currentTrack?.id]);
 
   useEffect(() => {
     positionRef.current = position;
@@ -1395,6 +1436,63 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         case "previous":
           await playPrevious();
           break;
+        case "play_playlist": {
+          const rawId = String(payload?.payload?.id || payload?.id || "");
+          const playlistId = rawId ? Number(rawId) : NaN;
+          if (!Number.isNaN(playlistId)) {
+            try {
+              const res = await getPlaylistById(playlistId);
+              if (res.code === 200 && res.data?.tracks?.length) {
+                await playTrackList(res.data.tracks, 0);
+              }
+            } catch (error) {
+              console.warn("Failed to play playlist from widget", error);
+            }
+          }
+          break;
+        }
+        case "play_history": {
+          const rawId = String(payload?.payload?.id || payload?.id || "");
+          const trackId = rawId ? Number(rawId) : NaN;
+          if (!Number.isNaN(trackId) && user) {
+            try {
+              const res = await getTrackHistory(user.id, 0, 50, "MUSIC");
+              if (res.code === 200) {
+                const list = res.data.list.map((item: any) => item.track).filter(Boolean);
+                const index = list.findIndex((t: any) => Number(t.id) === trackId);
+                if (index >= 0) {
+                  await playTrackList(list, index);
+                }
+              }
+            } catch (error) {
+              console.warn("Failed to play history track from widget", error);
+            }
+          }
+          break;
+        }
+        case "play_latest": {
+          const rawId = String(payload?.payload?.id || payload?.id || "");
+          const trackId = rawId ? Number(rawId) : NaN;
+          if (!Number.isNaN(trackId)) {
+            try {
+              const res = await getLatestTracks("MUSIC", false, 50);
+              if (res.code === 200) {
+                const list = res.data || [];
+                const index = list.findIndex((t: any) => Number(t.id) === trackId);
+                if (index >= 0) {
+                  await playTrackList(list, index);
+                }
+              }
+            } catch (error) {
+              console.warn("Failed to play latest track from widget", error);
+            }
+          }
+          break;
+        }
+        case "refresh_latest": {
+          await refreshWidgetCollections();
+          break;
+        }
         default:
           break;
       }
