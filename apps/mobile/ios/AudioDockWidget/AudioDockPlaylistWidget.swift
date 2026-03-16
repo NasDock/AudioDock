@@ -121,7 +121,7 @@ struct AudioDockPlaylistWidgetView: View {
     .padding(14)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary, cover: entry.backgroundCover))
-    .widgetURL(URL(string: "audiodock://widget?open=player"))
+    .widgetURL(URL(string: "audiodock://"))
   }
 
   private func coverView(_ image: UIImage?) -> some View {
@@ -153,7 +153,7 @@ struct AudioDockPlaylistWidgetView: View {
         .buttonStyle(.plain)
       )
     } else {
-      let url = URL(string: "audiodock://widget?action=play_playlist&id=\(id)&open=player")
+      let url = URL(string: "audiodock://?action=play_playlist&id=\(id)")
       return AnyView(
         Link(destination: url!) {
           Image(systemName: "play.fill")
@@ -175,7 +175,7 @@ struct AudioDockPlaylistWidgetView: View {
         }
         .buttonStyle(.plain)
       } else {
-        let url = URL(string: "audiodock://widget?action=pause&open=player")
+        let url = URL(string: "audiodock://?action=pause")
         Link(destination: url!) {
           Image(systemName: "pause.fill")
             .font(.system(size: 16, weight: .semibold))
@@ -192,7 +192,7 @@ struct AudioDockPlaylistWidgetView: View {
         }
         .buttonStyle(.plain)
       } else {
-        let url = URL(string: "audiodock://widget?action=play_playlist&id=\(firstId)&open=player")
+        let url = URL(string: "audiodock://?action=play_playlist&id=\(firstId)")
         Link(destination: url!) {
           Image(systemName: "play.fill")
             .font(.system(size: 16, weight: .semibold))

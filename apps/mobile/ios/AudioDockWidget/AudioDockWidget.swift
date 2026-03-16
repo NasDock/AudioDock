@@ -104,7 +104,7 @@ struct AudioDockWidgetEntryView: View {
     }
     .foregroundColor(.white)
     .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary, cover: entry.cover))
-    .widgetURL(URL(string: "audiodock://widget?open=player"))
+    .widgetURL(URL(string: "audiodock://"))
   }
 
   private var coverView: some View {
@@ -231,7 +231,7 @@ struct AudioDockWidgetEntryView: View {
       }
       .buttonStyle(.plain)
     } else {
-      let url = URL(string: "audiodock://widget?action=\(action)&open=player")
+      let url = URL(string: "audiodock://?action=\(action)")
       Link(destination: url!) {
         Image(systemName: systemName)
           .font(.system(size: 16, weight: .semibold))

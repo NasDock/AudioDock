@@ -86,9 +86,11 @@ function RootLayoutNav() {
     if (!url) return;
 
     const { path, queryParams } = Linking.parse(url);
-    if (path !== "widget") return;
-
     const action = String(queryParams?.action || "").toLowerCase();
+    if (!action) return;
+    if (path && path !== "widget") return;
+
+    const openTarget = String(queryParams?.open || "").toLowerCase();
 
     const handle = async () => {
       switch (action) {
@@ -187,7 +189,9 @@ function RootLayoutNav() {
           break;
       }
 
-      router.replace("/player");
+      if (openTarget === "player") {
+        router.replace("/player");
+      }
     };
 
     handle();

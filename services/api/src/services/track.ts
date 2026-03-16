@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { getTrackHeartbeatScoreMap } from './heartbeat-score';
 import { toSimplified } from '../common/zh-utils';
+import { resolvePathList } from '../common/path-list';
 
 @Injectable()
 export class TrackService {
@@ -16,12 +17,22 @@ export class TrackService {
 
   public getFilePath(trackPath: string): string | null {
     if (trackPath.startsWith('/music/')) {
-      const musicBaseDir = this.configService.get<string>('MUSIC_BASE_DIR') || './';
-      return path.join(path.resolve(musicBaseDir), trackPath.replace('/music/', ''));
+      const musicBaseDirs = resolvePathList(this.configService.get<string>('MUSIC_BASE_DIR'), './');
+      const relativePath = trackPath.replace('/music/', '');
+      for (const musicBaseDir of musicBaseDirs) {
+        const candidate = path.join(musicBaseDir, relativePath);
+        if (fs.existsSync(candidate)) return candidate;
+      }
+      return path.join(musicBaseDirs[0], relativePath);
     }
     if (trackPath.startsWith('/audio/')) {
-      const audioBookDir = this.configService.get<string>('AUDIO_BOOK_DIR') || './';
-      return path.join(path.resolve(audioBookDir), trackPath.replace('/audio/', ''));
+      const audioBookDirs = resolvePathList(this.configService.get<string>('AUDIO_BOOK_DIR'), './');
+      const relativePath = trackPath.replace('/audio/', '');
+      for (const audioBookDir of audioBookDirs) {
+        const candidate = path.join(audioBookDir, relativePath);
+        if (fs.existsSync(candidate)) return candidate;
+      }
+      return path.join(audioBookDirs[0], relativePath);
     }
     return null;
   }
