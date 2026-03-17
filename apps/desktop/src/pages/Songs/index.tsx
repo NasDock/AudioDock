@@ -1,4 +1,7 @@
 import {
+  AimOutlined,
+  ArrowDownOutlined,
+  ArrowUpOutlined,
   CheckSquareOutlined,
   CloseOutlined,
   DownloadOutlined,
@@ -39,7 +42,7 @@ interface Result {
 const Songs: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { token } = theme.useToken();
-  const { play, setPlaylist } = usePlayerStore();
+  const { play, setPlaylist, currentTrack } = usePlayerStore();
   const [messageApi, contextHolder] = message.useMessage();
 
   // Selection Mode
@@ -130,9 +133,70 @@ const Songs: React.FC = () => {
     });
   };
 
+  const scrollToTop = () => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const scrollToBottom = () => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  };
+
+  const locateCurrent = () => {
+    if (!currentTrack) return;
+    const element = document.getElementById(`track-${currentTrack.id}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  const showFloatingActions = (data?.list.length || 0) > 50;
+  const canLocateCurrent =
+    !!currentTrack && !!data?.list.some((t) => t.id === currentTrack.id);
+
 
   return (
     <div ref={scrollRef} className={styles.container}>
+      {showFloatingActions && (
+        <div className={styles.floatingActions}>
+          <div
+            className={styles.floatingButton}
+            style={{
+              backgroundColor: token.colorBgElevated,
+              color: token.colorPrimary,
+            }}
+            onClick={scrollToTop}
+          >
+            <ArrowUpOutlined />
+          </div>
+          <div
+            className={styles.floatingButton}
+            style={{
+              backgroundColor: token.colorBgElevated,
+              color: token.colorPrimary,
+              opacity: canLocateCurrent ? 1 : 0.3,
+              cursor: canLocateCurrent ? "pointer" : "not-allowed",
+            }}
+            onClick={canLocateCurrent ? locateCurrent : undefined}
+          >
+            <AimOutlined />
+          </div>
+          <div
+            className={styles.floatingButton}
+            style={{
+              backgroundColor: token.colorBgElevated,
+              color: token.colorPrimary,
+            }}
+            onClick={scrollToBottom}
+          >
+            <ArrowDownOutlined />
+          </div>
+        </div>
+      )}
+
       <div className={styles.pageHeader}>
         <Title level={2} className={styles.title}>
           单曲

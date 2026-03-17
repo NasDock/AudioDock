@@ -84,7 +84,7 @@ export interface TrackingEventDto {
   platform: TrackingPlatform;
   feature: string;
   eventName: string;
-  userId?: string;
+  userId?: string | null;
   sessionId?: string;
   deviceId?: string;
   value?: number;

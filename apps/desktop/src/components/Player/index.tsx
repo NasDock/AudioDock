@@ -1280,7 +1280,7 @@ const Player: React.FC = () => {
           <Text strong ellipsis style={{ maxWidth: 250 }}>
             {currentTrack?.name || "No Track"}
           </Text>
-          <Text type="secondary" style={{ fontSize: "12px" }}>
+          <Text type="secondary" className={styles.artistText} style={{ fontSize: "12px" }}>
             {currentTrack?.artist || "Unknown Artist"}
           </Text>
         </div>

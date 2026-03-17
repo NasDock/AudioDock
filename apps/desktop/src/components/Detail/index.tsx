@@ -320,53 +320,48 @@ const Detail: React.FC = () => {
       element.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   };
+  const showFloatingActions = tracks.length > 50;
+  const canLocateCurrent =
+    !!currentTrack && tracks.some((t) => t.id === currentTrack.id);
 
   return (
     <div className={styles.detailWrapper}>
-      <div className={styles.floatingActions}>
-        <div
-          className={styles.floatingButton}
-          style={{
-            backgroundColor: token.colorBgElevated,
-            color: token.colorPrimary,
-          }}
-          onClick={scrollToTop}
-        >
-          <ArrowUpOutlined />
+      {showFloatingActions && (
+        <div className={styles.floatingActions}>
+          <div
+            className={styles.floatingButton}
+            style={{
+              backgroundColor: token.colorBgElevated,
+              color: token.colorPrimary,
+            }}
+            onClick={scrollToTop}
+          >
+            <ArrowUpOutlined />
+          </div>
+          <div
+            className={styles.floatingButton}
+            style={{
+              backgroundColor: token.colorBgElevated,
+              color: token.colorPrimary,
+              opacity: canLocateCurrent ? 1 : 0.3,
+              cursor: canLocateCurrent ? "pointer" : "not-allowed",
+            }}
+            onClick={canLocateCurrent ? locateCurrent : undefined}
+          >
+            <AimOutlined />
+          </div>
+          <div
+            className={styles.floatingButton}
+            style={{
+              backgroundColor: token.colorBgElevated,
+              color: token.colorPrimary,
+            }}
+            onClick={scrollToBottom}
+          >
+            <ArrowDownOutlined />
+          </div>
         </div>
-        <div
-          className={styles.floatingButton}
-          style={{
-            backgroundColor: token.colorBgElevated,
-            color: token.colorPrimary,
-            opacity:
-              !currentTrack || !tracks.some((t) => t.id === currentTrack.id)
-                ? 0.3
-                : 1,
-            cursor:
-              !currentTrack || !tracks.some((t) => t.id === currentTrack.id)
-                ? "not-allowed"
-                : "pointer",
-          }}
-          onClick={
-            !currentTrack || !tracks.some((t) => t.id === currentTrack.id)
-              ? undefined
-              : locateCurrent
-          }
-        >
-          <AimOutlined />
-        </div>
-        <div
-          className={styles.floatingButton}
-          style={{
-            backgroundColor: token.colorBgElevated,
-            color: token.colorPrimary,
-          }}
-          onClick={scrollToBottom}
-        >
-          <ArrowDownOutlined />
-        </div>
-      </div>
+      )}
 
       <div
         ref={containerRef}

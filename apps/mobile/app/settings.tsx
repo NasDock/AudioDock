@@ -15,11 +15,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../src/context/AuthContext";
 import { useSettings } from "../src/context/SettingsContext";
 import { useTheme } from "../src/context/ThemeContext";
-import { trackEvent } from "../src/services/tracking";
 import {
   clearSpecificCache,
   getDetailedCacheSize,
 } from "../src/services/cache";
+import { trackEvent } from "../src/services/tracking";
 import { usePlayMode } from "../src/utils/playMode";
 import { getLocalVersion } from "../src/utils/updateUtils";
 
@@ -369,7 +369,7 @@ export default function SettingsScreen() {
 
           {renderSettingRow(
             "参与用户体验计划",
-            "允许匿名上报使用数据以改进产品",
+            "使用数据以改进产品",
             experienceProgramEnabled,
             (val) => updateSetting("experienceProgramEnabled", val),
           )}
