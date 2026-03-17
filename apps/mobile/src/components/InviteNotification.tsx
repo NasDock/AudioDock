@@ -4,11 +4,14 @@ import { Animated, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react
 import { useSettings } from '../context/SettingsContext';
 import { useSync } from '../context/SyncContext';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import { trackEvent } from '../services/tracking';
 
 const InviteNotification: React.FC = () => {
   const { invites, acceptInvite, rejectInvite } = useSync();
   const { colors } = useTheme();
   const { carLayoutMode } = useSettings();
+  const { user, device } = useAuth();
   const [currentInvite, setCurrentInvite] = useState<any>(invites[0] || null);
   const translateY = useRef(new Animated.Value(-100)).current;
 
@@ -42,6 +45,16 @@ const InviteNotification: React.FC = () => {
   const handleAccept = () => {
     if (currentInvite) {
       acceptInvite(currentInvite);
+      trackEvent({
+        feature: "sync",
+        eventName: "sync_control_accept",
+        userId: user?.id ? String(user.id) : undefined,
+        sessionId: currentInvite?.sessionId,
+        deviceId: device?.id ? String(device.id) : undefined,
+        metadata: {
+          fromUserId: currentInvite?.fromUserId,
+        },
+      });
       setCurrentInvite(null);
     }
   };

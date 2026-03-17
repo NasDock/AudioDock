@@ -3,6 +3,7 @@ import { Avatar, Checkbox, Col, Flex, Modal, Row, message, theme } from "antd";
 import React, { useEffect, useState } from "react";
 import type { User } from "../../models";
 import { socketService } from "../../services/socket";
+import { trackEvent } from "../../services/tracking";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { useSyncStore } from "../../store/sync";
@@ -22,6 +23,7 @@ const UserSelectModal: React.FC<UserSelectModalProps> = ({
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const currentUser = useAuthStore((state) => state.user);
+  const device = useAuthStore((state) => state.device);
   const [messageApi, contextHolder] = message.useMessage();
   const { currentTrack, playlist, currentTime } = usePlayerStore();
   const [waitingUserIds, setWaitingUserIds] = useState<Set<number>>(new Set());
@@ -123,6 +125,17 @@ const UserSelectModal: React.FC<UserSelectModalProps> = ({
       playlist,
       progress: currentTime,
       sessionId: currentSessionId, // Send Session ID
+    });
+
+    trackEvent({
+      feature: "sync",
+      eventName: "sync_control_initiate",
+      userId: currentUser?.id ? String(currentUser.id) : undefined,
+      sessionId: currentSessionId,
+      deviceId: device?.id ? String(device.id) : undefined,
+      metadata: {
+        targetUserCount: selectedUserIds.length,
+      },
     });
     // messageApi.success("邀请已发送"); // Don't show success yet, wait for response
 

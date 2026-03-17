@@ -2,7 +2,7 @@ import axios from "axios";
 import { ISuccessResponse } from "./models";
 
 const plusRequest = axios.create({
-  baseURL: "http://8.136.115.52/api",
+  baseURL: "https://www.audiodock.cn/api",
 });
 
 /**
@@ -78,6 +78,20 @@ export interface ConsumePointsDto {
   description?: string;
 }
 
+export type TrackingPlatform = "mobile" | "desktop" | "web" | "mini";
+
+export interface TrackingEventDto {
+  platform: TrackingPlatform;
+  feature: string;
+  eventName: string;
+  userId?: string;
+  sessionId?: string;
+  deviceId?: string;
+  value?: number;
+  occurredAt?: string;
+  metadata?: Record<string, any>;
+}
+
 // --- API Functions ---
 
 /**
@@ -134,6 +148,13 @@ export const plusGetPointsBalance = async (userId: string) => {
  */
 export const plusConsumePoints = async (data: ConsumePointsDto) => {
   return plusRequest.post<ISuccessResponse<any>>("/points/consume", data);
+};
+
+/**
+ * TrackingController_create: Report a single tracking event
+ */
+export const plusTrackEvent = async (data: TrackingEventDto) => {
+  return plusRequest.post<ISuccessResponse<any>>("/tracking/events", data);
 };
 
 /**

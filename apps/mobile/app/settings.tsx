@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../src/context/AuthContext";
 import { useSettings } from "../src/context/SettingsContext";
 import { useTheme } from "../src/context/ThemeContext";
+import { trackEvent } from "../src/services/tracking";
 import {
   clearSpecificCache,
   getDetailedCacheSize,
@@ -27,7 +28,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, theme, toggleTheme, setTheme } = useTheme();
   const { mode, setMode } = usePlayMode();
-  const { logout, user, sourceType } = useAuth();
+  const { logout, user, sourceType, device } = useAuth();
   const {
     acceptRelay,
     acceptSync,
@@ -141,7 +142,27 @@ export default function SettingsScreen() {
     await updateSetting("carModeEnabled", val);
     await updateSetting("carLayoutMode", val);
     if (val) {
+      trackEvent({
+        feature: "settings",
+        eventName: "car_mode_enable",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
+    }
+    if (val) {
       router.replace("/(tabs)");
+    }
+  };
+
+  const handleToggleVoiceAssistant = async (val: boolean) => {
+    await updateSetting("voiceAssistantEnabled", val);
+    if (val) {
+      trackEvent({
+        feature: "voice",
+        eventName: "voice_assistant_enable",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
     }
   };
 
@@ -271,7 +292,7 @@ export default function SettingsScreen() {
             "语音助手",
             "开启后显示全局语音助手小松鼠",
             voiceAssistantEnabled,
-            (val) => updateSetting("voiceAssistantEnabled", val),
+            (val) => handleToggleVoiceAssistant(val),
           )}
 
           <View

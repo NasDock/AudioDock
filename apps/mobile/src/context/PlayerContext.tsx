@@ -52,6 +52,7 @@ import { useAuth } from "./AuthContext";
 import { useNotification } from "./NotificationContext";
 import { useSettings } from "./SettingsContext";
 import { useSync } from "./SyncContext";
+import { trackEvent } from "../services/tracking";
 
 export enum PlayMode {
   SEQUENCE = "SEQUENCE",
@@ -1586,6 +1587,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 description: `发现在设备 ${history.deviceName} 上的播放记录，是否从 ${m}:${s} 继续播放？`,
                 onAccept: async () => {
                   const trackData = history.track;
+                  trackEvent({
+                    feature: "relay",
+                    eventName: "relay_play_accept",
+                    userId: user?.id ? String(user.id) : undefined,
+                    deviceId: device?.id ? String(device.id) : undefined,
+                    metadata: {
+                      fromDeviceName: history.deviceName,
+                      trackId: trackData?.id,
+                      trackType: trackData?.type,
+                    },
+                  });
                   // ✨ 有声书恢复时同时恢复整个专辑的播放列表
                   if (trackData.type === TrackType.AUDIOBOOK && trackData.albumId) {
                     try {

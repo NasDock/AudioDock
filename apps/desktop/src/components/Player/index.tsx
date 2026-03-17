@@ -53,6 +53,7 @@ import { useMediaSession } from "../../hooks/useMediaSession";
 import { getBaseURL } from "../../https";
 import { type Album, type Device, type Track, TrackType } from "../../models";
 import { socketService } from "../../services/socket";
+import { trackEvent } from "../../services/tracking";
 import {
   resolveArtworkUri,
   resolveTrackUri,
@@ -98,7 +99,7 @@ const Player: React.FC = () => {
     loadMoreSourceTracks,
   } = usePlayerStore();
   const { mode: appMode } = usePlayMode();
-  const { user } = useAuthStore();
+  const { user, device } = useAuthStore();
   const { updateDesktopLyric } = useSettingsStore();
   const desktopLyricEnable = useSettingsStore(
     (state) => state.desktopLyric.enable,
@@ -327,10 +328,21 @@ const Player: React.FC = () => {
               key,
               btn: (
                 <Space style={{ marginTop: 8 }}>
-                  <Button
-                    type="primary"
-                    size="small"
-                    onClick={() => {
+                    <Button
+                      type="primary"
+                      size="small"
+                      onClick={() => {
+                        trackEvent({
+                          feature: "relay",
+                          eventName: "relay_play_accept",
+                          userId: user?.id ? String(user.id) : undefined,
+                          deviceId: device?.id ? String(device.id) : undefined,
+                          metadata: {
+                            fromDeviceName: history.deviceName,
+                            trackId: history.track?.id,
+                            trackType: history.track?.type,
+                          },
+                        });
                       // Resume Logic
                       play(history.track);
                       // Wait for track to set, then seek.
@@ -975,6 +987,13 @@ const Player: React.FC = () => {
   // Skip forward 15 seconds
   const skipForward = () => {
     if (audioRef.current) {
+      trackEvent({
+        feature: "player",
+        eventName: "seek_forward_15",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+        value: 15,
+      });
       const newTime = Math.min(audioRef.current.currentTime + 15, duration);
       audioRef.current.currentTime = newTime;
       setCurrentTime(newTime);
@@ -984,6 +1003,13 @@ const Player: React.FC = () => {
   // Skip backward 15 seconds
   const skipBackward = () => {
     if (audioRef.current) {
+      trackEvent({
+        feature: "player",
+        eventName: "seek_backward_15",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+        value: -15,
+      });
       const newTime = Math.max(audioRef.current.currentTime - 15, 0);
       audioRef.current.currentTime = newTime;
       setCurrentTime(newTime);
@@ -1415,6 +1441,13 @@ const Player: React.FC = () => {
                       if (val > 0) {
                         setSleepTimerMode("time");
                         setSleepTimerEndTime(Date.now() + val * 60 * 1000);
+                        trackEvent({
+                          feature: "player",
+                          eventName: "sleep_timer_set",
+                          userId: user?.id ? String(user.id) : undefined,
+                          deviceId: device?.id ? String(device.id) : undefined,
+                          value: val,
+                        });
                       } else {
                         setSleepTimerMode("off");
                       }

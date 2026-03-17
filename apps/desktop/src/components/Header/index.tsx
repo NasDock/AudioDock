@@ -64,6 +64,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
 import { useTheme } from "../../context/ThemeContext";
 import { TrackType } from "../../models";
+import { trackEvent } from "../../services/tracking";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { isEmbySource, isSubsonicSource } from "../../utils";
@@ -353,7 +354,7 @@ const Header: React.FC = () => {
   // Mode state: 'music' | 'audiobook'
   const { mode: playMode, setMode: setPlayMode } = usePlayMode();
   const isRadioMode = usePlayerStore((state) => state.isRadioMode);
-  const { logout, user } = useAuthStore();
+  const { logout, user, device } = useAuthStore();
 
   // Import task state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -722,6 +723,12 @@ const Header: React.FC = () => {
               className={styles.actionIcon}
               style={actionIconStyle}
               onClick={() => {
+                trackEvent({
+                  feature: "library",
+                  eventName: "folder_mode_entry",
+                  userId: user?.id ? String(user.id) : undefined,
+                  deviceId: device?.id ? String(device.id) : undefined,
+                });
                 navigate(`/folders`);
               }}
             >
