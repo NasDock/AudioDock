@@ -1,7 +1,7 @@
 import { Alert, Linking, Platform } from "react-native";
 import { plusCreatePayment, CreatePaymentDto } from "@soundx/services";
 import type * as WeChatTypes from "react-native-wechat-lib";
-import type AlipayTypes from "@0x5e/react-native-alipay";
+import type AlipayTypes from "@uiw/react-native-alipay";
 import type * as RNIapTypes from "react-native-iap";
 
 type WeChatModule = typeof WeChatTypes;
@@ -26,9 +26,9 @@ const loadWeChatModule = (): WeChatModule | null => {
 const loadAlipayModule = (): AlipayModule | null => {
   if (cachedAlipayModule !== undefined) return cachedAlipayModule;
   try {
-    cachedAlipayModule = require("@0x5e/react-native-alipay") as AlipayModule;
+    cachedAlipayModule = require("@uiw/react-native-alipay") as AlipayModule;
   } catch (error) {
-    console.warn("Native module missing: @0x5e/react-native-alipay", error);
+    console.warn("Native module missing: @uiw/react-native-alipay", error);
     cachedAlipayModule = null;
   }
   return cachedAlipayModule;
@@ -61,7 +61,7 @@ const getAlipayModule = (): AlipayModule => {
     throw new Error("Web 端不支持支付宝支付");
   }
   const mod = loadAlipayModule();
-  if (!mod || !(mod as any).pay) {
+  if (!mod || !(mod as any).alipay) {
     throw new Error("支付宝模块不可用（已禁用或未集成）");
   }
   return mod;
@@ -190,7 +190,10 @@ export const payWithAlipay = async (
 ) => {
   try {
     const Alipay = getAlipayModule();
-    await (Alipay as any).pay(payload.orderString, true);
+    if ((Alipay as any).setAlipayScheme && payload.scheme) {
+      (Alipay as any).setAlipayScheme(payload.scheme);
+    }
+    await (Alipay as any).alipay(payload.orderString);
     return;
   } catch (error) {
     if (fallbackUrl) {

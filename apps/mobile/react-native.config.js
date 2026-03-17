@@ -1,8 +1,8 @@
 module.exports = {
   dependencies: {
-    "@0x5e/react-native-alipay": {
+    "@uiw/react-native-alipay": {
       platforms: {
-        android: null,
+        android: {},
       },
     },
     "react-native-iap": {
