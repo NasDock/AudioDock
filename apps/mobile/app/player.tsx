@@ -5,6 +5,7 @@ import { PlayMode, usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Track, TrackType, UserTrackLike } from "@/src/models";
 import { getImageUrl } from "@/src/utils/image";
+import { trackEvent } from "@/src/services/tracking";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Slider } from "@miblanchard/react-native-slider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -193,7 +194,7 @@ export function PlayerDetailView({
   const [liked, setLiked] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const { user } = useAuth();
+  const { user, device } = useAuth();
   const [lyricFontSize, setLyricFontSize] = useState(16);
   const lineLayouts = useRef<{ [key: number]: any }>({});
 
@@ -411,8 +412,40 @@ export function PlayerDetailView({
     setPlaybackRate(nextRate);
   };
 
-  const skipForward = () => seekTo(position + 15);
-  const skipBackward = () => seekTo(Math.max(0, position - 15));
+  const skipForward = () => {
+    trackEvent({
+      feature: "player",
+      eventName: "seek_forward_15",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+      value: 15,
+    });
+    seekTo(position + 15);
+  };
+  const skipBackward = () => {
+    trackEvent({
+      feature: "player",
+      eventName: "seek_backward_15",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+      value: -15,
+    });
+    seekTo(Math.max(0, position - 15));
+  };
+
+  const handleOpenMore = () => {
+    setMoreModalVisible(true);
+    trackEvent({
+      feature: "player",
+      eventName: "player_more_open",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+      metadata: {
+        trackId: currentTrack?.id,
+        trackType: currentTrack?.type,
+      },
+    });
+  };
 
   if (!currentTrack) {
     return (
@@ -591,7 +624,7 @@ export function PlayerDetailView({
         )}
         <TouchableOpacity
           onPress={() => {
-            setMoreModalVisible(true);
+            handleOpenMore();
             resetHideTimer();
           }}
           style={styles.likeButton}
@@ -854,7 +887,7 @@ export function PlayerDetailView({
 
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => setMoreModalVisible(true)}
+            onPress={handleOpenMore}
           >
             <Ionicons name="ellipsis-vertical" size={24} color={colors.text} />
           </TouchableOpacity>

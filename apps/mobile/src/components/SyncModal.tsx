@@ -19,6 +19,7 @@ import { useSync } from '../context/SyncContext';
 import { useTheme } from '../context/ThemeContext';
 import { User } from '../models';
 import { socketService } from '../services/socket';
+import { trackEvent } from '../services/tracking';
 
 interface SyncModalProps {
   visible: boolean;
@@ -29,7 +30,7 @@ const SyncModal: React.FC<SyncModalProps> = ({ visible, onClose }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(false);
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, device } = useAuth();
   const { currentTrack, position, trackList, pause } = usePlayer();
   const { isSynced, sessionId } = useSync();
   const { colors } = useTheme();
@@ -72,12 +73,24 @@ const SyncModal: React.FC<SyncModalProps> = ({ visible, onClose }) => {
     // 发起邀请时先暂停，等待对方加入
     await pause();
 
+    const nextSessionId = sessionId || `sync_${currentUser?.id}_${Date.now()}`;
     socketService.emit('invite', {
       targetUserIds: Array.from(selectedUserIds),
       currentTrack,
       playlist: trackList,
       progress: position,
-      sessionId: sessionId || `sync_${currentUser?.id}_${Date.now()}`
+      sessionId: nextSessionId
+    });
+
+    trackEvent({
+      feature: "sync",
+      eventName: "sync_control_initiate",
+      userId: currentUser?.id ? String(currentUser.id) : undefined,
+      sessionId: nextSessionId,
+      deviceId: device?.id ? String(device.id) : undefined,
+      metadata: {
+        targetUserCount: selectedUserIds.size,
+      },
     });
     
     onClose();

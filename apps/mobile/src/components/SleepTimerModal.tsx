@@ -1,5 +1,7 @@
 import { usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useAuth } from "@/src/context/AuthContext";
+import { trackEvent } from "@/src/services/tracking";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import {
@@ -24,11 +26,19 @@ const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { setSleepTimer, clearSleepTimer, sleepTimer } = usePlayer();
+  const { user, device } = useAuth();
 
   const timeOptions = [15, 20, 30, 45, 60, 120];
 
   const handleSelectTime = (minutes: number) => {
     setSleepTimer(minutes);
+    trackEvent({
+      feature: "player",
+      eventName: "sleep_timer_set",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+      value: minutes,
+    });
     onClose();
   };
 

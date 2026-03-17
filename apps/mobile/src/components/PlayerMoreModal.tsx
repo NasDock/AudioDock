@@ -1,6 +1,8 @@
 import { usePlayer } from "@/src/context/PlayerContext";
+import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Track, TrackType } from "@/src/models";
+import { trackEvent } from "@/src/services/tracking";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Router } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -44,6 +46,7 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { user, device } = useAuth();
 
   // ✨ 从 Context 获取全局设置
   const {
@@ -280,6 +283,12 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
       onPress: () => {
         setVisible(false);
         setEqVisible(true);
+        trackEvent({
+          feature: "player",
+          eventName: "equalizer_open",
+          userId: user?.id ? String(user.id) : undefined,
+          deviceId: device?.id ? String(device.id) : undefined,
+        });
       },
       disabled: false,
       hidden: Platform.OS !== 'android',

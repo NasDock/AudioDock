@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { setTrackingEnabled } from '../services/tracking';
 
 interface SettingsState {
   acceptRelay: boolean;
@@ -12,6 +13,7 @@ interface SettingsState {
   voiceAssistantEnabled: boolean;
   recommendationLikeRatio: number;
   eqGains: number[];
+  experienceProgramEnabled: boolean;
 }
 
 interface SettingsContextType extends SettingsState {
@@ -22,7 +24,7 @@ interface SettingsContextType extends SettingsState {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<SettingsState>({
+  const defaultSettings: SettingsState = {
     acceptRelay: true,
     acceptSync: true,
     cacheEnabled: false,
@@ -33,7 +35,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     voiceAssistantEnabled: false,
     recommendationLikeRatio: 50,
     eqGains: [0, 0, 0, 0, 0],
-  });
+    experienceProgramEnabled: true,
+  };
+  const [settings, setSettings] = useState<SettingsState>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -41,7 +45,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       try {
         const saved = await AsyncStorage.getItem('mobile-settings');
         if (saved) {
-          setSettings(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          const nextSettings = { ...defaultSettings, ...parsed };
+          setSettings(nextSettings);
+          setTrackingEnabled(!!nextSettings.experienceProgramEnabled);
         }
       } catch (e) {
         console.error('Failed to load settings', e);
@@ -58,6 +65,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       AsyncStorage.setItem('mobile-settings', JSON.stringify(next)).catch((e) => {
         console.error('Failed to save settings', e);
       });
+      if (key === 'experienceProgramEnabled') {
+        setTrackingEnabled(!!value);
+      }
       return next;
     });
   };

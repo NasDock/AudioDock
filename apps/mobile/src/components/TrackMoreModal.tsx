@@ -12,8 +12,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePlayer } from "../context/PlayerContext";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import { Track } from "../models";
 import { downloadTrack } from "../services/downloadManager";
+import { trackEvent } from "../services/tracking";
 
 interface TrackMoreModalProps {
   visible: boolean;
@@ -35,6 +37,7 @@ export const TrackMoreModal: React.FC<TrackMoreModalProps> = ({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { insertTracksNext } = usePlayer();
+  const { user, device } = useAuth();
 
   if (!track) return null;
 
@@ -71,6 +74,15 @@ export const TrackMoreModal: React.FC<TrackMoreModalProps> = ({
 
     if (tracksToAdd.length > 0) {
       await insertTracksNext(tracksToAdd);
+      trackEvent({
+        feature: "player",
+        eventName: "add_to_current_playlist",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+        metadata: {
+          trackId: track?.id,
+        },
+      });
       onClose();
       Alert.alert("已添加到当前播放列表");
     }

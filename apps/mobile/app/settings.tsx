@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../src/context/AuthContext";
 import { useSettings } from "../src/context/SettingsContext";
 import { useTheme } from "../src/context/ThemeContext";
+import { trackEvent } from "../src/services/tracking";
 import {
   clearSpecificCache,
   getDetailedCacheSize,
@@ -27,7 +28,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, theme, toggleTheme, setTheme } = useTheme();
   const { mode, setMode } = usePlayMode();
-  const { logout, user, sourceType } = useAuth();
+  const { logout, user, sourceType, device } = useAuth();
   const {
     acceptRelay,
     acceptSync,
@@ -38,6 +39,7 @@ export default function SettingsScreen() {
     voiceAssistantEnabled,
     recommendationLikeRatio,
     carModeEnabled,
+    experienceProgramEnabled,
     updateSetting,
   } = useSettings();
   const [detailedSizes, setDetailedSizes] = React.useState<{
@@ -141,7 +143,27 @@ export default function SettingsScreen() {
     await updateSetting("carModeEnabled", val);
     await updateSetting("carLayoutMode", val);
     if (val) {
+      trackEvent({
+        feature: "settings",
+        eventName: "car_mode_enable",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
+    }
+    if (val) {
       router.replace("/(tabs)");
+    }
+  };
+
+  const handleToggleVoiceAssistant = async (val: boolean) => {
+    await updateSetting("voiceAssistantEnabled", val);
+    if (val) {
+      trackEvent({
+        feature: "voice",
+        eventName: "voice_assistant_enable",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
     }
   };
 
@@ -196,35 +218,6 @@ export default function SettingsScreen() {
               { color: colors.primary, marginTop: 20 },
             ]}
           >
-            关于
-          </Text>
-          <TouchableOpacity
-            style={[styles.settingRow, { borderBottomColor: colors.border }]}
-            onPress={() => router.push("/product-updates")}
-          >
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>
-                产品动态
-              </Text>
-              <Text
-                style={[styles.settingDescription, { color: colors.secondary }]}
-              >
-                查看最新功能与版本更新
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={colors.secondary}
-            />
-          </TouchableOpacity>
-
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: colors.primary, marginTop: 20 },
-            ]}
-          >
             通用
           </Text>
 
@@ -271,7 +264,7 @@ export default function SettingsScreen() {
             "语音助手",
             "开启后显示全局语音助手小松鼠",
             voiceAssistantEnabled,
-            (val) => updateSetting("voiceAssistantEnabled", val),
+            (val) => handleToggleVoiceAssistant(val),
           )}
 
           <View
@@ -347,6 +340,39 @@ export default function SettingsScreen() {
           {renderCacheRow("音乐缓存", detailedSizes.music, "music")}
           {renderCacheRow("有声书缓存", detailedSizes.audiobooks, "audiobooks")}
           {renderCacheRow("安装包文件", detailedSizes.apks, "apks")}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.primary }]}>
+            关于
+          </Text>
+          <TouchableOpacity
+            style={[styles.settingRow, { borderBottomColor: colors.border }]}
+            onPress={() => router.push("/product-updates")}
+          >
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                产品动态
+              </Text>
+              <Text
+                style={[styles.settingDescription, { color: colors.secondary }]}
+              >
+                查看最新功能与版本更新
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={colors.secondary}
+            />
+          </TouchableOpacity>
+
+          {renderSettingRow(
+            "参与用户体验计划",
+            "允许匿名上报使用数据以改进产品",
+            experienceProgramEnabled,
+            (val) => updateSetting("experienceProgramEnabled", val),
+          )}
         </View>
 
         <View style={styles.section}>

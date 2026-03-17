@@ -18,6 +18,8 @@ import {
 import { useSettings } from "../context/SettingsContext";
 import { usePlayer } from "../context/PlayerContext";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
+import { trackEvent } from "../services/tracking";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SQUIRREL_SIZE = 70;
@@ -27,6 +29,7 @@ type AgentState = "idle" | "listening" | "processing" | "result";
 export const SquirrelAgent: React.FC = () => {
   const { colors, theme } = useTheme();
   const { carLayoutMode } = useSettings();
+  const { user, device } = useAuth();
   const [state, setState] = useState<AgentState>("idle");
   const [resultText, setResultText] = useState("");
   const [side, setSide] = useState<"left" | "right">("right");
@@ -192,6 +195,12 @@ export const SquirrelAgent: React.FC = () => {
 
       recordingRef.current = recording;
       setState("listening");
+      trackEvent({
+        feature: "voice",
+        eventName: "voice_assistant_use",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
     } catch (err) {
       console.error("Recording failed", err);
       setState("idle");

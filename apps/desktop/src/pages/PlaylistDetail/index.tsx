@@ -44,6 +44,7 @@ import PlayingIndicator from "../../components/PlayingIndicator";
 import { useMessage } from "../../context/MessageContext";
 import { type Track } from "../../models";
 import { downloadTracks } from "../../services/downloadManager";
+import { trackEvent } from "../../services/tracking";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { getCoverUrl } from "../../utils";
@@ -88,7 +89,7 @@ const PlaylistDetail: React.FC = () => {
   } = usePlayerStore();
 
   const { mode } = usePlayMode();
-  const { user } = useAuthStore();
+  const { user, device } = useAuthStore();
 
   const fetchPlaylist = async () => {
     if (!id) return;
@@ -111,6 +112,16 @@ const PlaylistDetail: React.FC = () => {
 
   const handlePlayAll = () => {
     if (playlist?.tracks && playlist.tracks.length > 0) {
+      trackEvent({
+        feature: "personal",
+        eventName: "personal_playlist_play",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+        metadata: {
+          playlistId: playlist.id,
+          trackCount: playlist.tracks.length,
+        },
+      });
       setPlayerPlaylist(playlist.tracks);
       play(playlist.tracks[0], playlist.id);
     }

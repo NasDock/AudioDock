@@ -26,6 +26,7 @@ import { Album, Artist, Track } from "../../src/models";
 import { downloadTracks } from "../../src/services/downloadManager";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
+import { trackEvent } from "../../src/services/tracking";
 
 const GAP = 15;
 const SCREEN_PADDING = 40; // 20 horizontal padding * 2
@@ -666,7 +667,7 @@ export default function LibraryScreen() {
   const { colors, theme } = useTheme();
   const router = useRouter();
   const { mode, setMode } = usePlayMode();
-  const { sourceType } = useAuth();
+  const { sourceType, user, device } = useAuth();
   const { playTrackList } = usePlayer();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<"songs" | "artists" | "albums">(
@@ -810,7 +811,15 @@ export default function LibraryScreen() {
             </>
           )}
           <TouchableOpacity
-            onPress={() => router.push("/folder" as any)}
+            onPress={() => {
+              trackEvent({
+                feature: "library",
+                eventName: "folder_mode_entry",
+                userId: user?.id ? String(user.id) : undefined,
+                deviceId: device?.id ? String(device.id) : undefined,
+              });
+              router.push("/folder" as any);
+            }}
             style={[
               styles.iconButton,
               { backgroundColor: colors.card, marginRight: 12 },
