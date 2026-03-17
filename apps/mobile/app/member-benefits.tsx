@@ -302,6 +302,26 @@ export default function MemberBenefitsScreen() {
             </>
           )}
         </View>
+
+        <TouchableOpacity
+          style={[styles.logoutButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => {
+            Alert.alert("退出会员账号", "确定要退出会员账号吗？", [
+              { text: "取消", style: "cancel" },
+              {
+                text: "确定",
+                style: "destructive",
+                onPress: async () => {
+                  await AsyncStorage.removeItem("plus_user_id");
+                  router.replace("/member-login" as any);
+                },
+              },
+            ]);
+          }}
+        >
+          <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
+          <Text style={styles.logoutText}>退出会员账号</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -448,6 +468,22 @@ const styles = StyleSheet.create({
   paymentText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+    padding: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 30,
+  },
+  logoutText: {
+    color: "#FF3B30",
+    fontSize: 16,
+    fontWeight: "600",
   },
   footerText: {
     textAlign: 'center',
