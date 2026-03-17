@@ -51,7 +51,7 @@ import SinglecycleOutlined from "../../assets/singlecycle.svg?react";
 import { useMessage } from "../../context/MessageContext";
 import { useMediaSession } from "../../hooks/useMediaSession";
 import { getBaseURL } from "../../https";
-import { type Album, type Device, type Track, TrackType } from "../../models";
+import { type Album, type Track, TrackType } from "../../models";
 import { socketService } from "../../services/socket";
 import { trackEvent } from "../../services/tracking";
 import {
@@ -175,7 +175,7 @@ const Player: React.FC = () => {
     if (currentTrack.path) {
       initialUri = currentTrack.path.startsWith("http")
         ? currentTrack.path
-        : `${getBaseURL()}${currentTrack.path.split('/').map(encodeURIComponent).join('/')}`;
+        : `${getBaseURL()}${currentTrack.path.split("/").map(encodeURIComponent).join("/")}`;
 
       if (!initialUri.startsWith("http")) {
         initialUri = `${window.location.origin}${initialUri}`;
@@ -328,21 +328,21 @@ const Player: React.FC = () => {
               key,
               btn: (
                 <Space style={{ marginTop: 8 }}>
-                    <Button
-                      type="primary"
-                      size="small"
-                      onClick={() => {
-                        trackEvent({
-                          feature: "relay",
-                          eventName: "relay_play_accept",
-                          userId: user?.id ? String(user.id) : undefined,
-                          deviceId: device?.id ? String(device.id) : undefined,
-                          metadata: {
-                            fromDeviceName: history.deviceName,
-                            trackId: history.track?.id,
-                            trackType: history.track?.type,
-                          },
-                        });
+                  <Button
+                    type="primary"
+                    size="small"
+                    onClick={() => {
+                      trackEvent({
+                        feature: "relay",
+                        eventName: "relay_play_accept",
+                        userId: user?.id ? String(user.id) : undefined,
+                        deviceId: device?.id ? String(device.id) : undefined,
+                        metadata: {
+                          fromDeviceName: history.deviceName,
+                          trackId: history.track?.id,
+                          trackType: history.track?.type,
+                        },
+                      });
                       // Resume Logic
                       play(history.track);
                       // Wait for track to set, then seek.
@@ -581,7 +581,11 @@ const Player: React.FC = () => {
         // Apply progress if significantly different
         let targetTime = currentTime;
         // Prioritize skipStart if in audiobook mode and we are at the beginning
-        if (appMode === TrackType.AUDIOBOOK && skipStart > 0 && targetTime < skipStart) {
+        if (
+          appMode === TrackType.AUDIOBOOK &&
+          skipStart > 0 &&
+          targetTime < skipStart
+        ) {
           targetTime = skipStart;
         }
 
@@ -623,8 +627,6 @@ const Player: React.FC = () => {
     }
     localStorage.setItem("playbackRate", String(playbackRate));
   }, [playbackRate]);
-
-  const device: Device = JSON.parse(localStorage.getItem("device") || "{}");
 
   useEffect(() => {
     if (currentTrack) {
@@ -715,7 +717,11 @@ const Player: React.FC = () => {
       // Critical for Sync: If store has a specific currentTime (set by play or sync), apply it now.
       // We prioritize valid currentTime > 0.
       let startTime = currentTime;
-      if (appMode === TrackType.AUDIOBOOK && skipStart > 0 && startTime < skipStart) {
+      if (
+        appMode === TrackType.AUDIOBOOK &&
+        skipStart > 0 &&
+        startTime < skipStart
+      ) {
         startTime = skipStart;
         audioRef.current.currentTime = skipStart;
       }

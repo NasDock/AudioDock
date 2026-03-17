@@ -39,6 +39,7 @@ export default function SettingsScreen() {
     voiceAssistantEnabled,
     recommendationLikeRatio,
     carModeEnabled,
+    experienceProgramEnabled,
     updateSetting,
   } = useSettings();
   const [detailedSizes, setDetailedSizes] = React.useState<{
@@ -217,35 +218,6 @@ export default function SettingsScreen() {
               { color: colors.primary, marginTop: 20 },
             ]}
           >
-            关于
-          </Text>
-          <TouchableOpacity
-            style={[styles.settingRow, { borderBottomColor: colors.border }]}
-            onPress={() => router.push("/product-updates")}
-          >
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>
-                产品动态
-              </Text>
-              <Text
-                style={[styles.settingDescription, { color: colors.secondary }]}
-              >
-                查看最新功能与版本更新
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={colors.secondary}
-            />
-          </TouchableOpacity>
-
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: colors.primary, marginTop: 20 },
-            ]}
-          >
             通用
           </Text>
 
@@ -368,6 +340,39 @@ export default function SettingsScreen() {
           {renderCacheRow("音乐缓存", detailedSizes.music, "music")}
           {renderCacheRow("有声书缓存", detailedSizes.audiobooks, "audiobooks")}
           {renderCacheRow("安装包文件", detailedSizes.apks, "apks")}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.primary }]}>
+            关于
+          </Text>
+          <TouchableOpacity
+            style={[styles.settingRow, { borderBottomColor: colors.border }]}
+            onPress={() => router.push("/product-updates")}
+          >
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                产品动态
+              </Text>
+              <Text
+                style={[styles.settingDescription, { color: colors.secondary }]}
+              >
+                查看最新功能与版本更新
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={colors.secondary}
+            />
+          </TouchableOpacity>
+
+          {renderSettingRow(
+            "参与用户体验计划",
+            "允许匿名上报使用数据以改进产品",
+            experienceProgramEnabled,
+            (val) => updateSetting("experienceProgramEnabled", val),
+          )}
         </View>
 
         <View style={styles.section}>

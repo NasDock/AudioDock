@@ -1,6 +1,7 @@
 import { FolderOpenOutlined } from "@ant-design/icons";
 import { Button, ColorPicker, Divider, Input, InputNumber, Select, Slider, Space, Switch, Typography, theme } from "antd";
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/auth";
 import { useSettingsStore } from "../../store/settings";
 import AdminSettings from "./AdminSettings";
@@ -10,6 +11,7 @@ const { Title, Text } = Typography;
 
 const Settings: React.FC = () => {
   const { token } = theme.useToken();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const {
     general,
@@ -338,6 +340,33 @@ const Settings: React.FC = () => {
                 <Space>
                     <Button onClick={handleClearCache}>立即清理</Button>
                     <Text className={styles.description}>当前已用缓存: {cacheSize}</Text>
+                </Space>
+            </div>
+        </div>
+      </section>
+
+      <Divider className={styles.divider} />
+
+      {/* About */}
+      <section className={styles.section}>
+        <Title level={4} className={styles.sectionTitle}>关于</Title>
+        <div className={styles.settingItem}>
+            <div className={styles.label}>产品动态</div>
+            <div className={styles.control}>
+                <Button type="link" onClick={() => navigate("/product-updates")}>
+                    查看最新功能与版本更新
+                </Button>
+            </div>
+        </div>
+        <div className={styles.settingItem}>
+            <div className={styles.label}>参与用户体验计划</div>
+            <div className={styles.control}>
+                <Space>
+                    <Switch
+                        checked={general.experienceProgramEnabled}
+                        onChange={(val) => updateGeneral("experienceProgramEnabled", val)}
+                    />
+                    <Text className={styles.description}>允许匿名上报使用数据以改进产品</Text>
                 </Space>
             </div>
         </div>

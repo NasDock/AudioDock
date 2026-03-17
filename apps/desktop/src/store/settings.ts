@@ -10,6 +10,7 @@ export interface SettingsState {
     acceptRelay: boolean;
     acceptSync: boolean;
     recommendationLikeRatio: number;
+    experienceProgramEnabled: boolean;
   };
   desktopLyric: {
     enable: boolean;
@@ -47,6 +48,7 @@ export const useSettingsStore = create<SettingsState>()(
         acceptRelay: true,
         acceptSync: true,
         recommendationLikeRatio: 50,
+        experienceProgramEnabled: true,
       },
       desktopLyric: {
         enable: false,
@@ -111,7 +113,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'soundx-settings',
-      version: 3,
+      version: 4,
       migrate: (persistedState: any, version: number) => {
         if (version === 0) {
           // Migration from version 0 to 1
@@ -133,6 +135,11 @@ export const useSettingsStore = create<SettingsState>()(
         if (version <= 2) {
           if (persistedState.general && persistedState.general.recommendationLikeRatio === undefined) {
             persistedState.general.recommendationLikeRatio = 50;
+          }
+        }
+        if (version <= 3) {
+          if (persistedState.general && persistedState.general.experienceProgramEnabled === undefined) {
+            persistedState.general.experienceProgramEnabled = true;
           }
         }
         return persistedState;
