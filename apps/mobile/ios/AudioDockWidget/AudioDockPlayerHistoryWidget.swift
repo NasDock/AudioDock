@@ -120,7 +120,7 @@ struct AudioDockPlayerHistoryWidgetView: View {
     .padding(14)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary, cover: entry.cover))
-    .widgetURL(URL(string: "audiodock://widget?open=player"))
+    .widgetURL(URL(string: "audiodock://"))
   }
 
   private var topPlayerView: some View {
@@ -207,7 +207,7 @@ struct AudioDockPlayerHistoryWidgetView: View {
       }
       .buttonStyle(.plain)
     } else {
-      let url = URL(string: "audiodock://widget?action=\(action)&open=player")
+      let url = URL(string: "audiodock://?action=\(action)")
       Link(destination: url!) {
         Image(systemName: systemName)
           .font(.system(size: 16, weight: .semibold))
@@ -227,7 +227,7 @@ struct AudioDockPlayerHistoryWidgetView: View {
         .buttonStyle(.plain)
       )
     } else {
-      let url = URL(string: "audiodock://widget?action=play_history&id=\(id)&open=player")
+      let url = URL(string: "audiodock://?action=play_history&id=\(id)")
       return AnyView(
         Link(destination: url!) {
           Image(systemName: "play.fill")

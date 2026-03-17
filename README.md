@@ -189,6 +189,12 @@ environment:
   - DATABASE_URL=file:/data/dev.db
   - JWT_SECRET=/.jwt_secret # JWT 密钥
 
+# 多目录示例（使用英文逗号或分号分隔）
+# environment:
+#   - AUDIO_BOOK_DIR=/audio,/audio2
+#   - MUSIC_BASE_DIR=/music,/music2
+#   - TXT_BASE_DIR=/txt,/txt1
+
 # 挂载数据文件和缓存，使用 Docker 命名卷更安全
 volumes:
   - ./audio:/audio
@@ -196,6 +202,18 @@ volumes:
   - ./covers:/covers
   - api-db:/data
   - ./jwt_secret:/.jwt_secret
+
+# 多目录示例：每个宿主目录需要挂载到不同的容器路径
+# volumes:
+#   - ./audio:/audio
+#   - ./audio2:/audio2
+#   - ./music:/music
+#   - ./music2:/music2
+#   - ./txt:/txt
+#   - ./txt1:/txt1
+#   - ./covers:/covers
+#   - api-db:/data
+#   - ./jwt_secret:/.jwt_secret
 ```
 
 根目录下运行构建命令：

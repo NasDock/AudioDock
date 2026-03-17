@@ -10,6 +10,7 @@ import { LogMethod } from '../common/log-method.decorator';
 import { AlbumService } from './album';
 import { ArtistService } from './artist';
 import { TrackService } from './track';
+import { resolvePathList } from '../common/path-list';
 
 export enum TaskStatus {
   INITIALIZING = 'INITIALIZING',
@@ -183,15 +184,18 @@ export class ImportService implements OnModuleInit {
 
   @LogMethod()
   createTask(
-    musicPath: string,
-    audiobookPath: string,
+    musicPaths: string[] | string,
+    audiobookPaths: string[] | string,
     cachePath: string,
     mode: 'incremental' | 'full' | 'compact' = 'incremental'
   ): string {
     const id = randomUUID();
     this.tasks.set(id, { id, status: TaskStatus.INITIALIZING, mode });
 
-    this.startImport(id, musicPath, audiobookPath, cachePath, mode).catch(err => {
+    const normalizedMusicPaths = this.normalizePathInput(musicPaths);
+    const normalizedAudiobookPaths = this.normalizePathInput(audiobookPaths);
+
+    this.startImport(id, normalizedMusicPaths, normalizedAudiobookPaths, cachePath, mode).catch(err => {
       console.error("Unhandled import error", err);
     });
 
@@ -282,12 +286,12 @@ export class ImportService implements OnModuleInit {
   }
 
   @LogMethod()
-  setupWatcher(musicPath: string, audiobookPath: string, cachePath: string) {
+  setupWatcher(musicPaths: string[], audiobookPaths: string[], cachePath: string) {
     if (this.watcher) {
       this.watcher.close();
     }
 
-    const paths = [musicPath, audiobookPath].filter(p => fs.existsSync(p));
+    const paths = [...musicPaths, ...audiobookPaths].filter(p => fs.existsSync(p));
     this.logger.log(`Starting file watcher on: ${paths.join(', ')}`);
 
     this.watcher = chokidar.watch(paths, {
@@ -303,9 +307,23 @@ export class ImportService implements OnModuleInit {
       }
     });
 
+    const findBasePath = (filePath: string, basePaths: string[]): string | null => {
+      const matches = basePaths.filter((basePath) => filePath.startsWith(basePath));
+      if (matches.length === 0) return null;
+      return matches.sort((a, b) => b.length - a.length)[0];
+    };
+
     const getBasePathAndType = (filePath: string): { basePath: string, type: TrackType } | null => {
-      if (filePath.startsWith(musicPath)) return { basePath: musicPath, type: TrackType.MUSIC };
-      if (filePath.startsWith(audiobookPath)) return { basePath: audiobookPath, type: TrackType.AUDIOBOOK };
+      const musicBase = findBasePath(filePath, musicPaths);
+      const audiobookBase = findBasePath(filePath, audiobookPaths);
+
+      if (musicBase && audiobookBase) {
+        return musicBase.length >= audiobookBase.length
+          ? { basePath: musicBase, type: TrackType.MUSIC }
+          : { basePath: audiobookBase, type: TrackType.AUDIOBOOK };
+      }
+      if (musicBase) return { basePath: musicBase, type: TrackType.MUSIC };
+      if (audiobookBase) return { basePath: audiobookBase, type: TrackType.AUDIOBOOK };
       return null;
     };
 
@@ -353,13 +371,23 @@ export class ImportService implements OnModuleInit {
       .on('unlink', async (filePath) => {
         this.logger.log(`[Watcher] File unlinked: ${filePath}`);
         if (/\.(mp3|flac|ogg|wav|m4a|mp4|strm)$/i.test(filePath)) {
-          await this.handleFileUnlink(filePath, musicPath, audiobookPath);
+          await this.handleFileUnlink(filePath, musicPaths, audiobookPaths);
         } else if (/\.(jpg|jpeg|png|webp)$/i.test(filePath)) {
           await this.handleImageUnlink(filePath, cachePath);
         } else if (/\.(lrc|txt)$/i.test(filePath)) {
           await this.handleLyricUnlink(filePath);
         }
       });
+  }
+
+  private normalizePathInput(input: string[] | string): string[] {
+    if (Array.isArray(input)) {
+      if (input.length === 1) {
+        return resolvePathList(input[0], './');
+      }
+      return Array.from(new Set(input.map((value) => resolvePathList(value, './')).flat()));
+    }
+    return resolvePathList(input, './');
   }
 
   private async handleFileAdd(filePath: string, basePath: string, type: TrackType, cachePath: string) {
@@ -461,12 +489,21 @@ export class ImportService implements OnModuleInit {
     }
   }
 
-  private async handleFileUnlink(filePath: string, musicPath: string, audiobookPath: string) {
+  private async handleFileUnlink(filePath: string, musicPaths: string[], audiobookPaths: string[]) {
+    const findBasePath = (basePaths: string[]): string | null => {
+      const matches = basePaths.filter((basePath) => filePath.startsWith(basePath));
+      if (matches.length === 0) return null;
+      return matches.sort((a, b) => b.length - a.length)[0];
+    };
+
     let url = '';
-    if (filePath.startsWith(musicPath)) {
-      url = this.convertToHttpUrl(filePath, 'music', musicPath);
-    } else if (filePath.startsWith(audiobookPath)) {
-      url = this.convertToHttpUrl(filePath, 'audio', audiobookPath);
+    const musicBase = findBasePath(musicPaths);
+    const audiobookBase = findBasePath(audiobookPaths);
+
+    if (musicBase && (!audiobookBase || musicBase.length >= audiobookBase.length)) {
+      url = this.convertToHttpUrl(filePath, 'music', musicBase);
+    } else if (audiobookBase) {
+      url = this.convertToHttpUrl(filePath, 'audio', audiobookBase);
     }
 
     if (!url) return;
@@ -654,8 +691,8 @@ export class ImportService implements OnModuleInit {
 
   private async startImport(
     id: string,
-    musicPath: string,
-    audiobookPath: string,
+    musicPaths: string[],
+    audiobookPaths: string[],
     cachePath: string,
     mode: 'incremental' | 'full' | 'compact'
   ) {
@@ -684,8 +721,13 @@ export class ImportService implements OnModuleInit {
 
       task.status = TaskStatus.PREPARING;
       task.message = '正在统计本地文件数量...';
-      const musicCount = await this.scanner.countFiles(musicPath);
-      const audiobookCount = await this.scanner.countFiles(audiobookPath);
+      console.log('Counting local paths for music and musicPaths...', musicPaths);
+      const musicCount = (await Promise.all(
+        musicPaths.map((musicPath) => this.scanner!.countFiles(musicPath))
+      )).reduce((sum, count) => sum + count, 0);
+      const audiobookCount = (await Promise.all(
+        audiobookPaths.map((audiobookPath) => this.scanner!.countFiles(audiobookPath))
+      )).reduce((sum, count) => sum + count, 0);
 
       let webdavMusicCount = 0;
       let webdavAudiobookCount = 0;
@@ -727,15 +769,19 @@ export class ImportService implements OnModuleInit {
         task.current = (task.current || 0) + 1;
       };
 
-      await this.scanner.scanMusic(musicPath, async (item) => {
-        task.currentFileName = item.title || path.basename(item.path);
-        await processItem(item, TrackType.MUSIC, musicPath);
-      });
+      for (const musicPath of musicPaths) {
+        await this.scanner.scanMusic(musicPath, async (item) => {
+          task.currentFileName = item.title || path.basename(item.path);
+          await processItem(item, TrackType.MUSIC, musicPath);
+        });
+      }
 
-      await this.scanner.scanAudiobook(audiobookPath, async (item) => {
-        task.currentFileName = item.title || path.basename(item.path);
-        await processItem(item, TrackType.AUDIOBOOK, audiobookPath);
-      });
+      for (const audiobookPath of audiobookPaths) {
+        await this.scanner.scanAudiobook(audiobookPath, async (item) => {
+          task.currentFileName = item.title || path.basename(item.path);
+          await processItem(item, TrackType.AUDIOBOOK, audiobookPath);
+        });
+      }
 
       // Trigger WebDAV scans as part of the same task flow
       if (process.env.WEBDAV_MUSIC_URL) {
@@ -752,7 +798,7 @@ export class ImportService implements OnModuleInit {
       }
 
       task.status = TaskStatus.SUCCESS;
-      this.setupWatcher(musicPath, audiobookPath, cachePath);
+      this.setupWatcher(musicPaths, audiobookPaths, cachePath);
 
     } catch (error) {
       console.error('Import failed:', error);
@@ -922,13 +968,13 @@ export class ImportService implements OnModuleInit {
       const legacyTracksByName =
         sameNameArtists.length === 1
           ? await this.prisma.track.count({
-              where: {
-                status: FileStatus.ACTIVE,
-                type: artist.type,
-                artist: artist.name,
-                artistId: null,
-              },
-            })
+            where: {
+              status: FileStatus.ACTIVE,
+              type: artist.type,
+              artist: artist.name,
+              artistId: null,
+            },
+          })
           : 0;
 
       const totalTracks = activeLinkedTracks + legacyTracksByName;
@@ -961,29 +1007,29 @@ export class ImportService implements OnModuleInit {
     const artistDelimiters = /[&,、]|\s+and\s+/i;
     // Split and filter empty strings
     const individualArtists = artistName.split(artistDelimiters).map(s => s.trim()).filter(s => s);
-    
+
     let trackPrimaryArtist: any = null;
-    
+
     // Fallback if split results in empty (should not happen if artistName is valid)
     if (individualArtists.length === 0) individualArtists.push(artistName);
 
     for (const name of individualArtists) {
-        let art = await this.artistService.findByName(name, type, true);
-        if (!art) {
-           art = await this.artistService.createArtist({
-               name: name,
-               avatar: coverUrl, // Use current cover for now
-               type: type,
-               status: FileStatus.ACTIVE,
-               trashedAt: null
-           });
-        } else if (art.status === FileStatus.TRASHED) {
-           await this.artistService.updateArtist(art.id, { status: FileStatus.ACTIVE, trashedAt: null });
-        }
-        
-        if (!trackPrimaryArtist) trackPrimaryArtist = art;
+      let art = await this.artistService.findByName(name, type, true);
+      if (!art) {
+        art = await this.artistService.createArtist({
+          name: name,
+          avatar: coverUrl, // Use current cover for now
+          type: type,
+          status: FileStatus.ACTIVE,
+          trashedAt: null
+        });
+      } else if (art.status === FileStatus.TRASHED) {
+        await this.artistService.updateArtist(art.id, { status: FileStatus.ACTIVE, trashedAt: null });
+      }
+
+      if (!trackPrimaryArtist) trackPrimaryArtist = art;
     }
-    
+
     const artist = trackPrimaryArtist; // Use the first artist for the relation
 
     // 2. Resolve Album Artist (for Album grouping AND Album Artist entity)
@@ -992,58 +1038,58 @@ export class ImportService implements OnModuleInit {
     if (individualAlbumArtists.length === 0) individualAlbumArtists.push(albumGroupArtist);
 
     if (albumGroupArtist !== artistName) {
-       for (const name of individualAlbumArtists) {
-            let albumArtistEntity = await this.artistService.findByName(name, type, true);
-            if (!albumArtistEntity) {
-                await this.artistService.createArtist({
-                    name: name,
-                    avatar: coverUrl,
-                    type: type,
-                    status: FileStatus.ACTIVE,
-                    trashedAt: null
-                });
-            } else if (albumArtistEntity.status === FileStatus.TRASHED) {
-                await this.artistService.updateArtist(albumArtistEntity.id, { status: FileStatus.ACTIVE, trashedAt: null });
-            }
-       }
-    }
-
-    // 3. Resolve Album
-    let album: Album | null = null;
-    
-    // Heuristic: If no explicit Album Artist, try to merge with existing album in the same folder
-    if (!item.albumArtist && folderId && albumName !== '未知') {
-       const siblingTrack = await this.prisma.track.findFirst({
-           where: { 
-               folderId: folderId, 
-               album: albumName,
-               status: FileStatus.ACTIVE,
-               albumId: { not: null }
-           },
-           select: { albumId: true }
-       });
-       
-       if (siblingTrack && siblingTrack.albumId) {
-            album = await this.prisma.album.findUnique({ where: { id: siblingTrack.albumId } });
-       }
-    }
-
-    if (!album) {
-        // Fallback: Resolve Album using Album Artist (or Track Artist if Album Artist is missing)
-        album = await this.albumService.findByName(albumName, albumGroupArtist, type, true);
-        if (!album) {
-          album = await this.albumService.createAlbum({
-            name: albumName,
-            artist: albumGroupArtist,
-            cover: coverUrl,
-            year: item.year ? String(item.year) : null,
+      for (const name of individualAlbumArtists) {
+        let albumArtistEntity = await this.artistService.findByName(name, type, true);
+        if (!albumArtistEntity) {
+          await this.artistService.createArtist({
+            name: name,
+            avatar: coverUrl,
             type: type,
             status: FileStatus.ACTIVE,
             trashedAt: null
           });
-        } else if (album.status === FileStatus.TRASHED) {
-          await this.albumService.updateAlbum(album.id, { status: FileStatus.ACTIVE, trashedAt: null });
+        } else if (albumArtistEntity.status === FileStatus.TRASHED) {
+          await this.artistService.updateArtist(albumArtistEntity.id, { status: FileStatus.ACTIVE, trashedAt: null });
         }
+      }
+    }
+
+    // 3. Resolve Album
+    let album: Album | null = null;
+
+    // Heuristic: If no explicit Album Artist, try to merge with existing album in the same folder
+    if (!item.albumArtist && folderId && albumName !== '未知') {
+      const siblingTrack = await this.prisma.track.findFirst({
+        where: {
+          folderId: folderId,
+          album: albumName,
+          status: FileStatus.ACTIVE,
+          albumId: { not: null }
+        },
+        select: { albumId: true }
+      });
+
+      if (siblingTrack && siblingTrack.albumId) {
+        album = await this.prisma.album.findUnique({ where: { id: siblingTrack.albumId } });
+      }
+    }
+
+    if (!album) {
+      // Fallback: Resolve Album using Album Artist (or Track Artist if Album Artist is missing)
+      album = await this.albumService.findByName(albumName, albumGroupArtist, type, true);
+      if (!album) {
+        album = await this.albumService.createAlbum({
+          name: albumName,
+          artist: albumGroupArtist,
+          cover: coverUrl,
+          year: item.year ? String(item.year) : null,
+          type: type,
+          status: FileStatus.ACTIVE,
+          trashedAt: null
+        });
+      } else if (album.status === FileStatus.TRASHED) {
+        await this.albumService.updateAlbum(album.id, { status: FileStatus.ACTIVE, trashedAt: null });
+      }
     }
 
     // 4. Find Existing Track
@@ -1076,14 +1122,14 @@ export class ImportService implements OnModuleInit {
           // artist: artistName, // Optional: Update denormalized artist name if needed, but schema says it's string
           albumId: album.id,
           // album: albumName,   // Optional: Update denormalized album name
-          cover: coverUrl || existingTrack.cover, 
+          cover: coverUrl || existingTrack.cover,
         }
       });
 
       if (existingTrack.albumId && existingTrack.albumId !== album.id) {
-          await this.updateParentStatus(existingTrack.albumId, 'album');
+        await this.updateParentStatus(existingTrack.albumId, 'album');
       }
-      await this.updateParentStatus(album.id, 'album'); 
+      await this.updateParentStatus(album.id, 'album');
       return existingTrack.id;
     } else {
       // Create new record

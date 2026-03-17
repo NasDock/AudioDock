@@ -130,7 +130,7 @@ struct AudioDockLatestWidgetView: View {
     .padding(14)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary, cover: entry.backgroundCover))
-    .widgetURL(URL(string: "audiodock://widget?open=player"))
+    .widgetURL(URL(string: "audiodock://"))
   }
 
   private func coverView(_ image: UIImage?) -> some View {
@@ -162,7 +162,7 @@ struct AudioDockLatestWidgetView: View {
         .buttonStyle(.plain)
       )
     } else {
-      let url = URL(string: "audiodock://widget?action=play_latest&id=\(id)&open=player")
+      let url = URL(string: "audiodock://?action=play_latest&id=\(id)")
       return AnyView(
         Link(destination: url!) {
           Image(systemName: "play.fill")
@@ -185,7 +185,7 @@ struct AudioDockLatestWidgetView: View {
       .buttonStyle(.plain)
     } else {
       let action = entry.isPlaying ? "pause" : "play"
-      let url = URL(string: "audiodock://widget?action=\(action)&open=player")
+      let url = URL(string: "audiodock://?action=\(action)")
       Link(destination: url!) {
         Image(systemName: entry.isPlaying ? "pause.fill" : "play.fill")
           .font(.system(size: 16, weight: .semibold))
@@ -204,7 +204,7 @@ struct AudioDockLatestWidgetView: View {
       }
       .buttonStyle(.plain)
     } else {
-      let url = URL(string: "audiodock://widget?action=refresh_latest&open=player")
+      let url = URL(string: "audiodock://?action=refresh_latest")
       Link(destination: url!) {
         Image(systemName: "arrow.clockwise")
           .font(.system(size: 15, weight: .semibold))

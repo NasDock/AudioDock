@@ -4,9 +4,9 @@ import React, { useEffect, useRef } from "react";
 import "react-native-reanimated";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { PlayerProvider, usePlayer } from "../src/context/PlayerContext";
-import { getLatestTracks, getPlaylistById, getTrackHistory, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
+import { getAlbumHistory, getAlbumTracks, getLatestTracks, getPlaylistById, getTrackHistory, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
 import { ThemeProvider, useTheme } from "../src/context/ThemeContext";
-import { PlayModeProvider } from "../src/utils/playMode";
+import { PlayModeProvider, usePlayMode } from "../src/utils/playMode";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -24,6 +24,7 @@ function RootLayoutNav() {
   const { voiceAssistantEnabled, carLayoutMode } = useSettings();
   const { theme, colors } = useTheme();
   const { pause, resume, playNext, playPrevious, togglePlayMode, isPlaying, currentTrack, playTrackList } = usePlayer();
+  const { mode: contentMode } = usePlayMode();
   const segments = useSegments();
   const router = useRouter();
   const fuAnim = useRef(new Animated.Value(0)).current;
@@ -86,9 +87,11 @@ function RootLayoutNav() {
     if (!url) return;
 
     const { path, queryParams } = Linking.parse(url);
-    if (path !== "widget") return;
-
     const action = String(queryParams?.action || "").toLowerCase();
+    if (!action) return;
+    if (path && path !== "widget") return;
+
+    const openTarget = String(queryParams?.open || "").toLowerCase();
 
     const handle = async () => {
       switch (action) {
@@ -142,12 +145,30 @@ function RootLayoutNav() {
           const trackId = rawId ? Number(rawId) : NaN;
           if (!Number.isNaN(trackId) && user) {
             try {
-              const res = await getTrackHistory(user.id, 0, 50, "MUSIC");
-              if (res.code === 200) {
-                const list = res.data.list.map((item: any) => item.track).filter(Boolean);
-                const index = list.findIndex((t: any) => Number(t.id) === trackId);
-                if (index >= 0) {
-                  await playTrackList(list, index);
+              if (contentMode === "AUDIOBOOK") {
+                const res = await getAlbumHistory(user.id, 0, 50, "AUDIOBOOK");
+                if (res.code === 200) {
+                  const entry = res.data.list.find((item: any) => Number(item.trackId) === trackId);
+                  const albumId = entry?.album?.id;
+                  const resumeProgress = entry?.progress || 0;
+                  if (albumId) {
+                    const tracksRes = await getAlbumTracks(albumId, 1000, 0);
+                    if (tracksRes.code === 200 && tracksRes.data.list.length > 0) {
+                      const tracks = tracksRes.data.list;
+                      let index = tracks.findIndex((t: any) => Number(t.id) === trackId);
+                      if (index === -1) index = 0;
+                      await playTrackList(tracks, index, resumeProgress);
+                    }
+                  }
+                }
+              } else {
+                const res = await getTrackHistory(user.id, 0, 50, "MUSIC");
+                if (res.code === 200) {
+                  const list = res.data.list.map((item: any) => item.track).filter(Boolean);
+                  const index = list.findIndex((t: any) => Number(t.id) === trackId);
+                  if (index >= 0) {
+                    await playTrackList(list, index);
+                  }
                 }
               }
             } catch (error) {
@@ -187,11 +208,13 @@ function RootLayoutNav() {
           break;
       }
 
-      router.replace("/player");
+      if (openTarget === "player") {
+        router.replace("/player");
+      }
     };
 
     handle();
-  }, [url, isPlaying, pause, resume, playNext, playPrevious]);
+  }, [url, isPlaying, pause, resume, playNext, playPrevious, togglePlayMode, currentTrack, user, playTrackList, contentMode]);
 
   const stack = (
     <Stack>

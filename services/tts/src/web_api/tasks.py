@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks
 from fastapi.responses import FileResponse
 import os
+import re
 import aiofiles
 import uuid
 import json
@@ -20,43 +21,46 @@ UPLOAD_DIR = os.path.join(BASE_DIR, "services/tts/data/novels")
 
 print(f"--- TTS Upload Dir: {UPLOAD_DIR} ---")
 
+def resolve_txt_dirs():
+    env_txt_dir = os.getenv("TXT_BASE_DIR")
+    if env_txt_dir:
+        raw_items = [value.strip() for value in re.split(r"[;,]", env_txt_dir) if value.strip()]
+        resolved = []
+        for item in raw_items:
+            if os.path.isabs(item):
+                resolved.append(item)
+            else:
+                resolved.append(os.path.abspath(os.path.join(BASE_DIR, item)))
+        if resolved:
+            return list(dict.fromkeys(resolved))
+    return [os.path.join(BASE_DIR, "services/tts/data/novels")]
+
 @router.get("/list-files")
 async def list_local_files(db: Session = Depends(get_session)):
     """
     列出 TXT_BASE_DIR 目录下的所有 txt 文件，并标记是否已生成任务
     """
-    # 优先读取环境变量
-    env_txt_dir = os.getenv("TXT_BASE_DIR")
-    if env_txt_dir:
-        if os.path.isabs(env_txt_dir):
-            txt_dir = env_txt_dir
-        else:
-            # 如果是相对路径，则相对于 BASE_DIR（即项目根目录）解析
-            txt_dir = os.path.abspath(os.path.join(BASE_DIR, env_txt_dir))
-    else:
-        # 默认回退路径
-        txt_dir = os.path.join(BASE_DIR, "services/tts/data/novels")
-    
-    print(f"--- Scanning TXT Dir: {txt_dir} ---")
-    
-    if not os.path.exists(txt_dir):
-        return {"success": True, "files": [], "msg": f"Directory not found: {txt_dir}"}
+    txt_dirs = resolve_txt_dirs()
+    print(f"--- Scanning TXT Dir(s): {', '.join(txt_dirs)} ---")
 
     files = []
     # 获取数据库中已有的所有文件路径，用于对比
     statement = select(Task.file_path)
     existing_paths = set(db.exec(statement).all())
 
-    for filename in os.listdir(txt_dir):
-        if filename.endswith(".txt"):
-            full_path = os.path.join(txt_dir, filename)
-            files.append({
-                "filename": filename,
-                "full_path": full_path,
-                "is_generated": full_path in existing_paths
-            })
+    for txt_dir in txt_dirs:
+        if not os.path.exists(txt_dir):
+            continue
+        for filename in os.listdir(txt_dir):
+            if filename.endswith(".txt"):
+                full_path = os.path.join(txt_dir, filename)
+                files.append({
+                    "filename": filename,
+                    "full_path": full_path,
+                    "is_generated": full_path in existing_paths
+                })
     
-    return {"success": True, "files": sorted(files, key=lambda x: x['filename'])}
+    return {"success": True, "files": sorted(files, key=lambda x: (x['filename'], x['full_path']))}
 
 @router.post("/batch-create")
 async def batch_create_tasks(

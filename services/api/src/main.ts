@@ -6,6 +6,7 @@ import { AppModule } from './app.module';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { Logger } from 'nestjs-pino';
 import * as path from 'path';
+import { resolvePathList } from './common/path-list';
 import { ImportService } from './services/import';
 import { TrackService } from './services/track';
 
@@ -18,8 +19,8 @@ async function bootstrap() {
 
 
   const cacheDir = path.resolve(process.env.CACHE_DIR || './');
-  const musicBaseDir = path.resolve(process.env.MUSIC_BASE_DIR || './');
-  const audioBookDir = path.resolve(process.env.AUDIO_BOOK_DIR || './');
+  const musicBaseDirs = resolvePathList(process.env.MUSIC_BASE_DIR, './');
+  const audioBookDirs = resolvePathList(process.env.AUDIO_BOOK_DIR, './');
 
 
   // Serve static files from cache directory
@@ -31,17 +32,21 @@ async function bootstrap() {
   });
 
   // Serve music files
-  console.log(`Serving music files from: ${musicBaseDir}`);
-  app.useStaticAssets(musicBaseDir, {
-    prefix: '/music/',
-  });
+  console.log(`Serving music files from: ${musicBaseDirs.join(',')}`);
+  for (const musicBaseDir of musicBaseDirs) {
+    app.useStaticAssets(musicBaseDir, {
+      prefix: '/music/',
+    });
+  }
 
   // Serve audiobook files
-  console.log(`Serving audiobook files from: ${audioBookDir}`);
-  app.useStaticAssets(audioBookDir, {
-    prefix: '/audio/',
-  });
-  
+  console.log(`Serving audiobook files from: ${audioBookDirs.join(',')}`);
+  for (const audioBookDir of audioBookDirs) {
+    app.useStaticAssets(audioBookDir, {
+      prefix: '/audio/',
+    });
+  }
+
   // TTS Service Proxy
   const ttsServiceUrl = process.env.TTS_SERVICE_URL || 'http://localhost:8000';
   console.log(`Proxying /tts requests to: ${ttsServiceUrl}`);
@@ -88,11 +93,11 @@ async function bootstrap() {
   if (count === 0) {
     console.log('Database is empty, starting initial import...');
     const myService = app.get(ImportService);
-    await myService.createTask(musicBaseDir, audioBookDir, cacheDir);
+    await myService.createTask(musicBaseDirs, audioBookDirs, cacheDir);
   } else {
     console.log(`Database has ${count} tracks, skipping initial import. Starting watcher...`);
     const myService = app.get(ImportService);
-    myService.setupWatcher(musicBaseDir, audioBookDir, cacheDir);
+    myService.setupWatcher(musicBaseDirs, audioBookDirs, cacheDir);
   }
 
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
