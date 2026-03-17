@@ -9,11 +9,12 @@ import { trackEvent } from "@/src/services/tracking";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Slider } from "@miblanchard/react-native-slider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
+import { plusGetMe, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Alert,
   Dimensions,
   FlatList,
   Image,
@@ -194,9 +195,54 @@ export function PlayerDetailView({
   const [liked, setLiked] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const { user, device } = useAuth();
+  const [syncCheckLoading, setSyncCheckLoading] = useState(false);
+  const { user, device, setPlusToken } = useAuth();
   const [lyricFontSize, setLyricFontSize] = useState(16);
   const lineLayouts = useRef<{ [key: number]: any }>({});
+
+  const handleSyncPress = async () => {
+    if (syncCheckLoading) return;
+    if (isSynced) {
+      handleDisconnect();
+      resetHideTimer();
+      return;
+    }
+
+    setSyncCheckLoading(true);
+    try {
+      const plusToken = await AsyncStorage.getItem("plus_token");
+      const plusUserId = await AsyncStorage.getItem("plus_user_id");
+      if (!plusToken || !plusUserId) {
+        Alert.alert("提示", "该功能是VIP功能，仅在开通VIP的情况使用。", [
+          { text: "取消", style: "cancel" },
+          { text: "立即开通", onPress: () => router.push("/member-benefits" as any) },
+        ]);
+        return;
+      }
+
+      await setPlusToken(plusToken);
+      let id: any = plusUserId;
+      try {
+        id = JSON.parse(plusUserId);
+      } catch {}
+      const res = await plusGetMe(id);
+      const vipTier = res?.data?.data?.vipTier;
+      const isVip = vipTier && vipTier !== "NONE";
+      if (isVip) {
+        setSyncModalVisible(true);
+      } else {
+        Alert.alert("提示", "该功能是VIP功能，仅在开通VIP的情况使用。", [
+          { text: "取消", style: "cancel" },
+          { text: "立即开通", onPress: () => router.push("/member-benefits" as any) },
+        ]);
+      }
+    } catch (error) {
+      console.warn("Failed to check VIP status", error);
+      Alert.alert("提示", "会员状态获取失败，请稍后重试");
+    } finally {
+      setSyncCheckLoading(false);
+    }
+  };
 
   useEffect(() => {
     AsyncStorage.getItem("lyric_font_size").then((val) => {
@@ -576,14 +622,7 @@ export function PlayerDetailView({
           </Text>
         </View>
         <TouchableOpacity
-          onPress={() => {
-            if (isSynced) {
-              handleDisconnect();
-            } else {
-              setSyncModalVisible(true);
-            }
-            resetHideTimer();
-          }}
+          onPress={handleSyncPress}
           style={[styles.syncButton, isSynced && styles.syncButtonActive]}
         >
           <Ionicons
