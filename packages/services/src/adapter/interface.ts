@@ -4,7 +4,7 @@ export interface ITrackAdapter {
   getTrackList(): Promise<ISuccessResponse<Track[]>>;
   getAllTracks(): Promise<ISuccessResponse<Track[]>>;
   getTrackTableList(params: { pageSize: number; current: number }): Promise<ISuccessResponse<ITableData<Track[]>>>;
-  loadMoreTrack(params: { pageSize: number; loadCount: number; type?: string }): Promise<ISuccessResponse<ILoadMoreData<Track>>>;
+  loadMoreTrack(params: { pageSize: number; loadCount: number; type?: string; sortBy?: string }): Promise<ISuccessResponse<ILoadMoreData<Track>>>;
   createTrack(data: Omit<Track, "id">): Promise<ISuccessResponse<Track>>;
   updateTrack(id: number | string, data: Partial<Track>): Promise<ISuccessResponse<Track>>;
   deleteTrack(id: number | string, deleteAlbum?: boolean): Promise<ISuccessResponse<boolean>>;
@@ -12,6 +12,7 @@ export interface ITrackAdapter {
   batchCreateTracks(data: Omit<Track, "id">[]): Promise<ISuccessResponse<boolean>>;
   batchDeleteTracks(ids: (number | string)[]): Promise<ISuccessResponse<boolean>>;
   getLatestTracks(type?: string, random?: boolean, pageSize?: number): Promise<ISuccessResponse<Track[]>>;
+  getRecommendedTracks(type?: string, pageSize?: number, likeRatio?: number): Promise<ISuccessResponse<Track[]>>;
   getTracksByArtist(artist: string): Promise<ISuccessResponse<Track[]>>;
   toggleLike(id: number | string, userId: number | string): Promise<ISuccessResponse<any>>;
   toggleUnLike(id: number | string, userId: number | string): Promise<ISuccessResponse<any>>;
@@ -22,13 +23,13 @@ export interface ITrackAdapter {
 export interface IAlbumAdapter {
   getAlbumList(): Promise<ISuccessResponse<Album[]>>;
   getAlbumTableList(params: { pageSize: number; current: number }): Promise<ISuccessResponse<ITableData<Album[]>>>;
-  loadMoreAlbum(params: { pageSize: number; loadCount: number; type?: string }): Promise<ISuccessResponse<ILoadMoreData<Album>>>;
+  loadMoreAlbum(params: { pageSize: number; loadCount: number; type?: string; sortBy?: string }): Promise<ISuccessResponse<ILoadMoreData<Album>>>;
   createAlbum(data: Omit<Album, "id">): Promise<ISuccessResponse<Album>>;
   updateAlbum(id: number | string, data: Partial<Album>): Promise<ISuccessResponse<Album>>;
   deleteAlbum(id: number | string): Promise<ISuccessResponse<boolean>>;
   batchCreateAlbums(data: Omit<Album, "id">[]): Promise<ISuccessResponse<boolean>>;
   batchDeleteAlbums(ids: (number | string)[]): Promise<ISuccessResponse<boolean>>;
-  getRecommendedAlbums(type?: string, random?: boolean, pageSize?: number): Promise<ISuccessResponse<Album[]>>;
+  getRecommendedAlbums(type?: string, random?: boolean, pageSize?: number, likeRatio?: number): Promise<ISuccessResponse<Album[]>>;
   getRecentAlbums(type?: string, random?: boolean, pageSize?: number): Promise<ISuccessResponse<Album[]>>;
   getAlbumById(id: number | string): Promise<ISuccessResponse<Album>>;
   getAlbumTracks(id: number | string, pageSize: number, skip: number, sort?: "asc" | "desc", keyword?: string, userId?: number | string, sortBy?: string): Promise<ISuccessResponse<{ list: any[]; total: number }>>;
@@ -40,7 +41,7 @@ export interface IAlbumAdapter {
 }
 
 export interface IArtistAdapter {
-  getArtistList(pageSize: number, loadCount: number, type?: string): Promise<ISuccessResponse<ILoadMoreData<Artist>>>;
+  getArtistList(pageSize: number, loadCount: number, type?: string, sortBy?: string): Promise<ISuccessResponse<ILoadMoreData<Artist>>>;
   getArtistTableList(params: { pageSize: number; current: number }): Promise<ISuccessResponse<ITableData<Artist[]>>>;
   loadMoreArtist(params: { pageSize: number; loadCount: number }): Promise<ISuccessResponse<ILoadMoreData<Artist>>>;
   createArtist(data: Omit<Artist, "id">): Promise<ISuccessResponse<Artist>>;
@@ -75,4 +76,3 @@ export interface IMusicAdapter {
   user: IUserAdapter;
   auth: IAuthAdapter;
 }
-

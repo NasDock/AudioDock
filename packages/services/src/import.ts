@@ -3,6 +3,7 @@ import request from "./request";
 
 export enum TaskStatus {
   INITIALIZING = 'INITIALIZING',
+  PREPARING = 'PREPARING',
   PARSING = 'PARSING',
   SUCCESS = 'SUCCESS',
   FAILED = 'FAILED',
@@ -12,6 +13,7 @@ export interface ImportTask {
   id: string;
   status: TaskStatus;
   message?: string;
+  mode?: 'incremental' | 'full' | 'compact';
   total?: number;
   current?: number;
   localTotal?: number;
@@ -26,7 +28,7 @@ export interface CreateTaskParams {
   musicPath?: string;
   audiobookPath?: string;
   cachePath?: string;
-  mode?: 'incremental' | 'full';
+  mode?: 'incremental' | 'full' | 'compact';
 }
 
 export interface CreateTaskResponse {
@@ -43,6 +45,14 @@ export const createImportTask = (data: CreateTaskParams) => {
       baseURL: serverAddress,
     }
   );
+};
+
+// 创建精简数据任务
+export const createCompactTask = (serverAddress?: string) => {
+  return createImportTask({
+    mode: "compact",
+    serverAddress,
+  });
 };
 
 // 查询任务状态

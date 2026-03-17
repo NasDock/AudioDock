@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import {
+  createCompactTask,
   createImportTask,
   createPlaylist,
   getAlbumHistory,
@@ -15,9 +16,7 @@ import {
   TaskStatus,
   type ImportTask
 } from "@soundx/services";
-import { Asset } from "expo-asset";
 import { Image as ExpoImage } from "expo-image";
-import * as MediaLibrary from "expo-media-library";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -107,6 +106,7 @@ export default function PersonalScreen() {
   const {
     checkUpdate,
     progress,
+    isUpdating,
     updateInfo,
     startUpdate,
     ignoreUpdate,
@@ -163,9 +163,14 @@ export default function PersonalScreen() {
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [creating, setCreating] = useState(false);
 
+  useEffect(() => {
+    if (sourceType === "Emby" && activeTab === "history") {
+      setActiveTab("playlists");
+    }
+  }, [sourceType, activeTab]);
+
   // Import task state
   const [menuVisible, setMenuVisible] = useState(false);
-  const [donationModalVisible, setDonationModalVisible] = useState(false);
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importTask, setImportTask] = useState<ImportTask | null>(null);
   const pollTimerRef = React.useRef<any>(null);
@@ -343,16 +348,25 @@ export default function PersonalScreen() {
     }
   };
 
-  const handleUpdateLibrary = async (updateMode: "incremental" | "full") => {
+  const handleUpdateLibrary = async (updateMode: "incremental" | "full" | "compact") => {
     setMenuVisible(false);
 
     const startTask = async () => {
       try {
-        const res = await createImportTask({ mode: updateMode });
+        const res =
+          updateMode === "compact"
+            ? await createCompactTask()
+            : await createImportTask({ mode: updateMode });
         if (res.code === 200 && res.data) {
           const taskId = res.data.id;
           setImportModalVisible(true);
-          setImportTask({ id: taskId, status: TaskStatus.INITIALIZING });
+          setImportTask({
+            id: taskId,
+            status: TaskStatus.INITIALIZING,
+            mode: updateMode,
+            message:
+              updateMode === "compact" ? "正在启动精简任务..." : "正在初始化...",
+          });
 
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           pollTimerRef.current = setInterval(() => {
@@ -367,7 +381,16 @@ export default function PersonalScreen() {
       }
     };
 
-    if (updateMode === "full") {
+    if (updateMode === "compact") {
+      Alert.alert(
+        "确认精简数据？",
+        "将清除已标记为假死的数据，并核对数据库单曲路径。若文件不存在，将删除对应单曲及相关收藏/收听记录；若专辑无曲目会删除专辑；若艺术家无曲目和作品也会删除。",
+        [
+          { text: "取消", style: "cancel" },
+          { text: "确认精简", style: "destructive", onPress: startTask },
+        ],
+      );
+    } else if (updateMode === "full") {
       Alert.alert(
         "确认全量更新？",
         "全量更新将核对所有音频文件。您的播放历史、收藏记录、歌单由于文件识别（指纹）机制将得到保留。仅当文件在磁盘上被物理删除时，对应的记录才会被清除。",
@@ -671,12 +694,7 @@ export default function PersonalScreen() {
               </Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            onPress={() => setDonationModalVisible(true)}
-            style={[styles.iconBtn, { marginRight: 10 }]}
-          >
-            <Ionicons name="heart-outline" size={22} color={colors.text} />
-          </TouchableOpacity>
+
           <TouchableOpacity
             onPress={() => router.push("/source-manage" as any)}
             style={[styles.iconBtn, { marginRight: 10 }]}
@@ -712,16 +730,7 @@ export default function PersonalScreen() {
                     const plusToken = await AsyncStorage.getItem("plus_token");
                     if (plusToken) {
                         if (isPlusVip) {
-                            const tierName = plusVipData?.vipTier === "LIFETIME" ? "永久会员" : "年度会员";
-                            const expiryDate = plusVipData?.vipTier === "LIFETIME" ? "永久有效" : (plusVipData?.vipExpiresAt ? new Date(plusVipData.vipExpiresAt).toLocaleDateString() : "未知");
-                            
-                            Alert.alert(
-                                "会员详情",
-                                `等级: ${tierName}\n到期时间: ${expiryDate}`,
-                                [
-                                    { text: "知道了" },
-                                ]
-                            );
+                            router.push("/member-detail");
                         } else {
                             router.push("/member-benefits" as any);
                         }
@@ -746,7 +755,7 @@ export default function PersonalScreen() {
           { key: "favorites", label: "收藏" },
           { key: "history", label: "听过" },
           { key: "downloads", label: "下载" },
-        ].map((tab) => (
+        ].filter((tab) => !(sourceType === "Emby" && tab.key === "history")).map((tab) => (
           <TouchableOpacity
             key={tab.key}
             style={[
@@ -856,6 +865,7 @@ export default function PersonalScreen() {
       <UpdateModal
         visible={isModalVisible}
         progress={progress}
+        isUpdating={isUpdating}
         updateInfo={updateInfo}
         onBackground={() => setModalVisible(false)}
         onUpdate={startUpdate}
@@ -986,14 +996,42 @@ export default function PersonalScreen() {
             />
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => {
-                setMenuVisible(false);
-                router.push("/tts/tasks" as any);
-              }}
+              onPress={() => handleUpdateLibrary("full")}
             >
-              <Ionicons name="mic-outline" size={22} color={colors.text} />
+              <Ionicons name="sync-outline" size={22} color={colors.text} />
               <Text style={[styles.menuItemText, { color: colors.text }]}>
-                TTS 有声书转换
+                全量更新音频文件
+              </Text>
+            </TouchableOpacity>
+            <View
+              style={[styles.menuDivider, { backgroundColor: colors.border }]}
+            />
+            {sourceType !== "Emby" && mode !== "MUSIC" && (
+              <>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    router.push("/tts/tasks" as any);
+                  }}
+                >
+                  <Ionicons name="mic-outline" size={22} color={colors.text} />
+                  <Text style={[styles.menuItemText, { color: colors.text }]}>
+                    TTS 有声书转换
+                  </Text>
+                </TouchableOpacity>
+                <View
+                  style={[styles.menuDivider, { backgroundColor: colors.border }]}
+                />
+              </>
+            )}
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleUpdateLibrary("compact")}
+            >
+              <Ionicons name="trash-outline" size={22} color={colors.text} />
+              <Text style={[styles.menuItemText, { color: colors.text }]}>
+                精简数据
               </Text>
             </TouchableOpacity>
           </View>
@@ -1014,7 +1052,7 @@ export default function PersonalScreen() {
             ]}
           >
             <Text style={[styles.importModalTitle, { color: colors.text }]}>
-              数据入库进度
+              {importTask?.mode === "compact" ? "精简数据进度" : "数据入库进度"}
             </Text>
 
             <View style={styles.importStatusRow}>
@@ -1025,13 +1063,23 @@ export default function PersonalScreen() {
                 importTask.status !== TaskStatus.SUCCESS
                   ? importTask.message
                   : importTask?.status === TaskStatus.INITIALIZING
-                    ? "正在初始化..."
+                    ? importTask?.mode === "compact"
+                      ? "正在初始化精简任务..."
+                      : "正在初始化..."
+                    : importTask?.status === TaskStatus.PREPARING
+                      ? importTask?.mode === "compact"
+                        ? "正在精简数据库..."
+                        : "正在准备环境..."
                     : importTask?.status === TaskStatus.PARSING
                       ? "正在解析媒体文件..."
                       : importTask?.status === TaskStatus.SUCCESS
-                        ? "入库完成"
+                        ? importTask?.mode === "compact"
+                          ? "精简完成"
+                          : "入库完成"
                         : importTask?.status === TaskStatus.FAILED
-                          ? "入库失败"
+                          ? importTask?.mode === "compact"
+                            ? "精简失败"
+                            : "入库失败"
                           : "准备中"}
               </Text>
             </View>
@@ -1059,7 +1107,8 @@ export default function PersonalScreen() {
               />
             </View>
 
-            <View style={{ marginBottom: 20 }}>
+            {importTask?.mode !== "compact" && (
+              <View style={{ marginBottom: 20 }}>
               <View
                 style={{
                   flexDirection: "row",
@@ -1122,9 +1171,10 @@ export default function PersonalScreen() {
                   {importTask?.current || 0} / {importTask?.total || 0}
                 </Text>
               </View>
-            </View>
+              </View>
+            )}
 
-            {importTask?.currentFileName && (
+            {importTask?.mode !== "compact" && importTask?.currentFileName && (
               <View
                 style={{
                   backgroundColor: colors.background,
@@ -1177,81 +1227,7 @@ export default function PersonalScreen() {
         </View>
       </Modal>
 
-      {/* Donation Modal */}
-      <Modal
-        visible={donationModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setDonationModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.importModalOverlay}
-          activeOpacity={1}
-          onPress={() => setDonationModalVisible(false)}
-        >
-          <View
-            style={[
-              styles.importModalContent,
-              { backgroundColor: colors.card, alignItems: "center" },
-            ]}
-          >
-            <Text
-              style={[
-                styles.importModalTitle,
-                { color: colors.text, textAlign: "center" },
-              ]}
-            >
-              赞赏开发者
-            </Text>
 
-            <Text
-              style={{
-                color: colors.secondary,
-                marginBottom: 20,
-                textAlign: "center",
-              }}
-            >
-              如果您觉得 AudioDock 对您有帮助{"\n"}欢迎赞赏支持！
-            </Text>
-
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onLongPress={async () => {
-                try {
-                  const { status } =
-                    await MediaLibrary.requestPermissionsAsync();
-                  if (status === "granted") {
-                    const asset = Asset.fromModule(ctjjLogo);
-                    await asset.downloadAsync();
-                    await MediaLibrary.saveToLibraryAsync(
-                      asset.localUri || asset.uri,
-                    );
-                    Alert.alert("保存成功", "赞赏码已保存到相册");
-                  } else {
-                    Alert.alert("权限不足", "请允许访问相册以保存图片");
-                  }
-                } catch (error) {
-                  Alert.alert("保存失败", "无法保存图片");
-                }
-              }}
-            >
-              <Image
-                source={ctjjLogo}
-                style={{
-                  width: 200,
-                  height: 200,
-                  borderRadius: 10,
-                  marginBottom: 10,
-                }}
-              />
-            </TouchableOpacity>
-
-            <Text style={{ color: colors.secondary, fontSize: 12 }}>
-              长按图片保存或截图到相册
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </View>
   );
 }

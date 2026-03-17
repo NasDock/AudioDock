@@ -19,6 +19,8 @@ export async function checkServerConnectivity(address: string, sourceType: strin
     const pingUrl =
       mappedType === "subsonic"
         ? `${address.replace(/\/+$/, "")}/rest/ping.view?v=1.16.1&c=SoundX&f=json`
+        : mappedType === "emby"
+          ? `${address.replace(/\/+$/, "")}/emby/System/Info/Public`
         : `${address.replace(/\/+$/, "")}/hello`;
 
     const response = await fetch(pingUrl, { signal: controller.signal });

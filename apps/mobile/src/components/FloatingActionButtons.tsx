@@ -8,6 +8,9 @@ interface FloatingActionButtonsProps {
   onLocateCurrent?: () => void;
   showLocate?: boolean;
   locateDisabled?: boolean;
+  onToggleHeartbeatMode?: () => void;
+  heartbeatModeActive?: boolean;
+  showHeartbeatMode?: boolean;
 }
 
 export const FloatingActionButtons: React.FC<FloatingActionButtonsProps> = ({
@@ -15,6 +18,9 @@ export const FloatingActionButtons: React.FC<FloatingActionButtonsProps> = ({
   onLocateCurrent,
   showLocate = true,
   locateDisabled = false,
+  onToggleHeartbeatMode,
+  heartbeatModeActive = false,
+  showHeartbeatMode = false,
 }) => {
   const { colors } = useTheme();
 
@@ -24,6 +30,15 @@ export const FloatingActionButtons: React.FC<FloatingActionButtonsProps> = ({
 
   const scrollToBottom = () => {
     flatListRef.current?.scrollToEnd({ animated: true });
+  };
+
+  const handleLocatePress = () => {
+    if (!onLocateCurrent || locateDisabled) return;
+    try {
+      onLocateCurrent();
+    } catch (error) {
+      console.warn("[FloatingActionButtons] locate failed:", error);
+    }
   };
 
   return (
@@ -41,10 +56,30 @@ export const FloatingActionButtons: React.FC<FloatingActionButtonsProps> = ({
             styles.button,
             { backgroundColor: colors.card, opacity: locateDisabled ? 0.3 : 1 },
           ]}
-          onPress={onLocateCurrent}
+          onPress={handleLocatePress}
           disabled={locateDisabled}
         >
           <Ionicons name="locate" size={24} color={colors.primary} />
+        </TouchableOpacity>
+      )}
+
+      {showHeartbeatMode && onToggleHeartbeatMode && (
+        <TouchableOpacity
+          style={[
+            styles.button,
+            {
+              backgroundColor: heartbeatModeActive
+                ? colors.primary
+                : colors.card,
+            },
+          ]}
+          onPress={onToggleHeartbeatMode}
+        >
+          <Ionicons
+            name={heartbeatModeActive ? "heart" : "heart-outline"}
+            size={24}
+            color={heartbeatModeActive ? colors.background : colors.primary}
+          />
         </TouchableOpacity>
       )}
 

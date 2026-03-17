@@ -34,6 +34,45 @@
     }
   }
 
+  .releaseList {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .releaseItem {
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--ant-color-border-secondary);
+
+    &:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+  }
+
+  .releaseHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .releaseTitle {
+    margin: 0 !important;
+  }
+
+  .releaseDate {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .emptyText {
+    text-align: center;
+    opacity: 0.7;
+    padding: 24px 0;
+  }
+
   .qrSection {
     display: flex;
     flex-direction: column;

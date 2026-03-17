@@ -5,6 +5,7 @@ import type { UpdateInfo } from '../hooks/useCheckUpdate';
 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { isWeb } from '../utils/platform';
 
 const { Paragraph, Text } = Typography;
 
@@ -16,6 +17,7 @@ interface UpdateModalProps {
 
 const UpdateModal: React.FC<UpdateModalProps> = ({ visible, updateInfo, onCancel }) => {
   if (!updateInfo) return null;
+  const isWebRuntime = isWeb();
 
   const handleDownload = () => {
     if (updateInfo.downloadUrl) {
@@ -34,18 +36,29 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ visible, updateInfo, onCancel
       onCancel={onCancel}
       footer={[
         <Button key="cancel" onClick={onCancel}>
-          暂不更新
+          {isWebRuntime ? "我知道了" : "暂不更新"}
         </Button>,
-        <Button 
-          key="download" 
-          type="primary"
-          icon={<DownloadOutlined />} 
-          onClick={handleDownload}
-        >
-          去下载
-        </Button>,
+        ...(!isWebRuntime
+          ? [
+              <Button
+                key="download"
+                type="primary"
+                icon={<DownloadOutlined />}
+                onClick={handleDownload}
+              >
+                去下载
+              </Button>,
+            ]
+          : []),
       ]}
     >
+      {isWebRuntime && (
+        <Paragraph>
+          <Text type="secondary">
+            Web 端请通过 Docker 镜像更新服务，客户端无需下载安装包。
+          </Text>
+        </Paragraph>
+      )}
       <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '10px 0' }}>
         <Paragraph>
           <Text strong>更新内容：</Text>

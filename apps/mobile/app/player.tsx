@@ -5,7 +5,8 @@ import { PlayMode, usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Track, TrackType, UserTrackLike } from "@/src/models";
 import { getImageUrl } from "@/src/utils/image";
-import { Ionicons } from "@expo/vector-icons";
+import { trackEvent } from "@/src/services/tracking";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Slider } from "@miblanchard/react-native-slider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
@@ -28,6 +29,7 @@ import { PlayerMoreModal } from "../src/components/PlayerMoreModal";
 import { PlaylistModal } from "../src/components/PlaylistModal";
 import SyncModal from "../src/components/SyncModal";
 import { isCached } from "../src/services/cache";
+import { useSettings } from "@/src/context/SettingsContext";
 
 const { width } = Dimensions.get("window");
 
@@ -35,6 +37,11 @@ const { width } = Dimensions.get("window");
 interface LyricLine {
   time: number;
   text: string;
+}
+
+interface PlayerDetailViewProps {
+  embedded?: boolean;
+  renderPlaylistModal?: boolean;
 }
 
 export const parseLyrics = (lyrics: string): LyricLine[] => {
@@ -144,10 +151,14 @@ const AnimatedLyricLine = ({
   );
 };
 
-export default function PlayerScreen() {
+export function PlayerDetailView({
+  embedded = false,
+  renderPlaylistModal = true,
+}: PlayerDetailViewProps) {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { carModeEnabled } = useSettings();
   const top = insets.top;
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
@@ -183,7 +194,7 @@ export default function PlayerScreen() {
   const [liked, setLiked] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const { user } = useAuth();
+  const { user, device } = useAuth();
   const [lyricFontSize, setLyricFontSize] = useState(16);
   const lineLayouts = useRef<{ [key: number]: any }>({});
 
@@ -379,20 +390,18 @@ export default function PlayerScreen() {
     }
   };
 
-  const getModeIconName = (mode: PlayMode): any => {
+  const renderPlayModeIcon = (mode: PlayMode) => {
     switch (mode) {
       case PlayMode.SEQUENCE:
-        return "arrow-forward";
-      case PlayMode.LOOP_LIST:
-        return "repeat";
+        return <MaterialCommunityIcons name="playlist-music-outline" size={24} color={colors.secondary} />;
       case PlayMode.SHUFFLE:
-        return "shuffle";
+        return <Ionicons name="shuffle-outline" size={24} color={colors.secondary} />;
+      case PlayMode.LOOP_LIST:
+        return <Ionicons name="repeat-outline" size={24} color={colors.secondary} />;
       case PlayMode.LOOP_SINGLE:
-        return "sync";
-      case PlayMode.SINGLE_ONCE:
-        return "stop-circle-outline";
+        return <MaterialCommunityIcons name="repeat-once" size={24} color={colors.secondary} />;
       default:
-        return "repeat";
+        return <Ionicons name="repeat-outline" size={24} color={colors.secondary} />;
     }
   };
 
@@ -403,24 +412,58 @@ export default function PlayerScreen() {
     setPlaybackRate(nextRate);
   };
 
-  const skipForward = () => seekTo(position + 15);
-  const skipBackward = () => seekTo(Math.max(0, position - 15));
+  const skipForward = () => {
+    trackEvent({
+      feature: "player",
+      eventName: "seek_forward_15",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+      value: 15,
+    });
+    seekTo(position + 15);
+  };
+  const skipBackward = () => {
+    trackEvent({
+      feature: "player",
+      eventName: "seek_backward_15",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+      value: -15,
+    });
+    seekTo(Math.max(0, position - 15));
+  };
+
+  const handleOpenMore = () => {
+    setMoreModalVisible(true);
+    trackEvent({
+      feature: "player",
+      eventName: "player_more_open",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+      metadata: {
+        trackId: currentTrack?.id,
+        trackType: currentTrack?.type,
+      },
+    });
+  };
 
   if (!currentTrack) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Text style={{ color: colors.text }}>No track playing</Text>
-        <TouchableOpacity
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace("/(tabs)");
-            }
-          }}
-        >
-          <Text style={{ color: colors.primary, marginTop: 20 }}>Go Back</Text>
-        </TouchableOpacity>
+        {!embedded && (
+          <TouchableOpacity
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace("/(tabs)");
+              }
+            }}
+          >
+            <Text style={{ color: colors.primary, marginTop: 20 }}>Go Back</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -563,7 +606,7 @@ export default function PlayerScreen() {
           lyricFontSize={lyricFontSize}
           setLyricFontSize={setLyricFontSize}
         />
-        <PlaylistModal />
+        {renderPlaylistModal && <PlaylistModal />}
         {currentTrack.type !== TrackType.AUDIOBOOK && (
           <TouchableOpacity
             onPress={() => {
@@ -581,7 +624,7 @@ export default function PlayerScreen() {
         )}
         <TouchableOpacity
           onPress={() => {
-            setMoreModalVisible(true);
+            handleOpenMore();
             resetHideTimer();
           }}
           style={styles.likeButton}
@@ -633,11 +676,7 @@ export default function PlayerScreen() {
               resetHideTimer();
             }}
           >
-            <Ionicons
-              name={getModeIconName(playMode)}
-              size={24}
-              color={colors.secondary}
-            />
+            {renderPlayModeIcon(playMode)}
           </TouchableOpacity>
         )}
 
@@ -690,7 +729,7 @@ export default function PlayerScreen() {
     </View>
   );
 
-  if (isLandscape) {
+  if (isLandscape && !carModeEnabled) {
     return (
       <View
         style={[
@@ -705,18 +744,20 @@ export default function PlayerScreen() {
         <View style={styles.landscapeContainer}>
           <View style={[styles.landscapeLeft]}>
             <View style={styles.landscapeBackBtn}>
-              <TouchableOpacity
-                onPress={() => {
-                  if (router.canGoBack()) {
-                    router.back();
-                  } else {
-                    router.replace("/(tabs)");
-                  }
-                }}
-                style={styles.landscapeBackBtn}
-              >
-                <Ionicons name="chevron-down" size={30} color={colors.text} />
-              </TouchableOpacity>
+              {!embedded && (
+                <TouchableOpacity
+                  onPress={() => {
+                    if (router.canGoBack()) {
+                      router.back();
+                    } else {
+                      router.replace("/(tabs)");
+                    }
+                  }}
+                  style={styles.landscapeBackBtn}
+                >
+                  <Ionicons name="chevron-down" size={30} color={colors.text} />
+                </TouchableOpacity>
+              )}
             </View>
             <TouchableOpacity
               onPress={() => {
@@ -829,27 +870,29 @@ export default function PlayerScreen() {
         { backgroundColor: colors.background, paddingTop: insets.top },
       ]}
     >
-      <View style={[styles.header, { top }]}>
-        <TouchableOpacity
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace("/(tabs)");
-            }
-          }}
-          style={styles.headerButton}
-        >
-          <Ionicons name="chevron-down" size={30} color={colors.text} />
-        </TouchableOpacity>
+      {!embedded && (
+        <View style={[styles.header, { top }]}>
+          <TouchableOpacity
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace("/(tabs)");
+              }
+            }}
+            style={styles.headerButton}
+          >
+            <Ionicons name="chevron-down" size={30} color={colors.text} />
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => setMoreModalVisible(true)}
-        >
-          <Ionicons name="ellipsis-vertical" size={24} color={colors.text} />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={handleOpenMore}
+          >
+            <Ionicons name="ellipsis-vertical" size={24} color={colors.text} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={styles.content}>
         <View style={{ flex: 1, width: "100%", justifyContent: "center" }}>
@@ -946,6 +989,10 @@ export default function PlayerScreen() {
       </View>
     </View>
   );
+}
+
+export default function PlayerScreen() {
+  return <PlayerDetailView />;
 }
 
 const styles = StyleSheet.create({

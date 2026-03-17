@@ -1,87 +1,82 @@
-.login-container {
+.login-selection {
+  min-height: 100vh;
+  background-color: #f6f7f9;
+  padding: 40rpx 30rpx;
+}
+
+.header {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background-color: #f5f5f5;
-  padding-top: 20px;
+  align-items: center;
+  margin: 40rpx 0 50rpx;
+}
+
+.app-logo {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 24rpx;
+  margin-bottom: 28rpx;
 }
 
 .title {
-  font-size: 32px;
-  font-weight: bold;
-  margin-bottom: 40px;
-  text-align: center;
-  color: #333;
+  font-size: 38rpx;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 14rpx;
 }
 
-.form {
-  padding: 20px;
+.subtitle {
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+.source-list {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 20rpx;
 }
 
-.label {
-  font-size: 16px;
+.source-card {
+  background: #ffffff;
+  border: 1rpx solid #e5e7eb;
+  border-radius: 24rpx;
+  padding: 28rpx;
+}
+
+.card-content {
+  display: flex;
+  align-items: center;
+}
+
+.card-icon {
+  width: 86rpx;
+  height: 86rpx;
+  border-radius: 16rpx;
+  margin-right: 24rpx;
+}
+
+.card-text {
+  flex: 1;
+}
+
+.card-title {
+  display: block;
+  font-size: 32rpx;
+  color: #111827;
+  font-weight: 700;
+  margin-bottom: 8rpx;
+}
+
+.card-desc {
+  display: block;
+  font-size: 24rpx;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.card-arrow {
+  color: #9ca3af;
+  font-size: 44rpx;
   font-weight: 500;
-  color: #333;
-  margin-bottom: 5px;
-}
-
-.input {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 0 15px;
-  font-size: 16px;
-  background-color: #fff;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.input-container {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.status-icon {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.button {
-  height: 50px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #007aff;
-  margin-top: 10px;
-}
-
-.button:active {
-  opacity: 0.8;
-}
-
-.button-text {
-  color: #fff;
-  font-size: 18px;
-  font-weight: bold;
-}
-
-.switch-button {
-  margin-top: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.switch-text {
-  font-size: 14px;
-  color: #666;
+  margin-left: 10rpx;
 }

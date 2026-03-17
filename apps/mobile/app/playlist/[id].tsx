@@ -4,6 +4,7 @@ import { usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Playlist } from "@/src/models";
 import { downloadTracks } from "@/src/services/downloadManager";
+import { trackEvent } from "@/src/services/tracking";
 import { getImageUrl } from "@/src/utils/image";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -27,12 +28,14 @@ import {
     ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "@/src/context/AuthContext";
 
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { colors, theme } = useTheme();
   const { playTrack, playTrackList, currentTrack, isPlaying } = usePlayer();
+  const { user, device } = useAuth();
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [loading, setLoading] = useState(true);
   const [moreModalVisible, setMoreModalVisible] = useState(false);
@@ -77,6 +80,21 @@ export default function PlaylistDetailScreen() {
     } finally {
       setUpdating(false);
     }
+  };
+
+  const handlePlayAll = (tracks: any[]) => {
+    if (!playlist || tracks.length === 0) return;
+    trackEvent({
+      feature: "personal",
+      eventName: "personal_playlist_play",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+      metadata: {
+        playlistId: playlist.id,
+        trackCount: tracks.length,
+      },
+    });
+    playTrackList(tracks, 0);
   };
 
   const handleDelete = () => {
@@ -379,7 +397,7 @@ export default function PlaylistDetailScreen() {
               onPress={() => {
                 setMoreModalVisible(false);
                 if (tracks.length === 0) return;
-                playTrackList(tracks, 0);
+                handlePlayAll(tracks);
               }}
             >
               <Ionicons name="play" size={20} color={colors.background} />

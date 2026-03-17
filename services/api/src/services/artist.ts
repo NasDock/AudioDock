@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Artist, PrismaClient, TrackType } from '@soundx/db';
+import { getTrackHeartbeatScoreMap } from './heartbeat-score';
+import { toSimplified } from '../common/zh-utils';
 
 const EXCLUDE_ARTIST_FILTER = [
   { name: { not: { contains: '&' } } },
@@ -53,6 +55,8 @@ export class ArtistService {
     pageSize: number,
     loadCount: number,
     type?: any,
+    userId?: number,
+    sortBy?: string,
   ): Promise<Artist[]> {
     const where: any = { 
         status: 'ACTIVE',
@@ -61,6 +65,48 @@ export class ArtistService {
     if (type) {
       where.type = type;
     }
+
+    if (sortBy === 'heartbeat' && userId) {
+      const scoreMap = await getTrackHeartbeatScoreMap(this.prisma, userId, type);
+      const [allArtists, tracks] = await Promise.all([
+        this.prisma.artist.findMany({ where }),
+        this.prisma.track.findMany({
+          where: { status: 'ACTIVE', ...(type ? { type } : {}) },
+          select: { id: true, artistId: true, artist: true },
+        }),
+      ]);
+
+      const artistIdScoreMap = new Map<number, number>();
+      const artistNameScoreMap = new Map<string, number>();
+      for (const track of tracks) {
+        const score = scoreMap.get(track.id) ?? 0;
+        if (!score) continue;
+        if (track.artistId) {
+          artistIdScoreMap.set(
+            track.artistId,
+            (artistIdScoreMap.get(track.artistId) ?? 0) + score,
+          );
+          continue;
+        }
+        artistNameScoreMap.set(
+          track.artist,
+          (artistNameScoreMap.get(track.artist) ?? 0) + score,
+        );
+      }
+
+      const sorted = allArtists.sort((a, b) => {
+        const scoreA =
+          (artistIdScoreMap.get(a.id) ?? 0) + (artistNameScoreMap.get(a.name) ?? 0);
+        const scoreB =
+          (artistIdScoreMap.get(b.id) ?? 0) + (artistNameScoreMap.get(b.name) ?? 0);
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return a.name.localeCompare(b.name);
+      });
+      const start = loadCount * pageSize;
+      const end = start + pageSize;
+      return sorted.slice(start, end);
+    }
+
     return await this.prisma.artist.findMany({
       skip: loadCount * pageSize,
       take: pageSize,
@@ -124,6 +170,7 @@ export class ArtistService {
     type?: TrackType,
     limit: number = 10
   ): Promise<Artist[]> {
+    const simplifiedKeyword = toSimplified(keyword);
     const candidates = await this.prisma.artist.findMany({
       where: {
         AND: [
@@ -132,7 +179,7 @@ export class ArtistService {
           ...EXCLUDE_ARTIST_FILTER,
           {
             OR: [
-              { name: { contains: keyword } },
+              { name: { contains: simplifiedKeyword } },
             ],
           },
         ],

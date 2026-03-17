@@ -32,6 +32,7 @@ import { getBaseURL } from "../../https";
 import type { Album, Artist, Track } from "../../models";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
+import { useSettingsStore } from "../../store/settings";
 import { cacheUtils } from "../../utils/cache";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
@@ -63,6 +64,9 @@ const Recommended: React.FC = () => {
   // Get current auth state
   const { user } = useAuthStore();
   const { play, setPlaylist } = usePlayerStore();
+  const recommendationLikeRatio = useSettingsStore(
+    (state) => state.general.recommendationLikeRatio,
+  );
 
   const { token: themeToken } = theme.useToken();
 
@@ -72,7 +76,7 @@ const Recommended: React.FC = () => {
   // Load initial data whenever playMode changes
   useEffect(() => {
     loadSections();
-  }, [playMode]);
+  }, [playMode, recommendationLikeRatio]);
 
   // Debounce resize to re-fetch data based on new width
   const { run: debouncedRefresh } = useDebounceFn(
@@ -87,7 +91,8 @@ const Recommended: React.FC = () => {
     return () => window.removeEventListener("resize", debouncedRefresh);
   }, [debouncedRefresh]);
 
-  const getCacheKey = (base: string) => `${base}_${playMode}`;
+  const getCacheKey = (base: string) =>
+    `${base}_${playMode}_${recommendationLikeRatio}`;
 
   const sortSections = (
     sectionsToSort: RecommendedSection[],
@@ -225,7 +230,7 @@ const Recommended: React.FC = () => {
       const trackSize = getPageSize("track");
 
       const promises: Promise<any>[] = [
-        getRecommendedAlbums(type, true, albumSize),
+        getRecommendedAlbums(type, true, albumSize, recommendationLikeRatio),
         getRecentAlbums(type, true, albumSize),
         getLatestArtists(type, true, artistSize),
       ];
@@ -319,7 +324,12 @@ const Recommended: React.FC = () => {
       const trackSize = getPageSize("track");
 
       if (sectionId === "recommended") {
-        const res = await getRecommendedAlbums(type, true, albumSize);
+        const res = await getRecommendedAlbums(
+          type,
+          true,
+          albumSize,
+          recommendationLikeRatio,
+        );
         const data = res.data || [];
         updateSection(sectionId, data);
         cacheUtils.set(getCacheKey(CACHE_KEY_RECOMMENDED), data);

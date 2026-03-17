@@ -3,6 +3,8 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
 export type PlayMode = "MUSIC" | "AUDIOBOOK";
+const CONTENT_MODE_KEY = "contentMode";
+const LEGACY_PLAY_MODE_KEY = "playMode";
 
 interface PlayModeContextType {
   mode: PlayMode;
@@ -32,7 +34,9 @@ export const PlayModeProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const loadMode = async () => {
     try {
-      const savedMode = await AsyncStorage.getItem("playMode");
+      const savedMode =
+        (await AsyncStorage.getItem(CONTENT_MODE_KEY)) ??
+        (await AsyncStorage.getItem(LEGACY_PLAY_MODE_KEY));
       if (savedMode === "MUSIC" || savedMode === "AUDIOBOOK") {
         setModeState(savedMode);
       }
@@ -44,7 +48,7 @@ export const PlayModeProvider: React.FC<{ children: React.ReactNode }> = ({
   const setMode = async (newMode: PlayMode) => {
     setModeState(newMode);
     try {
-      await AsyncStorage.setItem("playMode", newMode);
+      await AsyncStorage.setItem(CONTENT_MODE_KEY, newMode);
     } catch (error) {
       console.error("Failed to save play mode:", error);
     }

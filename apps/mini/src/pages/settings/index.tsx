@@ -81,6 +81,13 @@ export default function Settings() {
                 <Text style={{ color: '#999' }}>&gt;</Text>
              </View>
            )}
+           <View className='setting-row' onClick={() => Taro.navigateTo({ url: '/pages/source-manage/index' })}>
+              <View className='setting-info'>
+                 <Text className='setting-label'>数据源管理</Text>
+                 <Text className='setting-description'>切换和管理音频数据源</Text>
+              </View>
+              <Text style={{ color: '#999' }}>&gt;</Text>
+           </View>
         </View>
 
         <View className='section'>

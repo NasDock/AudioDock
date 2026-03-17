@@ -12,6 +12,7 @@ interface AuthContextType {
   register: (user: Partial<User>) => Promise<void>
   logout: () => Promise<void>
   device: any | null
+  switchServer: (address: string, sourceType: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -22,6 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   register: async () => {},
   logout: async () => {},
   device: null,
+  switchServer: async () => {},
 })
 
 export const useAuth = () => useContext(AuthContext)
@@ -123,9 +125,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }
 
+  const switchServer = async (address: string, sourceType: string) => {
+    try {
+      // 保存服务器地址
+      Taro.setStorageSync('serverAddress', address)
+      Taro.setStorageSync('currentSourceType', sourceType)
+      
+      // 更新请求基础URL
+      setBaseURL(address)
+      
+      // 清除当前用户信息（需要重新登录）
+      setToken(null)
+      setUser(null)
+      Taro.removeStorageSync('token')
+      Taro.removeStorageSync('user')
+      
+      Taro.showToast({
+        title: '服务器切换成功，请重新登录',
+        icon: 'success',
+        duration: 2000
+      })
+      
+      // 跳转到登录页面
+      setTimeout(() => {
+        Taro.reLaunch({ url: '/pages/login/index' })
+      }, 2000)
+    } catch (error) {
+      console.error('Failed to switch server:', error)
+      throw error
+    }
+  }
+
   return (
     <AuthContext.Provider
-      value={{ user, token, isLoading, login, register, logout, device }}
+      value={{ user, token, isLoading, login, register, logout, device, switchServer }}
     >
       {children}
     </AuthContext.Provider>

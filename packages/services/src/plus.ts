@@ -2,7 +2,7 @@ import axios from "axios";
 import { ISuccessResponse } from "./models";
 
 const plusRequest = axios.create({
-  baseURL: "http://localhost:3200",
+  baseURL: "https://www.audiodock.cn/api",
 });
 
 /**
@@ -48,10 +48,48 @@ export interface CreatePaymentDto {
   pointsAmount: number;
 }
 
+export interface WechatPayPayload {
+  appId: string;
+  partnerId: string;
+  prepayId: string;
+  nonceStr: string;
+  timeStamp: string;
+  sign: string;
+  package?: string;
+  signType?: string;
+}
+
+export interface AlipayPayPayload {
+  orderString: string;
+  scheme?: string;
+}
+
+export interface CreatePaymentResponse {
+  orderId: string;
+  paymentUrl?: string;
+  qrCode?: string;
+  wechatPay?: WechatPayPayload;
+  alipayPay?: AlipayPayPayload;
+}
+
 export interface ConsumePointsDto {
   userId: string;
   amount: number;
   description?: string;
+}
+
+export type TrackingPlatform = "mobile" | "desktop" | "web" | "mini";
+
+export interface TrackingEventDto {
+  platform: TrackingPlatform;
+  feature: string;
+  eventName: string;
+  userId?: string | null;
+  sessionId?: string;
+  deviceId?: string;
+  value?: number;
+  occurredAt?: string;
+  metadata?: Record<string, any>;
 }
 
 // --- API Functions ---
@@ -81,7 +119,7 @@ export const plusGetMe = async (userId: string) => {
  * PaymentController_create: Create a payment order
  */
 export const plusCreatePayment = async (data: CreatePaymentDto) => {
-  return plusRequest.post<ISuccessResponse<{ orderId: string; paymentUrl?: string; qrCode?: string }>>("/payment/create", data);
+  return plusRequest.post<ISuccessResponse<CreatePaymentResponse>>("/payment/create", data);
 };
 
 /**
@@ -110,6 +148,13 @@ export const plusGetPointsBalance = async (userId: string) => {
  */
 export const plusConsumePoints = async (data: ConsumePointsDto) => {
   return plusRequest.post<ISuccessResponse<any>>("/points/consume", data);
+};
+
+/**
+ * TrackingController_create: Report a single tracking event
+ */
+export const plusTrackEvent = async (data: TrackingEventDto) => {
+  return plusRequest.post<ISuccessResponse<any>>("/tracking/events", data);
 };
 
 /**

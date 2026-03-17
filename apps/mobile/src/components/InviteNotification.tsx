@@ -1,12 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSettings } from '../context/SettingsContext';
 import { useSync } from '../context/SyncContext';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import { trackEvent } from '../services/tracking';
 
 const InviteNotification: React.FC = () => {
   const { invites, acceptInvite, rejectInvite } = useSync();
   const { colors } = useTheme();
+  const { carLayoutMode } = useSettings();
+  const { user, device } = useAuth();
   const [currentInvite, setCurrentInvite] = useState<any>(invites[0] || null);
   const translateY = useRef(new Animated.Value(-100)).current;
 
@@ -40,6 +45,16 @@ const InviteNotification: React.FC = () => {
   const handleAccept = () => {
     if (currentInvite) {
       acceptInvite(currentInvite);
+      trackEvent({
+        feature: "sync",
+        eventName: "sync_control_accept",
+        userId: user?.id ? String(user.id) : undefined,
+        sessionId: currentInvite?.sessionId,
+        deviceId: device?.id ? String(device.id) : undefined,
+        metadata: {
+          fromUserId: currentInvite?.fromUserId,
+        },
+      });
       setCurrentInvite(null);
     }
   };
@@ -61,7 +76,13 @@ const InviteNotification: React.FC = () => {
       onRequestClose={() => setCurrentInvite(null)}
     >
       <View style={{ flex: 1 }} pointerEvents="box-none">
-        <Animated.View style={[styles.container, { transform: [{ translateY }] }]}>
+        <Animated.View
+          style={[
+            styles.container,
+            carLayoutMode ? styles.containerLeft : styles.containerRight,
+            { transform: [{ translateY }] },
+          ]}
+        >
           <View style={[styles.content, { backgroundColor: colors.card }]}>
             <View style={styles.textContainer}>
               <Text style={[styles.title, { color: colors.text }]}>同步播放邀请</Text>
@@ -99,11 +120,17 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     top: 0,
-    right: 12,
     maxWidth: 350,
-    alignSelf: 'flex-end',
     width: '100%',
     zIndex: 9999,
+  },
+  containerRight: {
+    right: 12,
+    alignSelf: 'flex-end',
+  },
+  containerLeft: {
+    left: 12,
+    alignSelf: 'flex-start',
   },
   content: {
     borderRadius: 12,
@@ -150,4 +177,3 @@ const styles = StyleSheet.create({
 });
 
 export default InviteNotification;
-

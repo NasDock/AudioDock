@@ -11,7 +11,8 @@ export class NativeArtistAdapter implements IArtistAdapter {
   getArtistList(
     pageSize: number,
     loadCount: number,
-    type?: string
+    type?: string,
+    sortBy?: string,
   ) {
     return request.get<any, ISuccessResponse<ILoadMoreData<Artist>>>(
       "/artist/load-more",
@@ -20,6 +21,7 @@ export class NativeArtistAdapter implements IArtistAdapter {
           pageSize,
           loadCount,
           type,
+          sortBy,
         },
       }
     );

@@ -7,7 +7,6 @@ import {
   DeleteOutlined,
   FolderOutlined,
   GithubOutlined,
-  HeartOutlined,
   ImportOutlined,
   LeftOutlined,
   LogoutOutlined,
@@ -21,12 +20,13 @@ import {
   SearchOutlined,
   SettingOutlined,
   SunOutlined,
-  WifiOutlined,
+  WifiOutlined
 } from "@ant-design/icons";
 import {
   addSearchRecord,
   check,
   clearSearchHistory,
+  createCompactTask,
   createImportTask,
   getHotSearches,
   getImportTask,
@@ -53,8 +53,8 @@ import {
   Modal,
   Popover,
   Progress,
-  Segmented,
   Spin,
+  Tag,
   theme,
   Tooltip,
   Typography
@@ -64,15 +64,15 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
 import { useTheme } from "../../context/ThemeContext";
 import { TrackType } from "../../models";
+import { trackEvent } from "../../services/tracking";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
-import { isSubsonicSource } from "../../utils";
-import { isWindows } from "../../utils/platform";
+import { isEmbySource, isSubsonicSource } from "../../utils";
+import { isWeb, isWindows } from "../../utils/platform";
 import { usePlayMode } from "../../utils/playMode";
 import SearchResults from "../SearchResults";
 import styles from "./index.module.less";
 
-import ctjj from "../../assets/ctjj.png";
 import emby from "../../assets/emby.png";
 import logo from "../../assets/logo.png";
 import subsonic from "../../assets/subsonic.png";
@@ -82,27 +82,51 @@ const { Text } = Typography;
 const ServerSwitcherModal: React.FC<{
   onSelect: (url: string, type: string) => void;
 }> = ({ onSelect }) => {
-  const [sourceType, setSourceType] = useState<string>(
-    () => localStorage.getItem("selectedSourceType") || "AudioDock",
-  );
-  const [configs, setConfigs] = useState<any[]>([]);
+  const [configs, setConfigs] = useState<
+    Array<{
+      type: string;
+      list: Array<{
+        id: string;
+        internal: string;
+        external: string;
+        name?: string;
+      }>;
+    }>
+  >([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const { token: themeToken } = theme.useToken();
   const navigate = useNavigate();
 
   const loadConfigs = () => {
-    const configKey = `sourceConfig_${sourceType}`;
-    const data = localStorage.getItem(configKey);
-    if (data) {
-      try {
-        const parsed = JSON.parse(data);
-        setConfigs(Array.isArray(parsed) ? parsed : []);
-      } catch {
-        setConfigs([]);
+    const allConfigs: Array<{
+      type: string;
+      list: Array<{
+        id: string;
+        internal: string;
+        external: string;
+        name?: string;
+      }>;
+    }> = [];
+
+    Object.keys(SOURCEMAP).forEach((type) => {
+      const configKey = `sourceConfig_${type}`;
+      const data = localStorage.getItem(configKey);
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          allConfigs.push({
+            type,
+            list: Array.isArray(parsed) ? parsed : [],
+          });
+          return;
+        } catch {
+          allConfigs.push({ type, list: [] });
+          return;
+        }
       }
-    } else {
+
       // Migration from legacy history if exists
-      const historyKey = `serverHistory_${sourceType}`;
+      const historyKey = `serverHistory_${type}`;
       const historyData = localStorage.getItem(historyKey);
       if (historyData) {
         try {
@@ -113,31 +137,50 @@ const ServerSwitcherModal: React.FC<{
             external: "",
             name: `历史记录 ${index + 1}`,
           }));
-          setConfigs(migrated);
           localStorage.setItem(configKey, JSON.stringify(migrated));
+          allConfigs.push({ type, list: migrated });
+          return;
         } catch {
-          setConfigs([]);
+          allConfigs.push({ type, list: [] });
+          return;
         }
-      } else {
-        setConfigs([]);
       }
-    }
+
+      allConfigs.push({ type, list: [] });
+    });
+
+    setConfigs(allConfigs);
   };
 
   useEffect(() => {
     loadConfigs();
-  }, [sourceType]);
+  }, []);
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
+  const handleDelete = (type: string, id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const configKey = `sourceConfig_${sourceType}`;
-    const newConfigs = configs.filter((c) => c.id !== id);
+    const configKey = `sourceConfig_${type}`;
+    const currentTypeConfigs =
+      configs.find((item) => item.type === type)?.list || [];
+    const newConfigs = currentTypeConfigs.filter((c) => c.id !== id);
     localStorage.setItem(configKey, JSON.stringify(newConfigs));
-    setConfigs(newConfigs);
+    setConfigs((prev) =>
+      prev.map((item) =>
+        item.type === type
+          ? {
+              ...item,
+              list: newConfigs,
+            }
+          : item
+      )
+    );
   };
 
-  const handleConnect = async (address: string, configId: string) => {
-    setLoadingId(`${configId}_${address}`);
+  const handleConnect = async (
+    address: string,
+    configId: string,
+    sourceType: string
+  ) => {
+    setLoadingId(`${sourceType}_${configId}_${address}`);
     try {
       // Connect to the specific address chosen by the user
       onSelect(address, sourceType);
@@ -146,48 +189,26 @@ const ServerSwitcherModal: React.FC<{
     }
   };
 
-  const sourceOptions = Object.keys(SOURCEMAP).map((key) => ({
-    label: (
-      <Flex gap={8} align="center">
-        {key === "Emby" ? (
-          <img style={{ width: 20 }} src={emby} />
-        ) : key === "Subsonic" ? (
-          <img style={{ width: 20 }} src={subsonic} />
-        ) : (
-          <img style={{ width: 20 }} src={logo} />
-        )}
-        <span>{key}</span>
-      </Flex>
-    ),
-    value: key,
-    disabled: key === "Emby",
-  }));
-
   return (
     <div style={{ marginTop: 16 }}>
-      <div style={{ marginBottom: 16 }}>
-        <Segmented
-          options={sourceOptions}
-          value={sourceType}
-          onChange={(val) => setSourceType(val as string)}
-          block
-        />
-      </div>
-
       <Flex
         vertical
         gap={12}
         style={{ maxHeight: 400, overflowY: "auto", padding: "4px" }}
       >
-        {configs.map((item) => {
+        {configs.flatMap(({ type, list }) =>
+          list.map((item, index) => {
           const currentAddress = localStorage.getItem("serverAddress");
           const currentSource = localStorage.getItem("selectedSourceType");
-          const isSourceMatch = currentSource === sourceType;
+          const isSourceMatch = currentSource === type;
+          const sourceLogo =
+            type === "Emby" ? emby : type === "Subsonic" ? subsonic : logo;
+          const displayName = `${type}数据源[${index + 1}]`;
 
           const renderAddressRow = (label: string, address: string) => {
             if (!address) return null;
             const isActive = isSourceMatch && currentAddress === address;
-            const isConnecting = loadingId === `${item.id}_${address}`;
+            const isConnecting = loadingId === `${type}_${item.id}_${address}`;
 
             return (
               <Flex
@@ -227,11 +248,7 @@ const ServerSwitcherModal: React.FC<{
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
-                        // check().then(res => {
-                        // if (res.code === 200) {
-                        handleConnect(address, item.id);
-                        // }
-                        // })
+                        handleConnect(address, item.id, type);
                       }}
                       style={{ fontSize: 10 }}
                     >
@@ -246,7 +263,7 @@ const ServerSwitcherModal: React.FC<{
 
           return (
             <Card
-              key={item.id}
+              key={`${type}_${item.id}`}
               size="small"
               className={styles.switcherCard}
               style={{
@@ -260,9 +277,13 @@ const ServerSwitcherModal: React.FC<{
             >
               <Flex vertical gap={8}>
                 <Flex justify="space-between" align="center">
-                  <Text strong style={{ fontSize: 14 }}>
-                    {item.name || "默认服务器"}
-                  </Text>
+                  <Flex align="center" gap={8}>
+                    <img style={{ width: 18 }} src={sourceLogo} alt={type} />
+                    <Text strong style={{ fontSize: 14 }}>
+                      {displayName}
+                    </Text>
+                    <Tag>{type}</Tag>
+                  </Flex>
                   <Button
                     type="text"
                     size="small"
@@ -270,7 +291,7 @@ const ServerSwitcherModal: React.FC<{
                     icon={<DeleteOutlined />}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDelete(item.id, e);
+                      handleDelete(type, item.id, e);
                     }}
                   />
                 </Flex>
@@ -281,9 +302,10 @@ const ServerSwitcherModal: React.FC<{
               </Flex>
             </Card>
           );
-        })}
+        })
+        )}
 
-        {configs.length === 0 && (
+        {configs.every((item) => item.list.length === 0) && (
           <Empty
             description="暂无历史数据源"
             image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -297,10 +319,10 @@ const ServerSwitcherModal: React.FC<{
           style={{ marginTop: 8 }}
           onClick={() => {
             Modal.destroyAll();
-            navigate("/login", { state: { type: sourceType } });
+            navigate("/source-manage");
           }}
         >
-          添加新数据源
+          添加数据源
         </Button>
       </Flex>
     </div>
@@ -332,11 +354,10 @@ const Header: React.FC = () => {
   // Mode state: 'music' | 'audiobook'
   const { mode: playMode, setMode: setPlayMode } = usePlayMode();
   const isRadioMode = usePlayerStore((state) => state.isRadioMode);
-  const { logout, user } = useAuthStore();
+  const { logout, user, device } = useAuthStore();
 
   // Import task state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
   const [importTask, setImportTask] = useState<ImportTask | null>(null);
   const [isPlusVip, setIsPlusVip] = useState(false);
   const [plusVipData, setPlusVipData] = useState<any>(null);
@@ -383,7 +404,7 @@ const Header: React.FC = () => {
 
   const handleLogout = () => {
     logout();
-    message.success("已退出登录");
+    message.success("已退出/切换服务端账号");
     // Optionally reload to reset app state
     window.location.reload();
   };
@@ -419,17 +440,25 @@ const Header: React.FC = () => {
   const iconStyle = { color: token.colorTextSecondary };
   const actionIconStyle = { color: token.colorText };
 
-  const handleUpdateLibrary = async (mode: "incremental" | "full") => {
+  const handleUpdateLibrary = async (mode: "incremental" | "full" | "compact") => {
     message.loading(
-      `${mode === "incremental" ? "增量" : "全量"}更新任务创建中...`,
+      `${mode === "incremental" ? "增量" : mode === "full" ? "全量" : "精简"}任务创建中...`,
     );
 
     try {
-      const res = await createImportTask({ mode });
+      const res =
+        mode === "compact"
+          ? await createCompactTask()
+          : await createImportTask({ mode });
       if (res.code === 200 && res.data) {
         const taskId = res.data.id;
         setIsImportModalOpen(true);
-        setImportTask({ id: taskId, status: TaskStatus.INITIALIZING });
+        setImportTask({
+          id: taskId,
+          status: TaskStatus.INITIALIZING,
+          mode,
+          message: mode === "compact" ? "正在启动精简任务..." : "正在初始化...",
+        });
 
         // Clear previous timer if any
         if (pollTimerRef.current) clearInterval(pollTimerRef.current);
@@ -453,7 +482,11 @@ const Header: React.FC = () => {
         setImportTask(res.data);
         const { status, total } = res.data;
         if (status === TaskStatus.SUCCESS) {
-          message.success(`导入成功！共导入 ${total} 首歌曲`);
+          if (res.data.mode === "compact") {
+            message.success("精简完成");
+          } else {
+            message.success(`导入成功！共导入 ${total} 首歌曲`);
+          }
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           // Auto close modal after a short delay
           setTimeout(() => setIsImportModalOpen(false), 2000);
@@ -562,7 +595,7 @@ const Header: React.FC = () => {
   }, []);
 
   return (
-    <div className={styles.header}>
+    <div className={`${styles.header} ${isWindows() ? styles.winHeader : ""}`}>
       {/* Navigation Controls */}
       <div className={styles.navControls}>
         <div className={styles.navGroup}>
@@ -626,7 +659,7 @@ const Header: React.FC = () => {
 
       {/* User Actions */}
       <div className={styles.userActions}>
-        {playMode === TrackType.MUSIC && !isSubsonicSource() && (
+        {playMode === TrackType.MUSIC && !isSubsonicSource() && !isEmbySource() && (
           <Tooltip title="情景电台">
             <div
               className={`${styles.actionIcon} ${isRadioMode ? styles.radioActive : ""}`}
@@ -637,7 +670,7 @@ const Header: React.FC = () => {
             </div>
           </Tooltip>
         )}
-        {playMode !== TrackType.MUSIC && (
+        {playMode !== TrackType.MUSIC && !isEmbySource() && (
           <Tooltip title="TTS">
             <div
               className={styles.actionIcon}
@@ -670,17 +703,19 @@ const Header: React.FC = () => {
           </Tooltip>
         )}
 
-        <Tooltip title="mini播放器">
-          <ImportOutlined
-            className={styles.actionIcon}
-            style={actionIconStyle}
-            onClick={() => {
-              if ((window as any).ipcRenderer) {
-                (window as any).ipcRenderer.send("window:set-mini");
-              }
-            }}
-          />
-        </Tooltip>
+        {!isWeb() && (
+          <Tooltip title="mini播放器">
+            <ImportOutlined
+              className={styles.actionIcon}
+              style={actionIconStyle}
+              onClick={() => {
+                if ((window as any).ipcRenderer) {
+                  (window as any).ipcRenderer.send("window:set-mini");
+                }
+              }}
+            />
+          </Tooltip>
+        )}
 
         {!isSubsonicSource() && (
           <Tooltip title="文件夹">
@@ -688,6 +723,12 @@ const Header: React.FC = () => {
               className={styles.actionIcon}
               style={actionIconStyle}
               onClick={() => {
+                trackEvent({
+                  feature: "library",
+                  eventName: "folder_mode_entry",
+                  userId: user?.id ? String(user.id) : undefined,
+                  deviceId: device?.id ? String(device.id) : undefined,
+                });
                 navigate(`/folders`);
               }}
             >
@@ -812,6 +853,31 @@ const Header: React.FC = () => {
                                   : "未知"}
                             </Text>
                           </Flex>
+                          <Button 
+                            danger 
+                            ghost 
+                            size="small"
+                            style={{ marginTop: 8 }}
+                            onClick={() => {
+                              modal.confirm({
+                                title: "退出/切换会员账号",
+                                content: "确定要退出/切换会员账号吗？",
+                                okText: "确定",
+                                cancelText: "取消",
+                                onOk: () => {
+                                  localStorage.removeItem("plus_token");
+                                  localStorage.removeItem("plus_user_id");
+                                  removePlusToken();
+                                  setIsPlusVip(false);
+                                  setPlusVipData(null);
+                                  message.success("会员账号已退出/切换");
+                                  navigate("/member-login");
+                                }
+                              });
+                            }}
+                          >
+                            退出/切换会员账号
+                          </Button>
                         </Flex>
                       </div>
                     ),
@@ -889,11 +955,21 @@ const Header: React.FC = () => {
               </div>
               <div
                 className={styles.userMenuItem}
-                onClick={() => setIsDonationModalOpen(true)}
+                onClick={() => {
+                  modal.confirm({
+                    title: "确认精简数据？",
+                    content:
+                      "将清除已标记为假死的数据，并核对数据库单曲路径。若文件不存在，将删除对应单曲及相关收藏/收听记录；若专辑无曲目会删除专辑；若艺术家无曲目和作品也会删除。",
+                    okText: "确认精简",
+                    cancelText: "取消",
+                    onOk: () => handleUpdateLibrary("compact"),
+                  });
+                }}
               >
-                <HeartOutlined />
-                赞赏我
+                <DeleteOutlined />
+                精简数据
               </div>
+
               <div className={styles.userMenuItem}>
                 <DeleteOutlined />
                 清空缓存文件
@@ -915,25 +991,8 @@ const Header: React.FC = () => {
               </div>
               <div className={styles.userMenuItem} onClick={handleLogout}>
                 <LogoutOutlined />
-                退出登陆
+                退出/切换服务端账号
               </div>
-              {localStorage.getItem("plus_token") && (
-                <div
-                  className={styles.userMenuItem}
-                  onClick={() => {
-                    localStorage.removeItem("plus_token");
-                    localStorage.removeItem("plus_user_id");
-                    removePlusToken();
-                    setIsPlusVip(false);
-                    setPlusVipData(null);
-                    message.success("会员已退出登录");
-                    navigate("/member-login");
-                  }}
-                >
-                  <CrownOutlined />
-                  退出/更换会员账号
-                </div>
-              )}
             </div>
           }
         >
@@ -953,7 +1012,7 @@ const Header: React.FC = () => {
       </div>
       {contextHolder}
       <Modal
-        title="数据入库进度"
+        title={importTask?.mode === "compact" ? "精简数据进度" : "数据入库进度"}
         open={isImportModalOpen}
         onCancel={() => {
           if (
@@ -977,13 +1036,15 @@ const Header: React.FC = () => {
             importTask.status !== TaskStatus.SUCCESS
               ? importTask.message
               : importTask?.status === TaskStatus.INITIALIZING
-                ? "正在初始化..."
+                ? importTask?.mode === "compact" ? "正在初始化精简任务..." : "正在初始化..."
+                : importTask?.status === TaskStatus.PREPARING
+                  ? importTask?.mode === "compact" ? "正在精简数据库..." : "正在准备环境..."
                 : importTask?.status === TaskStatus.PARSING
                   ? "正在解析媒体文件..."
                   : importTask?.status === TaskStatus.SUCCESS
-                    ? "入库完成"
+                    ? importTask?.mode === "compact" ? "精简完成" : "入库完成"
                     : importTask?.status === TaskStatus.FAILED
-                      ? "入库失败"
+                      ? importTask?.mode === "compact" ? "精简失败" : "入库失败"
                       : "准备中"}
           </div>
           {importTask?.status === TaskStatus.FAILED && (
@@ -1007,6 +1068,7 @@ const Header: React.FC = () => {
                   : "active"
             }
           />
+          {importTask?.mode !== "compact" && (
           <Flex vertical gap={4} style={{ marginTop: 12 }}>
             <Flex justify="space-between" align="center">
               <Text type="secondary" style={{ fontSize: 12 }}>
@@ -1042,7 +1104,8 @@ const Header: React.FC = () => {
               </Text>
             </Flex>
           </Flex>
-          {importTask?.currentFileName && (
+          )}
+          {importTask?.mode !== "compact" && importTask?.currentFileName && (
             <div
               style={{
                 marginTop: 12,
@@ -1063,35 +1126,6 @@ const Header: React.FC = () => {
         </div>
       </Modal>
 
-      <Modal
-        title="赞赏开发者"
-        open={isDonationModalOpen}
-        onCancel={() => setIsDonationModalOpen(false)}
-        footer={null}
-        width={340}
-        centered
-      >
-        <div style={{ textAlign: "center", padding: "10px 0" }}>
-          <Typography.Text
-            type="secondary"
-            style={{ marginBottom: 16, display: "block" }}
-          >
-            如果您觉得 AudioDock 对您有帮助
-            <br />
-            欢迎赞赏支持！
-          </Typography.Text>
-          <img
-            src={ctjj}
-            alt="Donation QR Code"
-            style={{
-              width: "100%",
-              maxWidth: 280,
-              borderRadius: 8,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            }}
-          />
-        </div>
-      </Modal>
     </div>
   );
 };

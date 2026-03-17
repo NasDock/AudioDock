@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { setTrackingEnabled } from '../services/tracking';
 
 interface SettingsState {
   acceptRelay: boolean;
@@ -7,7 +8,12 @@ interface SettingsState {
   cacheEnabled: boolean;
   autoOrientation: boolean;
   autoTheme: boolean;
+  carModeEnabled: boolean;
+  carLayoutMode: boolean;
+  voiceAssistantEnabled: boolean;
+  recommendationLikeRatio: number;
   eqGains: number[];
+  experienceProgramEnabled: boolean;
 }
 
 interface SettingsContextType extends SettingsState {
@@ -18,41 +24,52 @@ interface SettingsContextType extends SettingsState {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<SettingsState>({
+  const defaultSettings: SettingsState = {
     acceptRelay: true,
     acceptSync: true,
     cacheEnabled: false,
     autoOrientation: true,
     autoTheme: true,
+    carModeEnabled: false,
+    carLayoutMode: false,
+    voiceAssistantEnabled: false,
+    recommendationLikeRatio: 50,
     eqGains: [0, 0, 0, 0, 0],
-  });
+    experienceProgramEnabled: true,
+  };
+  const [settings, setSettings] = useState<SettingsState>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('mobile-settings');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const nextSettings = { ...defaultSettings, ...parsed };
+          setSettings(nextSettings);
+          setTrackingEnabled(!!nextSettings.experienceProgramEnabled);
+        }
+      } catch (e) {
+        console.error('Failed to load settings', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
     loadSettings();
   }, []);
 
-  const loadSettings = async () => {
-    try {
-      const saved = await AsyncStorage.getItem('mobile-settings');
-      if (saved) {
-        setSettings(prev => ({ ...prev, ...JSON.parse(saved) }));
-      }
-    } catch (e) {
-      console.error('Failed to load settings', e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const updateSetting = async (key: keyof SettingsState, value: any) => {
-    const newSettings = { ...settings, [key]: value };
-    setSettings(newSettings);
-    try {
-      await AsyncStorage.setItem('mobile-settings', JSON.stringify(newSettings));
-    } catch (e) {
-      console.error('Failed to save settings', e);
-    }
+    setSettings((prev) => {
+      const next = { ...prev, [key]: value };
+      AsyncStorage.setItem('mobile-settings', JSON.stringify(next)).catch((e) => {
+        console.error('Failed to save settings', e);
+      });
+      if (key === 'experienceProgramEnabled') {
+        setTrackingEnabled(!!value);
+      }
+      return next;
+    });
   };
 
   return (

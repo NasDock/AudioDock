@@ -51,8 +51,9 @@ import SinglecycleOutlined from "../../assets/singlecycle.svg?react";
 import { useMessage } from "../../context/MessageContext";
 import { useMediaSession } from "../../hooks/useMediaSession";
 import { getBaseURL } from "../../https";
-import { type Album, type Device, type Track, TrackType } from "../../models";
+import { type Album, type Track, TrackType } from "../../models";
 import { socketService } from "../../services/socket";
+import { trackEvent } from "../../services/tracking";
 import {
   resolveArtworkUri,
   resolveTrackUri,
@@ -98,7 +99,7 @@ const Player: React.FC = () => {
     loadMoreSourceTracks,
   } = usePlayerStore();
   const { mode: appMode } = usePlayMode();
-  const { user } = useAuthStore();
+  const { user, device } = useAuthStore();
   const { updateDesktopLyric } = useSettingsStore();
   const desktopLyricEnable = useSettingsStore(
     (state) => state.desktopLyric.enable,
@@ -174,7 +175,7 @@ const Player: React.FC = () => {
     if (currentTrack.path) {
       initialUri = currentTrack.path.startsWith("http")
         ? currentTrack.path
-        : `${getBaseURL()}${currentTrack.path.split('/').map(encodeURIComponent).join('/')}`;
+        : `${getBaseURL()}${currentTrack.path.split("/").map(encodeURIComponent).join("/")}`;
 
       if (!initialUri.startsWith("http")) {
         initialUri = `${window.location.origin}${initialUri}`;
@@ -331,6 +332,17 @@ const Player: React.FC = () => {
                     type="primary"
                     size="small"
                     onClick={() => {
+                      trackEvent({
+                        feature: "relay",
+                        eventName: "relay_play_accept",
+                        userId: user?.id ? String(user.id) : undefined,
+                        deviceId: device?.id ? String(device.id) : undefined,
+                        metadata: {
+                          fromDeviceName: history.deviceName,
+                          trackId: history.track?.id,
+                          trackType: history.track?.type,
+                        },
+                      });
                       // Resume Logic
                       play(history.track);
                       // Wait for track to set, then seek.
@@ -569,7 +581,11 @@ const Player: React.FC = () => {
         // Apply progress if significantly different
         let targetTime = currentTime;
         // Prioritize skipStart if in audiobook mode and we are at the beginning
-        if (appMode === TrackType.AUDIOBOOK && skipStart > 0 && targetTime < skipStart) {
+        if (
+          appMode === TrackType.AUDIOBOOK &&
+          skipStart > 0 &&
+          targetTime < skipStart
+        ) {
           targetTime = skipStart;
         }
 
@@ -611,8 +627,6 @@ const Player: React.FC = () => {
     }
     localStorage.setItem("playbackRate", String(playbackRate));
   }, [playbackRate]);
-
-  const device: Device = JSON.parse(localStorage.getItem("device") || "{}");
 
   useEffect(() => {
     if (currentTrack) {
@@ -703,7 +717,11 @@ const Player: React.FC = () => {
       // Critical for Sync: If store has a specific currentTime (set by play or sync), apply it now.
       // We prioritize valid currentTime > 0.
       let startTime = currentTime;
-      if (appMode === TrackType.AUDIOBOOK && skipStart > 0 && startTime < skipStart) {
+      if (
+        appMode === TrackType.AUDIOBOOK &&
+        skipStart > 0 &&
+        startTime < skipStart
+      ) {
         startTime = skipStart;
         audioRef.current.currentTime = skipStart;
       }
@@ -983,6 +1001,13 @@ const Player: React.FC = () => {
   // Skip forward 15 seconds
   const skipForward = () => {
     if (audioRef.current) {
+      trackEvent({
+        feature: "player",
+        eventName: "seek_forward_15",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+        value: 15,
+      });
       const newTime = Math.min(audioRef.current.currentTime + 15, duration);
       audioRef.current.currentTime = newTime;
       setCurrentTime(newTime);
@@ -992,6 +1017,13 @@ const Player: React.FC = () => {
   // Skip backward 15 seconds
   const skipBackward = () => {
     if (audioRef.current) {
+      trackEvent({
+        feature: "player",
+        eventName: "seek_backward_15",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+        value: -15,
+      });
       const newTime = Math.max(audioRef.current.currentTime - 15, 0);
       audioRef.current.currentTime = newTime;
       setCurrentTime(newTime);
@@ -1256,7 +1288,7 @@ const Player: React.FC = () => {
           <Text strong ellipsis style={{ maxWidth: 250 }}>
             {currentTrack?.name || "No Track"}
           </Text>
-          <Text type="secondary" style={{ fontSize: "12px" }}>
+          <Text type="secondary" className={styles.artistText} style={{ fontSize: "12px" }}>
             {currentTrack?.artist || "Unknown Artist"}
           </Text>
         </div>
@@ -1423,6 +1455,13 @@ const Player: React.FC = () => {
                       if (val > 0) {
                         setSleepTimerMode("time");
                         setSleepTimerEndTime(Date.now() + val * 60 * 1000);
+                        trackEvent({
+                          feature: "player",
+                          eventName: "sleep_timer_set",
+                          userId: user?.id ? String(user.id) : undefined,
+                          deviceId: device?.id ? String(device.id) : undefined,
+                          value: val,
+                        });
                       } else {
                         setSleepTimerMode("off");
                       }

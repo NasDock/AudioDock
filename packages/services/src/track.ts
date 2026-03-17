@@ -18,6 +18,7 @@ import type {
     pageSize: number;
     loadCount: number;
     type?: string;
+    sortBy?: string;
   }) => {
     return getAdapter().track.loadMoreTrack(params);
   };
@@ -48,6 +49,10 @@ import type {
   
   export const getLatestTracks = (type?: string, random?: boolean, pageSize?: number) => {
     return getAdapter().track.getLatestTracks(type, random, pageSize);
+  };
+
+  export const getRecommendedTracks = (type?: string, pageSize?: number, likeRatio?: number) => {
+    return getAdapter().track.getRecommendedTracks(type, pageSize, likeRatio);
   };
   
   export const getTracksByArtist = (artist: string) => {

@@ -1,6 +1,8 @@
 import { usePlayer } from "@/src/context/PlayerContext";
+import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Track, TrackType } from "@/src/models";
+import { trackEvent } from "@/src/services/tracking";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Router } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -19,6 +21,7 @@ import { isCached } from "../services/cache";
 import { downloadTrack } from "../services/downloadManager";
 import { AddToPlaylistModal } from "./AddToPlaylistModal";
 import { EqualizerModal } from "./EqualizerModal";
+import { FilePathModal } from "./FilePathModal";
 import { LyricsFontSizeModal } from "./LyricsFontSizeModal";
 import SleepTimerModal from "./SleepTimerModal";
 
@@ -43,6 +46,7 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { user, device } = useAuth();
 
   // ✨ 从 Context 获取全局设置
   const {
@@ -64,6 +68,7 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
   const [isDownloading, setIsDownloading] = useState(false);
   const [lyricsSizeVisible, setLyricsSizeVisible] = useState(false);
   const [eqVisible, setEqVisible] = useState(false);
+  const [trackPathVisible, setTrackPathVisible] = useState(false);
 
   // 跳过片头/片尾 modal 状态
   const [skipModalVisible, setSkipModalVisible] = useState(false);
@@ -247,6 +252,15 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
       disabled: !currentTrack,
     },
     {
+      icon: "document-text-outline" as const,
+      label: "曲目详情",
+      onPress: () => {
+        setVisible(false);
+        setTrackPathVisible(true);
+      },
+      disabled: !currentTrack,
+    },
+    {
       icon: isDownloaded
         ? ("cloud-done" as const)
         : ("cloud-download-outline" as const),
@@ -269,6 +283,12 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
       onPress: () => {
         setVisible(false);
         setEqVisible(true);
+        trackEvent({
+          feature: "player",
+          eventName: "equalizer_open",
+          userId: user?.id ? String(user.id) : undefined,
+          deviceId: device?.id ? String(device.id) : undefined,
+        });
       },
       disabled: false,
       hidden: Platform.OS !== 'android',
@@ -658,6 +678,13 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
       <EqualizerModal
         visible={Platform.OS === 'android' && eqVisible}
         onClose={() => setEqVisible(false)}
+      />
+
+      <FilePathModal
+        visible={trackPathVisible}
+        title={currentTrack ? `曲目详情 · ${currentTrack.name}` : "曲目详情"}
+        path={currentTrack?.path}
+        onClose={() => setTrackPathVisible(false)}
       />
     </>
   );

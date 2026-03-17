@@ -124,11 +124,6 @@ jobs:
           pnpm --filter @soundx/utils run build
           pnpm --filter @soundx/db run generate
 
-      - name: Expo Prebuild
-        run: |
-          cd apps/mobile
-          npx expo prebuild --platform android --no-install
-
       - name: Copy Network Security Config
         run: |
           mkdir -p apps/mobile/android/app/src/main/res/xml

@@ -7,6 +7,7 @@ import {
 import { List, message, Modal, theme } from "antd";
 import React, { useEffect, useState } from "react";
 import type { Track } from "../../models";
+import { trackEvent } from "../../services/tracking";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { usePlayMode } from "../../utils/playMode";
@@ -25,7 +26,7 @@ const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
   onSuccess,
 }) => {
   const { token } = theme.useToken();
-  const { user } = useAuthStore();
+  const { user, device } = useAuthStore();
   const { mode } = usePlayMode();
   const { insertTracksNext } = usePlayerStore();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -56,6 +57,15 @@ const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
   const handleAddToCurrentPlaylist = () => {
     if (tracks.length === 0) return;
     insertTracksNext(tracks);
+    trackEvent({
+      feature: "player",
+      eventName: "add_to_current_playlist",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+      metadata: {
+        trackCount: tracks.length,
+      },
+    });
     messageApi.success(`已添加 ${tracks.length} 首歌曲到播放队列`);
     if (onSuccess) onSuccess();
     onCancel();

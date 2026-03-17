@@ -18,6 +18,7 @@ import type {
     pageSize: number;
     loadCount: number;
     type?: string;
+    sortBy?: string;
   }) => {
     return getAdapter().album.loadMoreAlbum(params);
   };
@@ -43,8 +44,13 @@ import type {
   };
   
   // Get recommended albums (8 random unlistened albums)
-  export const getRecommendedAlbums = (type?: string, random?: boolean, pageSize?: number) => {
-    return getAdapter().album.getRecommendedAlbums(type, random, pageSize);
+  export const getRecommendedAlbums = (
+    type?: string,
+    random?: boolean,
+    pageSize?: number,
+    likeRatio?: number,
+  ) => {
+    return getAdapter().album.getRecommendedAlbums(type, random, pageSize, likeRatio);
   };
   
   // Get recent albums (8 latest albums)

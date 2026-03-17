@@ -21,7 +21,8 @@ export class SubsonicArtistAdapter implements IArtistAdapter {
   async getArtistList(
     pageSize: number,
     loadCount: number,
-    type?: string
+    type?: string,
+    sortBy?: string
   ) {
     // getArtists returns indexed list.
     const res = await this.client.get<SubsonicArtistList>("getArtists");

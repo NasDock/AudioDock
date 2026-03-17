@@ -7,9 +7,11 @@ import {
   Param,
   Post,
   Put,
-  Query
+  Query,
+  Req,
 } from '@nestjs/common';
 import { Artist, TrackType } from '@soundx/db';
+import { Request } from 'express';
 import {
   IErrorResponse,
   ILoadMoreData,
@@ -78,17 +80,22 @@ export class ArtistController {
   @Get('/artist/load-more')
   @LogMethod()
   async loadMoreArtist(
+    @Req() req: Request,
     @Query('pageSize') pageSize: string,
     @Query('loadCount') loadCount: string,
     @Query('type') type?: TrackType,
+    @Query('sortBy') sortBy?: string,
   ): Promise<ISuccessResponse<ILoadMoreData<Artist[]>> | IErrorResponse> {
     try {
+      const userId = Number((req.user as any)?.userId);
       const size = parseInt(pageSize, 10);
       const count = parseInt(loadCount, 10);
       const artistList = await this.artistService.loadMoreArtist(
         size,
         count,
         type,
+        userId,
+        sortBy,
       );
       const total = await this.artistService.artistCount(type);
       return {

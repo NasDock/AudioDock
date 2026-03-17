@@ -3,7 +3,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Track } from '../models';
 
 const CACHE_DIR = `${FileSystem.documentDirectory || ''}audio_cache/`;
+const COVER_CACHE_DIR = `${FileSystem.documentDirectory || ''}cover_cache/`;
 const OFFLINE_TRACKS_KEY = 'offline_tracks';
+const coverDownloadPromises = new Map<string, Promise<string>>();
 
 /**
  * Ensure the cache directory exists
@@ -13,6 +15,85 @@ export const ensureCacheDirExists = async () => {
   if (!dirInfo.exists) {
     await FileSystem.makeDirectoryAsync(CACHE_DIR, { intermediates: true });
   }
+};
+
+/**
+ * Ensure the cover cache directory exists
+ */
+export const ensureCoverCacheDirExists = async () => {
+  const dirInfo = await FileSystem.getInfoAsync(COVER_CACHE_DIR);
+  if (!dirInfo.exists) {
+    await FileSystem.makeDirectoryAsync(COVER_CACHE_DIR, { intermediates: true });
+  }
+};
+
+const hashString = (value: string): string => {
+  let hash = 5381;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash * 33) ^ value.charCodeAt(i);
+  }
+  return Math.abs(hash >>> 0).toString(36);
+};
+
+const getCoverExtension = (url: string): string => {
+  const cleanUrl = url.split("?")[0];
+  const ext = cleanUrl.split(".").pop()?.toLowerCase();
+  if (!ext) return "jpg";
+  if (ext === "jpeg" || ext === "jpg" || ext === "png" || ext === "webp") {
+    return ext;
+  }
+  return "jpg";
+};
+
+export const getCoverLocalPath = (url: string): string => {
+  const ext = getCoverExtension(url);
+  return `${COVER_CACHE_DIR}${hashString(url)}.${ext}`;
+};
+
+export const getCachedCover = async (url: string): Promise<string | null> => {
+  try {
+    const localPath = getCoverLocalPath(url);
+    const info = await FileSystem.getInfoAsync(localPath);
+    return info.exists ? localPath : null;
+  } catch {
+    return null;
+  }
+};
+
+export const cacheCover = async (url: string): Promise<string> => {
+  if (!url) return url;
+  if (!url.startsWith("http://") && !url.startsWith("https://")) return url;
+
+  const existing = coverDownloadPromises.get(url);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    try {
+      await ensureCoverCacheDirExists();
+
+      const localPath = getCoverLocalPath(url);
+      const exists = await FileSystem.getInfoAsync(localPath);
+      if (exists.exists) return localPath;
+
+      const tempPath = `${localPath}.tmp`;
+      const result = await FileSystem.downloadAsync(url, tempPath);
+      if (result.status === 200) {
+        await FileSystem.moveAsync({ from: tempPath, to: localPath });
+        return localPath;
+      }
+
+      await FileSystem.deleteAsync(tempPath, { idempotent: true });
+      return url;
+    } catch (e) {
+      console.error("[Cache] Failed to cache cover", e);
+      return url;
+    } finally {
+      coverDownloadPromises.delete(url);
+    }
+  })();
+
+  coverDownloadPromises.set(url, promise);
+  return promise;
 };
 
 /**
@@ -31,7 +112,7 @@ export const isCached = async (trackId: number | string, originalPath: string): 
     const localPath = getLocalPath(trackId, originalPath);
     const fileInfo = await FileSystem.getInfoAsync(localPath);
     return fileInfo.exists ? localPath : null;
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -220,7 +301,7 @@ export const getDirectorySize = async (dirPath: string): Promise<number> => {
       }
     }
     return totalSize;
-  } catch (e) {
+  } catch {
     return 0;
   }
 };
@@ -274,19 +355,8 @@ export const getDetailedCacheSize = async (): Promise<DetailedCacheSize> => {
       }
     }
 
-    // 3. Covers (Image Cache)
-    // expo-image stores its cache in different locations based on version and platform
-    const imageCacheDirs = [
-      `${FileSystem.cacheDirectory}ImageCache/`,        // Older expo-image
-      `${FileSystem.cacheDirectory}expo-image-cache/`,   // Newer expo-image
-      `${FileSystem.cacheDirectory}GlideCache/`,        // Android Glide
-      `${FileSystem.cacheDirectory}com.hackemist.SDImageCache/`, // iOS SDWebImage
-    ];
-    
-    for (const dir of imageCacheDirs) {
-      const size = await getDirectorySize(dir);
-      result.covers += size;
-    }
+    // 3. Covers (project persistent directory)
+    result.covers = await getDirectorySize(COVER_CACHE_DIR);
 
   } catch (e) {
     console.error("Failed to get detailed cache size", e);
@@ -314,20 +384,8 @@ export const clearSpecificCache = async (category: keyof DetailedCacheSize) => {
         break;
       
       case 'covers':
-        // Clear all potential image cache directories
-        const imageCacheDirs = [
-          `${FileSystem.cacheDirectory}ImageCache/`,
-          `${FileSystem.cacheDirectory}expo-image-cache/`,
-          `${FileSystem.cacheDirectory}GlideCache/`,
-          `${FileSystem.cacheDirectory}com.hackemist.SDImageCache/`,
-        ];
-        for (const dir of imageCacheDirs) {
-          try {
-            await FileSystem.deleteAsync(dir, { idempotent: true });
-          } catch (e) {
-            // Ignore errors for individual directories
-          }
-        }
+        await FileSystem.deleteAsync(COVER_CACHE_DIR, { idempotent: true });
+        await ensureCoverCacheDirExists();
         break;
 
       case 'music':

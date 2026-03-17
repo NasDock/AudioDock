@@ -3,6 +3,7 @@ import { Avatar, Checkbox, Col, Flex, Modal, Row, message, theme } from "antd";
 import React, { useEffect, useState } from "react";
 import type { User } from "../../models";
 import { socketService } from "../../services/socket";
+import { trackEvent } from "../../services/tracking";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { useSyncStore } from "../../store/sync";
@@ -22,6 +23,7 @@ const UserSelectModal: React.FC<UserSelectModalProps> = ({
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const currentUser = useAuthStore((state) => state.user);
+  const device = useAuthStore((state) => state.device);
   const [messageApi, contextHolder] = message.useMessage();
   const { currentTrack, playlist, currentTime } = usePlayerStore();
   const [waitingUserIds, setWaitingUserIds] = useState<Set<number>>(new Set());
@@ -36,8 +38,10 @@ const UserSelectModal: React.FC<UserSelectModalProps> = ({
   useEffect(() => {
     if (visible) {
       fetchUsers();
-      setWaitingUserIds(new Set());
-      setInviteStatuses(new Map());
+      if (waitingUserIds.size === 0) {
+        setWaitingUserIds(new Set());
+        setInviteStatuses(new Map());
+      }
     }
   }, [visible]);
 
@@ -48,7 +52,7 @@ const UserSelectModal: React.FC<UserSelectModalProps> = ({
       // We need to identify IF the session that started involves us and someone we invited.
 
       const otherUserId = payload.users.find(
-        (id: number) => id !== currentUser?.id
+        (id: number) => id !== currentUser?.id,
       );
 
       if (otherUserId && waitingUserIds.has(otherUserId)) {
@@ -115,14 +119,28 @@ const UserSelectModal: React.FC<UserSelectModalProps> = ({
     console.log("Inviting users:", currentTime);
 
     // Determine Session ID: Reuse if synced, else create new unique one
-    const currentSessionId = isSynced && sessionId ? sessionId : `sync_session_${currentUser?.id}_${Date.now()}`;
-    
+    const currentSessionId =
+      isSynced && sessionId
+        ? sessionId
+        : `sync_session_${currentUser?.id}_${Date.now()}`;
+
     socketService.emit("invite", {
       targetUserIds: selectedUserIds,
       currentTrack,
       playlist,
       progress: currentTime,
       sessionId: currentSessionId, // Send Session ID
+    });
+
+    trackEvent({
+      feature: "sync",
+      eventName: "sync_control_initiate",
+      userId: currentUser?.id ? String(currentUser.id) : undefined,
+      sessionId: currentSessionId,
+      deviceId: device?.id ? String(device.id) : undefined,
+      metadata: {
+        targetUserCount: selectedUserIds.length,
+      },
     });
     // messageApi.success("邀请已发送"); // Don't show success yet, wait for response
 
@@ -191,14 +209,14 @@ const UserSelectModal: React.FC<UserSelectModalProps> = ({
         setSelectedUserIds([]);
         onCancel();
       }}
-      destroyOnHidden
       onOk={handleInvite}
       confirmLoading={waitingUserIds.size > 0}
       okText={waitingUserIds.size > 0 ? "等待响应..." : "发送邀请"}
       okButtonProps={{ loading }}
-      cancelButtonProps={{ disabled: waitingUserIds.size > 0 }}
-      closable={waitingUserIds.size === 0}
-      maskClosable={waitingUserIds.size === 0}
+      cancelButtonProps={{ disabled: false }}
+      closable={true}
+      maskClosable={true}
+      keyboard={true}
     >
       <Checkbox.Group style={{ width: "100%" }}>
         <Row gutter={[20, 20]}>
@@ -212,7 +230,12 @@ const UserSelectModal: React.FC<UserSelectModalProps> = ({
                   disabled={waitingUserIds.has(user.id as number)}
                 >
                   <Flex gap={8} align="center">
-                    <Avatar size={30} style={{ backgroundColor: token.colorPrimary, }}>{user.username[0].toUpperCase()}</Avatar>
+                    <Avatar
+                      size={30}
+                      style={{ backgroundColor: token.colorPrimary }}
+                    >
+                      {user.username[0].toUpperCase()}
+                    </Avatar>
                     {user.username}
                   </Flex>
                 </Checkbox>

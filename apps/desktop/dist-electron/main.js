@@ -1,11 +1,15 @@
 import { spawn } from "child_process";
-import { ipcMain, app, dialog, shell, net, screen, BrowserWindow, protocol, Menu, Tray, nativeImage } from "electron";
+import { app, ipcMain, dialog, shell, net, screen, BrowserWindow, protocol, Menu, Tray, nativeImage } from "electron";
 import fs from "fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import os from "os";
 import path from "path";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
+app.name = "AudioDock";
+if (process.platform === "darwin") {
+  process.title = "AudioDock";
+}
 function getDeviceName() {
   const hostname = os.hostname().replace(/\.local$/, "");
   const platform = process.platform;
@@ -246,6 +250,114 @@ function updatePlayerUI(shouldUpdateTitle = true) {
   );
   const menu = Menu.buildFromTemplate(menuItems);
   trayMain?.setContextMenu(menu);
+}
+function setupApplicationMenu() {
+  const isMac = process.platform === "darwin";
+  const template = [
+    ...isMac ? [
+      {
+        label: app.name,
+        submenu: [
+          { role: "about", label: `关于 ${app.name}` },
+          { type: "separator" },
+          { role: "services", label: "服务" },
+          { type: "separator" },
+          { role: "hide", label: `隐藏 ${app.name}` },
+          { role: "hideOthers", label: "隐藏其他" },
+          { role: "unhide", label: "显示全部" },
+          { type: "separator" },
+          { role: "quit", label: `退出 ${app.name}` }
+        ]
+      }
+    ] : [],
+    {
+      label: "文件",
+      submenu: [isMac ? { role: "close", label: "关闭窗口" } : { role: "quit", label: "退出" }]
+    },
+    {
+      label: "编辑",
+      submenu: [
+        { role: "undo", label: "撤销" },
+        { role: "redo", label: "重做" },
+        { type: "separator" },
+        { role: "cut", label: "剪切" },
+        { role: "copy", label: "复制" },
+        { role: "paste", label: "粘贴" },
+        ...isMac ? [
+          { role: "pasteAndMatchStyle", label: "粘贴并匹配样式" },
+          { role: "delete", label: "删除" },
+          { role: "selectAll", label: "全选" },
+          { type: "separator" },
+          {
+            label: "演讲",
+            submenu: [
+              { role: "startSpeaking", label: "开始朗读" },
+              { role: "stopSpeaking", label: "停止朗读" }
+            ]
+          }
+        ] : [
+          { role: "delete", label: "删除" },
+          { type: "separator" },
+          { role: "selectAll", label: "全选" }
+        ]
+      ]
+    },
+    {
+      label: "视图",
+      submenu: [
+        { role: "reload", label: "重新加载" },
+        { role: "forceReload", label: "强制重新加载" },
+        { role: "toggleDevTools", label: "开发者工具" },
+        { type: "separator" },
+        { role: "resetZoom", label: "实际大小" },
+        { role: "zoomIn", label: "放大" },
+        { role: "zoomOut", label: "缩小" },
+        { type: "separator" },
+        { role: "togglefullscreen", label: "切换全屏" }
+      ]
+    },
+    {
+      label: "窗口",
+      submenu: [
+        { role: "minimize", label: "最小化" },
+        { role: "zoom", label: "缩放" },
+        ...isMac ? [
+          { type: "separator" },
+          { role: "front", label: "前置全部窗口" },
+          { type: "separator" },
+          { role: "window", label: "窗口" }
+        ] : [
+          { role: "close", label: "关闭" }
+        ]
+      ]
+    },
+    {
+      role: "help",
+      label: "帮助",
+      submenu: [
+        {
+          label: "项目主页",
+          click: async () => {
+            await shell.openExternal("https://www.audiodock.cn");
+          }
+        },
+        {
+          label: "查看文档",
+          click: async () => {
+            await shell.openExternal("https://www.audiodock.cn/docs");
+          }
+        },
+        {
+          label: "报告问题",
+          click: async () => {
+            await shell.openExternal("https://github.com/mmdctjj/AudioDock/issues");
+          }
+        }
+      ]
+    }
+  ];
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
 }
 ipcMain.on("player:update", (event, payload) => {
   playerState = { ...playerState, ...payload };
@@ -521,6 +633,16 @@ protocol.registerSchemesAsPrivileged([
 ]);
 app.whenReady().then(() => {
   console.log(`[Main] App is ready.`);
+  if (process.platform === "darwin") {
+    app.setAboutPanelOptions({
+      applicationName: "AudioDock",
+      applicationVersion: app.getVersion(),
+      version: app.getVersion(),
+      copyright: "Copyright © 2026 北京声仓科技有限公司",
+      website: "https://www.audiodock.cn",
+      iconPath: path.join(process.env.VITE_PUBLIC, "logo.png")
+    });
+  }
   console.log(`[Main] CACHE_DIR set to: ${CACHE_DIR}`);
   console.log(`[Main] Initial Download Path: ${currentDownloadPath || "Default (app/downloads)"}`);
   protocol.handle("app", (request) => {
@@ -619,6 +741,7 @@ app.whenReady().then(() => {
   });
   createWindow();
   createTray();
+  setupApplicationMenu();
 });
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

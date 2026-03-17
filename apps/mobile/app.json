@@ -2,7 +2,7 @@
   "expo": {
     "name": "AudioDock",
     "slug": "AudioDock 听见你的声音",
-    "version": "1.0.82",
+    "version": "1.0.84",
     "orientation": "default",
     "icon": "../../images/logo.png",
     "scheme": "audiodock",
@@ -17,6 +17,11 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.soundx.mobile.dev",
       "infoPlist": {
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ],
         "UIBackgroundModes": [
           "audio"
         ],
@@ -30,7 +35,22 @@
           }
         },
         "NSPhotoLibraryAddUsageDescription": "Allow AudioDock to save photos to your library so you can save the donation QR code.",
-        "NSPhotoLibraryUsageDescription": "Allow AudioDock to access your photo library."
+        "NSPhotoLibraryUsageDescription": "Allow AudioDock to access your photo library.",
+        "LSApplicationQueriesSchemes": [
+          "weixin",
+          "wechat",
+          "alipay",
+          "alipays"
+        ],
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "audiodock",
+              "wx_mock_appid",
+              "alipaymock"
+            ]
+          }
+        ]
       }
     },
     "android": {

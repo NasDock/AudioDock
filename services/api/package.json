@@ -1,6 +1,6 @@
 {
   "name": "api",
-  "version": "1.0.82",
+  "version": "1.0.84",
   "description": "",
   "author": "mmdctjj <mmdctjj@gmail.com>",
   "repository": {
@@ -38,9 +38,11 @@
     "@soundx/db": "workspace:*",
     "@soundx/utils": "workspace:*",
     "@types/chokidar": "^2.1.7",
+    "chinese-conv": "^4.0.0",
     "chokidar": "^5.0.0",
     "dayjs": "^1.11.19",
     "http-proxy-middleware": "^3.0.5",
+    "multi-llm-ts": "5.1.0-beta4",
     "nestjs-pino": "^4.5.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",

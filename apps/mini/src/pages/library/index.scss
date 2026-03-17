@@ -3,6 +3,7 @@
   background-color: #f8f9fa;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .header {
@@ -98,10 +99,10 @@
 }
 
 .grid-container {
-    display: flex;
-    flex-wrap: wrap;
-    flex-direction: row;
-    padding: 0 20px;
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  padding: 0 20px;
     gap: 20rpx;
 }
 
@@ -133,13 +134,60 @@
 }
 
 .item-name {
-    font-size: var(--font-size-sm);
-    color: #333;
-    text-align: center;
+  font-size: var(--font-size-sm);
+  color: #333;
+  text-align: center;
     width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+  white-space: nowrap;
+}
+
+.track-list {
+  padding: 0 20px;
+}
+
+.track-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid #eceef2;
+}
+
+.track-cover {
+  width: 78rpx;
+  height: 78rpx;
+  border-radius: 10rpx;
+  background-color: #eee;
+  margin-right: 16rpx;
+}
+
+.track-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.track-name {
+  font-size: 28rpx;
+  color: #111827;
+}
+
+.track-name.active {
+  color: #000;
+  font-weight: bold;
+}
+
+.track-sub {
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+.track-playing {
+  margin-left: 12rpx;
+  font-size: 22rpx;
+  color: #111;
 }
 
 .empty-state {
@@ -152,4 +200,44 @@
 .empty-text {
     color: #999;
     font-size: var(--font-size-base);
+}
+
+.track-more-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.track-more-content {
+  width: 100%;
+  background-color: #fff;
+  border-top-left-radius: 20rpx;
+  border-top-right-radius: 20rpx;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.track-more-item {
+  padding: 40rpx;
+  text-align: center;
+  border-bottom: 1rpx solid rgba(150, 150, 150, 0.1);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.track-more-item-text {
+  font-size: 32rpx;
+  color: #333;
+
+  &.cancel {
+    color: #999;
+  }
 }

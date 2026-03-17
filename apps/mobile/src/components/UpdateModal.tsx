@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 interface UpdateModalProps {
   visible: boolean;
   progress: number;
+  isUpdating: boolean;
   updateInfo: UpdateInfo | null;
   onUpdate: () => void;
   onIgnore: () => void;
@@ -17,6 +18,7 @@ interface UpdateModalProps {
 export const UpdateModal = ({ 
   visible, 
   progress, 
+  isUpdating,
   updateInfo,
   onUpdate,
   onIgnore,
@@ -24,7 +26,7 @@ export const UpdateModal = ({
   onBackground 
 }: UpdateModalProps) => {
 
-  const isDownloading = progress > 0;
+  const isDownloading = isUpdating || progress > 0;
 
     const { colors } = useTheme();
 
@@ -34,7 +36,9 @@ export const UpdateModal = ({
         <View style={[styles.card, { backgroundColor: colors.background, boxShadow: `0px 0px 10px ${colors.secondary}` }]}>
           {isDownloading ? (
             <>
-              <Text style={[styles.title, { color: colors.text }]}>正在更新</Text>
+              <Text style={[styles.title, { color: colors.text }]}>
+                {progress > 0 ? "正在更新" : "准备下载中"}
+              </Text>
               
               {/* 进度条区域 */}
               <View style={styles.progressContainer}>
@@ -42,9 +46,11 @@ export const UpdateModal = ({
                   <View style={[styles.progressBarFill, { width: `${progress * 100}%`, backgroundColor: colors.text }]} />
                 </View>
               </View>
-              <Text style={styles.percentText}>{(progress * 100).toFixed(0)}%</Text>
+              <Text style={styles.percentText}>
+                {progress > 0 ? `${(progress * 100).toFixed(0)}%` : "正在请求下载链接..."}
+              </Text>
               
-              {progress < 1 && (
+              {(isUpdating || progress < 1) && (
                 <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 10 }} />
               )}
 
@@ -74,8 +80,17 @@ export const UpdateModal = ({
                  <TouchableOpacity style={[styles.ignoreBtn, { backgroundColor: colors.background }]} onPress={onIgnore}>
                    <Text style={[styles.ignoreBtnText, { color: colors.text }]}>忽略此版本</Text>
                  </TouchableOpacity>
-                 <TouchableOpacity style={[styles.updateBtn, { backgroundColor: colors.primary }]} onPress={onUpdate}>
-                   <Text style={[styles.updateBtnText, { color: colors.background }]}>立即更新</Text>
+                 <TouchableOpacity
+                   style={[
+                     styles.updateBtn,
+                     { backgroundColor: colors.primary, opacity: isUpdating ? 0.7 : 1 },
+                   ]}
+                   onPress={onUpdate}
+                   disabled={isUpdating}
+                 >
+                   <Text style={[styles.updateBtnText, { color: colors.background }]}>
+                     {isUpdating ? "准备中..." : "立即更新"}
+                   </Text>
                  </TouchableOpacity>
                </View>
             </>

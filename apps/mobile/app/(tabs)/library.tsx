@@ -26,6 +26,7 @@ import { Album, Artist, Track } from "../../src/models";
 import { downloadTracks } from "../../src/services/downloadManager";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
+import { trackEvent } from "../../src/services/tracking";
 
 const GAP = 15;
 const SCREEN_PADDING = 40; // 20 horizontal padding * 2
@@ -36,6 +37,8 @@ interface SongListProps {
   setIsSelectionMode: (value: boolean) => void;
   selectedTrackIds: (number | string)[];
   setSelectedTrackIds: (value: (number | string)[]) => void;
+  heartbeatModeActive: boolean;
+  onToggleHeartbeatMode: () => void;
 }
 
 const SongList = ({
@@ -43,6 +46,8 @@ const SongList = ({
   setIsSelectionMode,
   selectedTrackIds,
   setSelectedTrackIds,
+  heartbeatModeActive,
+  onToggleHeartbeatMode,
 }: SongListProps) => {
   const { colors } = useTheme();
   const { mode } = usePlayMode();
@@ -56,18 +61,26 @@ const SongList = ({
   const handleLocateCurrent = () => {
     if (!currentTrack || !tracks.length) return;
     const index = tracks.findIndex((t) => t.id === currentTrack.id);
-    if (index !== -1) {
-      flatListRef.current?.scrollToIndex({
-        index,
-        animated: true,
-        viewPosition: 0.5,
-      });
+    if (index !== -1 && index < tracks.length) {
+      try {
+        flatListRef.current?.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0.5,
+        });
+      } catch {
+        const estimatedItemHeight = 68;
+        flatListRef.current?.scrollToOffset({
+          offset: Math.max(0, index * estimatedItemHeight),
+          animated: true,
+        });
+      }
     }
   };
 
   useEffect(() => {
     loadTracks();
-  }, [mode]);
+  }, [mode, heartbeatModeActive]);
 
   const loadTracks = async () => {
     try {
@@ -76,6 +89,7 @@ const SongList = ({
         pageSize: 2000,
         loadCount: 0,
         type: mode,
+        sortBy: heartbeatModeActive ? "heartbeat" : undefined,
       });
 
       if (res.code === 200 && res.data) {
@@ -83,7 +97,11 @@ const SongList = ({
         const mappedTracks = list.map((item: any) =>
           item.track ? item.track : item,
         );
-        setTracks(mappedTracks.sort((a: any, b: any) => a.name.localeCompare(b.name)));
+        setTracks(
+          heartbeatModeActive
+            ? mappedTracks
+            : mappedTracks.sort((a, b) => a.name.localeCompare(b.name)),
+        );
       }
     } catch (error) {
       console.error("Failed to load tracks:", error);
@@ -282,12 +300,21 @@ const SongList = ({
         locateDisabled={
           !currentTrack || !tracks.some((t) => t.id === currentTrack.id)
         }
+        showHeartbeatMode={mode === "MUSIC"}
+        heartbeatModeActive={heartbeatModeActive}
+        onToggleHeartbeatMode={onToggleHeartbeatMode}
       />
     </>
   );
 };
 
-const ArtistList = () => {
+const ArtistList = ({
+  heartbeatModeActive,
+  onToggleHeartbeatMode,
+}: {
+  heartbeatModeActive: boolean;
+  onToggleHeartbeatMode: () => void;
+}) => {
   const { colors } = useTheme();
   const router = useRouter();
   const { mode } = usePlayMode();
@@ -300,12 +327,21 @@ const ArtistList = () => {
   const handleLocateCurrent = () => {
     if (!currentTrack || !artists.length) return;
     const index = artists.findIndex((a) => a.name === currentTrack.artist);
-    if (index !== -1) {
-      flatListRef.current?.scrollToIndex({
-        index,
-        animated: true,
-        viewPosition: 0.5,
-      });
+    if (index !== -1 && index < artists.length) {
+      try {
+        flatListRef.current?.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0.5,
+        });
+      } catch {
+        const rowIndex = Math.floor(index / numColumns);
+        const rowHeight = itemWidth + 15;
+        flatListRef.current?.scrollToOffset({
+          offset: Math.max(0, rowIndex * rowHeight),
+          animated: true,
+        });
+      }
     }
   };
 
@@ -319,16 +355,25 @@ const ArtistList = () => {
 
   useEffect(() => {
     loadArtists();
-  }, [mode]);
+  }, [mode, heartbeatModeActive]);
 
   const loadArtists = async () => {
     try {
       setLoading(true);
-      const res = await getArtistList(1000, 0, mode);
+      const res = await getArtistList(
+        1000,
+        0,
+        mode,
+        heartbeatModeActive ? "heartbeat" : undefined,
+      );
 
       if (res.code === 200 && res.data) {
         const { list } = res.data;
-        setArtists(list.sort((a, b) => a.name.localeCompare(b.name)));
+        setArtists(
+          heartbeatModeActive
+            ? list
+            : list.sort((a, b) => a.name.localeCompare(b.name)),
+        );
       }
     } catch (error) {
       console.error("Failed to load artists:", error);
@@ -414,12 +459,21 @@ const ArtistList = () => {
           !currentTrack || !artists.some((a) => a.name === currentTrack.artist)
         }
         onLocateCurrent={handleLocateCurrent}
+        showHeartbeatMode={mode === "MUSIC"}
+        heartbeatModeActive={heartbeatModeActive}
+        onToggleHeartbeatMode={onToggleHeartbeatMode}
       />
     </View>
   );
 };
 
-const AlbumList = () => {
+const AlbumList = ({
+  heartbeatModeActive,
+  onToggleHeartbeatMode,
+}: {
+  heartbeatModeActive: boolean;
+  onToggleHeartbeatMode: () => void;
+}) => {
   const { colors } = useTheme();
   const router = useRouter();
   const { mode } = usePlayMode();
@@ -464,7 +518,7 @@ const AlbumList = () => {
 
   useEffect(() => {
     loadAlbums();
-  }, [mode]);
+  }, [mode, heartbeatModeActive]);
 
   const loadAlbums = async () => {
     try {
@@ -473,11 +527,16 @@ const AlbumList = () => {
         pageSize: 1000,
         loadCount: 0,
         type: mode,
+        sortBy: heartbeatModeActive ? "heartbeat" : undefined,
       });
 
       if (res.code === 200 && res.data) {
         const { list } = res.data;
-        setAlbums(list.sort((a, b) => a.name.localeCompare(b.name)));
+        setAlbums(
+          heartbeatModeActive
+            ? list
+            : list.sort((a, b) => a.name.localeCompare(b.name)),
+        );
       }
     } catch (error) {
       console.error("Failed to load albums:", error);
@@ -593,6 +652,9 @@ const AlbumList = () => {
         }
         flatListRef={flatListRef}
         onLocateCurrent={handleLocateCurrent}
+        showHeartbeatMode={mode === "MUSIC"}
+        heartbeatModeActive={heartbeatModeActive}
+        onToggleHeartbeatMode={onToggleHeartbeatMode}
       />
     </View>
   );
@@ -602,7 +664,7 @@ export default function LibraryScreen() {
   const { colors, theme } = useTheme();
   const router = useRouter();
   const { mode, setMode } = usePlayMode();
-  const { sourceType } = useAuth();
+  const { sourceType, user, device } = useAuth();
   const { playTrackList } = usePlayer();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<"songs" | "artists" | "albums">(
@@ -612,6 +674,7 @@ export default function LibraryScreen() {
   const [selectedTrackIds, setSelectedTrackIds] = useState<(number | string)[]>(
     [],
   );
+  const [heartbeatModeActive, setHeartbeatModeActive] = useState(false);
   const swingAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -647,6 +710,12 @@ export default function LibraryScreen() {
       setSelectedTrackIds([]);
     }
   }, [mode, activeTab]);
+
+  useEffect(() => {
+    if (mode !== "MUSIC" && heartbeatModeActive) {
+      setHeartbeatModeActive(false);
+    }
+  }, [mode, heartbeatModeActive]);
 
   return (
     <View
@@ -714,13 +783,17 @@ export default function LibraryScreen() {
                         pageSize: 2000,
                         loadCount: 0,
                         type: "MUSIC",
+                        sortBy: heartbeatModeActive ? "heartbeat" : undefined,
                       });
                       if (res.code === 200 && res.data) {
                         const list = res.data.list;
                         const tracks = list.map((item: any) =>
                           item.track ? item.track : item,
                         );
-                        playTrackList(tracks, 0);
+                        const finalTracks = heartbeatModeActive
+                          ? tracks
+                          : tracks.sort((a, b) => a.name.localeCompare(b.name));
+                        playTrackList(finalTracks, 0);
                       }
                     }}
                     style={[
@@ -735,7 +808,15 @@ export default function LibraryScreen() {
             </>
           )}
           <TouchableOpacity
-            onPress={() => router.push("/folder" as any)}
+            onPress={() => {
+              trackEvent({
+                feature: "library",
+                eventName: "folder_mode_entry",
+                userId: user?.id ? String(user.id) : undefined,
+                deviceId: device?.id ? String(device.id) : undefined,
+              });
+              router.push("/folder" as any);
+            }}
             style={[
               styles.iconButton,
               { backgroundColor: colors.card, marginRight: 12 },
@@ -848,11 +929,25 @@ export default function LibraryScreen() {
           setIsSelectionMode={setIsSelectionMode}
           selectedTrackIds={selectedTrackIds}
           setSelectedTrackIds={setSelectedTrackIds}
+          heartbeatModeActive={heartbeatModeActive}
+          onToggleHeartbeatMode={() =>
+            setHeartbeatModeActive((prev) => !prev)
+          }
         />
       ) : activeTab === "artists" ? (
-        <ArtistList />
+        <ArtistList
+          heartbeatModeActive={heartbeatModeActive}
+          onToggleHeartbeatMode={() =>
+            setHeartbeatModeActive((prev) => !prev)
+          }
+        />
       ) : (
-        <AlbumList />
+        <AlbumList
+          heartbeatModeActive={heartbeatModeActive}
+          onToggleHeartbeatMode={() =>
+            setHeartbeatModeActive((prev) => !prev)
+          }
+        />
       )}
     </View>
   );

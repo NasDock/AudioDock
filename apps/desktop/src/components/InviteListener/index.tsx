@@ -2,8 +2,10 @@ import { Button, notification, Space, Typography } from "antd";
 import React, { useEffect } from "react";
 import type { Track } from "../../models";
 import { socketService } from "../../services/socket";
+import { trackEvent } from "../../services/tracking";
 import { usePlayerStore } from "../../store/player";
 import { useSettingsStore } from "../../store/settings";
+import { useAuthStore } from "../../store/auth";
 import { getCoverUrl } from "../../utils";
 
 const { Text } = Typography;
@@ -75,6 +77,7 @@ const InviteContent: React.FC<{
 const InviteListener: React.FC = () => {
   const [api, contextHolder] = notification.useNotification();
   const { play, setPlaylist } = usePlayerStore();
+  const { user, device } = useAuthStore();
 
   useEffect(() => {
     const handleInviteReceived = (payload: {
@@ -111,6 +114,16 @@ const InviteListener: React.FC = () => {
         api.destroy(key);
 
         if (accept) {
+          trackEvent({
+            feature: "sync",
+            eventName: "sync_control_accept",
+            userId: user?.id ? String(user.id) : undefined,
+            sessionId: payload.sessionId,
+            deviceId: device?.id ? String(device.id) : undefined,
+            metadata: {
+              fromUserId: payload.fromUserId,
+            },
+          });
           if (payload.currentTrack) {
             const onSessionStart = () => {
               play(payload.currentTrack, payload.currentTrack?.albumEntity?.id, payload.progress || 0);

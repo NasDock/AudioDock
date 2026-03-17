@@ -4,19 +4,27 @@ export default defineAppConfig({
     'pages/library/index',
     'pages/personal/index',
     'pages/login/index',
+    'pages/login-form/index',
     'pages/search/index',
     'pages/player/index',
     'pages/artist/index',
     'pages/album/index',
-    'pages/album/index',
+    'pages/playlist/index',
+    'pages/folder/index',
     'pages/settings/index',
-    'pages/admin/index'
+    'pages/admin/index',
+    'pages/source-manage/index'
   ],
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#fff',
     navigationBarTitleText: 'SoundX',
     navigationBarTextStyle: 'black'
+  },
+  permission: {
+    'scope.record': {
+      desc: '用于语音搜索'
+    }
   },
   tabBar: {
     color: '#999999',

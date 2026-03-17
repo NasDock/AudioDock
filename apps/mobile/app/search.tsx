@@ -22,6 +22,8 @@ import {
     ActivityIndicator,
     FlatList,
     Image,
+    Keyboard,
+    Platform,
     StyleSheet,
     Text,
     TextInput,
@@ -66,6 +68,7 @@ export default function SearchScreen() {
   // Recording state
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
     return () => {
@@ -76,6 +79,23 @@ export default function SearchScreen() {
       }
     };
   }, [recording]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height || 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const startRecording = async () => {
     try {
@@ -338,16 +358,6 @@ export default function SearchScreen() {
               <Ionicons name="close-circle" size={20} color={colors.secondary} />
             </TouchableOpacity>
           )}
-          <TouchableOpacity 
-            onPress={isRecording ? stopRecording : startRecording}
-            activeOpacity={0.7}
-          >
-            <Ionicons 
-              name={isRecording ? "mic" : "mic-outline"} 
-              size={22} 
-              color={isRecording ? colors.primary : colors.secondary} 
-            />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -428,6 +438,25 @@ export default function SearchScreen() {
           contentContainerStyle={{ paddingBottom: 100 }}
         />
       )}
+
+      <TouchableOpacity
+        style={[
+          styles.voiceButton,
+          {
+            backgroundColor: colors.card,
+            borderColor: isRecording ? colors.primary : colors.border,
+            bottom: keyboardHeight > 0 ? keyboardHeight + 12 : insets.bottom + 20,
+          },
+        ]}
+        onPress={isRecording ? stopRecording : startRecording}
+        activeOpacity={0.85}
+      >
+        <Ionicons
+          name={isRecording ? "mic" : "mic-outline"}
+          size={24}
+          color={isRecording ? colors.primary : colors.secondary}
+        />
+      </TouchableOpacity>
 
       {/* Add To Playlist Modal */}
       <AddToPlaylistModal 
@@ -570,5 +599,20 @@ const styles = StyleSheet.create({
   hotTagText: {
     fontSize: 10,
     fontWeight: 'bold',
-  }
+  },
+  voiceButton: {
+    position: "absolute",
+    alignSelf: "center",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
 });

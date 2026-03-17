@@ -45,6 +45,7 @@ const ArtistDetail: React.FC = () => {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
   const { mode } = usePlayMode();
+  const isEmbySource = (localStorage.getItem("selectedSourceType") || "").toLowerCase() === "emby";
 
   // Selection Mode
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -59,11 +60,11 @@ const ArtistDetail: React.FC = () => {
         const artistRes = await getArtistById(id as unknown as number);
         if (artistRes.code === 200 && artistRes.data) {
           setArtist(artistRes.data);
-          // Fetch albums using artist name
+          const artistQueryKey = isEmbySource ? String(id) : artistRes.data.name;
           const [albumsRes, collaborativeRes, tracksRes] = await Promise.all([
-            getAlbumsByArtist(artistRes.data.name),
-            getCollaborativeAlbumsByArtist(artistRes.data.name),
-            getTracksByArtist(artistRes.data.name),
+            getAlbumsByArtist(artistQueryKey),
+            getCollaborativeAlbumsByArtist(artistQueryKey),
+            getTracksByArtist(artistQueryKey),
           ]);
 
           if (albumsRes.code === 200 && albumsRes.data) {

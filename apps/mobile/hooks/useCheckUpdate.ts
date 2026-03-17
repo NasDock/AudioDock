@@ -17,6 +17,7 @@ export const useCheckUpdate = () => {
   // UI 状态
   const [progress, setProgress] = useState(0);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const checkUpdate = async () => {
     if (Platform.OS !== 'android') return;
@@ -82,6 +83,7 @@ export const useCheckUpdate = () => {
   };
 
   const startUpdate = () => {
+    if (isUpdating) return;
     if (updateInfo) {
       startDownload(updateInfo.downloadUrl);
       // Keep updateInfo to show progress in the same modal context if needed, 
@@ -115,6 +117,7 @@ export const useCheckUpdate = () => {
 
   // 内部函数：处理下载流程
   const startDownload = async (url: string) => {
+    setIsUpdating(true);
     setProgress(0);
 
     try {
@@ -123,6 +126,8 @@ export const useCheckUpdate = () => {
       });
     } catch (e) {
       Alert.alert('更新失败', '网络连接错误，请重试');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -130,6 +135,7 @@ export const useCheckUpdate = () => {
   return {
     checkUpdate,
     progress,
+    isUpdating,
     updateInfo,
     startUpdate,
     ignoreUpdate,

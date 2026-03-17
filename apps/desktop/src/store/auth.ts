@@ -1,11 +1,29 @@
 import {
-    setServiceConfig,
-    SOURCEMAP,
-    useNativeAdapter,
-    useSubsonicAdapter,
+  setServiceConfig,
+  SOURCEMAP,
+  useEmbyAdapter,
+  useNativeAdapter,
+  useSubsonicAdapter,
 } from "@soundx/services";
 import { create } from "zustand";
 import type { User } from "../models";
+
+const resolveStoredUser = (raw: string | null): User | null => {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.id) return parsed as User;
+    if (parsed?.user?.id) return parsed.user as User;
+  } catch (e) {}
+  return null;
+};
+
+const resolveStoredUserId = (raw: string | null): string | undefined => {
+  const user = resolveStoredUser(raw);
+  if (!user?.id) return undefined;
+  const value = String(user.id).trim();
+  return value && value !== "undefined" ? value : undefined;
+};
 
 // Helper to configure service adapter
 const initService = (address: string, type: string) => {
@@ -20,9 +38,15 @@ const initService = (address: string, type: string) => {
     } catch (e) {}
   }
 
+  const token = localStorage.getItem(`token_${address}`);
+  const userStr = localStorage.getItem(`user_${address}`);
+  const userId = resolveStoredUserId(userStr);
+
   setServiceConfig({
     username,
     password,
+    token: token || undefined,
+    userId,
     clientName: "SoundX Desktop",
     baseUrl: address,
   });
@@ -30,6 +54,7 @@ const initService = (address: string, type: string) => {
   const mappedType =
     SOURCEMAP[type as keyof typeof SOURCEMAP] || "audiodock";
   if (mappedType === "subsonic") useSubsonicAdapter();
+  else if (mappedType === "emby") useEmbyAdapter();
   else useNativeAdapter();
 };
 
@@ -57,7 +82,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   token: initToken || null,
-  user: initUser ? JSON.parse(initUser) : null,
+  user: resolveStoredUser(initUser),
   device: initDevice ? JSON.parse(initDevice) : null,
   plusToken: initPlusToken || null,
   login: (token, user, device) => set({ token, user, device }),
@@ -67,9 +92,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.removeItem(`token_${url}`);
     localStorage.removeItem(`user_${url}`);
     localStorage.removeItem(`device_${url}`);
-    localStorage.removeItem("plus_token");
-    localStorage.removeItem("plus_user_id");
-    set({ token: null, user: null, device: null, plusToken: null });
+    set({ token: null, user: null, device: null });
   },
   switchServer: (url: string) => {
     localStorage.setItem("serverAddress", url);
@@ -82,7 +105,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     set({
       token: token || null,
-      user: user ? JSON.parse(user) : null,
+      user: resolveStoredUser(user),
       device: device ? JSON.parse(device) : null,
     });
   },

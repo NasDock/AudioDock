@@ -55,6 +55,7 @@
 .content-scroll {
   flex: 1;
   height: 1px;
+  padding-bottom: 140rpx;
 }
 
 .suggest-section {
@@ -212,4 +213,35 @@
   text-align: center;
   color: #999;
   font-size: var(--font-size-base);
+}
+
+.voice-button {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tab-bar-height) + 30rpx);
+  transform: translateX(-50%);
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 56rpx;
+  background-color: #ffffff;
+  border: 1rpx solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.12);
+  z-index: 50;
+}
+
+.voice-button.recording {
+  border-color: #007aff;
+  box-shadow: 0 10rpx 24rpx rgba(0, 122, 255, 0.24);
+}
+
+.voice-icon {
+  font-size: 50rpx;
+  color: #6b7280;
+}
+
+.voice-button.recording .voice-icon {
+  color: #007aff;
 }

@@ -1,0 +1,39 @@
+.quick-locate {
+  position: absolute;
+  right: 24rpx;
+  bottom: calc(var(--mini-player-height) + 40rpx);
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  z-index: 999;
+}
+
+.quick-locate-btn {
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 34rpx;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 6rpx 14rpx rgba(0, 0, 0, 0.12);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.quick-locate-btn.disabled {
+  opacity: 0.35;
+}
+
+.quick-locate-btn.heartbeat-btn.active {
+  background: #111;
+
+  .quick-locate-icon {
+    color: #fff;
+  }
+}
+
+.quick-locate-icon {
+  font-size: 28rpx;
+  color: #111;
+  line-height: 1;
+  font-weight: 600;
+}

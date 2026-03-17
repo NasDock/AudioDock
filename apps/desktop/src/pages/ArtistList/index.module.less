@@ -1,6 +1,7 @@
 .container {
+  flex: 1;
   padding: 0px 30px;
-  height: calc(100vh - 134px);
+  height: calc(100vh - 154px);
   overflow-y: auto;
   box-sizing: border-box;
   background-color: rgba(255, 255, 255, 0.1);
@@ -12,8 +13,15 @@
   margin: 0 !important;
 }
 
-.content {
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding-top: 20px;
+}
+
+.content {
+  padding-top: 16px;
   padding-bottom: 30px;
   height: calc(100vh - 134px);
 }
@@ -69,4 +77,28 @@
   text-align: center;
   margin-top: 24px;
   color: var(--ant-color-text-secondary);
+}
+
+.skeletonCard {
+  width: 120px;
+}
+
+.skeletonName {
+  width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+
+  :global {
+    .ant-skeleton {
+      width: 100%;
+    }
+
+    .ant-skeleton-input {
+      width: 100% !important;
+      min-width: 0;
+      display: block;
+    }
+  }
 }

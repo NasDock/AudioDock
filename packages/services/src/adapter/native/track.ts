@@ -30,6 +30,7 @@ export class NativeTrackAdapter implements ITrackAdapter {
     pageSize: number;
     loadCount: number;
     type?: string;
+    sortBy?: string;
   }) {
     return request.get<any, ISuccessResponse<ILoadMoreData<Track>>>(
       "/load-more",
@@ -75,6 +76,12 @@ export class NativeTrackAdapter implements ITrackAdapter {
   getLatestTracks(type?: string, random?: boolean, pageSize?: number) {
     return request.get<any, ISuccessResponse<Track[]>>("/track/latest", {
       params: { type, random, pageSize },
+    });
+  }
+
+  getRecommendedTracks(type?: string, pageSize?: number, likeRatio?: number) {
+    return request.get<any, ISuccessResponse<Track[]>>("/track/recommend", {
+      params: { type, pageSize, likeRatio },
     });
   }
 

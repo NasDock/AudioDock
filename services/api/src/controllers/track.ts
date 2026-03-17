@@ -82,17 +82,22 @@ export class TrackController {
 
   @Get('/load-more')
   async loadMoreTrack(
+    @Req() req: Request,
     @Query('pageSize') pageSize: any,
     @Query('loadCount') loadCount: any,
     @Query('type') type?: TrackType,
+    @Query('sortBy') sortBy?: string,
   ): Promise<ISuccessResponse<ILoadMoreData<Track[]>> | IErrorResponse> {
     try {
+      const userId = Number((req.user as any)?.userId);
       const size = Number(pageSize);
       const count = Number(loadCount);
       const trackList = await this.trackService.loadMoreTrack(
         size,
         count,
         type,
+        userId,
+        sortBy,
       );
       const total = await this.trackService.trackCount(type);
       return {
@@ -282,6 +287,36 @@ export class TrackController {
       const tracks = isRandom
         ? await this.trackService.getRandomTracks(type, limit)
         : await this.trackService.getLatestTracks(type, limit);
+      return {
+        code: 200,
+        message: 'success',
+        data: tracks,
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        message: error,
+      };
+    }
+  }
+
+  @Get('/track/recommend')
+  async getRecommendedTracks(
+    @Req() req: Request,
+    @Query('type') type?: TrackType,
+    @Query('pageSize') pageSize?: string,
+    @Query('likeRatio') likeRatio?: string,
+  ): Promise<ISuccessResponse<Track[]> | IErrorResponse> {
+    try {
+      const userId = (req.user as any)?.userId;
+      const limit = pageSize ? parseInt(pageSize, 10) : 8;
+      const ratio = likeRatio ? parseInt(likeRatio, 10) : 50;
+      const tracks = await this.trackService.getRecommendedTracks(
+        userId ? Number(userId) : null,
+        type,
+        limit,
+        ratio,
+      );
       return {
         code: 200,
         message: 'success',

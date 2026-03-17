@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Logger, Param, Post } from '@nestjs/common';
 import * as path from 'path';
 import { LogMethod } from '../common/log-method.decorator';
+import { resolvePathListFromBody } from '../common/path-list';
 import { ImportService } from '../services/import';
 
 @Controller('import')
@@ -14,11 +15,24 @@ export class ImportController {
     let { musicPath, audiobookPath, cachePath, mode } = body;
 
     // Use server-side defaults from environment variables checks
-    if (!musicPath) musicPath = path.resolve(process.env.MUSIC_BASE_DIR || './');
-    if (!audiobookPath) audiobookPath = path.resolve(process.env.AUDIO_BOOK_DIR || './');
-    if (!cachePath) cachePath = path.resolve(process.env.CACHE_DIR || './');
+    const musicPaths = resolvePathListFromBody(
+      musicPath,
+      process.env.MUSIC_BASE_DIR || './'
+    );
+    const audiobookPaths = resolvePathListFromBody(
+      audiobookPath,
+      process.env.AUDIO_BOOK_DIR || './'
+    );
+    const resolvedCachePath = cachePath ? path.resolve(cachePath) : path.resolve(process.env.CACHE_DIR || './');
 
-    const id = await this.importService.createTask(musicPath, audiobookPath, cachePath, mode || 'incremental');
+    console.log('Received import task with musicPaths:', musicPaths);
+
+    const id = await this.importService.createTask(
+      musicPaths,
+      audiobookPaths,
+      resolvedCachePath,
+      mode || 'incremental'
+    );
     return { code: 200, message: 'success', data: { id } };
   }
 

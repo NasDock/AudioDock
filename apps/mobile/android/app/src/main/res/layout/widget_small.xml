@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/widget_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="@drawable/widget_rounded_bg"
+  android:clipToOutline="true"
+  android:outlineProvider="background">
+
+  <ImageView
+    android:id="@+id/widget_bg"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:scaleType="centerCrop" />
+
+  <ImageView
+    android:id="@+id/widget_glass"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_glass_overlay" />
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="10dp"
+    android:gravity="center">
+
+    <ImageView
+    android:id="@+id/widget_cover"
+    android:layout_width="72dp"
+    android:layout_height="72dp"
+    android:layout_marginTop="8dp"
+    android:background="@drawable/widget_cover_rounded"
+    android:clipToOutline="true"
+    android:scaleType="centerCrop"
+    android:src="@mipmap/ic_launcher" />
+
+    <TextView
+      android:id="@+id/widget_title"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="8dp"
+      android:gravity="center"
+      android:text="Title"
+      android:textColor="@android:color/white"
+      android:textSize="12sp"
+      android:maxLines="1"
+      android:ellipsize="end" />
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:gravity="center"
+      android:layout_marginTop="8dp">
+
+      <ImageView
+        android:id="@+id/widget_prev"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_widget_prev"
+        android:tint="@android:color/white" />
+
+      <ImageView
+        android:id="@+id/widget_play_pause"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="10dp"
+        android:src="@drawable/ic_widget_play"
+        android:tint="@android:color/white" />
+
+      <ImageView
+        android:id="@+id/widget_next"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_widget_next"
+        android:tint="@android:color/white" />
+    </LinearLayout>
+  </LinearLayout>
+</FrameLayout>

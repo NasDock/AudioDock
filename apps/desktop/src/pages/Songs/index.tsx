@@ -1,7 +1,12 @@
 import {
+  AimOutlined,
+  ArrowDownOutlined,
+  ArrowUpOutlined,
   CheckSquareOutlined,
   CloseOutlined,
   DownloadOutlined,
+  HeartFilled,
+  HeartOutlined,
   PlayCircleOutlined,
   PlusOutlined
 } from "@ant-design/icons";
@@ -21,6 +26,7 @@ import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import TrackList from "../../components/TrackList";
 import { type Track } from "../../models";
 import { downloadTracks } from "../../services/downloadManager";
+import { useLibraryStore } from "../../store/library";
 import { usePlayerStore } from "../../store/player";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
@@ -36,7 +42,7 @@ interface Result {
 const Songs: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { token } = theme.useToken();
-  const { play, setPlaylist } = usePlayerStore();
+  const { play, setPlaylist, currentTrack } = usePlayerStore();
   const [messageApi, contextHolder] = message.useMessage();
 
   // Selection Mode
@@ -48,6 +54,7 @@ const Songs: React.FC = () => {
 
 
   const { mode } = usePlayMode();
+  const { heartbeatModeActive, toggleHeartbeatMode } = useLibraryStore();
 
   const loadMore = async (d: Result | undefined): Promise<Result> => {
     const currentLoadCount = d?.nextId || 0;
@@ -57,7 +64,9 @@ const Songs: React.FC = () => {
       const res = await loadMoreTrack({
         pageSize,
         loadCount: currentLoadCount,
-        type: mode === "MUSIC" ? "MUSIC" : "AUDIOBOOK"
+        type: mode === "MUSIC" ? "MUSIC" : "AUDIOBOOK",
+        sortBy:
+          mode === "MUSIC" && heartbeatModeActive ? "heartbeat" : undefined,
       });
       console.log(res, 'res');
       if (res.code === 200 && res.data) {
@@ -94,7 +103,7 @@ const Songs: React.FC = () => {
     {
       target: scrollRef,
       isNoMore: (d) => !d?.hasMore,
-      reloadDeps: [mode],
+      reloadDeps: [mode, heartbeatModeActive],
     }
   );
 
@@ -124,15 +133,85 @@ const Songs: React.FC = () => {
     });
   };
 
+  const scrollToTop = () => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const scrollToBottom = () => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  };
+
+  const locateCurrent = () => {
+    if (!currentTrack) return;
+    const element = document.getElementById(`track-${currentTrack.id}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  const showFloatingActions = (data?.list.length || 0) > 50;
+  const canLocateCurrent =
+    !!currentTrack && !!data?.list.some((t) => t.id === currentTrack.id);
+
 
   return (
     <div ref={scrollRef} className={styles.container}>
+      {showFloatingActions && (
+        <div className={styles.floatingActions}>
+          <div
+            className={styles.floatingButton}
+            style={{
+              backgroundColor: token.colorBgElevated,
+              color: token.colorPrimary,
+            }}
+            onClick={scrollToTop}
+          >
+            <ArrowUpOutlined />
+          </div>
+          <div
+            className={styles.floatingButton}
+            style={{
+              backgroundColor: token.colorBgElevated,
+              color: token.colorPrimary,
+              opacity: canLocateCurrent ? 1 : 0.3,
+              cursor: canLocateCurrent ? "pointer" : "not-allowed",
+            }}
+            onClick={canLocateCurrent ? locateCurrent : undefined}
+          >
+            <AimOutlined />
+          </div>
+          <div
+            className={styles.floatingButton}
+            style={{
+              backgroundColor: token.colorBgElevated,
+              color: token.colorPrimary,
+            }}
+            onClick={scrollToBottom}
+          >
+            <ArrowDownOutlined />
+          </div>
+        </div>
+      )}
+
       <div className={styles.pageHeader}>
         <Title level={2} className={styles.title}>
           单曲
         </Title>
         {isSelectionMode ? (
             <Flex gap={8}>
+              {mode === "MUSIC" && (
+                <Button
+                  type={heartbeatModeActive ? "primary" : "default"}
+                  icon={heartbeatModeActive ? <HeartFilled /> : <HeartOutlined />}
+                  onClick={toggleHeartbeatMode}
+                >
+                  心动模式
+                </Button>
+              )}
               <Button type="text" onClick={handleToggleSelectionMode} icon={<CloseOutlined />}>
                 取消
               </Button>
@@ -156,6 +235,15 @@ const Songs: React.FC = () => {
             </Flex>
         ) : (
             <Flex gap={8} align="center">
+              {mode === "MUSIC" && (
+                <Button
+                  type={heartbeatModeActive ? "primary" : "default"}
+                  icon={heartbeatModeActive ? <HeartFilled /> : <HeartOutlined />}
+                  onClick={toggleHeartbeatMode}
+                >
+                  心动模式
+                </Button>
+              )}
               <Button 
                 icon={<PlayCircleOutlined />} 
                 onClick={handlePlayAll}

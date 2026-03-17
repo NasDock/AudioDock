@@ -1,4 +1,4 @@
-import { setRequestInstance, setServiceConfig, SOURCEMAP, useNativeAdapter, useSubsonicAdapter } from "@soundx/services";
+import { setRequestInstance, setServiceConfig, SOURCEMAP, useEmbyAdapter, useNativeAdapter, useSubsonicAdapter } from "@soundx/services";
 import axios, { AxiosError, type AxiosResponse } from "axios";
 import { useAuthStore } from "../store/auth";
 
@@ -80,13 +80,35 @@ const initAdapter = () => {
     // 还原账号信息
     const credsKey = `creds_${sourceType}_${baseURL}`;
     const savedCreds = localStorage.getItem(credsKey);
+    let username, password;
     if (savedCreds) {
-      const { username, password } = JSON.parse(savedCreds);
-      setServiceConfig({ username, password });
+      const c = JSON.parse(savedCreds);
+      username = c.username;
+      password = c.password;
     }
+
+    const token = localStorage.getItem(`token_${baseURL}`);
+    const userStr = localStorage.getItem(`user_${baseURL}`);
+    let userId;
+    if (userStr) {
+      try {
+        const parsed = JSON.parse(userStr);
+        userId = parsed?.id || parsed?.user?.id;
+      } catch (e) {}
+    }
+
+    setServiceConfig({
+      username,
+      password,
+      token: token || undefined,
+      userId: (userId && userId !== "undefined") ? userId : undefined,
+      baseUrl: baseURL,
+    });
     // 还原适配器类型
     if (mappedType === "subsonic") {
       useSubsonicAdapter();
+    } else if (mappedType === "emby") {
+      useEmbyAdapter();
     } else {
       useNativeAdapter();
     }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import pkg from '../../package.json';
+import { isWeb } from '../utils/platform';
 
 const GITHUB_USER = 'mmdctjj';
 const GITHUB_REPO = 'AudioDock';
@@ -24,6 +25,16 @@ export const useCheckUpdate = () => {
       const localVersion = pkg.version;
 
       if (remoteVersion && compareVersions(remoteVersion, localVersion) > 0) {
+        if (isWeb()) {
+          setUpdateInfo({
+            version: remoteVersion,
+            body: data.body,
+            downloadUrl: "",
+            assets: data.assets || []
+          });
+          return;
+        }
+
         // Find asset based on platform
         const platform = getPlatform();
         let asset = null;

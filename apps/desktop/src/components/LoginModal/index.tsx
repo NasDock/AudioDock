@@ -13,6 +13,7 @@ import {
   setServiceConfig,
   SOURCEMAP,
   SOURCETIPSMAP,
+  useEmbyAdapter,
   useNativeAdapter,
   useSubsonicAdapter,
 } from "@soundx/services";
@@ -54,6 +55,12 @@ const LoginModal: React.FC = () => {
   const [serverStatus, setServerStatus] = useState<
     "success" | "error" | "validating" | null
   >(null);
+
+  const normalizeLoginUser = (payload: any) => {
+    if (payload?.user?.id) return payload.user;
+    const { token, device, ...rest } = payload || {};
+    return rest;
+  };
 
   const getSourceHistoryKey = (type: string) => `serverHistory_${type}`;
   const getSourceAddressKey = (type: string) => `serverAddress_${type}`;
@@ -175,6 +182,8 @@ const LoginModal: React.FC = () => {
 
     if (mappedType === "subsonic") {
       useSubsonicAdapter();
+    } else if (mappedType === "emby") {
+      useEmbyAdapter();
     } else {
       useNativeAdapter();
     }
@@ -217,7 +226,8 @@ const LoginModal: React.FC = () => {
           password: values.password,
         });
         if (res.data) {
-          const { token: newToken, device, ...userData } = res.data;
+          const { token: newToken, device } = res.data;
+          const userData = normalizeLoginUser(res.data);
 
           localStorage.setItem(tokenKey, newToken);
           localStorage.setItem(userKey, JSON.stringify(userData));
@@ -244,7 +254,8 @@ const LoginModal: React.FC = () => {
           password: values.password,
         });
         if (res.data) {
-          const { token: newToken, device, ...userData } = res.data;
+          const { token: newToken, device } = res.data;
+          const userData = normalizeLoginUser(res.data);
 
           localStorage.setItem(tokenKey, newToken);
           localStorage.setItem(userKey, JSON.stringify(userData));

@@ -104,6 +104,7 @@ export class SubsonicTrackAdapter implements ITrackAdapter {
     pageSize: number;
     loadCount: number;
     type?: string;
+    sortBy?: string;
   }) {
       const tracks = await this.getAllTracks();
      // Similar limitation.
@@ -147,6 +148,10 @@ export class SubsonicTrackAdapter implements ITrackAdapter {
       const res = await this.client.get<SubsonicRandomSongs>("getRandomSongs", { size: pageSize || 20 });
       const tracks = await this.mapTracksWithLyrics(res.randomSongs?.song || []);
       return this.response(tracks);
+  }
+
+  async getRecommendedTracks(type?: string, pageSize?: number, likeRatio?: number) {
+      return this.getLatestTracks(type, true, pageSize);
   }
 
   async getTracksByArtist(artist: string) {

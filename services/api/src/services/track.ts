@@ -1,8 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaClient, Track, TrackType } from '@soundx/db';
+import { FileStatus, PrismaClient, Track, TrackType } from '@soundx/db';
 import * as fs from 'fs';
 import * as path from 'path';
+import { getTrackHeartbeatScoreMap } from './heartbeat-score';
+import { toSimplified } from '../common/zh-utils';
+import { resolvePathList } from '../common/path-list';
 
 @Injectable()
 export class TrackService {
@@ -14,12 +17,22 @@ export class TrackService {
 
   public getFilePath(trackPath: string): string | null {
     if (trackPath.startsWith('/music/')) {
-      const musicBaseDir = this.configService.get<string>('MUSIC_BASE_DIR') || './';
-      return path.join(path.resolve(musicBaseDir), trackPath.replace('/music/', ''));
+      const musicBaseDirs = resolvePathList(this.configService.get<string>('MUSIC_BASE_DIR'), './');
+      const relativePath = trackPath.replace('/music/', '');
+      for (const musicBaseDir of musicBaseDirs) {
+        const candidate = path.join(musicBaseDir, relativePath);
+        if (fs.existsSync(candidate)) return candidate;
+      }
+      return path.join(musicBaseDirs[0], relativePath);
     }
     if (trackPath.startsWith('/audio/')) {
-      const audioBookDir = this.configService.get<string>('AUDIO_BOOK_DIR') || './';
-      return path.join(path.resolve(audioBookDir), trackPath.replace('/audio/', ''));
+      const audioBookDirs = resolvePathList(this.configService.get<string>('AUDIO_BOOK_DIR'), './');
+      const relativePath = trackPath.replace('/audio/', '');
+      for (const audioBookDir of audioBookDirs) {
+        const candidate = path.join(audioBookDir, relativePath);
+        if (fs.existsSync(candidate)) return candidate;
+      }
+      return path.join(audioBookDirs[0], relativePath);
     }
     return null;
   }
@@ -84,7 +97,8 @@ export class TrackService {
     }
 
     if (keyword) {
-      where.name = { contains: keyword };
+      const simplifiedKeyword = toSimplified(keyword);
+      where.name = { contains: simplifiedKeyword };
     }
 
     const tracks = await this.prisma.track.findMany({
@@ -122,7 +136,8 @@ export class TrackService {
     }
 
     if (keyword) {
-      where.name = { contains: keyword };
+      const simplifiedKeyword = toSimplified(keyword);
+      where.name = { contains: simplifiedKeyword };
     }
 
     return await this.prisma.track.count({
@@ -143,12 +158,42 @@ export class TrackService {
     });
   }
 
-  async loadMoreTrack(pageSize: number, loadCount: number, type?: TrackType): Promise<Track[]> {
+  async loadMoreTrack(
+    pageSize: number,
+    loadCount: number,
+    type?: TrackType,
+    userId?: number,
+    sortBy?: string,
+  ): Promise<Track[]> {
+    if (sortBy === 'heartbeat' && userId) {
+      const where: any = { status: 'ACTIVE' };
+      if (type) {
+        where.type = type;
+      }
+      const list = await this.prisma.track.findMany({
+        where,
+        include: {
+          artistEntity: true,
+          albumEntity: true,
+          likedByUsers: true,
+        },
+      });
+      const scoreMap = await getTrackHeartbeatScoreMap(this.prisma, userId, type);
+      const sorted = list.sort((a, b) => {
+        const scoreDiff = (scoreMap.get(b.id) ?? 0) - (scoreMap.get(a.id) ?? 0);
+        if (scoreDiff !== 0) return scoreDiff;
+        return a.name.localeCompare(b.name);
+      });
+      const start = loadCount * pageSize;
+      const end = start + pageSize;
+      return await this.attachProgressToTracks(sorted.slice(start, end), userId);
+    }
+
     const where: any = { status: 'ACTIVE' };
     if (type) {
       where.type = type;
     }
-    return await this.prisma.track.findMany({
+    const list = await this.prisma.track.findMany({
       where,
       skip: loadCount * pageSize,
       take: pageSize,
@@ -158,6 +203,7 @@ export class TrackService {
         likedByUsers: true,
       },
     });
+    return await this.attachProgressToTracks(list, userId || 1);
   }
 
   async trackCount(type?: TrackType): Promise<number> {
@@ -271,6 +317,7 @@ export class TrackService {
   }
 
   async searchTracks(keyword: string, type?: TrackType, limit: number = 10): Promise<Track[]> {
+    const simplifiedKeyword = toSimplified(keyword);
     const candidates = await this.prisma.track.findMany({
       where: {
         AND: [
@@ -278,9 +325,9 @@ export class TrackService {
           { status: 'ACTIVE' },
           {
             OR: [
-              { name: { contains: keyword } },
-              { artist: { contains: keyword } },
-              { album: { contains: keyword } },
+              { name: { contains: simplifiedKeyword } },
+              { artist: { contains: simplifiedKeyword } },
+              { album: { contains: simplifiedKeyword } },
             ],
           },
         ],
@@ -354,6 +401,118 @@ export class TrackService {
     return tracks.sort(() => Math.random() - 0.5);
   }
 
+  // 推荐算法：按“喜欢(已听过专辑/歌手)”与“新鲜(未听过曲目)”比例混合
+  async getRecommendedTracks(
+    userId: number | null,
+    type?: TrackType,
+    limit: number = 8,
+    likeRatio = 50,
+  ): Promise<Track[]> {
+    if (!userId) {
+      return this.getRandomTracks(type, limit);
+    }
+
+    const safeLikeRatio = this.clampRatio(likeRatio);
+    const likeCountTarget = Math.round((limit * safeLikeRatio) / 100);
+    const freshCountTarget = Math.max(0, limit - likeCountTarget);
+
+    const where = type
+      ? { type, status: FileStatus.ACTIVE }
+      : { status: FileStatus.ACTIVE };
+    const allTracks = await this.prisma.track.findMany({
+      where,
+      select: {
+        id: true,
+        album: true,
+        artist: true,
+      },
+    });
+    if (allTracks.length === 0) return [];
+
+    const isAudiobook = type === TrackType.AUDIOBOOK;
+    const [historyRows, likeRows] = await Promise.all([
+      isAudiobook
+        ? this.prisma.userAudiobookHistory.findMany({
+            where: { userId },
+            select: {
+              trackId: true,
+              track: { select: { album: true, artist: true } },
+            },
+          })
+        : this.prisma.userTrackHistory.findMany({
+            where: { userId },
+            select: {
+              trackId: true,
+              track: { select: { album: true, artist: true } },
+            },
+          }),
+      isAudiobook
+        ? this.prisma.userAudiobookLike.findMany({
+            where: { userId },
+            select: {
+              trackId: true,
+              track: { select: { album: true, artist: true } },
+            },
+          })
+        : this.prisma.userTrackLike.findMany({
+            where: { userId },
+            select: {
+              trackId: true,
+              track: { select: { album: true, artist: true } },
+            },
+          }),
+    ]);
+
+    const listenedTrackIds = new Set(historyRows.map((row) => row.trackId));
+    const likedTrackIds = new Set(likeRows.map((row) => row.trackId));
+    const preferredAlbums = new Set<string>();
+    const preferredArtists = new Set<string>();
+
+    for (const row of historyRows) {
+      if (row.track?.album) preferredAlbums.add(row.track.album);
+      if (row.track?.artist) preferredArtists.add(row.track.artist);
+    }
+    for (const row of likeRows) {
+      if (row.track?.album) preferredAlbums.add(row.track.album);
+      if (row.track?.artist) preferredArtists.add(row.track.artist);
+    }
+
+    const freshPoolIds = allTracks
+      .filter((t) => !listenedTrackIds.has(t.id))
+      .map((t) => t.id);
+    const preferredPoolIds = allTracks
+      .filter(
+        (t) =>
+          preferredAlbums.has(t.album) ||
+          preferredArtists.has(t.artist) ||
+          listenedTrackIds.has(t.id) ||
+          likedTrackIds.has(t.id),
+      )
+      .map((t) => t.id);
+    const allIds = allTracks.map((t) => t.id);
+
+    const selectedIds: number[] = [];
+    const used = new Set<number>();
+    this.pickRandomIds(selectedIds, used, freshPoolIds, freshCountTarget);
+    this.pickRandomIds(selectedIds, used, preferredPoolIds, likeCountTarget);
+    if (selectedIds.length < limit) {
+      this.pickRandomIds(selectedIds, used, allIds, limit - selectedIds.length);
+    }
+
+    const selectedTracks = await this.prisma.track.findMany({
+      where: { id: { in: selectedIds } },
+      include: {
+        artistEntity: true,
+        albumEntity: true,
+        likedByUsers: true,
+      },
+    });
+    const orderMap = new Map(selectedIds.map((id, index) => [id, index]));
+    return selectedTracks.sort(
+      (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
+    );
+  }
+
   async getTracksByArtist(artist: string): Promise<Track[]> {
     const tracks = await this.prisma.track.findMany({
       where: { 
@@ -405,5 +564,28 @@ export class TrackService {
       }
       return t;
     });
+  }
+
+  private clampRatio(value?: number): number {
+    if (typeof value !== 'number' || Number.isNaN(value)) return 50;
+    return Math.max(0, Math.min(100, Math.round(value)));
+  }
+
+  private pickRandomIds(
+    target: number[],
+    used: Set<number>,
+    pool: number[],
+    count: number,
+  ) {
+    if (count <= 0 || pool.length === 0) return;
+    const startLength = target.length;
+    const limit = startLength + count;
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    for (const id of shuffled) {
+      if (target.length >= limit) break;
+      if (used.has(id)) continue;
+      used.add(id);
+      target.push(id);
+    }
   }
 }
