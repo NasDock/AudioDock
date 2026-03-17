@@ -72,7 +72,7 @@ export const updateWidget = async (payload: WidgetUpdatePayload): Promise<void> 
 
 export const updateWidgetCollections = async (params: {
   playlists?: Playlist[];
-  history?: Track[];
+  history?: Array<Track | Record<string, any>>;
   latest?: Track[];
 }): Promise<void> => {
   if (!NativeWidgetBridge?.updateWidgetCollections) return;
@@ -102,7 +102,10 @@ export const updateWidgetCollections = async (params: {
 
   const historyItems: WidgetHistoryItem[] = await Promise.all(
     history.slice(0, 3).map(async (track) => {
-      const coverUrl = track.cover ? getImageUrl(track.cover) : null;
+      const title = (track as any).name || (track as any).title || "未命名";
+      const artist = (track as any).artist || "";
+      const album = (track as any).album || "";
+      const coverUrl = (track as any).cover ? getImageUrl((track as any).cover) : null;
       let coverPath: string | null = null;
       if (coverUrl) {
         const cached = await cacheCover(coverUrl);
@@ -111,10 +114,10 @@ export const updateWidgetCollections = async (params: {
         }
       }
       return {
-        id: track.id,
-        title: track.name,
-        artist: track.artist || "",
-        album: (track as any).album || "",
+        id: (track as any).id ?? (track as any).resumeTrackId ?? "",
+        title,
+        artist,
+        album,
         coverPath,
         type: (track as any).type,
       };

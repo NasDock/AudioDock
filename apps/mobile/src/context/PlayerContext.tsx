@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   addAlbumToHistory,
   addToHistory,
+  getAlbumHistory,
   getAlbumTracks,
   getLatestHistory,
   getLatestTracks,
@@ -336,11 +337,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!user) return;
     try {
       const playlistsRes = await getPlaylists(mode as any, user.id);
-      const historyRes = await getTrackHistory(user.id, 0, 3, "MUSIC");
+      const historyRes =
+        mode === "AUDIOBOOK"
+          ? await getAlbumHistory(user.id, 0, 3, "AUDIOBOOK")
+          : await getTrackHistory(user.id, 0, 3, "MUSIC");
       const latestRes = await getLatestTracks("MUSIC", false, 5);
       const playlists = playlistsRes.code === 200 ? playlistsRes.data : [];
       const history = historyRes.code === 200
-        ? historyRes.data.list.map((item: any) => item.track).filter(Boolean)
+        ? mode === "AUDIOBOOK"
+          ? historyRes.data.list.map((item: any) => ({
+              id: item.trackId ?? item.track?.id ?? item.album?.id,
+              name: item.album?.name || item.album?.title || "未命名",
+              artist: item.album?.artist || "",
+              cover: item.album?.cover || "",
+              type: item.album?.type || "AUDIOBOOK",
+              album: item.album?.name || "",
+              resumeTrackId: item.trackId,
+              resumeProgress: item.progress,
+              albumId: item.album?.id,
+            }))
+          : historyRes.data.list.map((item: any) => item.track).filter(Boolean)
         : [];
       const latest = latestRes.code === 200 ? latestRes.data : [];
       await updateWidgetCollections({
@@ -1456,12 +1472,30 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           const trackId = rawId ? Number(rawId) : NaN;
           if (!Number.isNaN(trackId) && user) {
             try {
-              const res = await getTrackHistory(user.id, 0, 50, "MUSIC");
-              if (res.code === 200) {
-                const list = res.data.list.map((item: any) => item.track).filter(Boolean);
-                const index = list.findIndex((t: any) => Number(t.id) === trackId);
-                if (index >= 0) {
-                  await playTrackList(list, index);
+              if (mode === "AUDIOBOOK") {
+                const res = await getAlbumHistory(user.id, 0, 50, "AUDIOBOOK");
+                if (res.code === 200) {
+                  const entry = res.data.list.find((item: any) => Number(item.trackId) === trackId);
+                  const albumId = entry?.album?.id;
+                  const resumeProgress = entry?.progress || 0;
+                  if (albumId) {
+                    const tracksRes = await getAlbumTracks(albumId, 1000, 0);
+                    if (tracksRes.code === 200 && tracksRes.data.list.length > 0) {
+                      const tracks = tracksRes.data.list;
+                      let index = tracks.findIndex((t: any) => Number(t.id) === trackId);
+                      if (index === -1) index = 0;
+                      await playTrackList(tracks, index, resumeProgress);
+                    }
+                  }
+                }
+              } else {
+                const res = await getTrackHistory(user.id, 0, 50, "MUSIC");
+                if (res.code === 200) {
+                  const list = res.data.list.map((item: any) => item.track).filter(Boolean);
+                  const index = list.findIndex((t: any) => Number(t.id) === trackId);
+                  if (index >= 0) {
+                    await playTrackList(list, index);
+                  }
                 }
               }
             } catch (error) {
