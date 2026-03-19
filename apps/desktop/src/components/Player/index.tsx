@@ -3,7 +3,6 @@ import Icon, {
   BackwardOutlined,
   DeliveredProcedureOutlined,
   DownOutlined,
-  FontColorsOutlined,
   ForwardOutlined,
   HeartFilled,
   HeartOutlined,
@@ -13,7 +12,7 @@ import Icon, {
   SoundOutlined,
   StepBackwardOutlined,
   StepForwardOutlined,
-  TeamOutlined,
+  TeamOutlined
 } from "@ant-design/icons";
 import {
   addToHistory,
@@ -1033,6 +1032,16 @@ const Player: React.FC = () => {
   };
 
   useEffect(() => {
+    if (window.ipcRenderer) {
+      const handleToggle = () => handleDesktopLyricToggle();
+      window.ipcRenderer.on("lyric:toggle", handleToggle);
+      return () => {
+        window.ipcRenderer?.off("lyric:toggle", handleToggle);
+      };
+    }
+  }, []);
+
+  useEffect(() => {
     // Initial sync of desktop lyric window on mount
     const { enable } = useSettingsStore.getState().desktopLyric;
     if (enable && appMode === TrackType.MUSIC && window.ipcRenderer) {
@@ -1546,12 +1555,15 @@ const Player: React.FC = () => {
 
         {appMode === TrackType.MUSIC && (
           <Tooltip title="桌面歌词">
-            <FontColorsOutlined
-              className={`${styles.settingIcon} ${
-                desktopLyricEnable ? styles.activeIcon : ""
+            <div
+              className={`${styles.lyricButton} ${
+                desktopLyricEnable ? styles.activeLyricButton : ""
               }`}
+              style={{ color: desktopLyricEnable ? token.colorPrimary : "inherit" }}
               onClick={handleDesktopLyricToggle}
-            />
+            >
+              词
+            </div>
           </Tooltip>
         )}
 

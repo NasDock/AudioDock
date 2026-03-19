@@ -266,6 +266,7 @@ let trayPrev: Tray | null = null;
 let trayPlay: Tray | null = null;
 let trayNext: Tray | null = null;
 let trayMain: Tray | null = null;
+let trayLyric: Tray | null = null;
 
 // ---- 播放器状态 ----
 let playerState = {
@@ -289,9 +290,9 @@ function updatePlayerUI(shouldUpdateTitle = true) {
   // 2）更新导航栏歌词标题（macOS 专用）
   if (process.platform === "darwin" && shouldUpdateTitle) {
     if (playerState.track) {
-      trayNext?.setTitle(`${playerState.track.name} - ${playerState.track.artist}`);
+      trayLyric?.setTitle(`${playerState.track.name} - ${playerState.track.artist}`);
     } else {
-      trayNext?.setTitle(""); // 未播放时清空
+      trayLyric?.setTitle(""); // 未播放时清空
     }
   }
 
@@ -460,7 +461,7 @@ ipcMain.on("lyric:update", (event, payload) => {
   // macOS 托盘标题更新
   if (process.platform === "darwin") {
       const displayTitle = currentLyric || (playerState.track ? `${playerState.track.name} - ${playerState.track.artist}` : "");
-      trayNext?.setTitle(displayTitle);
+      trayLyric?.setTitle(displayTitle);
   }
 
   // 同步桌面投影歌词
@@ -474,6 +475,11 @@ ipcMain.on("lyric:settings-update", (event, payload) => {
 
 ipcMain.on("lyric:open", (event, settings) => {
   createLyricWindow(settings);
+});
+ipcMain.on("lyric:toggle", () => {
+  if (win) {
+    win.webContents.send("lyric:toggle");
+  }
 });
 
 ipcMain.on("lyric:close", () => {
@@ -697,15 +703,22 @@ function createLyricWindow(settings?: any) {
 // ---------- 托盘 ----------
 function createTray() {
   const img = (name: string, size = 20) => {
-    const icon = nativeImage.createFromPath(path.join(process.env.VITE_PUBLIC!, name));
+    let icon = nativeImage.createFromPath(path.join(process.env.VITE_PUBLIC!, name));
+    icon = icon.resize({ width: size, height: size });
     if (process.platform === 'darwin') {
       icon.setTemplateImage(true);
     }
-    return icon.resize({ width: size, height: size });
+    return icon;
   };
 
   if (process.platform === 'darwin') {
     // macOS: 多个图标常驻菜单栏
+    // 歌词占位托盘 (无图标，仅文字)
+    const emptyImg = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=');
+    trayLyric = new Tray(emptyImg);
+    trayLyric.on("click", () => {
+      win?.webContents.send("lyric:toggle");
+    });
     trayNext = new Tray(img("next.png"));
     trayPlay = new Tray(img("play.png"));
     trayPrev = new Tray(img("previous.png"));
@@ -876,7 +889,7 @@ app.whenReady().then(() => {
       // For large audio files, net.fetch is preferred for streaming
       if (host === 'cover' || host === 'metadata' || ext === '.json' || ext === '.jpeg' || ext === '.jpg' || ext === '.png') {
         const fileData = fs.readFileSync(filePath);
-        return new Response(fileData, {
+        return new Response(new Uint8Array(fileData), {
           headers: {
             'Content-Type': contentType,
             'Access-Control-Allow-Origin': '*',
