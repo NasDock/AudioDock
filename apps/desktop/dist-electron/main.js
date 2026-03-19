@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import { app, ipcMain, dialog, shell, net, screen, BrowserWindow, protocol, Menu, Tray, nativeImage } from "electron";
+import { app, ipcMain, dialog, shell, net, screen, BrowserWindow, protocol, Menu, nativeImage, Tray } from "electron";
 import fs from "fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import os from "os";
@@ -209,6 +209,7 @@ let trayPrev = null;
 let trayPlay = null;
 let trayNext = null;
 let trayMain = null;
+let trayLyric = null;
 let playerState = {
   isPlaying: false,
   track: null
@@ -224,9 +225,9 @@ function updatePlayerUI(shouldUpdateTitle = true) {
   }
   if (process.platform === "darwin" && shouldUpdateTitle) {
     if (playerState.track) {
-      trayNext?.setTitle(`${playerState.track.name} - ${playerState.track.artist}`);
+      trayLyric?.setTitle(`${playerState.track.name} - ${playerState.track.artist}`);
     } else {
-      trayNext?.setTitle("");
+      trayLyric?.setTitle("");
     }
   }
   const menuItems = [];
@@ -373,7 +374,7 @@ ipcMain.on("lyric:update", (event, payload) => {
   const { currentLyric } = payload;
   if (process.platform === "darwin") {
     const displayTitle = currentLyric || (playerState.track ? `${playerState.track.name} - ${playerState.track.artist}` : "");
-    trayNext?.setTitle(displayTitle);
+    trayLyric?.setTitle(displayTitle);
   }
   lyricWin?.webContents.send("lyric:update", payload);
   miniWin?.webContents.send("lyric:update", payload);
@@ -383,6 +384,11 @@ ipcMain.on("lyric:settings-update", (event, payload) => {
 });
 ipcMain.on("lyric:open", (event, settings) => {
   createLyricWindow(settings);
+});
+ipcMain.on("lyric:toggle", () => {
+  if (win) {
+    win.webContents.send("lyric:toggle");
+  }
 });
 ipcMain.on("lyric:close", () => {
   if (lyricWin) {
@@ -574,13 +580,19 @@ function createLyricWindow(settings) {
 }
 function createTray() {
   const img = (name, size = 20) => {
-    const icon = nativeImage.createFromPath(path.join(process.env.VITE_PUBLIC, name));
+    let icon = nativeImage.createFromPath(path.join(process.env.VITE_PUBLIC, name));
+    icon = icon.resize({ width: size, height: size });
     if (process.platform === "darwin") {
       icon.setTemplateImage(true);
     }
-    return icon.resize({ width: size, height: size });
+    return icon;
   };
   if (process.platform === "darwin") {
+    const emptyImg = nativeImage.createFromDataURL("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
+    trayLyric = new Tray(emptyImg);
+    trayLyric.on("click", () => {
+      win?.webContents.send("lyric:toggle");
+    });
     trayNext = new Tray(img("next.png"));
     trayPlay = new Tray(img("play.png"));
     trayPrev = new Tray(img("previous.png"));
@@ -715,7 +727,7 @@ app.whenReady().then(() => {
       }
       if (host === "cover" || host === "metadata" || ext === ".json" || ext === ".jpeg" || ext === ".jpg" || ext === ".png") {
         const fileData = fs.readFileSync(filePath);
-        return new Response(fileData, {
+        return new Response(new Uint8Array(fileData), {
           headers: {
             "Content-Type": contentType,
             "Access-Control-Allow-Origin": "*",
