@@ -139,6 +139,9 @@ export default function ProductUpdatesScreen() {
             <Text style={[styles.qrLabel, { color: colors.secondary }]}>
                 官方公众号：声仓
             </Text>
+            <Text style={[styles.qrSubLabel, { color: colors.secondary }]}>
+                软件著作权归北京声仓科技有限公司所有
+            </Text>
         </View>
         <View style={styles.contentCard}>
           <Text style={[styles.currentVersion, { color: colors.secondary }]}>
@@ -254,5 +257,9 @@ const styles = StyleSheet.create({
   qrLabel: {
     fontSize: 14,
     fontWeight: "500",
+  },
+  qrSubLabel: {
+    marginTop: 6,
+    fontSize: 11,
   },
 });
