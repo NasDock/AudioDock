@@ -11,11 +11,13 @@ import { Album, Track } from "@/src/models";
 import { downloadTracks } from "@/src/services/downloadManager";
 import { getImageUrl } from "@/src/utils/image";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import {
   getAlbumById,
   getAlbumTracks,
   toggleAlbumLike,
   toggleAlbumUnLike,
+  uploadAlbumCover,
 } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -36,7 +38,7 @@ export default function AlbumDetailScreen() {
   const { colors } = useTheme();
   const { playTrack, playTrackList, currentTrack, isPlaying, seekTo, position } =
     usePlayer();
-  const { user } = useAuth();
+  const { user, sourceType } = useAuth();
   const [album, setAlbum] = useState<Album | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +51,7 @@ export default function AlbumDetailScreen() {
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [moreModalVisible, setMoreModalVisible] = useState(false);
   const [albumMoreVisible, setAlbumMoreVisible] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [addToPlaylistVisible, setAddToPlaylistVisible] = useState(false);
   const [filePathVisible, setFilePathVisible] = useState(false);
   const [propertyTrack, setPropertyTrack] = useState<Track | null>(null);
@@ -107,6 +110,41 @@ export default function AlbumDetailScreen() {
       console.error("Failed to load more tracks:", error);
     } finally {
       setLoadingMore(false);
+    }
+  };
+
+  const handleUpdateCover = async () => {
+    if (!album || uploadingCover) return;
+    if (sourceType !== "AudioDock") {
+      Alert.alert("提示", "仅 AudioDock 源支持修改封面");
+      return;
+    }
+    try {
+      setUploadingCover(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.9,
+      });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (!asset?.uri) return;
+      const fileName = asset.fileName || `album-${album.id}-${Date.now()}.jpg`;
+      const file = {
+        uri: asset.uri,
+        name: fileName,
+        type: asset.mimeType || "image/jpeg",
+      } as any;
+      const res = await uploadAlbumCover(album.id, file);
+      if (res.code === 200) {
+        setAlbum(res.data);
+      } else {
+        Alert.alert("上传失败", res.message || "封面上传失败");
+      }
+    } catch (error) {
+      console.error("Failed to upload album cover:", error);
+      Alert.alert("上传失败", "封面上传失败");
+    } finally {
+      setUploadingCover(false);
     }
   };
 
@@ -593,6 +631,7 @@ export default function AlbumDetailScreen() {
           setIsSelectionMode(true);
           setSelectedTrackIds([]);
         }}
+        onUpdateCover={handleUpdateCover}
       />
 
       <FilePathModal

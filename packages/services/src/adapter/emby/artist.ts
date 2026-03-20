@@ -152,4 +152,12 @@ export class EmbyArtistAdapter implements IArtistAdapter {
       data: response.Items.map((item) => mapEmbyItemToArtist(item, this.client.getImageUrl.bind(this.client), artistType)),
     };
   }
+
+  async uploadArtistAvatar(id: number | string, file: any): Promise<ISuccessResponse<Artist>> {
+    return {
+      code: 501,
+      message: "Emby adapter does not support cover upload.",
+      data: null as unknown as Artist,
+    };
+  }
 }

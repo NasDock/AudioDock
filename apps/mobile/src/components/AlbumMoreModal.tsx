@@ -24,6 +24,7 @@ interface AlbumMoreModalProps {
   onClose: () => void;
   onAddToPlaylist: () => void;
   onSelectTracks?: () => void;
+  onUpdateCover: () => void;
 }
 
 export const AlbumMoreModal: React.FC<AlbumMoreModalProps> = ({
@@ -34,6 +35,7 @@ export const AlbumMoreModal: React.FC<AlbumMoreModalProps> = ({
   onClose,
   onAddToPlaylist,
   onSelectTracks,
+  onUpdateCover,
 }) => {
   const { colors } = useTheme();
   const { user } = useAuth();
@@ -82,6 +84,17 @@ export const AlbumMoreModal: React.FC<AlbumMoreModalProps> = ({
             <View style={styles.handle} />
             <Text style={[styles.title, { color: colors.text }]}>专辑选项</Text>
             <Text style={[styles.albumName, { color: colors.secondary }]}>{album.name}</Text>
+
+            <TouchableOpacity
+              style={styles.option}
+              onPress={() => {
+                onClose();
+                onUpdateCover();
+              }}
+            >
+              <Ionicons name="image-outline" size={24} color={colors.text} />
+              <Text style={[styles.optionText, { color: colors.text }]}>修改封面</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity style={styles.option} onPress={onAddToPlaylist}>
               <Ionicons name="add-circle-outline" size={24} color={colors.text} />

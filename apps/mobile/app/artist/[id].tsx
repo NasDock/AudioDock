@@ -1,4 +1,5 @@
 import { AddToPlaylistModal } from "@/src/components/AddToPlaylistModal";
+import { ArtistMoreModal } from "@/src/components/ArtistMoreModal";
 import { FilePathModal } from "@/src/components/FilePathModal";
 import PlayingIndicator from "@/src/components/PlayingIndicator";
 import { useAuth } from "@/src/context/AuthContext";
@@ -10,11 +11,13 @@ import { downloadTracks } from "@/src/services/downloadManager";
 import { getImageUrl } from "@/src/utils/image";
 import { usePlayMode } from "@/src/utils/playMode";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import {
     getAlbumsByArtist,
     getArtistById,
     getCollaborativeAlbumsByArtist,
     getTracksByArtist,
+    uploadArtistAvatar,
 } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -43,6 +46,7 @@ export default function ArtistDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [moreModalVisible, setMoreModalVisible] = useState(false);
+  const [artistMoreVisible, setArtistMoreVisible] = useState(false);
   const [addToPlaylistVisible, setAddToPlaylistVisible] = useState(false);
   const [filePathVisible, setFilePathVisible] = useState(false);
   const [propertyTrack, setPropertyTrack] = useState<Track | null>(null);
@@ -50,6 +54,7 @@ export default function ArtistDetailScreen() {
   const [selectedTrackIds, setSelectedTrackIds] = useState<(number | string)[]>(
     [],
   );
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -82,6 +87,41 @@ export default function ArtistDetailScreen() {
       console.error("Failed to load artist details:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateCover = async () => {
+    if (!artist || uploadingCover) return;
+    if (sourceType !== "AudioDock") {
+      Alert.alert("提示", "仅 AudioDock 源支持修改封面");
+      return;
+    }
+    try {
+      setUploadingCover(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.9,
+      });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (!asset?.uri) return;
+      const fileName = asset.fileName || `artist-${artist.id}-${Date.now()}.jpg`;
+      const file = {
+        uri: asset.uri,
+        name: fileName,
+        type: asset.mimeType || "image/jpeg",
+      } as any;
+      const res = await uploadArtistAvatar(artist.id, file);
+      if (res.code === 200) {
+        setArtist(res.data);
+      } else {
+        Alert.alert("上传失败", res.message || "封面上传失败");
+      }
+    } catch (error) {
+      console.error("Failed to upload artist cover:", error);
+      Alert.alert("上传失败", "封面上传失败");
+    } finally {
+      setUploadingCover(false);
     }
   };
 
@@ -161,7 +201,7 @@ export default function ArtistDetailScreen() {
             color={colors.text}
           />
         </TouchableOpacity>
-        {isSelectionMode && (
+        {isSelectionMode ? (
           <View style={styles.headerRight}>
             <Text
               style={[styles.headerTitle, { color: colors.text }]}
@@ -190,6 +230,16 @@ export default function ArtistDetailScreen() {
                 name="cloud-download-outline"
                 size={24}
                 color={selectedTrackIds.length ? colors.text : colors.secondary}
+              />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => setArtistMoreVisible(true)}>
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={24}
+                color={colors.text}
               />
             </TouchableOpacity>
           </View>
@@ -495,6 +545,13 @@ export default function ArtistDetailScreen() {
         onDeleteSuccess={(id) => {
           setTracks(tracks.filter((t) => t.id !== id));
         }}
+      />
+
+      <ArtistMoreModal
+        visible={artistMoreVisible}
+        artist={artist}
+        onClose={() => setArtistMoreVisible(false)}
+        onUpdateCover={handleUpdateCover}
       />
 
       <AddToPlaylistModal
