@@ -271,6 +271,14 @@ export class EmbyAlbumAdapter implements IAlbumAdapter {
     return { code: 0, message: "success", data: [] };
   }
 
+  async uploadAlbumCover(id: number | string, file: any): Promise<ISuccessResponse<Album>> {
+    return {
+      code: 501,
+      message: "Emby adapter does not support cover upload.",
+      data: null as unknown as Album,
+    };
+  }
+
   async toggleLike(id: number | string, userId: number | string): Promise<ISuccessResponse<any>> {
     await this.client.request("POST", `Users/${userId}/FavoriteItems/${id}`);
     return { code: 200, message: "success", data: true };
