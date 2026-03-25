@@ -2,6 +2,7 @@ import {
     CheckSquareOutlined,
     CloseOutlined,
     DownloadOutlined,
+    EllipsisOutlined,
     PlusOutlined
 } from "@ant-design/icons";
 import {
@@ -9,19 +10,22 @@ import {
     getArtistById,
     getCollaborativeAlbumsByArtist,
     getTracksByArtist,
+    uploadArtistAvatar,
 } from "@soundx/services";
 import {
     Avatar,
     Button,
     Col,
+    Dropdown,
     Empty,
     Flex,
+    type MenuProps,
     message,
     Row,
     Skeleton,
     Typography
 } from "antd";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import Cover from "../../components/Cover";
@@ -51,6 +55,10 @@ const ArtistDetail: React.FC = () => {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isBatchAddModalOpen, setIsBatchAddModalOpen] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const isAudioDockSource =
+    (localStorage.getItem("selectedSourceType") || "AudioDock") === "AudioDock";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -109,6 +117,42 @@ const ArtistDetail: React.FC = () => {
     });
   };
 
+  const handleAvatarFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !artist) return;
+    if (!isAudioDockSource) {
+      messageApi.warning("仅 AudioDock 源支持修改封面");
+      return;
+    }
+    try {
+      setUploadingAvatar(true);
+      const res = await uploadArtistAvatar(artist.id, file);
+      if (res.code === 200) {
+        setArtist(res.data);
+        messageApi.success("封面已更新");
+      } else {
+        messageApi.error(res.message || "封面上传失败");
+      }
+    } catch (error) {
+      console.error("Failed to upload artist cover:", error);
+      messageApi.error("封面上传失败");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const avatarMenuItems: MenuProps["items"] = [
+    {
+      key: "upload",
+      label: "修改封面",
+      onClick: () => avatarInputRef.current?.click(),
+      disabled: uploadingAvatar || !isAudioDockSource,
+    },
+  ];
+
 
 
   if (loading) {
@@ -157,19 +201,33 @@ const ArtistDetail: React.FC = () => {
     <div className={styles.container}>
       <div className={styles.header}>
         {contextHolder}
-        <Avatar
-          src={
-            artist?.avatar
-              ? artist.avatar.startsWith("http")
-                ? artist.avatar
-                : `${getBaseURL()}${artist.avatar}`
-              : undefined
-          }
-          size={200}
-          shape="circle"
-          className={styles.avatar}
-          icon={!artist.avatar && artist.name[0]}
-        />
+        <div className={styles.avatarWrapper}>
+          <Avatar
+            src={
+              artist?.avatar
+                ? artist.avatar.startsWith("http")
+                  ? artist.avatar
+                  : `${getBaseURL()}${artist.avatar}`
+                : undefined
+            }
+            size={200}
+            shape="circle"
+            className={styles.avatar}
+            icon={!artist.avatar && artist.name[0]}
+          />
+          <Dropdown menu={{ items: avatarMenuItems }} trigger={["click"]}>
+            <div className={styles.avatarMenuButton}>
+              <EllipsisOutlined />
+            </div>
+          </Dropdown>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handleAvatarFileChange}
+          />
+        </div>
         <Title level={2} className={styles.artistName}>
           {artist.name}
         </Title>
