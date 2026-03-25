@@ -83,6 +83,10 @@ import type {
   export const getCollaborativeAlbumsByArtist = (artist: string) => {
     return getAdapter().album.getCollaborativeAlbumsByArtist(artist);
   };
+
+  export const uploadAlbumCover = (id: number | string, file: any) => {
+    return getAdapter().album.uploadAlbumCover(id, file);
+  };
   
   export const toggleAlbumLike = (id: number | string, userId: number | string) => {
     return getAdapter().album.toggleLike(id, userId);

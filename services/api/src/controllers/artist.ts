@@ -9,9 +9,12 @@ import {
   Put,
   Query,
   Req,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import { Artist, TrackType } from '@soundx/db';
 import { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   IErrorResponse,
   ILoadMoreData,
@@ -21,6 +24,7 @@ import {
 } from 'src/common/const';
 import { Public } from 'src/common/public.decorator';
 import { LogMethod } from '../common/log-method.decorator';
+import { createCoverUploadOptions, toCoverUrl } from '../common/cover-upload';
 import { ArtistService } from '../services/artist';
 
 @Controller()
@@ -148,6 +152,34 @@ export class ArtistController {
         parseInt(id),
         artist,
       );
+      return {
+        code: 200,
+        message: 'success',
+        data: artistInfo,
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        message: error,
+      };
+    }
+  }
+
+  @Post('/artist/:id/avatar')
+  @UseInterceptors(FileInterceptor('file', createCoverUploadOptions('artist')))
+  @LogMethod()
+  async uploadArtistAvatar(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ISuccessResponse<Artist> | IErrorResponse> {
+    try {
+      if (!file) {
+        return { code: 400, message: 'No file uploaded' };
+      }
+      const avatarUrl = toCoverUrl(file.filename);
+      const artistInfo = await this.artistService.updateArtist(parseInt(id), {
+        avatar: avatarUrl,
+      });
       return {
         code: 200,
         message: 'success',

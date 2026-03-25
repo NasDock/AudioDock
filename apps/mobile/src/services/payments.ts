@@ -1,5 +1,5 @@
 import { Alert, Linking, Platform } from "react-native";
-import { plusCreatePayment, CreatePaymentDto } from "@soundx/services";
+import { plusCreatePayment, CreatePaymentDto, plusVerifyAppleIap, type AppleIapVerifyDto } from "@soundx/services";
 import type * as WeChatTypes from "react-native-wechat-lib";
 import type AlipayTypes from "@uiw/react-native-alipay";
 import type * as RNIapTypes from "react-native-iap";
@@ -15,7 +15,9 @@ let cachedIapModule: RNIapModule | null | undefined;
 const loadWeChatModule = (): WeChatModule | null => {
   if (cachedWeChatModule !== undefined) return cachedWeChatModule;
   try {
+    console.log("[Pay][WeChat] require start");
     cachedWeChatModule = require("react-native-wechat-lib") as WeChatModule;
+    console.log("[Pay][WeChat] require success", Object.keys(cachedWeChatModule || {}));
   } catch (error) {
     console.warn("Native module missing: react-native-wechat-lib", error);
     cachedWeChatModule = null;
@@ -26,7 +28,10 @@ const loadWeChatModule = (): WeChatModule | null => {
 const loadAlipayModule = (): AlipayModule | null => {
   if (cachedAlipayModule !== undefined) return cachedAlipayModule;
   try {
-    cachedAlipayModule = require("@uiw/react-native-alipay") as AlipayModule;
+    console.log("[Pay][Alipay] require start");
+    const raw = require("@uiw/react-native-alipay") as any;
+    cachedAlipayModule = (raw?.default ?? raw) as AlipayModule;
+    console.log("[Pay][Alipay] require success", Object.keys((cachedAlipayModule as any) || {}));
   } catch (error) {
     console.warn("Native module missing: @uiw/react-native-alipay", error);
     cachedAlipayModule = null;
@@ -37,7 +42,9 @@ const loadAlipayModule = (): AlipayModule | null => {
 const loadIapModule = (): RNIapModule | null => {
   if (cachedIapModule !== undefined) return cachedIapModule;
   try {
+    console.log("[Pay][IAP] require start");
     cachedIapModule = require("react-native-iap") as RNIapModule;
+    console.log("[Pay][IAP] require success", Object.keys(cachedIapModule || {}));
   } catch (error) {
     console.warn("Native module missing: react-native-iap", error);
     cachedIapModule = null;
@@ -50,6 +57,11 @@ const getWeChatModule = (): WeChatModule => {
     throw new Error("Web 端不支持微信支付");
   }
   const mod = loadWeChatModule();
+  console.log("[Pay][WeChat] module", {
+    ok: !!mod,
+    hasRegister: !!(mod as any)?.registerApp,
+    hasPay: !!(mod as any)?.pay,
+  });
   if (!mod || !mod.registerApp) {
     throw new Error("微信支付模块不可用（已禁用或未集成）");
   }
@@ -61,6 +73,11 @@ const getAlipayModule = (): AlipayModule => {
     throw new Error("Web 端不支持支付宝支付");
   }
   const mod = loadAlipayModule();
+  console.log("[Pay][Alipay] module", {
+    ok: !!mod,
+    hasAlipay: !!(mod as any)?.alipay,
+    hasSetScheme: !!(mod as any)?.setAlipayScheme,
+  });
   if (!mod || !(mod as any).alipay) {
     throw new Error("支付宝模块不可用（已禁用或未集成）");
   }
@@ -72,6 +89,10 @@ const getIapModule = (): RNIapModule => {
     throw new Error("Web 端不支持 Apple 内购");
   }
   const mod = loadIapModule();
+  console.log("[Pay][IAP] module", {
+    ok: !!mod,
+    hasInit: !!(mod as any)?.initConnection,
+  });
   if (!mod) {
     throw new Error("IAP 模块不可用（已禁用或未集成）");
   }
@@ -106,8 +127,8 @@ export type PlusPaymentPayload = {
 };
 
 export const VIP_PLAN_PRICE: Record<PaymentPlan, number> = {
-  annual: 20,
-  lifetime: 60,
+  annual: 0.01,
+  lifetime: 0.01,
 };
 
 export const VIP_PLAN_TIER: Record<PaymentPlan, "BASIC" | "LIFETIME"> = {
@@ -147,6 +168,10 @@ export const createPlusPayment = async (
   return plusCreatePayment(payload);
 };
 
+export const verifyAppleIapReceipt = async (payload: AppleIapVerifyDto) => {
+  return plusVerifyAppleIap(payload);
+};
+
 export const ensureWeChatRegistered = async (appId: string, universalLink?: string) => {
   if (!appId) {
     throw new Error("WeChat AppID 缺失");
@@ -161,6 +186,7 @@ export const payWithWeChat = async (
 ) => {
   try {
     const WeChat = getWeChatModule();
+    console.log("[Pay][WeChat] payload", payload);
     await WeChat.pay({
       appId: payload.appId,
       partnerId: payload.partnerId,
@@ -171,10 +197,13 @@ export const payWithWeChat = async (
       sign: payload.sign,
       signType: payload.signType ?? "MD5",
     });
+    console.log("[Pay][WeChat] pay invoked");
     return;
   } catch (error) {
+    console.warn("[Pay][WeChat] error", error);
     if (fallbackUrl) {
       const supported = await Linking.canOpenURL(fallbackUrl);
+      console.log("[Pay][WeChat] fallback url", { fallbackUrl, supported });
       if (supported) {
         await Linking.openURL(fallbackUrl);
         return;
@@ -190,17 +219,28 @@ export const payWithAlipay = async (
 ) => {
   try {
     const Alipay = getAlipayModule();
+    console.log("[Pay][Alipay] payload", {
+      scheme: payload.scheme,
+      orderStringPreview: payload.orderString ? `${payload.orderString.slice(0, 80)}...` : "",
+      orderStringLength: payload.orderString?.length ?? 0,
+      fallbackUrl,
+    });
     if ((Alipay as any).setAlipayScheme && payload.scheme) {
+      console.log("[Pay][Alipay] set scheme", payload.scheme);
       (Alipay as any).setAlipayScheme(payload.scheme);
     }
-    await (Alipay as any).alipay(payload.orderString);
-    return;
+    console.log("[Pay][Alipay] call alipay()");
+    const result = await (Alipay as any).alipay(payload.orderString);
+    console.log("[Pay][Alipay] result", result);
+    return result;
   } catch (error) {
+    console.warn("[Pay][Alipay] error", error);
     if (fallbackUrl) {
       const supported = await Linking.canOpenURL(fallbackUrl);
+      console.log("[Pay][Alipay] fallback url", { fallbackUrl, supported });
       if (supported) {
         await Linking.openURL(fallbackUrl);
-        return;
+        return null;
       }
     }
     throw error;

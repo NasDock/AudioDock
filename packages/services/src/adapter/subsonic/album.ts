@@ -192,6 +192,14 @@ export class SubsonicAlbumAdapter implements IAlbumAdapter {
     return this.response([]);
   }
 
+  async uploadAlbumCover(id: number | string, file: any) {
+    return {
+      code: 501,
+      message: "Subsonic adapter does not support cover upload.",
+      data: null as any,
+    };
+  }
+
   async toggleLike(id: number | string, userId: number | string) {
     await this.client.get("star", { albumId: id.toString() });
     return this.response(null);

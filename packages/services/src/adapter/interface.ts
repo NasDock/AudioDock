@@ -35,6 +35,7 @@ export interface IAlbumAdapter {
   getAlbumTracks(id: number | string, pageSize: number, skip: number, sort?: "asc" | "desc", keyword?: string, userId?: number | string, sortBy?: string): Promise<ISuccessResponse<{ list: any[]; total: number }>>;
   getAlbumsByArtist(artist: string): Promise<ISuccessResponse<Album[]>>;
   getCollaborativeAlbumsByArtist(artist: string): Promise<ISuccessResponse<Album[]>>;
+  uploadAlbumCover(id: number | string, file: any): Promise<ISuccessResponse<Album>>;
   toggleLike(id: number | string, userId: number | string): Promise<ISuccessResponse<any>>;
   toggleUnLike(id: number | string, userId: number | string): Promise<ISuccessResponse<any>>;
   getFavoriteAlbums(userId: number | string, loadCount: number, pageSize: number, type?: string): Promise<ISuccessResponse<ILoadMoreData<{ album: Album, createdAt: string | Date }>>>;
@@ -51,6 +52,7 @@ export interface IArtistAdapter {
   batchDeleteArtists(ids: (number | string)[]): Promise<ISuccessResponse<boolean>>;
   getArtistById(id: number | string): Promise<ISuccessResponse<Artist>>;
   getLatestArtists(type: string, random?: boolean, pageSize?: number): Promise<ISuccessResponse<Artist[]>>;
+  uploadArtistAvatar(id: number | string, file: any): Promise<ISuccessResponse<Artist>>;
 }
 
 export interface IPlaylistAdapter {

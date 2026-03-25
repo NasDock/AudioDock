@@ -53,3 +53,7 @@ export const getArtistList = (
   export const getLatestArtists = (type: string, random?: boolean, pageSize?: number) => {
     return getAdapter().artist.getLatestArtists(type, random, pageSize);
   };
+
+  export const uploadArtistAvatar = (id: number | string, file: any) => {
+    return getAdapter().artist.uploadArtistAvatar(id, file);
+  };

@@ -67,6 +67,7 @@ function RootLayoutNav() {
       segmentName === "login" ||
       segmentName === "member-login" ||
       segmentName === "member-benefits" ||
+      segmentName === "member-payment-success" ||
       segmentName === "forgot-password" ||
       segmentName === "member-detail" ||
       segmentName === "tts";
@@ -265,6 +266,7 @@ function RootLayoutNav() {
       <Stack.Screen name="widget" options={{ headerShown: false }} />
       <Stack.Screen name="source-manage" options={{ headerShown: false }} />
       <Stack.Screen name="member-detail" options={{ headerShown: false }} />
+      <Stack.Screen name="member-payment-success" options={{ headerShown: false }} />
       <Stack.Screen 
         name="login-form" 
         options={{ 
@@ -330,6 +332,7 @@ function RootLayoutNav() {
     rootSegment === "product-updates" ||
     rootSegment === "member-detail" ||
     rootSegment === "member-benefits" ||
+    rootSegment === "member-payment-success" ||
     rootSegment === "modal";
   const showBottomBar = !hideBottomBar;
 

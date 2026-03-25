@@ -26,6 +26,7 @@ import {
   payWithWeChat,
   registerIapListeners,
   requestIapPurchase,
+  verifyAppleIapReceipt,
   type PaymentPlan,
 } from "../src/services/payments";
 
@@ -40,6 +41,14 @@ export default function MemberBenefitsScreen() {
   const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>('lifetime');
   const [loading, setLoading] = useState(false);
   const [iapReady, setIapReady] = useState(false);
+
+  const normalizeMemberUserId = (raw: string) => {
+    try {
+      return String(JSON.parse(raw));
+    } catch {
+      return String(raw);
+    }
+  };
 
   useEffect(() => {
     if (Platform.OS !== "ios") return;
@@ -60,9 +69,33 @@ export default function MemberBenefitsScreen() {
     cleanup = registerIapListeners(
       async (purchase) => {
         try {
-          // TODO: 将 purchase.transactionReceipt 上报服务端校验并开通会员权益
-          await finalizeIapPurchase(purchase);
-          Alert.alert("支付完成", "购买成功，会员权益将在校验后生效");
+          const receipt = purchase.transactionReceipt;
+          if (!receipt) {
+            Alert.alert("支付失败", "未获取到支付凭证，请联系客服");
+            return;
+          }
+
+          const memberUserId = await AsyncStorage.getItem("plus_user_id");
+          if (!memberUserId) {
+            Alert.alert("提示", "请先登录会员账号");
+            return;
+          }
+
+          const verifyRes = await verifyAppleIapReceipt({
+            userId: normalizeMemberUserId(memberUserId),
+            productId: purchase.productId,
+            receipt,
+            transactionId: purchase.transactionId,
+            originalTransactionId: (purchase as any).originalTransactionIdentifierIOS,
+            transactionDate: purchase.transactionDate?.toString(),
+          });
+
+          if (verifyRes.data.code === 200) {
+            await finalizeIapPurchase(purchase);
+            Alert.alert("支付完成", "购买成功，会员权益已生效");
+          } else {
+            Alert.alert("提示", verifyRes.data.message || "购买已完成，但校验失败");
+          }
         } catch (error) {
           console.warn("IAP finalize failed", error);
           Alert.alert("提示", "支付成功但确认失败，请联系客服");
@@ -92,6 +125,57 @@ export default function MemberBenefitsScreen() {
     return userIdStr;
   };
 
+  const isAlipaySuccess = (result: any) => {
+    if (!result) return false;
+    if (typeof result === "string") {
+      return result.includes("resultStatus=9000") || result.includes("resultStatus={9000}");
+    }
+    if (typeof result === "object") {
+      const status = (result as any).resultStatus ?? (result as any).result_status ?? (result as any).status;
+      return String(status) === "9000";
+    }
+    return false;
+  };
+
+  const extractAlipayTradeNo = (result: any): string => {
+    const parseFromString = (value: string): string => {
+      const match = value.match(/tradeNo=([^&}]+)/) || value.match(/trade_no=([^&}]+)/);
+      return match?.[1] ? decodeURIComponent(match[1]) : "";
+    };
+
+    if (!result) return "";
+    if (typeof result === "string") {
+      return parseFromString(result);
+    }
+    if (typeof result === "object") {
+      const direct =
+        (result as any).tradeNo ||
+        (result as any).trade_no ||
+        (result as any).tradeNO ||
+        "";
+      if (direct) return String(direct);
+      const extendInfo = (result as any).extendInfo;
+      if (typeof extendInfo === "string") {
+        try {
+          const parsed = JSON.parse(extendInfo);
+          if (parsed?.tradeNo) return String(parsed.tradeNo);
+        } catch { }
+      }
+      if (typeof (result as any).result === "string") {
+        const raw = (result as any).result as string;
+        try {
+          const parsed = JSON.parse(raw);
+          const tradeNo =
+            parsed?.alipay_trade_app_pay_response?.trade_no ||
+            parsed?.alipay_trade_app_pay_response?.tradeNo;
+          if (tradeNo) return String(tradeNo);
+        } catch { }
+        return parseFromString(raw);
+      }
+    }
+    return "";
+  };
+
   const handlePayment = async (method: 'WECHAT' | 'ALIPAY') => {
     const userIdStr = await AsyncStorage.getItem("plus_user_id");
     if (!userIdStr) {
@@ -107,7 +191,9 @@ export default function MemberBenefitsScreen() {
       const res = await createPlusPayment(userIdStr, selectedPlan, method);
 
       if (res.data.code === 201 || res.data.code === 200) {
-        const { paymentUrl, wechatPay, alipayPay } = res.data.data || {};
+        const { paymentUrl, wechatPay, alipayPay, orderId } = res.data.data || {};
+        const resolvedOrderId =
+          orderId ?? "";
         if (method === "WECHAT") {
           if (wechatPay) {
             await ensureWeChatRegistered(WECHAT_APP_ID, WECHAT_UNIVERSAL_LINK);
@@ -127,7 +213,21 @@ export default function MemberBenefitsScreen() {
 
         if (method === "ALIPAY") {
           if (alipayPay?.orderString) {
-            await payWithAlipay({ orderString: alipayPay.orderString, scheme: ALIPAY_SCHEME }, paymentUrl);
+            const result = await payWithAlipay(
+              { orderString: alipayPay.orderString, scheme: ALIPAY_SCHEME },
+              paymentUrl
+            );
+            if (isAlipaySuccess(result)) {
+              const tradeNo = extractAlipayTradeNo(result);
+              router.replace({
+                pathname: "/member-payment-success",
+                params: {
+                  orderId: resolvedOrderId,
+                  tradeNo,
+                  paidAt: new Date().toISOString(),
+                },
+              } as any);
+            }
           } else if (paymentUrl) {
             const supported = await Linking.canOpenURL(paymentUrl);
             if (supported) {
@@ -183,92 +283,92 @@ export default function MemberBenefitsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
-         <TouchableOpacity 
-           onPress={() => router.back()} 
-           style={styles.backButton}
-         >
-            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
-         </TouchableOpacity>
-         <Text style={[styles.headerTitle, { color: colors.text }]}>会员权益</Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>会员权益</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Comparison Table */}
         <View style={[styles.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.tableHeader}>
-                <Text style={[styles.tableHeaderText, { flex: 2, color: colors.secondary }]}>权益功能</Text>
-                <Text style={[styles.tableHeaderText, { flex: 1, textAlign: 'center', color: colors.secondary }]}>非会员</Text>
-                <Text style={[styles.tableHeaderText, { flex: 1, textAlign: 'center', color: colors.secondary }]}>会员</Text>
+          <View style={styles.tableHeader}>
+            <Text style={[styles.tableHeaderText, { flex: 2, color: colors.secondary }]}>权益功能</Text>
+            <Text style={[styles.tableHeaderText, { flex: 1, textAlign: 'center', color: colors.secondary }]}>非会员</Text>
+            <Text style={[styles.tableHeaderText, { flex: 1, textAlign: 'center', color: colors.secondary }]}>会员</Text>
+          </View>
+          {comparisonData.map((item, index) => (
+            <View key={index} style={[styles.tableRow, { borderTopWidth: index === 0 ? 0 : 0.5, borderTopColor: colors.border }]}>
+              <Text style={[styles.featureText, { flex: 2, color: colors.text }]}>{item.feature}</Text>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Ionicons
+                  name={item.free ? "checkmark-circle" : "close-circle"}
+                  size={20}
+                  color={item.free ? colors.primary : colors.secondary}
+                  style={{ opacity: item.free ? 1 : 0.3 }}
+                />
+              </View>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={22}
+                  color="#FFD700"
+                />
+              </View>
             </View>
-            {comparisonData.map((item, index) => (
-                <View key={index} style={[styles.tableRow, { borderTopWidth: index === 0 ? 0 : 0.5, borderTopColor: colors.border }]}>
-                    <Text style={[styles.featureText, { flex: 2, color: colors.text }]}>{item.feature}</Text>
-                    <View style={{ flex: 1, alignItems: 'center' }}>
-                        <Ionicons 
-                            name={item.free ? "checkmark-circle" : "close-circle"} 
-                            size={20} 
-                            color={item.free ? colors.primary : colors.secondary} 
-                            style={{ opacity: item.free ? 1 : 0.3 }}
-                        />
-                    </View>
-                    <View style={{ flex: 1, alignItems: 'center' }}>
-                        <Ionicons 
-                            name="checkmark-circle" 
-                            size={22} 
-                            color="#FFD700" 
-                        />
-                    </View>
-                </View>
-            ))}
+          ))}
         </View>
 
         {/* Pricing Plans */}
-         <View style={styles.dividerContainer}>
-            <Text style={[styles.dividerText, { color: colors.secondary }]}>会员方案</Text>
+        <View style={styles.dividerContainer}>
+          <Text style={[styles.dividerText, { color: colors.secondary }]}>会员方案</Text>
         </View>
 
 
         <View style={styles.plansContainer}>
-            <TouchableOpacity 
-              style={[
-                styles.planCard, 
-                { backgroundColor: colors.card, borderColor: selectedPlan === 'annual' ? colors.primary : colors.border },
-                selectedPlan === 'annual' && { borderWidth: 2 }
-              ]}
-              onPress={() => setSelectedPlan('annual')}
-            >
-                <Text style={[styles.planName, { color: colors.text }]}>年卡</Text>
-                <View style={styles.priceContainer}>
-                    <Text style={[styles.currency, { color: colors.primary }]}>¥</Text>
-                    <Text style={[styles.priceAmount, { color: colors.primary }]}>20</Text>
-                    <Text style={[styles.unit, { color: colors.secondary }]}>/年</Text>
-                </View>
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.planCard,
+              { backgroundColor: colors.card, borderColor: selectedPlan === 'annual' ? colors.primary : colors.border },
+              selectedPlan === 'annual' && { borderWidth: 2 }
+            ]}
+            onPress={() => setSelectedPlan('annual')}
+          >
+            <Text style={[styles.planName, { color: colors.text }]}>年卡</Text>
+            <View style={styles.priceContainer}>
+              <Text style={[styles.currency, { color: colors.primary }]}>¥</Text>
+              <Text style={[styles.priceAmount, { color: colors.primary }]}>20</Text>
+              <Text style={[styles.unit, { color: colors.secondary }]}>/年</Text>
+            </View>
+          </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[
-                styles.planCard, 
-                { backgroundColor: colors.card, borderColor: selectedPlan === 'lifetime' ? "#FFD700" : colors.border },
-                selectedPlan === 'lifetime' && { borderWidth: 2 }
-              ]}
-              onPress={() => setSelectedPlan('lifetime')}
-            >
-                <View style={[styles.recommendBadge, { opacity: selectedPlan === 'lifetime' ? 1 : 0.6 }]}>
-                    <Text style={styles.recommendText}>推荐</Text>
-                </View>
-                <Text style={[styles.planName, { color: colors.text }]}>永久卡</Text>
-                <View style={styles.priceContainer}>
-                    <Text style={[styles.currency, { color: colors.primary }]}>¥</Text>
-                    <Text style={[styles.priceAmount, { color: colors.primary }]}>60</Text>
-                    <Text style={[styles.unit, { color: colors.secondary }]}>/永久</Text>
-                </View>
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.planCard,
+              { backgroundColor: colors.card, borderColor: selectedPlan === 'lifetime' ? "#FFD700" : colors.border },
+              selectedPlan === 'lifetime' && { borderWidth: 2 }
+            ]}
+            onPress={() => setSelectedPlan('lifetime')}
+          >
+            <View style={[styles.recommendBadge, { opacity: selectedPlan === 'lifetime' ? 1 : 0.6 }]}>
+              <Text style={styles.recommendText}>推荐</Text>
+            </View>
+            <Text style={[styles.planName, { color: colors.text }]}>永久卡</Text>
+            <View style={styles.priceContainer}>
+              <Text style={[styles.currency, { color: colors.primary }]}>¥</Text>
+              <Text style={[styles.priceAmount, { color: colors.primary }]}>60</Text>
+              <Text style={[styles.unit, { color: colors.secondary }]}>/永久</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
 
         {/* Payment Methods */}
         <View style={styles.dividerContainer}>
-            <Text style={[styles.dividerText, { color: colors.secondary }]}>支付方式</Text>
+          <Text style={[styles.dividerText, { color: colors.secondary }]}>支付方式</Text>
         </View>
 
         <View style={styles.paymentMethods}>
@@ -283,21 +383,21 @@ export default function MemberBenefitsScreen() {
             </TouchableOpacity>
           ) : (
             <>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.paymentItem, { backgroundColor: colors.card, borderColor: colors.border, opacity: loading ? 0.6 : 1 }]}
                 onPress={() => handlePayment('WECHAT')}
                 disabled={loading}
               >
-                  <AntDesign name="wechat" size={24} color={'#1AAD19'} />
-                  <Text style={[styles.paymentText, { color: colors.text }]}>微信</Text>
+                <AntDesign name="wechat" size={24} color={'#1AAD19'} />
+                <Text style={[styles.paymentText, { color: colors.text }]}>微信</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.paymentItem, { backgroundColor: colors.card, borderColor: colors.border, opacity: loading ? 0.6 : 1 }]}
                 onPress={() => handlePayment('ALIPAY')}
                 disabled={loading}
               >
-                  <AntDesign name="alipay-circle" size={24} color={'#02A9F1'} />
-                  <Text style={[styles.paymentText, { color: colors.text }]}>支付宝</Text>
+                <AntDesign name="alipay-circle" size={24} color={'#02A9F1'} />
+                <Text style={[styles.paymentText, { color: colors.text }]}>支付宝</Text>
               </TouchableOpacity>
             </>
           )}
