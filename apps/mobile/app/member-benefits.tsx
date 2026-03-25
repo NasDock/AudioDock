@@ -26,6 +26,7 @@ import {
   payWithWeChat,
   registerIapListeners,
   requestIapPurchase,
+  verifyAppleIapReceipt,
   type PaymentPlan,
 } from "../src/services/payments";
 
@@ -40,6 +41,14 @@ export default function MemberBenefitsScreen() {
   const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>('lifetime');
   const [loading, setLoading] = useState(false);
   const [iapReady, setIapReady] = useState(false);
+
+  const normalizeMemberUserId = (raw: string) => {
+    try {
+      return String(JSON.parse(raw));
+    } catch {
+      return String(raw);
+    }
+  };
 
   useEffect(() => {
     if (Platform.OS !== "ios") return;
@@ -60,9 +69,33 @@ export default function MemberBenefitsScreen() {
     cleanup = registerIapListeners(
       async (purchase) => {
         try {
-          // TODO: 将 purchase.transactionReceipt 上报服务端校验并开通会员权益
-          await finalizeIapPurchase(purchase);
-          Alert.alert("支付完成", "购买成功，会员权益将在校验后生效");
+          const receipt = purchase.transactionReceipt;
+          if (!receipt) {
+            Alert.alert("支付失败", "未获取到支付凭证，请联系客服");
+            return;
+          }
+
+          const memberUserId = await AsyncStorage.getItem("plus_user_id");
+          if (!memberUserId) {
+            Alert.alert("提示", "请先登录会员账号");
+            return;
+          }
+
+          const verifyRes = await verifyAppleIapReceipt({
+            userId: normalizeMemberUserId(memberUserId),
+            productId: purchase.productId,
+            receipt,
+            transactionId: purchase.transactionId,
+            originalTransactionId: (purchase as any).originalTransactionIdentifierIOS,
+            transactionDate: purchase.transactionDate?.toString(),
+          });
+
+          if (verifyRes.data.code === 200) {
+            await finalizeIapPurchase(purchase);
+            Alert.alert("支付完成", "购买成功，会员权益已生效");
+          } else {
+            Alert.alert("提示", verifyRes.data.message || "购买已完成，但校验失败");
+          }
         } catch (error) {
           console.warn("IAP finalize failed", error);
           Alert.alert("提示", "支付成功但确认失败，请联系客服");

@@ -92,6 +92,15 @@ export interface TrackingEventDto {
   metadata?: Record<string, any>;
 }
 
+export interface AppleIapVerifyDto {
+  userId: string;
+  productId: string;
+  receipt: string;
+  transactionId?: string;
+  originalTransactionId?: string;
+  transactionDate?: string;
+}
+
 // --- API Functions ---
 
 /**
@@ -155,6 +164,13 @@ export const plusConsumePoints = async (data: ConsumePointsDto) => {
  */
 export const plusTrackEvent = async (data: TrackingEventDto) => {
   return plusRequest.post<ISuccessResponse<any>>("/tracking/events", data);
+};
+
+/**
+ * PaymentController_verifyAppleIap: Verify Apple IAP receipt
+ */
+export const plusVerifyAppleIap = async (data: AppleIapVerifyDto) => {
+  return plusRequest.post<ISuccessResponse<any>>("/payment/apple/verify", data);
 };
 
 /**
