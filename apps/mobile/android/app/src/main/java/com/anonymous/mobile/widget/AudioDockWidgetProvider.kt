@@ -110,7 +110,7 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
 
         val (widthPx, heightPx) = resolveWidgetSize(context, options)
         val bgBitmap = when {
-          coverBitmap != null -> blurredBackground(coverBitmap!!, widthPx, heightPx)
+          coverBitmap != null -> WidgetImageUtils.blurredBackground(coverBitmap!!, widthPx, heightPx)
           else -> gradientBitmap(widthPx, heightPx, state.colorPrimary, state.colorSecondary)
         }
         if (bgBitmap != null) {
@@ -248,15 +248,6 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
       )
       canvas.drawRect(Rect(0, 0, width, height), paint)
       return bitmap
-    }
-
-    private fun blurredBackground(source: Bitmap, targetWidth: Int, targetHeight: Int): Bitmap? {
-      if (targetWidth <= 0 || targetHeight <= 0) return null
-      val scale = 0.12f
-      val downW = (targetWidth * scale).toInt().coerceAtLeast(1)
-      val downH = (targetHeight * scale).toInt().coerceAtLeast(1)
-      val down = Bitmap.createScaledBitmap(source, downW, downH, true)
-      return Bitmap.createScaledBitmap(down, targetWidth, targetHeight, true)
     }
 
     // Transport actions are handled in WidgetTransportService to avoid binding in a receiver.
