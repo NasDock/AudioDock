@@ -48,7 +48,10 @@ export const GlobalBottomBar = () => {
             <TouchableOpacity
               key={tab.href}
               style={styles.tabItem}
-              onPress={() => router.push(tab.href as any)}
+              onPress={() => {
+                if (isActive) return;
+                router.push(tab.href as any);
+              }}
             >
               <Ionicons size={28} name={tab.icon as any} color={iconColor} />
               <Text style={[styles.tabLabel, { color: textColor }]}>
