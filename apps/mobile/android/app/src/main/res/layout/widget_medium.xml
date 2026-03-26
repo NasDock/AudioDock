@@ -28,8 +28,7 @@
     <FrameLayout
       android:layout_width="0dp"
       android:layout_height="match_parent"
-      android:layout_weight="1"
-      android:foregroundGravity="top|start">
+      android:layout_weight="1">
 
       <ImageView
         android:id="@+id/widget_cover"
