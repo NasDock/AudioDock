@@ -15,6 +15,7 @@ import { User } from '@soundx/db';
 import {
   IErrorResponse,
   ILoadMoreData,
+  IParamsErrorResponse,
   ISuccessResponse,
   ITableData,
 } from 'src/common/const';
@@ -192,7 +193,7 @@ export class UserController {
   async uploadUserAvatar(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<ISuccessResponse<User> | IErrorResponse> {
+  ): Promise<ISuccessResponse<User> | IErrorResponse | IParamsErrorResponse> {
     try {
       if (!file) {
         return { code: 400, message: 'No file uploaded' };

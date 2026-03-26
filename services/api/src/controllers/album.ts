@@ -18,6 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import {
     IErrorResponse,
     ILoadMoreData,
+    IParamsErrorResponse,
     ISuccessResponse,
     ITableData,
 } from 'src/common/const';
@@ -270,7 +271,7 @@ export class AlbumController {
   async uploadAlbumCover(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<ISuccessResponse<Album> | IErrorResponse> {
+  ): Promise<ISuccessResponse<Album> | IErrorResponse | IParamsErrorResponse> {
     try {
       if (!file) {
         return { code: 400, message: 'No file uploaded' };
