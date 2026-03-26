@@ -19,6 +19,7 @@ import {
   IErrorResponse,
   ILoadMoreData,
   INotFoundResponse,
+  IParamsErrorResponse,
   ISuccessResponse,
   ITableData,
 } from 'src/common/const';
@@ -171,7 +172,7 @@ export class ArtistController {
   async uploadArtistAvatar(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<ISuccessResponse<Artist> | IErrorResponse> {
+  ): Promise<ISuccessResponse<Artist> | IErrorResponse | IParamsErrorResponse> {
     try {
       if (!file) {
         return { code: 400, message: 'No file uploaded' };

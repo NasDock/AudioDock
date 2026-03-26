@@ -150,6 +150,7 @@ export interface User {
   id: number | string;
   username: string;
   password?: string;
+  avatar?: string | null;
   is_admin: boolean;
   expiresAt?: string | Date | null;
   createdAt?: string | Date;

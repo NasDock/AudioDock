@@ -37,6 +37,7 @@ export class AuthService {
     return await this.userService.createUser({
       username,
       password,
+      avatar: null,
       is_admin: false,
       createdAt: new Date(),
       expiresAt: null,

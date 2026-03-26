@@ -39,6 +39,7 @@ import {
   setServiceConfig,
   SOURCEMAP,
   TaskStatus,
+  uploadUserAvatar,
   useNativeAdapter,
   useSubsonicAdapter,
   type ImportTask,
@@ -908,6 +909,38 @@ const Header: React.FC = () => {
               <div
                 className={styles.userMenuItem}
                 onClick={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.accept = "image/*";
+                  input.onchange = async (e: any) => {
+                    const file = e.target.files[0];
+                    if (file && user?.id) {
+                      try {
+                        const res = await uploadUserAvatar(user.id, file);
+                        if (res.code === 200) {
+                          message.success("头像修改成功，可能需要重新登录以应用部分界面！");
+                          // Updating user state is handled manually or via re-fetch
+                          const url = localStorage.getItem("serverAddress") || "http://localhost:3000";
+                          const updatedUser = { ...user, avatar: res.data.avatar };
+                          localStorage.setItem(`user_${url}`, JSON.stringify(updatedUser));
+                          useAuthStore.setState({ user: updatedUser as any });
+                        } else {
+                          message.error(res.message || "修改头像失败");
+                        }
+                      } catch (err) {
+                        message.error("上传错误");
+                      }
+                    }
+                  };
+                  input.click();
+                }}
+              >
+                <PlusOutlined />
+                更换头像
+              </div>
+              <div
+                className={styles.userMenuItem}
+                onClick={() => {
                   if (window.ipcRenderer) {
                     window.ipcRenderer?.openExternal(
                       "https://github.com/mmdctjj/AudioDock",
@@ -1003,7 +1036,11 @@ const Header: React.FC = () => {
           >
             <div className={styles.avatar}>
               <img
-                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
+                src={
+                  user?.avatar
+                    ? `${localStorage.getItem("serverAddress")}${user.avatar}`
+                    : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username || "Felix"}`
+                }
                 alt="avatar"
               />
             </div>

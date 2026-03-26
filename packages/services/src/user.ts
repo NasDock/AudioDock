@@ -23,3 +23,7 @@ import { getAdapter } from "./adapter/manager";
   export const getUserList = () => {
     return getAdapter().user.getUserList();
   };
+
+  export const uploadUserAvatar = (id: number | string, file: any) => {
+    return getAdapter().user.uploadUserAvatar(id, file);
+  };

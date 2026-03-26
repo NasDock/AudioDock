@@ -6,11 +6,16 @@ import {
   Param,
   Post,
   Put,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { createCoverUploadOptions, toCoverUrl } from '../common/cover-upload';
 import { User } from '@soundx/db';
 import {
   IErrorResponse,
   ILoadMoreData,
+  IParamsErrorResponse,
   ISuccessResponse,
   ITableData,
 } from 'src/common/const';
@@ -174,6 +179,31 @@ export class UserController {
         code: 200,
         message: 'success',
         data: isSuccess,
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        message: error,
+      };
+    }
+  }
+
+  @Post('/user/:id/avatar')
+  @UseInterceptors(FileInterceptor('file', createCoverUploadOptions('user')))
+  async uploadUserAvatar(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ISuccessResponse<User> | IErrorResponse | IParamsErrorResponse> {
+    try {
+      if (!file) {
+        return { code: 400, message: 'No file uploaded' };
+      }
+      const avatarUrl = toCoverUrl(file.filename);
+      const userInfo = await this.userService.updateUser(parseInt(id), { avatar: avatarUrl });
+      return {
+        code: 200,
+        message: 'success',
+        data: userInfo,
       };
     } catch (error) {
       return {

@@ -26,6 +26,7 @@ interface AuthContextType {
   switchServer: (url: string, type?: string, skipToken?: boolean) => Promise<void>;
   plusToken: string | null;
   setPlusToken: (token: string | null) => Promise<void>;
+  updateUser: (user: User) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -41,6 +42,7 @@ const AuthContext = createContext<AuthContextType>({
   switchServer: async () => {},
   plusToken: null,
   setPlusToken: async () => {},
+  updateUser: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -292,6 +294,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const updateUser = async (newUser: User) => {
+    setUser(newUser);
+    const savedAddress = getBaseURL();
+    await AsyncStorage.setItem(`user_${savedAddress}`, JSON.stringify(newUser));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -307,6 +315,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         switchServer,
         plusToken,
         setPlusToken,
+        updateUser,
       }}
     >
       {children}
