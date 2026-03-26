@@ -39,12 +39,21 @@ target 'AudioDock' do
   end
 
   config = use_native_modules!(config_command)
+  react_native_path = config[:reactNativePath]
+
+  # Explicitly provide RN third-party podspecs for deps (e.g., react-native-iap)
+  pod 'RCT-Folly', :podspec => File.join(react_native_path, 'third-party-podspecs', 'RCT-Folly.podspec')
+  pod 'fast_float', :podspec => File.join(react_native_path, 'third-party-podspecs', 'fast_float.podspec')
+  pod 'fmt', :podspec => File.join(react_native_path, 'third-party-podspecs', 'fmt.podspec')
+  pod 'glog', :podspec => File.join(react_native_path, 'third-party-podspecs', 'glog.podspec')
+  pod 'boost', :podspec => File.join(react_native_path, 'third-party-podspecs', 'boost.podspec')
+  pod 'DoubleConversion', :podspec => File.join(react_native_path, 'third-party-podspecs', 'DoubleConversion.podspec')
 
   use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
   use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
 
   use_react_native!(
-    :path => config[:reactNativePath],
+    :path => react_native_path,
     :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/..",
