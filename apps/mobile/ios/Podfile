@@ -4,6 +4,7 @@ require File.join(File.dirname(`node --print "require.resolve('expo/package.json
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
 
 require 'json'
+require 'fileutils'
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
 def ccache_enabled?(podfile_properties)
@@ -67,5 +68,115 @@ target 'AudioDock' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # Exclude arm64 for simulator (WeChat SDK is device-only)
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+      end
+    end
+    installer.aggregate_targets.each do |aggregate_target|
+      aggregate_target.user_project.targets.each do |target|
+        target.build_configurations.each do |config|
+          config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+        end
+      end
+    end
+
+    # Add a dummy x86_64 slice to WeChat SDK to allow simulator builds under Rosetta
+    wechat_lib = File.join(installer.sandbox.root, 'RCTWeChat', 'libWeChatSDK.a')
+    if File.exist?(wechat_lib)
+      lipo_info = `lipo -info "#{wechat_lib}"`
+      unless lipo_info.include?("x86_64")
+        tmp_dir = File.join(Dir.pwd, 'tmp_wechat_sim')
+        FileUtils.mkdir_p(tmp_dir)
+        empty_c = File.join(tmp_dir, 'empty.c')
+        File.write(empty_c, "void wechat_dummy() {}")
+        system("xcrun --sdk iphonesimulator clang -arch x86_64 -c #{empty_c} -o #{tmp_dir}/empty.o")
+        system("libtool -static -o #{tmp_dir}/libWeChatSDK_sim.a #{tmp_dir}/empty.o")
+        system("lipo -create \"#{wechat_lib}\" \"#{tmp_dir}/libWeChatSDK_sim.a\" -output \"#{wechat_lib}\"")
+        FileUtils.rm_rf(tmp_dir)
+      end
+    end
+
+    # Fix missing folly/synchronization/SanitizeThread.h in some RN/Folly bundles
+    sanitize_header = File.join(installer.sandbox.root, 'RCT-Folly', 'folly', 'synchronization', 'SanitizeThread.h')
+    FileUtils.mkdir_p(File.dirname(sanitize_header))
+    File.write(sanitize_header, <<~'EOF')
+        /*
+         * Temporary shim for missing folly/synchronization/SanitizeThread.h
+         * Provides no-op annotations when TSAN is not enabled.
+         */
+        #pragma once
+
+        #include <folly/Portability.h>
+
+        namespace folly {
+
+        enum class annotate_rwlock_level : long {
+          rdlock = 0,
+          wrlock = 1,
+        };
+
+        using annotate_rwlock_cd_t = void(const char*, int, const volatile void*);
+        using annotate_rwlock_ar_t = void(const char*, int, const volatile void*, long);
+        using annotate_rwlock_try_acquired_t =
+            void(const char*, int, const volatile void*, long, int);
+        using annotate_benign_race_sized_t =
+            void(const char*, int, const volatile void*, long, const char*);
+        using annotate_ignore_t = void(const char*, int);
+
+        FOLLY_ALWAYS_INLINE void annotate_rwlock_create(
+            const volatile void*, const char*, int) {}
+        FOLLY_ALWAYS_INLINE void annotate_rwlock_create_static(
+            const volatile void*, const char*, int) {}
+        FOLLY_ALWAYS_INLINE void annotate_rwlock_destroy(
+            const volatile void*, const char*, int) {}
+        FOLLY_ALWAYS_INLINE void annotate_rwlock_acquired(
+            const volatile void*, annotate_rwlock_level, const char*, int) {}
+        FOLLY_ALWAYS_INLINE void annotate_rwlock_try_acquired(
+            const volatile void*, annotate_rwlock_level, bool, const char*, int) {}
+        FOLLY_ALWAYS_INLINE void annotate_rwlock_released(
+            const volatile void*, annotate_rwlock_level, const char*, int) {}
+        FOLLY_ALWAYS_INLINE void annotate_benign_race_sized(
+            const volatile void*, long, const char*, const char*, int) {}
+        FOLLY_ALWAYS_INLINE void annotate_ignore_reads_begin(
+            const char*, int) {}
+        FOLLY_ALWAYS_INLINE void annotate_ignore_reads_end(
+            const char*, int) {}
+        FOLLY_ALWAYS_INLINE void annotate_ignore_writes_begin(
+            const char*, int) {}
+        FOLLY_ALWAYS_INLINE void annotate_ignore_writes_end(
+            const char*, int) {}
+        FOLLY_ALWAYS_INLINE void annotate_ignore_sync_begin(
+            const char*, int) {}
+        FOLLY_ALWAYS_INLINE void annotate_ignore_sync_end(
+            const char*, int) {}
+
+        struct annotate_ignore_thread_sanitizer_guard {
+          annotate_ignore_thread_sanitizer_guard(const char*, int) {}
+          ~annotate_ignore_thread_sanitizer_guard() = default;
+        };
+
+        } // namespace folly
+      EOF
+
+    relaxed_atomic_header = File.join(installer.sandbox.root, 'RCT-Folly', 'folly', 'synchronization', 'RelaxedAtomic.h')
+    FileUtils.mkdir_p(File.dirname(relaxed_atomic_header))
+    File.write(relaxed_atomic_header, <<~'EOF')
+        /*
+         * Temporary shim for missing folly/synchronization/RelaxedAtomic.h
+         */
+        #pragma once
+
+        #include <atomic>
+
+        namespace folly {
+
+        template <typename T>
+        using relaxed_atomic = std::atomic<T>;
+
+        } // namespace folly
+      EOF
   end
 end

@@ -55,8 +55,6 @@ PODS:
     - SDWebImageAVIFCoder (~> 0.11.0)
     - SDWebImageSVGCoder (~> 1.7.0)
     - SDWebImageWebPCoder (~> 0.14.6)
-  - ExpoImagePicker (55.0.13):
-    - ExpoModulesCore
   - ExpoKeepAwake (15.0.8):
     - ExpoModulesCore
   - ExpoLinking (8.0.10):
@@ -1440,8 +1438,6 @@ PODS:
     - React-RCTFBReactNativeSpec
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
-  - react-native-alipay (5.0.2):
-    - React-Core
   - react-native-safe-area-context (5.6.2):
     - hermes-engine
     - RCTRequired
@@ -2200,7 +2196,6 @@ DEPENDENCIES:
   - "ExpoHaptics (from `../../../node_modules/.pnpm/expo-haptics@15.0.8_expo@54.0.27/node_modules/expo-haptics/ios`)"
   - "ExpoHead (from `../../../node_modules/.pnpm/expo-router@6.0.17_e29fdc08ab87b723b7f272f9b8dd9bf4/node_modules/expo-router/ios`)"
   - "ExpoImage (from `../../../node_modules/.pnpm/expo-image@3.0.11_expo@54.0.27_react-native-web@0.21.2_encoding@0.1.13_react-dom@19.1.0_8c881c6c5b6c012783e4deaae8179bd7/node_modules/expo-image/ios`)"
-  - "ExpoImagePicker (from `../../../node_modules/.pnpm/expo-image-picker@55.0.13_expo@54.0.27/node_modules/expo-image-picker/ios`)"
   - "ExpoKeepAwake (from `../../../node_modules/.pnpm/expo-keep-awake@15.0.8_expo@54.0.27_react@19.1.0/node_modules/expo-keep-awake/ios`)"
   - "ExpoLinking (from `../../../node_modules/.pnpm/expo-linking@8.0.10_expo@54.0.27_react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/expo-linking/ios`)"
   - "ExpoMediaLibrary (from `../../../node_modules/.pnpm/expo-media-library@18.2.1_expo@54.0.27_react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0_/node_modules/expo-media-library/ios`)"
@@ -2253,7 +2248,6 @@ DEPENDENCIES:
   - "React-logger (from `../../../node_modules/.pnpm/react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0/node_modules/react-native/ReactCommon/logger`)"
   - "React-Mapbuffer (from `../../../node_modules/.pnpm/react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0/node_modules/react-native/ReactCommon`)"
   - "React-microtasksnativemodule (from `../../../node_modules/.pnpm/react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0/node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)"
-  - "react-native-alipay (from `../../../node_modules/.pnpm/@uiw+react-native-alipay@5.0.2_react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/@uiw/react-native-alipay`)"
   - "react-native-safe-area-context (from `../../../node_modules/.pnpm/react-native-safe-area-context@5.6.2_react-native@0.81.5_@babel+core@7.28.5_@types+reac_af391ae54fcf764d6174d128987d859a/node_modules/react-native-safe-area-context`)"
   - "react-native-slider (from `../../../node_modules/.pnpm/@react-native-community+slider@5.0.1/node_modules/@react-native-community/slider`)"
   - "react-native-track-player (from `../../../node_modules/.pnpm/react-native-track-player@5.0.0-alpha0_react-native@0.81.5_@babel+core@7.28.5_@types+re_f6e170419224f81ed09e0aa39e012433/node_modules/react-native-track-player`)"
@@ -2336,8 +2330,6 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/expo-router@6.0.17_e29fdc08ab87b723b7f272f9b8dd9bf4/node_modules/expo-router/ios"
   ExpoImage:
     :path: "../../../node_modules/.pnpm/expo-image@3.0.11_expo@54.0.27_react-native-web@0.21.2_encoding@0.1.13_react-dom@19.1.0_8c881c6c5b6c012783e4deaae8179bd7/node_modules/expo-image/ios"
-  ExpoImagePicker:
-    :path: "../../../node_modules/.pnpm/expo-image-picker@55.0.13_expo@54.0.27/node_modules/expo-image-picker/ios"
   ExpoKeepAwake:
     :path: "../../../node_modules/.pnpm/expo-keep-awake@15.0.8_expo@54.0.27_react@19.1.0/node_modules/expo-keep-awake/ios"
   ExpoLinking:
@@ -2441,8 +2433,6 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0/node_modules/react-native/ReactCommon"
   React-microtasksnativemodule:
     :path: "../../../node_modules/.pnpm/react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0/node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
-  react-native-alipay:
-    :path: "../../../node_modules/.pnpm/@uiw+react-native-alipay@5.0.2_react-native@0.81.5_@babel+core@7.28.5_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/@uiw/react-native-alipay"
   react-native-safe-area-context:
     :path: "../../../node_modules/.pnpm/react-native-safe-area-context@5.6.2_react-native@0.81.5_@babel+core@7.28.5_@types+reac_af391ae54fcf764d6174d128987d859a/node_modules/react-native-safe-area-context"
   react-native-slider:
@@ -2541,7 +2531,6 @@ SPEC CHECKSUMS:
   ExpoHaptics: d3a6375d8dcc3a1083d003bc2298ff654fafb536
   ExpoHead: 5611b33d6b983922d0233367ee6ab65633364dfd
   ExpoImage: 686f972bff29525733aa13357f6691dc90aa03d8
-  ExpoImagePicker: 4463c7e793d904553fb832f7568e306fd7544bc9
   ExpoKeepAwake: 55f75eca6499bb9e4231ebad6f3e9cb8f99c0296
   ExpoLinking: f4c4a351523da72a6bfa7e1f4ca92aee1043a3ca
   ExpoMediaLibrary: a3093b04365b245bb23b25b6eba84eb6ab55fecb
@@ -2596,7 +2585,6 @@ SPEC CHECKSUMS:
   React-logger: 50fdb9a8236da90c0b1072da5c32ee03aeb5bf28
   React-Mapbuffer: 9050ee10c19f4f7fca8963d0211b2854d624973e
   React-microtasksnativemodule: f775db9e991c6f3b8ccbc02bfcde22770f96e23b
-  react-native-alipay: ef6e1a2fc00744978a63919a4a1c10355001e891
   react-native-safe-area-context: 37e680fc4cace3c0030ee46e8987d24f5d3bdab2
   react-native-slider: 8c562583722c396a3682f451f0b6e68e351ec3b9
   react-native-track-player: efc69f33d80dfec70b64137e7167eb455ea5bb9d
@@ -2644,6 +2632,6 @@ SPEC CHECKSUMS:
   SwiftAudioEx: f6aa653770f3a0d3851edaf8d834a30aee4a7646
   Yoga: 5934998fbeaef7845dbf698f698518695ab4cd1a
 
-PODFILE CHECKSUM: 2e96cbcad457c29ee4fbc509a2744e21282e9275
+PODFILE CHECKSUM: cbcc0c978800f5589ff4bccaf118db7b57f4faa9
 
 COCOAPODS: 1.16.2
