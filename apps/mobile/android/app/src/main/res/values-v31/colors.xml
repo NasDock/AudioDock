@@ -1,0 +1,5 @@
+<resources>
+  <color name="widget_dynamic_start">@android:color/system_accent1_200</color>
+  <color name="widget_dynamic_end">@android:color/system_accent2_200</color>
+  <color name="widget_glass_tint">#33FFFFFF</color>
+</resources>
