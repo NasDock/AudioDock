@@ -189,15 +189,7 @@ class AudioDockPlaylistWidgetProvider : AppWidgetProvider() {
       if (cover.isEmpty()) return null
       val path = resolveCoverPath(context, cover)
       val bitmap = BitmapFactory.decodeFile(path) ?: return null
-      return blurredBackground(bitmap, widthPx, heightPx)
-    }
-
-    private fun blurredBackground(source: android.graphics.Bitmap, targetWidth: Int, targetHeight: Int): android.graphics.Bitmap? {
-      val scale = 0.12f
-      val downW = (targetWidth * scale).toInt().coerceAtLeast(1)
-      val downH = (targetHeight * scale).toInt().coerceAtLeast(1)
-      val down = android.graphics.Bitmap.createScaledBitmap(source, downW, downH, true)
-      return android.graphics.Bitmap.createScaledBitmap(down, targetWidth, targetHeight, true)
+      return WidgetImageUtils.blurredBackground(bitmap, widthPx, heightPx)
     }
 
     private fun resolveWidgetSize(context: Context, options: android.os.Bundle?): Pair<Int, Int> {
