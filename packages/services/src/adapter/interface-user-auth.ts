@@ -7,6 +7,7 @@ export interface IUserAdapter {
   getAlbumHistory(userId: number | string, loadCount: number, pageSize: number, type?: string): Promise<ISuccessResponse<ILoadMoreData<any>>>;
   getTrackHistory(userId: number | string, loadCount: number, pageSize: number, type?: string): Promise<ISuccessResponse<ILoadMoreData<any>>>;
   getUserList(): Promise<ISuccessResponse<any[]>>;
+  uploadUserAvatar(id: number | string, file: any): Promise<ISuccessResponse<any>>;
 }
 
 export interface IAuthAdapter {

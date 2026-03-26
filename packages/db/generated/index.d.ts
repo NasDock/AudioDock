@@ -13371,6 +13371,7 @@ export namespace Prisma {
     id: number | null
     username: string | null
     password: string | null
+    avatar: string | null
     is_admin: boolean | null
     expiresAt: Date | null
     createdAt: Date | null
@@ -13380,6 +13381,7 @@ export namespace Prisma {
     id: number | null
     username: string | null
     password: string | null
+    avatar: string | null
     is_admin: boolean | null
     expiresAt: Date | null
     createdAt: Date | null
@@ -13389,6 +13391,7 @@ export namespace Prisma {
     id: number
     username: number
     password: number
+    avatar: number
     is_admin: number
     expiresAt: number
     createdAt: number
@@ -13408,6 +13411,7 @@ export namespace Prisma {
     id?: true
     username?: true
     password?: true
+    avatar?: true
     is_admin?: true
     expiresAt?: true
     createdAt?: true
@@ -13417,6 +13421,7 @@ export namespace Prisma {
     id?: true
     username?: true
     password?: true
+    avatar?: true
     is_admin?: true
     expiresAt?: true
     createdAt?: true
@@ -13426,6 +13431,7 @@ export namespace Prisma {
     id?: true
     username?: true
     password?: true
+    avatar?: true
     is_admin?: true
     expiresAt?: true
     createdAt?: true
@@ -13522,6 +13528,7 @@ export namespace Prisma {
     id: number
     username: string
     password: string
+    avatar: string | null
     is_admin: boolean
     expiresAt: Date | null
     createdAt: Date
@@ -13550,6 +13557,7 @@ export namespace Prisma {
     id?: boolean
     username?: boolean
     password?: boolean
+    avatar?: boolean
     is_admin?: boolean
     expiresAt?: boolean
     createdAt?: boolean
@@ -13569,6 +13577,7 @@ export namespace Prisma {
     id?: boolean
     username?: boolean
     password?: boolean
+    avatar?: boolean
     is_admin?: boolean
     expiresAt?: boolean
     createdAt?: boolean
@@ -13578,6 +13587,7 @@ export namespace Prisma {
     id?: boolean
     username?: boolean
     password?: boolean
+    avatar?: boolean
     is_admin?: boolean
     expiresAt?: boolean
     createdAt?: boolean
@@ -13587,12 +13597,13 @@ export namespace Prisma {
     id?: boolean
     username?: boolean
     password?: boolean
+    avatar?: boolean
     is_admin?: boolean
     expiresAt?: boolean
     createdAt?: boolean
   }
 
-  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "username" | "password" | "is_admin" | "expiresAt" | "createdAt", ExtArgs["result"]["user"]>
+  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "username" | "password" | "avatar" | "is_admin" | "expiresAt" | "createdAt", ExtArgs["result"]["user"]>
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     likedTracks?: boolean | User$likedTracksArgs<ExtArgs>
     listenedTracks?: boolean | User$listenedTracksArgs<ExtArgs>
@@ -13661,6 +13672,10 @@ export namespace Prisma {
        * 加密后的用户密码
        */
       password: string
+      /**
+       * 用户头像
+       */
+      avatar: string | null
       /**
        * 是否为管理员用户，默认 false
        */
@@ -14108,6 +14123,7 @@ export namespace Prisma {
     readonly id: FieldRef<"User", 'Int'>
     readonly username: FieldRef<"User", 'String'>
     readonly password: FieldRef<"User", 'String'>
+    readonly avatar: FieldRef<"User", 'String'>
     readonly is_admin: FieldRef<"User", 'Boolean'>
     readonly expiresAt: FieldRef<"User", 'DateTime'>
     readonly createdAt: FieldRef<"User", 'DateTime'>
@@ -23681,6 +23697,7 @@ export namespace Prisma {
     id: 'id',
     username: 'username',
     password: 'password',
+    avatar: 'avatar',
     is_admin: 'is_admin',
     expiresAt: 'expiresAt',
     createdAt: 'createdAt'
@@ -24508,6 +24525,7 @@ export namespace Prisma {
     id?: IntFilter<"User"> | number
     username?: StringFilter<"User"> | string
     password?: StringFilter<"User"> | string
+    avatar?: StringNullableFilter<"User"> | string | null
     is_admin?: BoolFilter<"User"> | boolean
     expiresAt?: DateTimeNullableFilter<"User"> | Date | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
@@ -24526,6 +24544,7 @@ export namespace Prisma {
     id?: SortOrder
     username?: SortOrder
     password?: SortOrder
+    avatar?: SortOrderInput | SortOrder
     is_admin?: SortOrder
     expiresAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
@@ -24547,6 +24566,7 @@ export namespace Prisma {
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
     password?: StringFilter<"User"> | string
+    avatar?: StringNullableFilter<"User"> | string | null
     is_admin?: BoolFilter<"User"> | boolean
     expiresAt?: DateTimeNullableFilter<"User"> | Date | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
@@ -24565,6 +24585,7 @@ export namespace Prisma {
     id?: SortOrder
     username?: SortOrder
     password?: SortOrder
+    avatar?: SortOrderInput | SortOrder
     is_admin?: SortOrder
     expiresAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
@@ -24582,6 +24603,7 @@ export namespace Prisma {
     id?: IntWithAggregatesFilter<"User"> | number
     username?: StringWithAggregatesFilter<"User"> | string
     password?: StringWithAggregatesFilter<"User"> | string
+    avatar?: StringNullableWithAggregatesFilter<"User"> | string | null
     is_admin?: BoolWithAggregatesFilter<"User"> | boolean
     expiresAt?: DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
@@ -25688,6 +25710,7 @@ export namespace Prisma {
   export type UserCreateInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -25706,6 +25729,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -25723,6 +25747,7 @@ export namespace Prisma {
   export type UserUpdateInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -25741,6 +25766,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -25759,6 +25785,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -25767,6 +25794,7 @@ export namespace Prisma {
   export type UserUpdateManyMutationInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -25776,6 +25804,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -26994,6 +27023,7 @@ export namespace Prisma {
     id?: SortOrder
     username?: SortOrder
     password?: SortOrder
+    avatar?: SortOrder
     is_admin?: SortOrder
     expiresAt?: SortOrder
     createdAt?: SortOrder
@@ -27007,6 +27037,7 @@ export namespace Prisma {
     id?: SortOrder
     username?: SortOrder
     password?: SortOrder
+    avatar?: SortOrder
     is_admin?: SortOrder
     expiresAt?: SortOrder
     createdAt?: SortOrder
@@ -27016,6 +27047,7 @@ export namespace Prisma {
     id?: SortOrder
     username?: SortOrder
     password?: SortOrder
+    avatar?: SortOrder
     is_admin?: SortOrder
     expiresAt?: SortOrder
     createdAt?: SortOrder
@@ -29556,6 +29588,7 @@ export namespace Prisma {
   export type UserCreateWithoutLikedTracksInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -29573,6 +29606,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -29661,6 +29695,7 @@ export namespace Prisma {
   export type UserUpdateWithoutLikedTracksInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -29678,6 +29713,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -29756,6 +29792,7 @@ export namespace Prisma {
   export type UserCreateWithoutListenedTracksInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -29773,6 +29810,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -29883,6 +29921,7 @@ export namespace Prisma {
   export type UserUpdateWithoutListenedTracksInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -29900,6 +29939,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30006,6 +30046,7 @@ export namespace Prisma {
   export type UserCreateWithoutLikedAlbumsInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30023,6 +30064,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30085,6 +30127,7 @@ export namespace Prisma {
   export type UserUpdateWithoutLikedAlbumsInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30102,6 +30145,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30154,6 +30198,7 @@ export namespace Prisma {
   export type UserCreateWithoutListenedAlbumsInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30171,6 +30216,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30233,6 +30279,7 @@ export namespace Prisma {
   export type UserUpdateWithoutListenedAlbumsInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30250,6 +30297,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30302,6 +30350,7 @@ export namespace Prisma {
   export type UserCreateWithoutLikedAudiobooksInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30319,6 +30368,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30407,6 +30457,7 @@ export namespace Prisma {
   export type UserUpdateWithoutLikedAudiobooksInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30424,6 +30475,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30502,6 +30554,7 @@ export namespace Prisma {
   export type UserCreateWithoutListenedAudiobooksInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30519,6 +30572,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30607,6 +30661,7 @@ export namespace Prisma {
   export type UserUpdateWithoutListenedAudiobooksInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30624,6 +30679,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31070,6 +31126,7 @@ export namespace Prisma {
   export type UserCreateWithoutSearchRecordsInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -31087,6 +31144,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -31119,6 +31177,7 @@ export namespace Prisma {
   export type UserUpdateWithoutSearchRecordsInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31136,6 +31195,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31152,6 +31212,7 @@ export namespace Prisma {
   export type UserCreateWithoutDevicesInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -31169,6 +31230,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -31229,6 +31291,7 @@ export namespace Prisma {
   export type UserUpdateWithoutDevicesInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31246,6 +31309,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31278,6 +31342,7 @@ export namespace Prisma {
   export type UserCreateWithoutPlaylistsInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -31295,6 +31360,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -31383,6 +31449,7 @@ export namespace Prisma {
   export type UserUpdateWithoutPlaylistsInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31400,6 +31467,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string

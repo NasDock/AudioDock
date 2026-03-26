@@ -190,4 +190,12 @@ export class EmbyUserAdapter implements IUserAdapter {
   async getUserTableList(params: any): Promise<ISuccessResponse<any>> {
     throw new Error("Not supported");
   }
+
+  async uploadUserAvatar(id: number | string, file: any): Promise<ISuccessResponse<any>> {
+    return {
+      code: 501,
+      message: "Emby adapter does not support avatar upload.",
+      data: null
+    };
+  }
 }
