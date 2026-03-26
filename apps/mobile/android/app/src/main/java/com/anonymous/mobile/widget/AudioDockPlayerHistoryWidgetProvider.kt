@@ -72,7 +72,7 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
         val (widthPx, heightPx) = resolveWidgetSize(context, appWidgetManager.getAppWidgetOptions(appWidgetId))
         val bgBitmap = if (!coverPath.isNullOrBlank()) {
           val bitmap = BitmapFactory.decodeFile(coverPath)
-          if (bitmap != null) blurredBackground(bitmap, widthPx, heightPx) else null
+          if (bitmap != null) WidgetImageUtils.blurredBackground(bitmap, widthPx, heightPx) else null
         } else {
           null
         }
@@ -192,14 +192,6 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
       val cover = item.optString("cover", "")
       if (cover.isNotEmpty()) return cover
       return item.optString("coverPath", "")
-    }
-
-    private fun blurredBackground(source: android.graphics.Bitmap, targetWidth: Int, targetHeight: Int): android.graphics.Bitmap? {
-      val scale = 0.12f
-      val downW = (targetWidth * scale).toInt().coerceAtLeast(1)
-      val downH = (targetHeight * scale).toInt().coerceAtLeast(1)
-      val down = android.graphics.Bitmap.createScaledBitmap(source, downW, downH, true)
-      return android.graphics.Bitmap.createScaledBitmap(down, targetWidth, targetHeight, true)
     }
 
     private fun resolveWidgetSize(context: Context, options: android.os.Bundle?): Pair<Int, Int> {

@@ -1,5 +1,5 @@
 import { Alert, Linking, Platform } from "react-native";
-import { plusCreatePayment, CreatePaymentDto } from "@soundx/services";
+import { plusCreatePayment, CreatePaymentDto, plusVerifyAppleIap, type AppleIapVerifyDto } from "@soundx/services";
 import type * as WeChatTypes from "react-native-wechat-lib";
 import type AlipayTypes from "@uiw/react-native-alipay";
 import type * as RNIapTypes from "react-native-iap";
@@ -166,6 +166,10 @@ export const createPlusPayment = async (
   };
 
   return plusCreatePayment(payload);
+};
+
+export const verifyAppleIapReceipt = async (payload: AppleIapVerifyDto) => {
+  return plusVerifyAppleIap(payload);
 };
 
 export const ensureWeChatRegistered = async (appId: string, universalLink?: string) => {

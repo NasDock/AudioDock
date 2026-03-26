@@ -3,4 +3,7 @@
   <color name="iconBackground">#E6F4FE</color>
   <color name="colorPrimary">#023c69</color>
   <color name="colorPrimaryDark">#ffffff</color>
+  <color name="widget_dynamic_start">#66A7C5FF</color>
+  <color name="widget_dynamic_end">#66B8F0D6</color>
+  <color name="widget_glass_tint">#22FFFFFF</color>
 </resources>

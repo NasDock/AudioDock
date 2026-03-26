@@ -180,6 +180,8 @@ model User {
   username           String                 @unique
   /// 加密后的用户密码
   password           String
+  /// 用户头像
+  avatar             String?
   /// 是否为管理员用户，默认 false
   is_admin           Boolean                @default(false)
   /// 用户过离期日期，如果为 null 则永久有效

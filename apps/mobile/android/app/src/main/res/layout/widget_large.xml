@@ -30,6 +30,7 @@
       android:id="@+id/widget_cover"
       android:layout_width="198dp"
       android:layout_height="198dp"
+      android:layout_gravity="center"
       android:background="@drawable/widget_cover_rounded"
       android:clipToOutline="true"
       android:scaleType="centerCrop"
