@@ -1,5 +1,6 @@
 import { AddToPlaylistModal } from "@/src/components/AddToPlaylistModal";
 import { AlbumMoreModal } from "@/src/components/AlbumMoreModal";
+import { CollectionSelectModal } from "@/src/components/CollectionSelectModal";
 import { FilePathModal } from "@/src/components/FilePathModal";
 import { FloatingActionButtons } from "@/src/components/FloatingActionButtons";
 import PlayingIndicator from "@/src/components/PlayingIndicator";
@@ -53,6 +54,7 @@ export default function AlbumDetailScreen() {
   const [albumMoreVisible, setAlbumMoreVisible] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [addToPlaylistVisible, setAddToPlaylistVisible] = useState(false);
+  const [collectionModalVisible, setCollectionModalVisible] = useState(false);
   const [filePathVisible, setFilePathVisible] = useState(false);
   const [propertyTrack, setPropertyTrack] = useState<Track | null>(null);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -632,6 +634,7 @@ export default function AlbumDetailScreen() {
           setSelectedTrackIds([]);
         }}
         onUpdateCover={handleUpdateCover}
+        onManageCollections={() => setCollectionModalVisible(true)}
       />
 
       <FilePathModal
@@ -639,6 +642,11 @@ export default function AlbumDetailScreen() {
         title={propertyTrack ? `曲目属性 · ${propertyTrack.name}` : "曲目属性"}
         path={propertyTrack?.path}
         onClose={() => setFilePathVisible(false)}
+      />
+      <CollectionSelectModal
+        visible={collectionModalVisible}
+        album={album}
+        onClose={() => setCollectionModalVisible(false)}
       />
       {tracks.length >= 20 && (
         <FloatingActionButtons

@@ -75,7 +75,7 @@
           android:id="@+id/widget_latest_cover_1"
           android:layout_width="40dp"
           android:layout_height="40dp"
-          android:background="@drawable/widget_cover_rounded"
+          android:background="@drawable/widget_cover_rounded_list"
           android:clipToOutline="true"
           android:scaleType="centerCrop" />
 
@@ -127,7 +127,7 @@
           android:id="@+id/widget_latest_cover_2"
           android:layout_width="40dp"
           android:layout_height="40dp"
-          android:background="@drawable/widget_cover_rounded"
+          android:background="@drawable/widget_cover_rounded_list"
           android:clipToOutline="true"
           android:scaleType="centerCrop" />
 
@@ -179,7 +179,7 @@
           android:id="@+id/widget_latest_cover_3"
           android:layout_width="40dp"
           android:layout_height="40dp"
-          android:background="@drawable/widget_cover_rounded"
+          android:background="@drawable/widget_cover_rounded_list"
           android:clipToOutline="true"
           android:scaleType="centerCrop" />
 
@@ -231,7 +231,7 @@
           android:id="@+id/widget_latest_cover_4"
           android:layout_width="40dp"
           android:layout_height="40dp"
-          android:background="@drawable/widget_cover_rounded"
+          android:background="@drawable/widget_cover_rounded_list"
           android:clipToOutline="true"
           android:scaleType="centerCrop" />
 
@@ -283,7 +283,7 @@
           android:id="@+id/widget_latest_cover_5"
           android:layout_width="40dp"
           android:layout_height="40dp"
-          android:background="@drawable/widget_cover_rounded"
+          android:background="@drawable/widget_cover_rounded_list"
           android:clipToOutline="true"
           android:scaleType="centerCrop" />
 

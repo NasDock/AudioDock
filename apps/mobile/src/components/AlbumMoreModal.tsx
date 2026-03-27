@@ -25,6 +25,7 @@ interface AlbumMoreModalProps {
   onAddToPlaylist: () => void;
   onSelectTracks?: () => void;
   onUpdateCover: () => void;
+  onManageCollections?: () => void;
 }
 
 export const AlbumMoreModal: React.FC<AlbumMoreModalProps> = ({
@@ -36,6 +37,7 @@ export const AlbumMoreModal: React.FC<AlbumMoreModalProps> = ({
   onAddToPlaylist,
   onSelectTracks,
   onUpdateCover,
+  onManageCollections,
 }) => {
   const { colors } = useTheme();
   const { user } = useAuth();
@@ -100,6 +102,19 @@ export const AlbumMoreModal: React.FC<AlbumMoreModalProps> = ({
               <Ionicons name="add-circle-outline" size={24} color={colors.text} />
               <Text style={[styles.optionText, { color: colors.text }]}>添加到播放列表</Text>
             </TouchableOpacity>
+
+            {(album.type === TrackType.AUDIOBOOK) && (
+              <TouchableOpacity
+                style={styles.option}
+                onPress={() => {
+                  onClose();
+                  onManageCollections?.();
+                }}
+              >
+                <Ionicons name="albums-outline" size={24} color={colors.text} />
+                <Text style={[styles.optionText, { color: colors.text }]}>加入合集</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity style={styles.option} onPress={handleCreatePlaylistWithAlbum}>
               <Ionicons name="duplicate-outline" size={24} color={colors.text} />

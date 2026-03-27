@@ -7,6 +7,8 @@
   android:resizeMode="none"
   android:updatePeriodMillis="0"
   android:initialLayout="@layout/widget_small"
+  android:previewLayout="@layout/widget_small"
+  android:previewImage="@drawable/widget_preview_small"
   android:widgetCategory="home_screen"
   android:targetCellWidth="2"
   android:targetCellHeight="2" />

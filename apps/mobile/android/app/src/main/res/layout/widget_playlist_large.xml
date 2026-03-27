@@ -67,7 +67,7 @@
           android:id="@+id/widget_playlist_cover_1"
           android:layout_width="44dp"
           android:layout_height="44dp"
-          android:background="@drawable/widget_cover_rounded"
+          android:background="@drawable/widget_cover_rounded_list"
           android:clipToOutline="true"
           android:scaleType="centerCrop" />
 
@@ -103,7 +103,7 @@
           android:id="@+id/widget_playlist_cover_2"
           android:layout_width="44dp"
           android:layout_height="44dp"
-          android:background="@drawable/widget_cover_rounded"
+          android:background="@drawable/widget_cover_rounded_list"
           android:clipToOutline="true"
           android:scaleType="centerCrop" />
 
@@ -139,7 +139,7 @@
           android:id="@+id/widget_playlist_cover_3"
           android:layout_width="44dp"
           android:layout_height="44dp"
-          android:background="@drawable/widget_cover_rounded"
+          android:background="@drawable/widget_cover_rounded_list"
           android:clipToOutline="true"
           android:scaleType="centerCrop" />
 

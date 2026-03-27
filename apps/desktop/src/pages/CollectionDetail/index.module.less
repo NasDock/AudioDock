@@ -1,0 +1,145 @@
+.container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 30px;
+}
+
+.header {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.coverWrap {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.moreBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.coverWrap:hover .moreBtn {
+  opacity: 1;
+}
+
+.title {
+  margin: 0 !important;
+}
+
+.subtitle {
+  font-size: 12px;
+}
+
+.content {
+  margin-top: 8px;
+}
+
+.sectionTitle {
+  margin-bottom: 16px !important;
+}
+
+.card {
+  width: 170px;
+}
+
+.manageList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.manageRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.manageCover {
+  width: 60px;
+  height: 60px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.manageInfo {
+  flex: 1;
+}
+
+.manageTitle {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.manageSub {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.manageActions {
+  display: flex;
+  gap: 8px;
+}
+
+.coverList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.coverOption {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.coverThumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.coverUpload {
+  margin-top: 16px;
+}
+
+.empty {
+  padding: 40px;
+}
