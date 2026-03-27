@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getBaseURL } from "../https";
+import { FloatingActionButtons } from "./FloatingActionButtons";
 
 type TabType = "current" | "history" | "favorites";
 type SubTabType = "track" | "album";
@@ -47,6 +48,18 @@ export const PlaylistModal = () => {
   const [listData, setListData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const flatListRef = React.useRef<FlatList>(null);
+
+  const scrollToCurrent = () => {
+    if (activeTab !== "current" || !currentTrack) return;
+    const index = trackList.findIndex((t) => t.id === currentTrack.id);
+    if (index !== -1) {
+      flatListRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.5,
+      });
+    }
+  };
 
   useEffect(() => {
     if (sourceType === "Emby" && activeTab === "history") {
@@ -219,37 +232,41 @@ export const PlaylistModal = () => {
             ]}
           >
             <View style={styles.modalHeader}>
-              {[
-                { id: "current", label: `当前 (${trackList.length})` },
-                { id: "history", label: "听过" },
-                { id: "favorites", label: "收藏" },
-              ].filter((tab) => !(sourceType === "Emby" && tab.id === "history")).map((tab) => (
-                <TouchableOpacity
-                  key={tab.id}
-                  style={[
-                    styles.tabItem,
-                    activeTab === tab.id && {
-                      borderBottomColor: colors.primary,
-                      borderBottomWidth: 2,
-                    },
-                  ]}
-                  onPress={() => setActiveTab(tab.id as TabType)}
-                >
-                  <Text
+              <View style={styles.tabRow}>
+                {[
+                  { id: "current", label: `当前 (${trackList.length})` },
+                  { id: "history", label: "听过" },
+                  { id: "favorites", label: "收藏" },
+                ].filter((tab) => !(sourceType === "Emby" && tab.id === "history")).map((tab) => (
+                  <TouchableOpacity
+                    key={tab.id}
                     style={[
-                      styles.tabText,
-                      {
-                        color:
-                          activeTab === tab.id
-                            ? colors.primary
-                            : colors.secondary,
+                      styles.tabItem,
+                      activeTab === tab.id && {
+                        borderBottomColor: colors.primary,
+                        borderBottomWidth: 2,
                       },
                     ]}
+                    onPress={() => setActiveTab(tab.id as TabType)}
                   >
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <View style={styles.tabLabelRow}>
+                      <Text
+                        style={[
+                          styles.tabText,
+                          {
+                            color:
+                              activeTab === tab.id
+                                ? colors.primary
+                                : colors.secondary,
+                          },
+                        ]}
+                      >
+                        {tab.label}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             {mode === "MUSIC" && activeTab !== "current" && (
@@ -315,6 +332,14 @@ export const PlaylistModal = () => {
                 }}
               />
             )}
+            {listData.length > 20 && (
+              <FloatingActionButtons
+                flatListRef={flatListRef}
+                onLocateCurrent={scrollToCurrent}
+                showLocate={activeTab === "current"}
+                locateDisabled={!currentTrack || trackList.findIndex((t) => t.id === currentTrack.id) === -1}
+              />
+            )}
           </View>
         </Pressable>
       </Pressable>
@@ -344,6 +369,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderBottomWidth: 1,
     borderBottomColor: "rgba(150,150,150,0.1)",
+    alignItems: "center",
+  },
+  tabRow: {
+    flexDirection: "row",
+    flex: 1,
+  },
+  tabLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   tabItem: {
     flex: 1,
@@ -359,6 +394,10 @@ const styles = StyleSheet.create({
     padding: 10,
     borderBottomWidth: 0.5,
     borderBottomColor: "rgba(150,150,150,0.1)",
+  },
+  locateInlineBtn: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
   },
   subTabItem: {
     paddingHorizontal: 15,

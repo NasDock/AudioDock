@@ -10,6 +10,7 @@ import {
   getImportTask,
   getPlaylists,
   getRunningImportTask,
+  uploadUserAvatar,
   getTrackHistory,
   plusGetMe,
   setPlusToken,
@@ -42,6 +43,7 @@ import {
   getDownloadedTracks,
   removeDownloadedTrack,
 } from "../../src/services/cache";
+import { getBaseURL } from "../../src/https";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
 
@@ -49,6 +51,7 @@ import { useCheckUpdate } from "@/hooks/useCheckUpdate";
 import { CachedImage } from "@/src/components/CachedImage";
 import { UpdateModal } from "@/src/components/UpdateModal";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 const logo = require("../../assets/images/logo.png");
 const subsonicLogo = require("../../assets/images/subsonic.png");
 const embyLogo = require("../../assets/images/emby.png");
@@ -115,6 +118,55 @@ export default function PersonalScreen() {
   } = useCheckUpdate();
 
   const [isModalVisible, setModalVisible] = useState(false);
+  const [avatarOverride, setAvatarOverride] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  useEffect(() => {
+    setAvatarOverride((user as any)?.avatar || null);
+  }, [user]);
+
+  const handleChangeAvatar = async () => {
+    if (!user?.id || uploadingAvatar) return;
+    if (sourceType !== "AudioDock") {
+      Alert.alert("提示", "当前源不支持修改头像");
+      return;
+    }
+    try {
+      setUploadingAvatar(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.9,
+      });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (!asset?.uri) return;
+      const fileName = asset.fileName || `user-${user.id}-${Date.now()}.jpg`;
+      const file = {
+        uri: asset.uri,
+        name: fileName,
+        type: asset.mimeType || "image/jpeg",
+      } as any;
+      const res = await uploadUserAvatar(user.id, file);
+      if (res.code === 200) {
+        const nextAvatar = res.data?.avatar || (res.data?.user as any)?.avatar || fileName;
+        setAvatarOverride(nextAvatar);
+        const baseUrl = getBaseURL();
+        if (baseUrl) {
+          const stored = await AsyncStorage.getItem(`user_${baseUrl}`);
+          const parsed = stored ? JSON.parse(stored) : {};
+          const updated = { ...parsed, avatar: nextAvatar };
+          await AsyncStorage.setItem(`user_${baseUrl}`, JSON.stringify(updated));
+        }
+      } else {
+        Alert.alert("修改失败", res.message || "上传头像失败");
+      }
+    } catch (error) {
+      console.error("Failed to upload user avatar:", error);
+      Alert.alert("修改失败", "上传头像失败");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   useEffect(() => {
     if (updateInfo) {
@@ -712,15 +764,22 @@ export default function PersonalScreen() {
 
       {/* User Info */}
       <View style={styles.userInfo}>
-        <CachedImage
-          source={{
-            uri: getImageUrl(
-              (user as any)?.avatar,
-              "https://picsum.photos/200",
-            ),
-          }} // Placeholder for avatar
-          style={styles.avatar}
-        />
+        <TouchableOpacity onPress={handleChangeAvatar} activeOpacity={0.8}>
+          <CachedImage
+            source={{
+              uri: getImageUrl(
+                avatarOverride,
+                "https://picsum.photos/200",
+              ),
+            }} // Placeholder for avatar
+            style={styles.avatar}
+          />
+          {user && (
+            <View style={[styles.avatarEditBadge, { backgroundColor: colors.card }]}>
+              <Ionicons name="camera" size={14} color={colors.text} />
+            </View>
+          )}
+        </TouchableOpacity>
         <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
             <Text style={[styles.nickname, { color: colors.text }]}>
             {user?.username || "未登录"}
@@ -1262,6 +1321,18 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     marginBottom: 15,
+  },
+  avatarEditBadge: {
+    position: "absolute",
+    right: 0,
+    bottom: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.1)",
   },
   nickname: {
     fontSize: 20,

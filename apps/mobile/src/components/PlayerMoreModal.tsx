@@ -237,6 +237,15 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
       disabled: !currentTrack?.albumId,
     },
     {
+      icon: "document-text-outline" as const,
+      label: "曲目详情",
+      onPress: () => {
+        setVisible(false);
+        setTrackPathVisible(true);
+      },
+      disabled: !currentTrack,
+    },
+    {
       icon: "time-outline" as const,
       label: remainingTime ? `定时关闭 (${remainingTime})` : "定时关闭",
       onPress: handleSleepTimer,
@@ -259,6 +268,7 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
         setTrackPathVisible(true);
       },
       disabled: !currentTrack,
+      hidden: true,
     },
     {
       icon: isDownloaded
@@ -377,7 +387,7 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
                   >
                     <Ionicons
                       name="play-skip-back-outline"
-                      size={28}
+                      size={32}
                       color={
                         skipIntroDuration > 0 ? colors.primary : colors.text
                       }
@@ -454,7 +464,7 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
                   >
                     <Ionicons
                       name="play-skip-forward-outline"
-                      size={28}
+                      size={32}
                       color={
                         skipOutroDuration > 0 ? colors.primary : colors.text
                       }
