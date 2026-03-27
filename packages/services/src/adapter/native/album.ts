@@ -104,9 +104,7 @@ export class NativeAlbumAdapter implements IAlbumAdapter {
   uploadAlbumCover(id: number | string, file: any) {
     const formData = new FormData();
     formData.append("file", file as any);
-    return request.post<any, ISuccessResponse<Album>>(`/album/${id}/cover`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    return request.post<any, ISuccessResponse<Album>>(`/album/${id}/cover`, formData);
   }
 
   toggleLike(id: number | string, userId: number | string) {

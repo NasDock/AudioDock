@@ -259,6 +259,7 @@ function RootLayoutNav() {
       />
       <Stack.Screen name="playlist/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="album/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="collection/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="artist/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="folder/index" options={{ headerShown: false }} />
       <Stack.Screen name="folder/[id]" options={{ headerShown: false }} />
