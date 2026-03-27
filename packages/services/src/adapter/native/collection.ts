@@ -33,8 +33,7 @@ export class NativeCollectionAdapter implements IAudioCollectionAdapter {
     formData.append("file", file as any);
     return await request.post<any, ISuccessResponse<AudiobookCollection>>(
       `/collections/${id}/cover`,
-      formData,
-      { headers: { "Content-Type": "multipart/form-data" } }
+      formData
     );
   }
 
