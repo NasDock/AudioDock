@@ -77,6 +77,7 @@ model Album {
   /// 🔁 反向关系
   likedByUsers    UserAlbumLike[]
   listenedByUsers UserAlbumHistory[]
+  collectionItems AudiobookCollectionAlbum[]
 
   @@index([status])
 }
@@ -93,6 +94,36 @@ model Artist {
   tracks Track[]
 
   @@index([status])
+}
+
+model AudiobookCollection {
+  id        Int       @id @default(autoincrement())
+  name      String
+  cover     String?
+  type      TrackType @default(AUDIOBOOK)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+
+  items AudiobookCollectionAlbum[]
+
+  @@index([userId])
+  @@index([type])
+}
+
+model AudiobookCollectionAlbum {
+  id           Int                 @id @default(autoincrement())
+  collection   AudiobookCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  collectionId Int
+  album        Album               @relation(fields: [albumId], references: [id])
+  albumId      Int
+  order        Int                 @default(0)
+  createdAt    DateTime            @default(now())
+
+  @@unique([collectionId, albumId])
+  @@index([collectionId, order])
 }
 
 model UserTrackLike {
@@ -175,37 +206,39 @@ model UserAudiobookHistory {
 
 model User {
   /// 用户 ID，自增主键
-  id                 Int                    @id @default(autoincrement())
+  id                   Int                    @id @default(autoincrement())
   /// 用户名，唯一标识，用于登录
-  username           String                 @unique
+  username             String                 @unique
   /// 加密后的用户密码
-  password           String
+  password             String
   /// 用户头像
-  avatar             String?
+  avatar               String?
   /// 是否为管理员用户，默认 false
-  is_admin           Boolean                @default(false)
+  is_admin             Boolean                @default(false)
   /// 用户过离期日期，如果为 null 则永久有效
-  expiresAt          DateTime?
+  expiresAt            DateTime?
   /// 用户创建时间
-  createdAt          DateTime               @default(now())
+  createdAt            DateTime               @default(now())
   /// 用户喜欢的音乐单曲列表
-  likedTracks        UserTrackLike[]
+  likedTracks          UserTrackLike[]
   /// 用户听过的音乐单曲历史记录
-  listenedTracks     UserTrackHistory[]
+  listenedTracks       UserTrackHistory[]
   /// 用户喜欢的专辑列表
-  likedAlbums        UserAlbumLike[]
+  likedAlbums          UserAlbumLike[]
   /// 用户听过的专辑历史记录
-  listenedAlbums     UserAlbumHistory[]
+  listenedAlbums       UserAlbumHistory[]
   /// 用户喜欢的有声书列表
-  likedAudiobooks    UserAudiobookLike[]
+  likedAudiobooks      UserAudiobookLike[]
   /// 用户听过的有声书历史记录
-  listenedAudiobooks UserAudiobookHistory[]
+  listenedAudiobooks   UserAudiobookHistory[]
   /// 用户创建的播放列表
-  playlists          Playlist[]
+  playlists            Playlist[]
+  /// 用户创建的有声书合集
+  audiobookCollections AudiobookCollection[]
   /// 用户设备列表
-  devices            Device[]
+  devices              Device[]
   /// 用户搜索记录
-  searchRecords      SearchRecord[]
+  searchRecords        SearchRecord[]
 }
 
 model SystemSetting {

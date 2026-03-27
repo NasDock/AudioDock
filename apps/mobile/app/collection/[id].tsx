@@ -1,0 +1,464 @@
+import { CachedImage } from "@/src/components/CachedImage";
+import { useTheme } from "@/src/context/ThemeContext";
+import { Album, AudiobookCollection } from "@/src/models";
+import { getCollectionById, reorderCollection, updateCollection, uploadCollectionCover } from "@soundx/services";
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
+import * as ImagePicker from "expo-image-picker";
+import {
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { getImageUrl } from "@/src/utils/image";
+
+export default function CollectionDetailScreen() {
+  const { id } = useLocalSearchParams();
+  const { colors } = useTheme();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [collection, setCollection] = useState<AudiobookCollection | null>(null);
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [moreVisible, setMoreVisible] = useState(false);
+  const [renameVisible, setRenameVisible] = useState(false);
+  const [coverVisible, setCoverVisible] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [reorderMode, setReorderMode] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      loadData(String(id));
+    }
+  }, [id]);
+
+  const loadData = async (collectionId: string) => {
+    try {
+      setLoading(true);
+      const res = await getCollectionById(collectionId);
+      if (res.code === 200 && res.data) {
+        setCollection(res.data);
+        const items = res.data.items || [];
+        setAlbums(items.map((item) => item.album).filter(Boolean) as Album[]);
+      }
+    } catch (error) {
+      console.error("Failed to load collection", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRename = async () => {
+    if (!collection) return;
+    const nextName = nameInput.trim();
+    if (!nextName) {
+      setRenameVisible(false);
+      return;
+    }
+    const res = await updateCollection(collection.id, { name: nextName });
+    if (res.code === 200) {
+      setCollection(res.data);
+      setRenameVisible(false);
+    }
+  };
+
+  const handleSelectCover = async (album: Album) => {
+    if (!collection) return;
+    const res = await updateCollection(collection.id, { cover: album.cover });
+    if (res.code === 200) {
+      setCollection(res.data);
+      setCoverVisible(false);
+    }
+  };
+
+  const handleUploadCover = async () => {
+    if (!collection || uploadingCover) return;
+    try {
+      setUploadingCover(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.9,
+      });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (!asset?.uri) return;
+      const fileName = asset.fileName || `collection-${collection.id}-${Date.now()}.jpg`;
+      const file = {
+        uri: asset.uri,
+        name: fileName,
+        type: asset.mimeType || "image/jpeg",
+      } as any;
+      const res = await uploadCollectionCover(collection.id, file);
+      if (res.code === 200) {
+        setCollection(res.data);
+        setCoverVisible(false);
+      }
+    } catch (error) {
+      console.error("Upload cover failed", error);
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  const handleReorder = async (nextAlbums: Album[]) => {
+    setAlbums(nextAlbums);
+    if (!collection) return;
+    await reorderCollection(collection.id, nextAlbums.map((a) => a.id));
+  };
+
+  const cover = useMemo(
+    () => collection?.cover || albums[0]?.cover || null,
+    [collection, albums]
+  );
+
+  if (loading) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!collection) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <Text style={{ color: colors.text }}>合集不存在</Text>
+      </View>
+    );
+  }
+
+  const renderAlbumItem = ({ item, drag, isActive }: RenderItemParams<Album>) => (
+    <TouchableOpacity
+      onLongPress={reorderMode ? drag : undefined}
+      disabled={isActive}
+      style={[
+        styles.albumItem,
+        { backgroundColor: colors.card, borderColor: colors.border },
+        isActive && { opacity: 0.7 },
+      ]}
+      onPress={() => router.push(`/album/${item.id}`)}
+    >
+      <CachedImage
+        source={{
+          uri: getImageUrl(
+            item.cover,
+            `https://picsum.photos/seed/album-${item.id}/200/200`,
+          ),
+        }}
+        style={styles.albumCover}
+      />
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.albumTitle, { color: colors.text }]} numberOfLines={1}>
+          {item.name}
+        </Text>
+        <Text style={[styles.albumSub, { color: colors.secondary }]} numberOfLines={1}>
+          {item.artist}
+        </Text>
+      </View>
+      {reorderMode && (
+        <Ionicons name="reorder-two" size={20} color={colors.secondary} />
+      )}
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => setReorderMode((prev) => !prev)} style={styles.iconBtn}>
+            <Ionicons name="swap-vertical" size={20} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setMoreVisible(true)} style={styles.iconBtn}>
+            <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.coverSection}>
+        <CachedImage
+          source={{
+            uri: getImageUrl(
+              cover,
+              `https://picsum.photos/seed/collection-${collection.id}/400/400`,
+            ),
+          }}
+          style={styles.coverImage}
+        />
+        <Text style={[styles.title, { color: colors.text }]}>{collection.name}</Text>
+        <Text style={[styles.subtitle, { color: colors.secondary }]}>
+          {albums.length} 张专辑
+        </Text>
+      </View>
+
+      {reorderMode ? (
+        <DraggableFlatList
+          data={albums}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderAlbumItem}
+          onDragEnd={({ data }) => handleReorder(data)}
+          contentContainerStyle={{ paddingBottom: 40 }}
+        />
+      ) : (
+        <FlatList
+          data={albums}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={(info) => renderAlbumItem({ ...info, drag: () => {}, isActive: false })}
+          contentContainerStyle={{ paddingBottom: 40 }}
+        />
+      )}
+
+      <Modal visible={moreVisible} transparent animationType="slide" onRequestClose={() => setMoreVisible(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setMoreVisible(false)}>
+          <Pressable style={[styles.sheet, { backgroundColor: colors.card }]} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.handle} />
+            <TouchableOpacity
+              style={styles.sheetItem}
+              onPress={() => {
+                setMoreVisible(false);
+                setNameInput(collection.name);
+                setRenameVisible(true);
+              }}
+            >
+              <Ionicons name="create-outline" size={22} color={colors.text} />
+              <Text style={[styles.sheetText, { color: colors.text }]}>修改名称</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.sheetItem}
+              onPress={() => {
+                setMoreVisible(false);
+                setCoverVisible(true);
+              }}
+            >
+              <Ionicons name="image-outline" size={22} color={colors.text} />
+              <Text style={[styles.sheetText, { color: colors.text }]}>选定封面</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={renameVisible} transparent animationType="fade" onRequestClose={() => setRenameVisible(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setRenameVisible(false)}>
+          <Pressable style={[styles.renameBox, { backgroundColor: colors.card }]} onPress={(e) => e.stopPropagation()}>
+            <Text style={[styles.title, { color: colors.text }]}>修改名称</Text>
+            <TextInput
+              value={nameInput}
+              onChangeText={setNameInput}
+              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+              placeholder="合集名称"
+              placeholderTextColor={colors.secondary}
+            />
+            <View style={styles.renameActions}>
+              <TouchableOpacity onPress={() => setRenameVisible(false)}>
+                <Text style={[styles.actionText, { color: colors.secondary }]}>取消</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleRename}>
+                <Text style={[styles.actionText, { color: colors.primary }]}>保存</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={coverVisible} transparent animationType="slide" onRequestClose={() => setCoverVisible(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setCoverVisible(false)}>
+          <Pressable style={[styles.sheet, { backgroundColor: colors.card }]} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.handle} />
+            <Text style={[styles.sheetTitle, { color: colors.text }]}>选择封面</Text>
+            <FlatList
+              data={albums}
+              keyExtractor={(item) => String(item.id)}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.coverOption} onPress={() => handleSelectCover(item)}>
+                  <CachedImage
+                    source={{
+                      uri: getImageUrl(
+                        item.cover,
+                        `https://picsum.photos/seed/album-${item.id}/200/200`,
+                      ),
+                    }}
+                    style={styles.coverThumb}
+                  />
+                  <Text style={[styles.sheetText, { color: colors.text }]} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              ListFooterComponent={
+                <TouchableOpacity
+                  style={[styles.uploadBtn, { backgroundColor: colors.primary }]}
+                  onPress={handleUploadCover}
+                  disabled={uploadingCover}
+                >
+                  <Text style={[styles.uploadBtnText, { color: colors.background }]}>
+                    {uploadingCover ? "上传中..." : "上传图片设置封面"}
+                  </Text>
+                </TouchableOpacity>
+              }
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  backButton: {
+    padding: 6,
+  },
+  headerActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  iconBtn: {
+    padding: 6,
+  },
+  coverSection: {
+    alignItems: "center",
+    paddingVertical: 16,
+  },
+  coverImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 20,
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "600",
+  },
+  subtitle: {
+    marginTop: 4,
+    fontSize: 12,
+  },
+  albumItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  albumCover: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+    marginRight: 12,
+  },
+  albumTitle: {
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  albumSub: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+  sheet: {
+    width: "100%",
+    maxHeight: "70%",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: "rgba(150,150,150,0.3)",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 12,
+  },
+  sheetItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    gap: 12,
+  },
+  sheetText: {
+    fontSize: 16,
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  renameBox: {
+    width: "90%",
+    maxWidth: 360,
+    borderRadius: 16,
+    padding: 20,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 12,
+  },
+  renameActions: {
+    marginTop: 16,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 16,
+  },
+  actionText: {
+    fontSize: 16,
+  },
+  coverOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    gap: 12,
+  },
+  coverThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+  },
+  uploadBtn: {
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  uploadBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+});

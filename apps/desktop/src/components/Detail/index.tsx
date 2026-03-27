@@ -268,6 +268,7 @@ const Detail: React.FC = () => {
     }
   };
 
+
   const coverMenuItems: MenuProps["items"] = [
     {
       key: "upload",
@@ -275,7 +276,7 @@ const Detail: React.FC = () => {
       onClick: () => coverInputRef.current?.click(),
       disabled: uploadingCover || !isAudioDockSource,
     },
-  ];
+  ].filter(Boolean) as MenuProps["items"];
 
   const handlePlayAll = (
     resumeTrackId?: string | number,

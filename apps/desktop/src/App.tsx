@@ -14,6 +14,8 @@ import Recommended from "./pages/Recommended";
 const ArtistDetail = lazy(() => import("./pages/ArtistDetail"));
 const ArtistList = lazy(() => import("./pages/ArtistList"));
 const Category = lazy(() => import("./pages/Category"));
+const Collections = lazy(() => import("./pages/Collections"));
+const CollectionDetail = lazy(() => import("./pages/CollectionDetail"));
 const Favorites = lazy(() => import("./pages/Favorites"));
 const Listened = lazy(() => import("./pages/Listened"));
 const PlaylistDetail = lazy(() => import("./pages/PlaylistDetail"));
@@ -223,6 +225,14 @@ const AppContent = () => {
                                   <Route
                                     path="/category"
                                     element={<Category />}
+                                  />
+                                  <Route
+                                    path="/collections"
+                                    element={<Collections />}
+                                  />
+                                  <Route
+                                    path="/collection/:id"
+                                    element={<CollectionDetail />}
                                   />
                                   <Route path="/songs" element={<Songs />} />
                                   <Route

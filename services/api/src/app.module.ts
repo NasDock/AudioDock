@@ -12,6 +12,7 @@ import { AdminController } from './controllers/admin.controller';
 import { AlbumController } from './controllers/album';
 import { ArtistController } from './controllers/artist';
 import { AudiobookController } from './controllers/audiobook';
+import { AudiobookCollectionController } from './controllers/audiobook-collection';
 import { FolderController } from './controllers/folder';
 import { ImportController } from './controllers/import';
 import { LlmController } from './controllers/llm.controller';
@@ -31,6 +32,7 @@ import { ResponseInterceptor } from './interceptors/response.interceptor';
 import { AlbumService } from './services/album';
 import { ArtistService } from './services/artist';
 import { AudiobookService } from './services/audiobook';
+import { AudiobookCollectionService } from './services/audiobook-collection';
 import { FolderService } from './services/folder';
 import { ImportService } from './services/import';
 import { LlmService } from './services/llm.service';
@@ -85,6 +87,7 @@ import { UserTrackLikeService } from './services/user-track-like';
     UserTrackHistoryController,
     UserTrackLikeController,
     AudiobookController,
+    AudiobookCollectionController,
     ImportController,
     PlaylistController,
     FolderController,
@@ -117,6 +120,7 @@ import { UserTrackLikeService } from './services/user-track-like';
       useClass: JwtAuthGuard,
     },
     AudiobookService,
+    AudiobookCollectionService,
     PlaylistService,
     FolderService,
     SearchRecordService,

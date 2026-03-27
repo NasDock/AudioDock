@@ -2,6 +2,7 @@ import { IMusicAdapter } from "../interface";
 import { EmbyAlbumAdapter } from "./album";
 import { EmbyArtistAdapter } from "./artist";
 import { EmbyClient, EmbyConfig } from "./client";
+import { EmbyCollectionAdapter } from "./collection";
 import { EmbyPlaylistAdapter } from "./playlist";
 import { EmbyTrackAdapter } from "./track";
 import { EmbyAuthAdapter, EmbyUserAdapter } from "./user-auth";
@@ -11,6 +12,7 @@ export class EmbyMusicAdapter implements IMusicAdapter {
   album: EmbyAlbumAdapter;
   artist: EmbyArtistAdapter;
   playlist: EmbyPlaylistAdapter;
+  collection: EmbyCollectionAdapter;
   user: EmbyUserAdapter;
   auth: EmbyAuthAdapter;
   client: EmbyClient;
@@ -21,6 +23,7 @@ export class EmbyMusicAdapter implements IMusicAdapter {
     this.album = new EmbyAlbumAdapter(this.client);
     this.artist = new EmbyArtistAdapter(this.client);
     this.playlist = new EmbyPlaylistAdapter(this.client);
+    this.collection = new EmbyCollectionAdapter();
     this.user = new EmbyUserAdapter(this.client);
     this.auth = new EmbyAuthAdapter(this.client);
   }
@@ -28,4 +31,3 @@ export class EmbyMusicAdapter implements IMusicAdapter {
 
 export * from "./client";
 export * from "./types";
-

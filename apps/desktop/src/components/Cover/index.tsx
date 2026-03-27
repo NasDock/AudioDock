@@ -3,34 +3,50 @@ import {
   HeartOutlined,
   MoreOutlined,
   PlayCircleOutlined,
+  PictureOutlined,
+  AppstoreAddOutlined,
 } from "@ant-design/icons";
 import {
+  addAlbumToCollection,
+  createCollection,
   getAlbumById,
   getAlbumTracks,
+  getCollectionMembership,
+  getCollections,
   toggleAlbumLike,
   toggleAlbumUnLike,
+  uploadAlbumCover,
 } from "@soundx/services";
 import type { MenuProps } from "antd";
-import { Dropdown, Skeleton, theme, Typography } from "antd";
-import React, { useEffect, useState } from "react";
+import {
+  Button,
+  Checkbox,
+  Dropdown,
+  Input,
+  Modal,
+  Skeleton,
+  theme,
+  Typography,
+} from "antd";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
-import type { Album, Track } from "../../models";
+import { TrackType, type Album, type Track } from "../../models";
 import { resolveArtworkUri } from "../../services/trackResolver";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
+import { isEmbySource, isSubsonicSource } from "../../utils";
 import styles from "./index.module.less";
 
 const { Title } = Typography;
 
-interface CoverComponent
-  extends React.FC<{
-    item: Album | Track;
-    size?: number;
-    isTrack?: boolean;
-    isHistory?: boolean;
-    onClick?: (item: Album | Track) => void;
-  }> {
+interface CoverComponent extends React.FC<{
+  item: Album | Track;
+  size?: number;
+  isTrack?: boolean;
+  isHistory?: boolean;
+  onClick?: (item: Album | Track) => void;
+}> {
   Skeleton: React.FC;
 }
 
@@ -45,8 +61,16 @@ const Cover: CoverComponent = ({
   const navigate = useNavigate();
   const { play, setPlaylist } = usePlayerStore();
   const [isLiked, setIsLiked] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [collectionModalOpen, setCollectionModalOpen] = useState(false);
+  const [collections, setCollections] = useState<any[]>([]);
+  const [membership, setMembership] = useState<number[]>([]);
+  const [collectionLoading, setCollectionLoading] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState("");
   const { user } = useAuthStore();
   const { token: themeToken } = theme.useToken();
+  const isAudioDockSource = !isSubsonicSource() && !isEmbySource();
+  const suppressClickRef = useRef(false);
 
   useEffect(() => {
     // Check if album is liked
@@ -71,7 +95,19 @@ const Cover: CoverComponent = ({
     }
   };
 
-  const handleClick = () => {
+  const suppressNextClick = () => {
+    suppressClickRef.current = true;
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+  };
+
+  const handleClick = (e?: React.MouseEvent) => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    if (collectionModalOpen) return;
     if (onClick) {
       onClick(item);
       return;
@@ -89,6 +125,14 @@ const Cover: CoverComponent = ({
         navigate(`/detail?id=${item.id}`);
       }
     }
+  };
+
+  const handleMoreClick: React.MouseEventHandler = (e) => {
+    suppressNextClick();
+    e.preventDefault();
+    e.stopPropagation();
+    // Ensure the event doesn't bubble to cover container
+    (e.nativeEvent as any).stopImmediatePropagation?.();
   };
 
   const handlePlayAlbum = async () => {
@@ -120,7 +164,9 @@ const Cover: CoverComponent = ({
           let startTime = 0;
 
           if (resumeTrackId) {
-            const found = tracks.find((t) => String(t.id) === String(resumeTrackId));
+            const found = tracks.find(
+              (t) => String(t.id) === String(resumeTrackId),
+            );
             if (found) {
               targetTrack = found;
               startTime = resumeProgress || 0;
@@ -134,6 +180,76 @@ const Cover: CoverComponent = ({
         console.error(error);
         message.error("播放失败");
       }
+    }
+  };
+
+  const openCollectionModal = async () => {
+    if (isTrack || !user?.id) return;
+    setCollectionLoading(true);
+    setCollectionModalOpen(true);
+    try {
+      const [listRes, membershipRes] = await Promise.all([
+        getCollections(user.id),
+        getCollectionMembership(item.id, user.id),
+      ]);
+      if (listRes.code === 200) setCollections(listRes.data || []);
+      if (membershipRes.code === 200) setMembership(membershipRes.data || []);
+    } finally {
+      setCollectionLoading(false);
+    }
+  };
+
+  const addToCollection = async (collectionId: number) => {
+    if (isTrack) return;
+    if (membership.includes(collectionId)) return;
+    try {
+      const res = await addAlbumToCollection(collectionId, item.id);
+      if (res.code === 200) {
+        setMembership((prev) => [...prev, collectionId]);
+        message.success("已添加到合集");
+      } else {
+        message.error(res.message || "添加失败");
+      }
+    } catch (error) {
+      message.error("添加失败");
+    }
+  };
+
+  const handleCreateCollection = async () => {
+    if (!user?.id || isTrack) return;
+    const res = await createCollection(user.id, {
+      name: newCollectionName.trim() || undefined,
+      albumId: item.id,
+    });
+    if (res.code === 200) {
+      const listRes = await getCollections(user.id);
+      if (listRes.code === 200) setCollections(listRes.data || []);
+      setNewCollectionName("");
+    }
+  };
+
+  const handleCoverFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || isTrack) return;
+    if (!isAudioDockSource) {
+      message.warning("仅 AudioDock 源支持修改封面");
+      return;
+    }
+    try {
+      setUploadingCover(true);
+      const res = await uploadAlbumCover(item.id, file);
+      if (res.code === 200) {
+        message.success("封面已更新");
+      } else {
+        message.error(res.message || "封面上传失败");
+      }
+    } catch (error) {
+      message.error("封面上传失败");
+    } finally {
+      setUploadingCover(false);
     }
   };
 
@@ -166,6 +282,35 @@ const Cover: CoverComponent = ({
       icon: <PlayCircleOutlined />,
       onClick: handlePlayAlbum,
     },
+    !isTrack && {
+      key: "cover",
+      label: "修改封面",
+      icon: <PictureOutlined />,
+      onClick: ({ domEvent }) => {
+        suppressNextClick();
+        domEvent?.preventDefault();
+        domEvent?.stopPropagation();
+        (domEvent as any)?.nativeEvent?.stopImmediatePropagation?.();
+        const input = document.getElementById(
+          `cover-input-${item.id}`,
+        ) as HTMLInputElement;
+        input?.click();
+      },
+      disabled: uploadingCover || !isAudioDockSource,
+    },
+    !isTrack &&
+      (item as Album).type === TrackType.AUDIOBOOK && {
+        key: "collection",
+        label: "添加到合集",
+        icon: <AppstoreAddOutlined />,
+        onClick: ({ domEvent }) => {
+          suppressNextClick();
+          domEvent?.preventDefault();
+          domEvent?.stopPropagation();
+          (domEvent as any)?.nativeEvent?.stopImmediatePropagation?.();
+          openCollectionModal();
+        },
+      },
     {
       key: "like",
       label: isLiked ? "取消收藏" : "收藏",
@@ -176,7 +321,7 @@ const Cover: CoverComponent = ({
       ),
       onClick: handleToggleLike,
     },
-  ];
+  ].filter(Boolean) as MenuProps["items"];
 
   return (
     <div
@@ -184,6 +329,13 @@ const Cover: CoverComponent = ({
       onClick={handleClick}
       style={size ? { width: size } : undefined}
     >
+      <input
+        id={`cover-input-${item.id}`}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handleCoverFileChange}
+      />
       <div className={styles.imageWrapper}>
         <img
           src={
@@ -207,14 +359,22 @@ const Cover: CoverComponent = ({
             </div>
           )}
         {!isTrack && (
-          <div className={styles.moreButton}>
+          <div
+            className={styles.moreButton}
+            onMouseDown={handleMoreClick}
+            onClick={handleMoreClick}
+          >
             <Dropdown
               menu={{ items: menuItems }}
               trigger={["click"]}
               placement="bottomRight"
+              onOpenChange={(open) => {
+                if (open) suppressNextClick();
+              }}
             >
               <MoreOutlined
-                onClick={(e) => e.stopPropagation()}
+                onMouseDown={handleMoreClick}
+                onClick={handleMoreClick}
                 style={{ fontSize: "20px", cursor: "pointer" }}
               />
             </Dropdown>
@@ -230,6 +390,67 @@ const Cover: CoverComponent = ({
       >
         {item.artist}
       </div>
+      <Modal
+        title="添加到合集"
+        open={collectionModalOpen}
+        onCancel={() => {
+          suppressNextClick();
+          setCollectionModalOpen(false);
+        }}
+        footer={null}
+      >
+        <div
+          style={{ display: "flex", gap: 8, marginBottom: 12 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Input
+            placeholder="合集名称（可选）"
+            value={newCollectionName}
+            onChange={(e) => setNewCollectionName(e.target.value)}
+          />
+          <Button type="primary" onClick={handleCreateCollection}>
+            新建
+          </Button>
+        </div>
+        <div
+          style={{ maxHeight: 360, overflowY: "auto" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {collectionLoading ? (
+            <div style={{ padding: 12 }}>加载中...</div>
+          ) : (
+            collections.map((col) => {
+              const selected = membership.includes(Number(col.id));
+              return (
+                <div
+                  key={col.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "8px 0",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span>{col.name}</span>
+                    <span style={{ fontSize: 12, opacity: 0.6 }}>
+                      {col._count?.items ?? col.items?.length ?? 0} 张专辑
+                    </span>
+                  </div>
+                  <Button
+                    type={selected ? "default" : "primary"}
+                    disabled={selected}
+                    onClick={() => addToCollection(Number(col.id))}
+                  >
+                    {selected ? "已添加" : "添加"}
+                  </Button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };
