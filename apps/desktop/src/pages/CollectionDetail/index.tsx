@@ -1,36 +1,36 @@
 import {
+  ArrowDownOutlined,
+  ArrowUpOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  MoreOutlined,
+  PictureOutlined,
+  UnorderedListOutlined,
+} from "@ant-design/icons";
+import {
   getCollectionById,
-  reorderCollection,
   removeAlbumFromCollection,
-  uploadCollectionCover,
+  reorderCollection,
   updateCollection,
+  uploadCollectionCover,
 } from "@soundx/services";
-import type { Album } from "../../models";
-import { useParams } from "react-router-dom";
-import React, { useEffect, useState } from "react";
 import {
   Button,
+  Col,
   Dropdown,
   Input,
+  message,
   Modal,
   Popconfirm,
   Row,
-  Col,
   theme,
   Typography,
-  message,
 } from "antd";
-import {
-  MoreOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  EditOutlined,
-  PictureOutlined,
-  DeleteOutlined,
-  UnorderedListOutlined,
-} from "@ant-design/icons";
-import { resolveArtworkUri } from "../../services/trackResolver";
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import Cover from "../../components/Cover";
+import type { Album } from "../../models";
+import { resolveArtworkUri } from "../../services/trackResolver";
 import styles from "./index.module.less";
 
 const CollectionDetail: React.FC = () => {
@@ -77,7 +77,9 @@ const CollectionDetail: React.FC = () => {
     }
   };
 
-  const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     if (!collection) return;
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -107,7 +109,10 @@ const CollectionDetail: React.FC = () => {
     next.splice(target, 0, item);
     setAlbums(next);
     if (collection) {
-      await reorderCollection(collection.id, next.map((a) => a.id));
+      await reorderCollection(
+        collection.id,
+        next.map((a) => a.id),
+      );
     }
   };
 
@@ -136,7 +141,8 @@ const CollectionDetail: React.FC = () => {
 
   const cover = collection.cover || albums[0]?.cover;
   const getAlbumCoverSrc = (album: Album) =>
-    resolveArtworkUri(album) || `https://picsum.photos/seed/${album.id}/300/300`;
+    resolveArtworkUri(album) ||
+    `https://picsum.photos/seed/${album.id}/300/300`;
 
   const menuItems = [
     {
@@ -177,7 +183,10 @@ const CollectionDetail: React.FC = () => {
           <Typography.Title level={2} className={styles.title}>
             {collection.name}
           </Typography.Title>
-          <div className={styles.subtitle} style={{ color: token.colorTextSecondary }}>
+          <div
+            className={styles.subtitle}
+            style={{ color: token.colorTextSecondary }}
+          >
             {albums.length} 张专辑
           </div>
         </div>
@@ -188,7 +197,7 @@ const CollectionDetail: React.FC = () => {
           专辑 ({albums.length})
         </Typography.Title>
         <Row gutter={[24, 24]}>
-          {albums.map((album, index) => (
+          {albums.map((album) => (
             <Col key={album.id}>
               <div className={styles.card}>
                 <Cover item={album} />
@@ -204,7 +213,10 @@ const CollectionDetail: React.FC = () => {
         onOk={handleRename}
         onCancel={() => setRenameOpen(false)}
       >
-        <Input value={nameInput} onChange={(e) => setNameInput(e.target.value)} />
+        <Input
+          value={nameInput}
+          onChange={(e) => setNameInput(e.target.value)}
+        />
       </Modal>
 
       <Modal
@@ -220,7 +232,10 @@ const CollectionDetail: React.FC = () => {
               className={styles.coverOption}
               onClick={() => handleSelectCover(album)}
             >
-              <img className={styles.coverThumb} src={getAlbumCoverSrc(album)} />
+              <img
+                className={styles.coverThumb}
+                src={getAlbumCoverSrc(album)}
+              />
               <div>{album.name}</div>
             </div>
           ))}
