@@ -16,9 +16,11 @@ export default function TabLayout() {
   const animation =
     prevIndex === null || currentIndex === -1
       ? "slide_from_right"
-      : currentIndex > prevIndex
-        ? "slide_from_right"
-        : "slide_from_left";
+      : currentIndex === prevIndex
+        ? "none"
+        : currentIndex > prevIndex
+          ? "slide_from_right"
+          : "slide_from_left";
   lastIndexRef.current = currentIndex;
 
   useEffect(() => {
