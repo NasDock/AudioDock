@@ -16,6 +16,7 @@ import {
     getAlbumsByArtist,
     getArtistById,
     getCollaborativeAlbumsByArtist,
+    getCollections,
     getTracksByArtist,
     uploadArtistAvatar,
 } from "@soundx/services";
@@ -37,12 +38,13 @@ export default function ArtistDetailScreen() {
   const { colors } = useTheme();
   const { playTrackList, currentTrack, isPlaying } = usePlayer();
   const { mode } = usePlayMode();
-  const { sourceType } = useAuth();
+  const { sourceType, user } = useAuth();
   const router = useRouter();
   const [artist, setArtist] = useState<Artist | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [collaborativeAlbums, setCollaborativeAlbums] = useState<Album[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [relatedCollections, setRelatedCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [moreModalVisible, setMoreModalVisible] = useState(false);
@@ -61,6 +63,35 @@ export default function ArtistDetailScreen() {
       loadData(id as string);
     }
   }, [id]);
+
+  useEffect(() => {
+    const loadRelatedCollections = async () => {
+      if (mode !== TrackType.AUDIOBOOK || !user?.id || !artist) {
+        setRelatedCollections([]);
+        return;
+      }
+      try {
+        const res = await getCollections(user.id);
+        if (res.code !== 200) {
+          setRelatedCollections([]);
+          return;
+        }
+        const artistAlbumIds = new Set(
+          [...albums, ...collaborativeAlbums].map((album) => String(album.id)),
+        );
+        const filtered = (res.data || []).filter((col: any) =>
+          (col.items || []).some((item: any) =>
+            artistAlbumIds.has(String(item.album?.id)),
+          ),
+        );
+        setRelatedCollections(filtered);
+      } catch (error) {
+        setRelatedCollections([]);
+      }
+    };
+
+    loadRelatedCollections();
+  }, [mode, user?.id, artist, albums, collaborativeAlbums]);
 
   const loadData = async (artistId: string) => {
     try {
@@ -376,6 +407,54 @@ export default function ArtistDetailScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {mode === TrackType.AUDIOBOOK && relatedCollections.length > 0 && (
+          <View style={styles.section}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: colors.text, paddingHorizontal: 20 },
+              ]}
+            >
+              相关合集 ({relatedCollections.length})
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ paddingHorizontal: 20, paddingBottom: 20 }}
+            >
+              {relatedCollections.map((col) => {
+                const cover =
+                  col.cover || col.items?.[0]?.album?.cover || undefined;
+                return (
+                  <TouchableOpacity
+                    key={col.id}
+                    style={styles.albumCard}
+                    onPress={() => router.push(`/collection/${col.id}`)}
+                  >
+                    <View style={styles.albumCoverContainer}>
+                      <Image
+                        source={{
+                          uri: getImageUrl(
+                            cover,
+                            `https://picsum.photos/seed/collection-${col.id}/200/200`,
+                          ),
+                        }}
+                        style={styles.albumCover}
+                      />
+                    </View>
+                    <Text
+                      style={[styles.albumName, { color: colors.text }]}
+                      numberOfLines={1}
+                    >
+                      {col.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
         )}

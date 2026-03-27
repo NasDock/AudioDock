@@ -176,6 +176,27 @@ export interface Playlist {
     tracks: number;
   };
 }
+
+export interface AudiobookCollection {
+  id: number | string;
+  name: string;
+  cover: string | null;
+  type: TrackType;
+  userId: number | string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  items?: AudiobookCollectionAlbum[];
+  _count?: { items: number };
+}
+
+export interface AudiobookCollectionAlbum {
+  id: number | string;
+  collectionId: number | string;
+  albumId: number | string;
+  order: number;
+  createdAt: string | Date;
+  album?: Album;
+}
 export interface Device {
   id: number | string;
   name: string;
