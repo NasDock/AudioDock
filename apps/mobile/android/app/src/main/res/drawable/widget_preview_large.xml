@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+  <item>
+    <shape>
+      <corners android:radius="18dp" />
+      <gradient
+        android:startColor="#2B5B90"
+        android:endColor="#142C4A"
+        android:angle="135" />
+    </shape>
+  </item>
+  <item android:left="12dp" android:top="12dp" android:right="12dp" android:bottom="12dp">
+    <shape>
+      <corners android:radius="18dp" />
+      <solid android:color="#26FFFFFF" />
+    </shape>
+  </item>
+  <item android:left="16dp" android:top="16dp">
+    <shape>
+      <size android:width="96dp" android:height="96dp" />
+      <corners android:radius="18dp" />
+      <solid android:color="#99FFFFFF" />
+    </shape>
+  </item>
+  <item android:left="16dp" android:top="124dp">
+    <shape>
+      <size android:width="220dp" android:height="10dp" />
+      <corners android:radius="5dp" />
+      <solid android:color="#D9FFFFFF" />
+    </shape>
+  </item>
+  <item android:left="16dp" android:top="142dp">
+    <shape>
+      <size android:width="180dp" android:height="8dp" />
+      <corners android:radius="4dp" />
+      <solid android:color="#99FFFFFF" />
+    </shape>
+  </item>
+  <item android:left="16dp" android:top="168dp">
+    <shape>
+      <size android:width="220dp" android:height="8dp" />
+      <corners android:radius="4dp" />
+      <solid android:color="#80FFFFFF" />
+    </shape>
+  </item>
+  <item android:left="16dp" android:top="188dp">
+    <shape>
+      <size android:width="220dp" android:height="8dp" />
+      <corners android:radius="4dp" />
+      <solid android:color="#80FFFFFF" />
+    </shape>
+  </item>
+</layer-list>
