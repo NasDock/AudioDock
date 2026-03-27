@@ -1,10 +1,10 @@
 import {
+  AppstoreAddOutlined,
   HeartFilled,
   HeartOutlined,
   MoreOutlined,
-  PlayCircleOutlined,
   PictureOutlined,
-  AppstoreAddOutlined,
+  PlayCircleOutlined,
 } from "@ant-design/icons";
 import {
   addAlbumToCollection,
@@ -20,7 +20,6 @@ import {
 import type { MenuProps } from "antd";
 import {
   Button,
-  Checkbox,
   Dropdown,
   Input,
   Modal,
@@ -102,7 +101,7 @@ const Cover: CoverComponent = ({
     }, 0);
   };
 
-  const handleClick = (e?: React.MouseEvent) => {
+  const handleClick = () => {
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
       return;
@@ -286,7 +285,11 @@ const Cover: CoverComponent = ({
       key: "cover",
       label: "修改封面",
       icon: <PictureOutlined />,
-      onClick: ({ domEvent }) => {
+      onClick: ({
+        domEvent,
+      }: {
+        domEvent?: React.MouseEvent<HTMLDivElement>;
+      }) => {
         suppressNextClick();
         domEvent?.preventDefault();
         domEvent?.stopPropagation();
@@ -303,7 +306,7 @@ const Cover: CoverComponent = ({
         key: "collection",
         label: "添加到合集",
         icon: <AppstoreAddOutlined />,
-        onClick: ({ domEvent }) => {
+        onClick: ({ domEvent }: { domEvent?: any }) => {
           suppressNextClick();
           domEvent?.preventDefault();
           domEvent?.stopPropagation();

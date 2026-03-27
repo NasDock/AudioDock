@@ -112,7 +112,7 @@ export const AlbumMoreModal: React.FC<AlbumMoreModalProps> = ({
                 }}
               >
                 <Ionicons name="albums-outline" size={24} color={colors.text} />
-                <Text style={[styles.optionText, { color: colors.text }]}>加入/移除合集</Text>
+                <Text style={[styles.optionText, { color: colors.text }]}>加入合集</Text>
               </TouchableOpacity>
             )}
 

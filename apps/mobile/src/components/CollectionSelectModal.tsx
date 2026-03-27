@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -12,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { addAlbumToCollection, createCollection, getCollectionMembership, getCollections, removeAlbumFromCollection } from "@soundx/services";
+import { addAlbumToCollection, createCollection, getCollectionMembership, getCollections } from "@soundx/services";
 import { Album, AudiobookCollection } from "../models";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -70,16 +71,12 @@ export const CollectionSelectModal: React.FC<CollectionSelectModalProps> = ({
 
   const membershipSet = useMemo(() => new Set(membership), [membership]);
 
-  const toggleCollection = async (collectionId: number) => {
+  const addToCollection = async (collectionId: number) => {
     if (!albumId) return;
     try {
-      if (membershipSet.has(collectionId)) {
-        await removeAlbumFromCollection(collectionId, albumId);
-        setMembership((prev) => prev.filter((id) => id !== collectionId));
-      } else {
-        await addAlbumToCollection(collectionId, albumId);
-        setMembership((prev) => [...prev, collectionId]);
-      }
+      if (membershipSet.has(collectionId)) return;
+      await addAlbumToCollection(collectionId, albumId);
+      setMembership((prev) => [...prev, collectionId]);
     } catch (error) {
       console.error("Failed to update collection membership", error);
     }
@@ -88,14 +85,18 @@ export const CollectionSelectModal: React.FC<CollectionSelectModalProps> = ({
   const handleCreate = async () => {
     if (!user || !albumId) return;
     try {
+      const name = nameInput.trim();
+      if (!name) {
+        Alert.alert("提示", "请输入合集名称");
+        return;
+      }
       const res = await createCollection(user.id, {
-        name: nameInput.trim() || undefined,
+        name,
         albumId,
       });
       if (res.code === 200) {
         setNameInput("");
         setCreateVisible(false);
-        await reload();
       }
     } catch (error) {
       console.error("Failed to create collection", error);
@@ -120,13 +121,19 @@ export const CollectionSelectModal: React.FC<CollectionSelectModalProps> = ({
             <View
               style={[
                 styles.modalContent,
-                { backgroundColor: colors.card, paddingBottom: insets.bottom + 20 },
+                { backgroundColor: colors.card, paddingBottom: insets.bottom + 8 },
               ]}
             >
               <View style={styles.handle} />
               <View style={styles.headerRow}>
                 <Text style={[styles.title, { color: colors.text }]}>选择合集</Text>
-                <TouchableOpacity onPress={() => setCreateVisible(true)}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setCreateVisible(true);
+                    setNameInput("");
+                    onClose();
+                  }}
+                >
                   <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
                 </TouchableOpacity>
               </View>
@@ -148,7 +155,8 @@ export const CollectionSelectModal: React.FC<CollectionSelectModalProps> = ({
                     return (
                       <TouchableOpacity
                         style={styles.option}
-                        onPress={() => toggleCollection(Number(item.id))}
+                        onPress={() => addToCollection(Number(item.id))}
+                        disabled={selected}
                       >
                         <CachedImage
                           source={{
@@ -178,6 +186,7 @@ export const CollectionSelectModal: React.FC<CollectionSelectModalProps> = ({
                   ItemSeparatorComponent={() => (
                     <View style={{ height: 1, backgroundColor: colors.border, opacity: 0.3 }} />
                   )}
+                  contentContainerStyle={{ paddingBottom: 8 }}
                   ListEmptyComponent={
                     <Text style={[styles.emptyText, { color: colors.secondary }]}>
                       暂无合集，点击右上角创建
@@ -196,14 +205,14 @@ export const CollectionSelectModal: React.FC<CollectionSelectModalProps> = ({
         animationType="fade"
         onRequestClose={() => setCreateVisible(false)}
       >
-        <Pressable style={styles.backdrop} onPress={() => setCreateVisible(false)}>
+        <Pressable style={styles.backdropCenter} onPress={() => setCreateVisible(false)}>
           <Pressable
             style={[styles.createBox, { backgroundColor: colors.card }]}
             onPress={(e) => e.stopPropagation()}
           >
             <Text style={[styles.title, { color: colors.text }]}>新建合集</Text>
             <TextInput
-              placeholder="合集名称（可选）"
+              placeholder="合集名称（必填）"
               placeholderTextColor={colors.secondary}
               value={nameInput}
               onChangeText={setNameInput}
@@ -214,7 +223,7 @@ export const CollectionSelectModal: React.FC<CollectionSelectModalProps> = ({
                 <Text style={[styles.actionText, { color: colors.secondary }]}>取消</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleCreate}>
-                <Text style={[styles.actionText, { color: colors.primary }]}>创建</Text>
+                <Text style={[styles.actionText, { color: colors.primary }]}>创建并加入</Text>
               </TouchableOpacity>
             </View>
           </Pressable>
@@ -229,6 +238,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
+    alignItems: "center",
+  },
+  backdropCenter: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
     alignItems: "center",
   },
   modalContent: {
