@@ -28,6 +28,7 @@ import {
   FlatList,
   Image,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -786,6 +787,9 @@ export default function PersonalScreen() {
             </Text>
             {user && (
                 <TouchableOpacity onPress={async () => {
+                    if (Platform.OS === "ios") {
+                        return;
+                    }
                     const plusToken = await AsyncStorage.getItem("plus_token");
                     if (plusToken) {
                         if (isPlusVip) {

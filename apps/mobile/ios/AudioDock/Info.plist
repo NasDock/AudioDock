@@ -52,7 +52,7 @@
 		<true/>
 		<key>NSExceptionDomains</key>
 		<dict>
-			<key>api.example.com</key>
+			<key>www.audiodock.cn</key>
 			<dict>
 				<key>NSExceptionAllowsInsecureHTTPLoads</key>
 				<true/>
