@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
+import { syncWidgetMembership } from "../src/native/WidgetBridge";
 
 export default function MemberDetailScreen() {
   const router = useRouter();
@@ -40,6 +41,9 @@ export default function MemberDetailScreen() {
         const res = await plusGetMe(id);
         if (res.data.code === 200 && res.data.data) {
           setVipData(res.data.data);
+          await syncWidgetMembership(
+            !!(res.data.data.vipTier && res.data.data.vipTier !== "NONE")
+          );
         }
       }
     } catch (err) {
@@ -77,6 +81,7 @@ export default function MemberDetailScreen() {
     { feature: "设备接力", free: true, member: true },
     { feature: "同步控制", free: false, member: true },
     { feature: "TTS生成有声书", free: false, member: true },
+    { feature: "桌面小部件", free: false, member: true },
     { feature: "TV版", free: false, member: true },
     { feature: "车机版", free: false, member: true },
   ];

@@ -53,6 +53,7 @@ type WidgetBridgeModule = {
     latest: WidgetLatestItem[];
     recommendations: WidgetRecommendationItem[];
   }) => Promise<void>;
+  updateWidgetMembership?: (payload: { isVip: boolean }) => Promise<void>;
 };
 
 const NativeWidgetBridge = NativeModules.WidgetBridge as WidgetBridgeModule | undefined;
@@ -81,6 +82,18 @@ export const updateWidget = async (payload: WidgetUpdatePayload): Promise<void> 
   } catch (error) {
     if (__DEV__) {
       console.warn("[WidgetBridge] updateWidget failed", error);
+    }
+  }
+};
+
+export const syncWidgetMembership = async (isVip: boolean): Promise<void> => {
+  if (!NativeWidgetBridge?.updateWidgetMembership) return;
+
+  try {
+    await NativeWidgetBridge.updateWidgetMembership({ isVip });
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("[WidgetBridge] updateWidgetMembership failed", error);
     }
   }
 };

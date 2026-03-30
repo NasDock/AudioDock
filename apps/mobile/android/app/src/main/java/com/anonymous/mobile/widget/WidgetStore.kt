@@ -10,6 +10,7 @@ internal data class WidgetState(
   val isPlaying: Boolean,
   val playMode: String,
   val isLiked: Boolean,
+  val isVip: Boolean,
   val colorPrimary: Int,
   val colorSecondary: Int,
   val position: Int,
@@ -32,6 +33,7 @@ internal object WidgetStore {
   private const val KEY_IS_LIKED = "is_liked"
   private const val KEY_IS_LIKED_OVERRIDE = "is_liked_override"
   private const val KEY_IS_LIKED_OVERRIDE_UNTIL = "is_liked_override_until"
+  private const val KEY_IS_VIP = "is_vip"
   private const val KEY_COLOR_PRIMARY = "color_primary"
   private const val KEY_COLOR_SECONDARY = "color_secondary"
   private const val KEY_POSITION = "position"
@@ -55,6 +57,7 @@ internal object WidgetStore {
       isPlaying = prefs.getBoolean(KEY_PLAYING, false),
       playMode = resolvedPlayMode,
       isLiked = resolvedLiked,
+      isVip = prefs.getBoolean(KEY_IS_VIP, false),
       colorPrimary = prefs.getInt(KEY_COLOR_PRIMARY, 0xFF000000.toInt()),
       colorSecondary = prefs.getInt(KEY_COLOR_SECONDARY, 0xFF000000.toInt()),
       position = prefs.getInt(KEY_POSITION, 0),
@@ -74,6 +77,7 @@ internal object WidgetStore {
     isPlaying: Boolean,
     playMode: String,
     isLiked: Boolean,
+    isVip: Boolean = prefs(context).getBoolean(KEY_IS_VIP, false),
     colorPrimary: Int,
     colorSecondary: Int,
     position: Int,
@@ -95,6 +99,7 @@ internal object WidgetStore {
       .putString(KEY_ARTIST, artist)
       .putString(KEY_COVER, coverPath)
       .putBoolean(KEY_PLAYING, isPlaying)
+      .putBoolean(KEY_IS_VIP, isVip)
       .putInt(KEY_COLOR_PRIMARY, colorPrimary)
       .putInt(KEY_COLOR_SECONDARY, colorSecondary)
       .putInt(KEY_POSITION, position)
@@ -144,6 +149,12 @@ internal object WidgetStore {
       .putBoolean(KEY_IS_LIKED, liked)
       .putBoolean(KEY_IS_LIKED_OVERRIDE, liked)
       .putLong(KEY_IS_LIKED_OVERRIDE_UNTIL, until)
+      .apply()
+  }
+
+  fun setVipStatus(context: Context, isVip: Boolean) {
+    prefs(context).edit()
+      .putBoolean(KEY_IS_VIP, isVip)
       .apply()
   }
 

@@ -6,6 +6,7 @@
   android:minResizeHeight="250dp"
   android:resizeMode="none"
   android:updatePeriodMillis="0"
+  android:configure="com.anonymous.mobile.widget.WidgetAccessGateActivity"
   android:initialLayout="@layout/widget_player_history_large"
   android:previewLayout="@layout/widget_player_history_large"
   android:previewImage="@drawable/widget_preview_large"

@@ -276,6 +276,7 @@ export default function MemberBenefitsScreen() {
     { feature: '设备接力', free: true, member: true },
     { feature: '同步控制', free: false, member: true },
     { feature: 'TTS生成有声书', free: false, member: true },
+    { feature: '桌面小部件', free: false, member: true },
     { feature: 'TV版', free: false, member: true },
     { feature: '车机版', free: false, member: true },
   ];

@@ -352,6 +352,23 @@ export default function PersonalScreen() {
     }
   };
 
+  const handleOpenTtsTasks = () => {
+    setMenuVisible(false);
+
+    if (isPlusVip) {
+      router.push("/tts/tasks" as any);
+      return;
+    }
+
+    Alert.alert("会员功能", "开通会员才能使用 TTS 有声书转换功能", [
+      { text: "取消", style: "cancel" },
+      {
+        text: "去开通",
+        onPress: () => router.push("/member-benefits" as any),
+      },
+    ]);
+  };
+
   const handleDeleteDownload = (item: Track) => {
     Alert.alert("删除下载", "确定要删除这首歌曲的下载吗？", [
       { text: "取消", style: "cancel" },
@@ -1073,10 +1090,7 @@ export default function PersonalScreen() {
               <>
                 <TouchableOpacity
                   style={styles.menuItem}
-                  onPress={() => {
-                    setMenuVisible(false);
-                    router.push("/tts/tasks" as any);
-                  }}
+                  onPress={handleOpenTtsTasks}
                 >
                   <Ionicons name="mic-outline" size={22} color={colors.text} />
                   <Text style={[styles.menuItemText, { color: colors.text }]}>

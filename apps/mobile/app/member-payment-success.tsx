@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../src/context/ThemeContext";
 import { useAuth } from "../src/context/AuthContext";
+import { syncWidgetMembership } from "../src/native/WidgetBridge";
 
 export default function MemberPaymentSuccessScreen() {
   const { colors } = useTheme();
@@ -49,6 +50,7 @@ export default function MemberPaymentSuccessScreen() {
           await AsyncStorage.setItem("plus_vip_data", JSON.stringify(res.data.data || {}));
           await AsyncStorage.setItem("plus_vip_updated_at", Date.now().toString());
         }
+        await syncWidgetMembership(!!isVip);
       } catch (error) {
         console.warn("Failed to refresh vip status", error);
       } finally {
