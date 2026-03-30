@@ -727,7 +727,12 @@ const CollectionList = () => {
           return (
             <TouchableOpacity
               style={{ width: itemWidth }}
-              onPress={() => router.push(`/collection/${item.id}`)}
+              onPress={() =>
+                router.push({
+                  pathname: "/collection/[id]",
+                  params: { id: String(item.id) },
+                })
+              }
             >
               <View
                 style={[
@@ -753,12 +758,15 @@ const CollectionList = () => {
                 />
               </View>
               <Text
-                style={[styles.name, { color: colors.text }]}
+                style={[styles.collectionTitle, { color: colors.text }]}
                 numberOfLines={1}
               >
                 {item.name}
               </Text>
-              <Text style={[styles.artist, { color: colors.secondary }]}>
+              <Text
+                style={[styles.collectionMeta, { color: colors.secondary }]}
+                numberOfLines={1}
+              >
                 {count} 张专辑
               </Text>
             </TouchableOpacity>
@@ -1328,6 +1336,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     color: "#333",
+  },
+  collectionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "left",
+    marginBottom: 4,
+  },
+  collectionMeta: {
+    fontSize: 12,
+    textAlign: "left",
   },
   albumImageContainer: {
     borderRadius: 15,

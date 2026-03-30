@@ -430,7 +430,12 @@ export default function ArtistDetailScreen() {
                   <TouchableOpacity
                     key={col.id}
                     style={styles.albumCard}
-                    onPress={() => router.push(`/collection/${col.id}`)}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/collection/[id]",
+                        params: { id: String(col.id) },
+                      })
+                    }
                   >
                     <View style={styles.albumCoverContainer}>
                       <Image
