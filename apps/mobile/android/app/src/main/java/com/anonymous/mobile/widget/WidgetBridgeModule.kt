@@ -57,6 +57,7 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
         isPlaying,
         playMode,
         isLiked,
+        WidgetStore.load(reactContext).isVip,
         primaryColor,
         secondaryColor,
         position,
@@ -94,6 +95,21 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
       promise.resolve(null)
     } catch (e: Exception) {
       promise.reject("WIDGET_COLLECTIONS_UPDATE_FAILED", e)
+    }
+  }
+
+  @ReactMethod
+  fun updateWidgetMembership(payload: ReadableMap, promise: Promise) {
+    try {
+      val isVip = if (payload.hasKey("isVip") && !payload.isNull("isVip")) {
+        payload.getBoolean("isVip")
+      } else {
+        false
+      }
+      WidgetStore.setVipStatus(reactContext, isVip)
+      promise.resolve(null)
+    } catch (e: Exception) {
+      promise.reject("WIDGET_MEMBERSHIP_UPDATE_FAILED", e)
     }
   }
 
