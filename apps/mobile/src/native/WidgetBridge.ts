@@ -10,6 +10,8 @@ type WidgetUpdatePayload = {
   isPlaying: boolean;
   playMode?: string;
   isLiked?: boolean;
+  position?: number;
+  duration?: number;
 };
 
 type WidgetPlaylistItem = {
@@ -59,6 +61,10 @@ export const updateWidget = async (payload: WidgetUpdatePayload): Promise<void> 
     artist: payload.artist,
     coverPath: payload.coverPath ? normalizeLocalPath(payload.coverPath) : null,
     isPlaying: payload.isPlaying,
+    playMode: payload.playMode,
+    isLiked: payload.isLiked,
+    position: payload.position ?? 0,
+    duration: payload.duration ?? 0,
   };
 
   try {
@@ -72,7 +78,7 @@ export const updateWidget = async (payload: WidgetUpdatePayload): Promise<void> 
 
 export const updateWidgetCollections = async (params: {
   playlists?: Playlist[];
-  history?: Array<Track | Record<string, any>>;
+  history?: (Track | Record<string, any>)[];
   latest?: Track[];
 }): Promise<void> => {
   if (!NativeWidgetBridge?.updateWidgetCollections) return;

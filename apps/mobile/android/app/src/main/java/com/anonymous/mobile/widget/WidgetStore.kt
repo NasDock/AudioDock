@@ -12,6 +12,8 @@ internal data class WidgetState(
   val isLiked: Boolean,
   val colorPrimary: Int,
   val colorSecondary: Int,
+  val position: Int,
+  val duration: Int,
   val playlistsJson: String,
   val historyJson: String,
   val latestJson: String
@@ -31,6 +33,8 @@ internal object WidgetStore {
   private const val KEY_IS_LIKED_OVERRIDE_UNTIL = "is_liked_override_until"
   private const val KEY_COLOR_PRIMARY = "color_primary"
   private const val KEY_COLOR_SECONDARY = "color_secondary"
+  private const val KEY_POSITION = "position"
+  private const val KEY_DURATION = "duration"
   private const val KEY_PLAYLISTS = "playlists_json"
   private const val KEY_HISTORY = "history_json"
   private const val KEY_LATEST = "latest_json"
@@ -51,6 +55,8 @@ internal object WidgetStore {
       isLiked = resolvedLiked,
       colorPrimary = prefs.getInt(KEY_COLOR_PRIMARY, 0xFF000000.toInt()),
       colorSecondary = prefs.getInt(KEY_COLOR_SECONDARY, 0xFF000000.toInt()),
+      position = prefs.getInt(KEY_POSITION, 0),
+      duration = prefs.getInt(KEY_DURATION, 0),
       playlistsJson = prefs.getString(KEY_PLAYLISTS, "[]") ?: "[]",
       historyJson = prefs.getString(KEY_HISTORY, "[]") ?: "[]",
       latestJson = prefs.getString(KEY_LATEST, "[]") ?: "[]"
@@ -67,6 +73,8 @@ internal object WidgetStore {
     isLiked: Boolean,
     colorPrimary: Int,
     colorSecondary: Int,
+    position: Int,
+    duration: Int,
     playlistsJson: String = prefs(context).getString(KEY_PLAYLISTS, "[]") ?: "[]",
     historyJson: String = prefs(context).getString(KEY_HISTORY, "[]") ?: "[]",
     latestJson: String = prefs(context).getString(KEY_LATEST, "[]") ?: "[]"
@@ -85,6 +93,8 @@ internal object WidgetStore {
       .putBoolean(KEY_PLAYING, isPlaying)
       .putInt(KEY_COLOR_PRIMARY, colorPrimary)
       .putInt(KEY_COLOR_SECONDARY, colorSecondary)
+      .putInt(KEY_POSITION, position)
+      .putInt(KEY_DURATION, duration)
       .putString(KEY_PLAYLISTS, playlistsJson)
       .putString(KEY_HISTORY, historyJson)
       .putString(KEY_LATEST, latestJson)

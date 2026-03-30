@@ -188,6 +188,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     coverPath: "",
     playMode: "",
     isLiked: false,
+    position: 0,
+    duration: 0,
   });
   const widgetModeLockRef = React.useRef<{
     until: number;
@@ -250,6 +252,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           isPlaying: isPlayingNow,
           playMode: playMode,
           isLiked: false,
+          position: Math.floor(positionRef.current),
+          duration: Math.floor((activeTrack.duration as number | undefined) || 0),
         });
         lastWidgetStateRef.current = {
           trackId: activeTrack.id ?? null,
@@ -257,6 +261,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           coverPath: coverPath || "",
           playMode: playMode,
           isLiked: false,
+          position: Math.floor(positionRef.current),
+          duration: Math.floor((activeTrack.duration as number | undefined) || 0),
         };
             return;
           }
@@ -271,6 +277,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           isPlaying: false,
           playMode: "",
           isLiked: false,
+          position: 0,
+          duration: 0,
         });
         lastWidgetStateRef.current = {
           trackId: null,
@@ -278,6 +286,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           coverPath: "",
           playMode: "",
           isLiked: false,
+          position: 0,
+          duration: 0,
         };
         return;
       }
@@ -305,7 +315,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         lastState.isPlaying === isPlaying &&
         lastState.coverPath === nextCoverPath &&
         lastState.playMode === playModeValue &&
-        lastState.isLiked === isLiked
+        lastState.isLiked === isLiked &&
+        lastState.position === Math.floor(positionRef.current) &&
+        lastState.duration === Math.floor(duration || currentTrack.duration || 0)
       ) {
         return;
       }
@@ -316,6 +328,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         coverPath: nextCoverPath,
         playMode: playModeValue,
         isLiked,
+        position: Math.floor(positionRef.current),
+        duration: Math.floor(duration || currentTrack.duration || 0),
       };
 
       await updateWidget({
@@ -325,6 +339,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         isPlaying,
         playMode: playModeValue,
         isLiked,
+        position: Math.floor(positionRef.current),
+        duration: Math.floor(duration || currentTrack.duration || 0),
       });
     };
 
@@ -332,7 +348,51 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       cancelled = true;
     };
-  }, [currentTrack?.id, isPlaying, playMode, user?.id]);
+  }, [currentTrack?.id, isPlaying, playMode, user?.id, duration]);
+
+  useEffect(() => {
+    const syncWidgetProgress = async () => {
+      const track = currentTrackRef.current;
+      if (!track) return;
+
+      const nextPosition = Math.floor(position);
+      const nextDuration = Math.floor(duration || track.duration || 0);
+      const lastState = lastWidgetStateRef.current;
+
+      if (
+        lastState.trackId === track.id &&
+        lastState.position === nextPosition &&
+        lastState.duration === nextDuration
+      ) {
+        return;
+      }
+
+      const isLiked =
+        lastState.isLiked ??
+        !!track.likedByUsers?.some((like: any) => like.userId === user?.id);
+
+      await updateWidget({
+        title: track.name,
+        artist: track.artist,
+        coverPath: lastState.coverPath || null,
+        isPlaying,
+        playMode: lastState.playMode || playModeRef.current,
+        isLiked,
+        position: nextPosition,
+        duration: nextDuration,
+      });
+
+      lastWidgetStateRef.current = {
+        ...lastState,
+        trackId: track.id,
+        isPlaying,
+        position: nextPosition,
+        duration: nextDuration,
+      };
+    };
+
+    syncWidgetProgress();
+  }, [currentTrack?.id, position, duration, isPlaying, user?.id]);
 
   const refreshWidgetCollections = useCallback(async () => {
     if (!user) return;
@@ -787,6 +847,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       isPlaying: nextIsPlaying,
       playMode: nextPlayMode,
       isLiked: liked,
+      position: Math.floor(positionRef.current),
+      duration: Math.floor(duration || track.duration || 0),
     });
 
     lastWidgetStateRef.current = {
@@ -795,6 +857,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       coverPath: coverPath || "",
       playMode: nextPlayMode,
       isLiked: liked,
+      position: Math.floor(positionRef.current),
+      duration: Math.floor(duration || track.duration || 0),
     };
   };
 

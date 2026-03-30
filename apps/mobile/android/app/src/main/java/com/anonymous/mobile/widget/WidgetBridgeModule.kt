@@ -11,6 +11,7 @@ import androidx.core.graphics.ColorUtils
 import androidx.palette.graphics.Palette
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.math.roundToInt
 
 class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
@@ -35,6 +36,16 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
         false
       }
       val isPlaying = payload.getBoolean("isPlaying")
+      val position = if (payload.hasKey("position") && !payload.isNull("position")) {
+        payload.getDouble("position").roundToInt()
+      } else {
+        0
+      }
+      val duration = if (payload.hasKey("duration") && !payload.isNull("duration")) {
+        payload.getDouble("duration").roundToInt()
+      } else {
+        0
+      }
 
       val (primaryColor, secondaryColor) = resolveColors(coverPath)
 
@@ -47,7 +58,9 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
         playMode,
         isLiked,
         primaryColor,
-        secondaryColor
+        secondaryColor,
+        position,
+        duration
       )
       AudioDockWidgetProvider.updateAllWidgets(reactContext)
       AudioDockPlaylistWidgetProvider.updateAllWidgets(reactContext)
