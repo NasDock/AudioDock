@@ -86,6 +86,12 @@ class WidgetCommandReceiver : BroadcastReceiver() {
           WidgetCommandEmitterModule.sendCommand("play_latest", mapOf("id" to id))
         }
       }
+      ACTION_WIDGET_RECOMMENDATION -> {
+        val id = intent.getStringExtra("id") ?: ""
+        if (id.isNotEmpty()) {
+          WidgetCommandEmitterModule.sendCommand("play_recommendation", mapOf("id" to id))
+        }
+      }
       ACTION_WIDGET_REFRESH_LATEST -> {
         WidgetCommandEmitterModule.sendCommand("refresh_latest")
       }
@@ -116,6 +122,7 @@ class WidgetCommandReceiver : BroadcastReceiver() {
     const val ACTION_WIDGET_PLAYLIST = "com.soundx.widget.PLAYLIST"
     const val ACTION_WIDGET_HISTORY = "com.soundx.widget.HISTORY"
     const val ACTION_WIDGET_LATEST = "com.soundx.widget.LATEST"
+    const val ACTION_WIDGET_RECOMMENDATION = "com.soundx.widget.RECOMMENDATION"
     const val ACTION_WIDGET_REFRESH_LATEST = "com.soundx.widget.REFRESH_LATEST"
   }
 }
