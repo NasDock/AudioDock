@@ -1,0 +1,140 @@
+.member-login-container {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  flex: 1;
+  padding: 60rpx 50rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.logo-container {
+  align-items: center;
+  margin-bottom: 80rpx;
+}
+
+.logo-emoji {
+  font-size: 160rpx;
+  margin-bottom: 30rpx;
+}
+
+.title {
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+  margin-bottom: 16rpx;
+}
+
+.subtitle {
+  font-size: 28rpx;
+  color: #999;
+  text-align: center;
+}
+
+.form {
+  width: 100%;
+}
+
+.label {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 16rpx;
+  display: block;
+}
+
+.input-wrapper {
+  margin-bottom: 30rpx;
+}
+
+.input {
+  width: 100%;
+  height: 96rpx;
+  background-color: #fff;
+  border: 2rpx solid #e5e5e5;
+  border-radius: 24rpx;
+  padding: 0 30rpx;
+  font-size: 32rpx;
+  color: #333;
+  box-sizing: border-box;
+}
+
+.input-placeholder {
+  color: #999;
+}
+
+.code-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-bottom: 30rpx;
+}
+
+.code-row .input-wrapper {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.code-button {
+  height: 96rpx;
+  background-color: #007aff;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 200rpx;
+  padding: 0 30rpx;
+
+  &.disabled {
+    background-color: #d9d9d9;
+  }
+}
+
+.code-button-text {
+  font-size: 28rpx;
+  color: #fff;
+  font-weight: bold;
+}
+
+.button {
+  height: 100rpx;
+  background-color: #007aff;
+  border-radius: 50rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 40rpx;
+
+  &.disabled {
+    background-color: #d9d9d9;
+  }
+}
+
+.button-text {
+  font-size: 36rpx;
+  color: #fff;
+  font-weight: bold;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 30rpx;
+}
+
+.footer-text {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.link-text {
+  font-size: 24rpx;
+  color: #1677ff;
+}

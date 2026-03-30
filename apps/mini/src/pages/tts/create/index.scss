@@ -1,0 +1,281 @@
+.tts-create-container {
+  height: 100vh;
+  background-color: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 20px 15px;
+  background-color: #fff;
+}
+
+.back-btn {
+  padding: 8px;
+  width: 80rpx;
+}
+
+.back-icon {
+  font-size: 40rpx;
+  color: #333;
+}
+
+.header-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.content-scroll {
+  flex: 1;
+  height: 1px;
+  padding-bottom: 200rpx;
+}
+
+.section {
+  margin-bottom: 30rpx;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 30rpx;
+  background-color: #fff;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #111;
+}
+
+.section-count {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.voice-scroll {
+  background-color: #fff;
+  padding-bottom: 20rpx;
+}
+
+.voice-list {
+  display: flex;
+  padding: 0 20rpx;
+  gap: 16rpx;
+}
+
+.voice-item {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24rpx;
+  background-color: #f5f5f5;
+  border-radius: 16rpx;
+  min-width: 180rpx;
+
+  &.active {
+    background-color: #e6f4ff;
+    border: 2rpx solid #007aff;
+  }
+}
+
+.voice-label {
+  font-size: 26rpx;
+  color: #333;
+  margin-bottom: 16rpx;
+  text-align: center;
+}
+
+.voice-preview-btn {
+  padding: 12rpx 24rpx;
+  background-color: #007aff;
+  border-radius: 30rpx;
+}
+
+.voice-preview-icon {
+  font-size: 24rpx;
+  color: #fff;
+}
+
+.file-list {
+  background-color: #fff;
+  padding: 0 30rpx;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  padding: 30rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &.selected {
+    background-color: #f0f9ff;
+  }
+}
+
+.file-checkbox {
+  width: 40rpx;
+  height: 40rpx;
+  border: 2rpx solid #d9d9d9;
+  border-radius: 8rpx;
+  margin-right: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .selected & {
+    background-color: #007aff;
+    border-color: #007aff;
+  }
+}
+
+.checkbox-check {
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: bold;
+}
+
+.file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-name {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.generated-tag {
+  display: inline-block;
+  margin-top: 8rpx;
+  padding: 4rpx 12rpx;
+  background-color: #f6ffed;
+  border: 1rpx solid #b7eb8f;
+  border-radius: 6rpx;
+}
+
+.generated-text {
+  font-size: 22rpx;
+  color: #52c41a;
+}
+
+.loading-container {
+  padding: 100rpx;
+  display: flex;
+  justify-content: center;
+}
+
+.loading-text {
+  color: #999;
+  font-size: 28rpx;
+}
+
+.empty-container {
+  padding: 100rpx;
+  display: flex;
+  justify-content: center;
+}
+
+.empty-text {
+  color: #999;
+  font-size: 28rpx;
+}
+
+.review-list {
+  background-color: #fff;
+  padding: 20rpx 30rpx;
+}
+
+.review-item {
+  margin-bottom: 30rpx;
+  padding-bottom: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+}
+
+.review-label {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 12rpx;
+}
+
+.review-input-wrapper {
+  width: 100%;
+}
+
+.review-input {
+  padding: 20rpx 24rpx;
+  background-color: #f5f5f5;
+  border-radius: 12rpx;
+}
+
+.review-input-text {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.bottom-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20rpx 30rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background-color: #fff;
+  display: flex;
+  gap: 20rpx;
+  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
+}
+
+.next-btn, .create-btn {
+  flex: 1;
+  padding: 28rpx;
+  background-color: #007aff;
+  border-radius: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.disabled {
+    background-color: #d9d9d9;
+  }
+}
+
+.next-btn-text, .create-btn-text {
+  font-size: 32rpx;
+  color: #fff;
+  font-weight: bold;
+}
+
+.back-btn {
+  flex: 1;
+  padding: 28rpx;
+  background-color: #f5f5f5;
+  border-radius: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.back-btn-text {
+  font-size: 32rpx;
+  color: #666;
+  font-weight: bold;
+}

@@ -18,6 +18,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -216,7 +217,7 @@ export function PlayerDetailView({
       if (!plusToken || !plusUserId) {
         Alert.alert("提示", "该功能是VIP功能，仅在开通VIP的情况使用。", [
           { text: "取消", style: "cancel" },
-          { text: "立即开通", onPress: () => router.push("/member-benefits" as any) },
+          ...(Platform.OS !== "ios" ? [{ text: "立即开通", onPress: () => router.push("/member-benefits" as any), style: "default" as const }] : []),
         ]);
         return;
       }
@@ -234,7 +235,7 @@ export function PlayerDetailView({
       } else {
         Alert.alert("提示", "该功能是VIP功能，仅在开通VIP的情况使用。", [
           { text: "取消", style: "cancel" },
-          { text: "立即开通", onPress: () => router.push("/member-benefits" as any) },
+          ...(Platform.OS !== "ios" ? [{ text: "立即开通", onPress: () => router.push("/member-benefits" as any), style: "default" as const }] : []),
         ]);
       }
     } catch (error) {
