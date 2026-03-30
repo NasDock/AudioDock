@@ -21,7 +21,9 @@ class WidgetCommandReceiver : BroadcastReceiver() {
           nextMode,
           state.isLiked,
           state.colorPrimary,
-          state.colorSecondary
+          state.colorSecondary,
+          state.position,
+          state.duration
         )
         WidgetStore.setPlayModeOverride(context, nextMode)
         AudioDockWidgetProvider.updateAllWidgets(context)
@@ -40,7 +42,9 @@ class WidgetCommandReceiver : BroadcastReceiver() {
           state.playMode,
           true,
           state.colorPrimary,
-          state.colorSecondary
+          state.colorSecondary,
+          state.position,
+          state.duration
         )
         WidgetStore.setLikedOverride(context, true)
         AudioDockWidgetProvider.updateAllWidgets(context)
@@ -56,7 +60,9 @@ class WidgetCommandReceiver : BroadcastReceiver() {
           state.playMode,
           false,
           state.colorPrimary,
-          state.colorSecondary
+          state.colorSecondary,
+          state.position,
+          state.duration
         )
         WidgetStore.setLikedOverride(context, false)
         AudioDockWidgetProvider.updateAllWidgets(context)
