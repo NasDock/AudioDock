@@ -45,14 +45,16 @@ internal object WidgetImageUtils {
   fun blurredBackground(source: Bitmap, targetWidth: Int, targetHeight: Int): Bitmap? {
     if (targetWidth <= 0 || targetHeight <= 0) return null
     val cropped = centerCrop(source, targetWidth, targetHeight)
-    val scale = 0.08f
+    // Keep more texture from the artwork so the background reads as a blurred cover,
+    // not a flat tinted surface.
+    val scale = 0.18f
     val downW = (targetWidth * scale).toInt().coerceAtLeast(1)
     val downH = (targetHeight * scale).toInt().coerceAtLeast(1)
     val down = Bitmap.createScaledBitmap(cropped, downW, downH, true)
     
-    val blurred = fastBlur(down, 6)
+    val blurred = fastBlur(down, 4)
     val scaled = Bitmap.createScaledBitmap(blurred, targetWidth, targetHeight, true)
-    return darken(scaled, 0.45f)
+    return darken(scaled, 0.24f)
   }
 
   private fun darken(source: Bitmap, amount: Float): Bitmap {
