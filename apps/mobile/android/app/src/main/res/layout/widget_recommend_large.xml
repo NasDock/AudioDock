@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-  android:id="@+id/widget_history_root"
+  android:id="@+id/widget_recommend_root"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
   android:background="@drawable/widget_rounded_bg"
@@ -132,7 +132,7 @@
       android:layout_marginTop="12dp">
 
       <LinearLayout
-        android:id="@+id/widget_history_row_1"
+        android:id="@+id/widget_recommend_row_1"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -140,7 +140,7 @@
         android:gravity="center_vertical">
 
         <ImageView
-          android:id="@+id/widget_history_cover_1"
+          android:id="@+id/widget_recommend_cover_1"
           android:layout_width="40dp"
           android:layout_height="40dp"
           android:background="@drawable/widget_cover_rounded_list"
@@ -155,7 +155,7 @@
           android:orientation="vertical">
 
           <TextView
-            android:id="@+id/widget_history_title_1"
+            android:id="@+id/widget_recommend_title_1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Title"
@@ -165,7 +165,7 @@
             android:ellipsize="end" />
 
           <TextView
-            android:id="@+id/widget_history_artist_1"
+            android:id="@+id/widget_recommend_artist_1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Artist"
@@ -176,7 +176,7 @@
         </LinearLayout>
 
         <ImageView
-          android:id="@+id/widget_history_play_1"
+          android:id="@+id/widget_recommend_play_1"
           android:layout_width="26dp"
           android:layout_height="26dp"
           android:src="@drawable/ic_widget_play"
@@ -184,7 +184,7 @@
       </LinearLayout>
 
       <LinearLayout
-        android:id="@+id/widget_history_row_2"
+        android:id="@+id/widget_recommend_row_2"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -192,7 +192,7 @@
         android:gravity="center_vertical">
 
         <ImageView
-          android:id="@+id/widget_history_cover_2"
+          android:id="@+id/widget_recommend_cover_2"
           android:layout_width="40dp"
           android:layout_height="40dp"
           android:background="@drawable/widget_cover_rounded_list"
@@ -207,7 +207,7 @@
           android:orientation="vertical">
 
           <TextView
-            android:id="@+id/widget_history_title_2"
+            android:id="@+id/widget_recommend_title_2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Title"
@@ -217,7 +217,7 @@
             android:ellipsize="end" />
 
           <TextView
-            android:id="@+id/widget_history_artist_2"
+            android:id="@+id/widget_recommend_artist_2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Artist"
@@ -228,7 +228,7 @@
         </LinearLayout>
 
         <ImageView
-          android:id="@+id/widget_history_play_2"
+          android:id="@+id/widget_recommend_play_2"
           android:layout_width="26dp"
           android:layout_height="26dp"
           android:src="@drawable/ic_widget_play"
@@ -236,7 +236,7 @@
       </LinearLayout>
 
       <LinearLayout
-        android:id="@+id/widget_history_row_3"
+        android:id="@+id/widget_recommend_row_3"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -244,7 +244,7 @@
         android:gravity="center_vertical">
 
         <ImageView
-          android:id="@+id/widget_history_cover_3"
+          android:id="@+id/widget_recommend_cover_3"
           android:layout_width="40dp"
           android:layout_height="40dp"
           android:background="@drawable/widget_cover_rounded_list"
@@ -259,7 +259,7 @@
           android:orientation="vertical">
 
           <TextView
-            android:id="@+id/widget_history_title_3"
+            android:id="@+id/widget_recommend_title_3"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Title"
@@ -269,7 +269,7 @@
             android:ellipsize="end" />
 
           <TextView
-            android:id="@+id/widget_history_artist_3"
+            android:id="@+id/widget_recommend_artist_3"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Artist"
@@ -280,7 +280,7 @@
         </LinearLayout>
 
         <ImageView
-          android:id="@+id/widget_history_play_3"
+          android:id="@+id/widget_recommend_play_3"
           android:layout_width="26dp"
           android:layout_height="26dp"
           android:src="@drawable/ic_widget_play"

@@ -65,6 +65,7 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
       AudioDockWidgetProvider.updateAllWidgets(reactContext)
       AudioDockPlaylistWidgetProvider.updateAllWidgets(reactContext)
       AudioDockPlayerHistoryWidgetProvider.updateAllWidgets(reactContext)
+      AudioDockRecommendationWidgetProvider.updateAllWidgets(reactContext)
       promise.resolve(null)
     } catch (e: Exception) {
       promise.reject("WIDGET_UPDATE_FAILED", e)
@@ -77,11 +78,19 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
       val playlistsJson = serializeList(payload.getArray("playlists"))
       val historyJson = serializeList(payload.getArray("history"))
       val latestJson = serializeList(payload.getArray("latest"))
-      WidgetStore.saveCollections(reactContext, playlistsJson, historyJson, latestJson)
+      val recommendationsJson = serializeList(payload.getArray("recommendations"))
+      WidgetStore.saveCollections(
+        reactContext,
+        playlistsJson,
+        historyJson,
+        latestJson,
+        recommendationsJson
+      )
       AudioDockWidgetProvider.updateAllWidgets(reactContext)
       AudioDockPlaylistWidgetProvider.updateAllWidgets(reactContext)
       AudioDockPlayerHistoryWidgetProvider.updateAllWidgets(reactContext)
       AudioDockLatestTracksWidgetProvider.updateAllWidgets(reactContext)
+      AudioDockRecommendationWidgetProvider.updateAllWidgets(reactContext)
       promise.resolve(null)
     } catch (e: Exception) {
       promise.reject("WIDGET_COLLECTIONS_UPDATE_FAILED", e)

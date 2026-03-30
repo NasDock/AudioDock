@@ -16,7 +16,8 @@ internal data class WidgetState(
   val duration: Int,
   val playlistsJson: String,
   val historyJson: String,
-  val latestJson: String
+  val latestJson: String,
+  val recommendationsJson: String
 )
 
 internal object WidgetStore {
@@ -38,6 +39,7 @@ internal object WidgetStore {
   private const val KEY_PLAYLISTS = "playlists_json"
   private const val KEY_HISTORY = "history_json"
   private const val KEY_LATEST = "latest_json"
+  private const val KEY_RECOMMENDATIONS = "recommendations_json"
 
   private fun prefs(context: Context): SharedPreferences =
     context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -59,7 +61,8 @@ internal object WidgetStore {
       duration = prefs.getInt(KEY_DURATION, 0),
       playlistsJson = prefs.getString(KEY_PLAYLISTS, "[]") ?: "[]",
       historyJson = prefs.getString(KEY_HISTORY, "[]") ?: "[]",
-      latestJson = prefs.getString(KEY_LATEST, "[]") ?: "[]"
+      latestJson = prefs.getString(KEY_LATEST, "[]") ?: "[]",
+      recommendationsJson = prefs.getString(KEY_RECOMMENDATIONS, "[]") ?: "[]"
     )
   }
 
@@ -77,7 +80,8 @@ internal object WidgetStore {
     duration: Int,
     playlistsJson: String = prefs(context).getString(KEY_PLAYLISTS, "[]") ?: "[]",
     historyJson: String = prefs(context).getString(KEY_HISTORY, "[]") ?: "[]",
-    latestJson: String = prefs(context).getString(KEY_LATEST, "[]") ?: "[]"
+    latestJson: String = prefs(context).getString(KEY_LATEST, "[]") ?: "[]",
+    recommendationsJson: String = prefs(context).getString(KEY_RECOMMENDATIONS, "[]") ?: "[]"
   ) {
     val prefs = prefs(context)
     val now = System.currentTimeMillis()
@@ -98,6 +102,7 @@ internal object WidgetStore {
       .putString(KEY_PLAYLISTS, playlistsJson)
       .putString(KEY_HISTORY, historyJson)
       .putString(KEY_LATEST, latestJson)
+      .putString(KEY_RECOMMENDATIONS, recommendationsJson)
 
     if (shouldWritePlayMode) {
       editor.putString(KEY_PLAY_MODE, playMode)
@@ -109,11 +114,18 @@ internal object WidgetStore {
     editor.apply()
   }
 
-  fun saveCollections(context: Context, playlistsJson: String, historyJson: String, latestJson: String) {
+  fun saveCollections(
+    context: Context,
+    playlistsJson: String,
+    historyJson: String,
+    latestJson: String,
+    recommendationsJson: String
+  ) {
     prefs(context).edit()
       .putString(KEY_PLAYLISTS, playlistsJson)
       .putString(KEY_HISTORY, historyJson)
       .putString(KEY_LATEST, latestJson)
+      .putString(KEY_RECOMMENDATIONS, recommendationsJson)
       .apply()
   }
 

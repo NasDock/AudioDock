@@ -14,7 +14,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.roundToInt
 
-class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
+class AudioDockRecommendationWidgetProvider : AppWidgetProvider() {
   override fun onUpdate(
     context: Context,
     appWidgetManager: AppWidgetManager,
@@ -33,7 +33,7 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
   }
 
   companion object {
-    private const val ACTION_HISTORY = WidgetCommandReceiver.ACTION_WIDGET_HISTORY
+    private const val ACTION_RECOMMENDATION = WidgetCommandReceiver.ACTION_WIDGET_RECOMMENDATION
     private const val ACTION_PLAY = "com.soundx.widget.PLAY"
     private const val ACTION_PAUSE = "com.soundx.widget.PAUSE"
     private const val ACTION_NEXT = "com.soundx.widget.NEXT"
@@ -41,7 +41,9 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
 
     fun updateAllWidgets(context: Context) {
       val manager = AppWidgetManager.getInstance(context)
-      val ids = manager.getAppWidgetIds(ComponentName(context, AudioDockPlayerHistoryWidgetProvider::class.java))
+      val ids = manager.getAppWidgetIds(
+        ComponentName(context, AudioDockRecommendationWidgetProvider::class.java)
+      )
       updateWidgets(context, manager, ids)
     }
 
@@ -52,9 +54,9 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
     ) {
       if (appWidgetIds.isEmpty()) return
       val state = WidgetStore.load(context)
-      val history = parseList(state.historyJson)
+      val recommendations = parseList(state.recommendationsJson)
       for (appWidgetId in appWidgetIds) {
-        val views = RemoteViews(context.packageName, R.layout.widget_player_history_large)
+        val views = RemoteViews(context.packageName, R.layout.widget_recommend_large)
 
         views.setTextViewText(R.id.widget_title, state.title)
         views.setTextViewText(R.id.widget_artist, state.artist)
@@ -71,15 +73,16 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
           views.setImageViewResource(R.id.widget_cover, android.R.color.transparent)
         }
 
-        val (widthPx, heightPx) = resolveWidgetSize(context, appWidgetManager.getAppWidgetOptions(appWidgetId))
-        val bgBitmap = WidgetImageUtils.themedGradientBackground(
-          widthPx,
-          heightPx,
-          state.colorPrimary,
-          state.colorSecondary
-        )
-        if (bgBitmap != null) {
-          views.setImageViewBitmap(R.id.widget_bg, bgBitmap)
+        val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+        val (widthPx, heightPx) = resolveWidgetSize(context, options)
+        val background = if (!coverPath.isNullOrBlank()) {
+          val bitmap = BitmapFactory.decodeFile(coverPath)
+          if (bitmap != null) WidgetImageUtils.blurredBackground(bitmap, widthPx, heightPx) else null
+        } else {
+          null
+        }
+        if (background != null) {
+          views.setImageViewBitmap(R.id.widget_bg, background)
         }
 
         val shouldShowProgress = state.duration > 0 && state.position >= 0
@@ -98,6 +101,32 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
         val playIcon = if (state.isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
         views.setImageViewResource(R.id.widget_play_pause, playIcon)
 
+        bindRecommendationRow(
+          context, views, recommendations, 0,
+          R.id.widget_recommend_cover_1,
+          R.id.widget_recommend_title_1,
+          R.id.widget_recommend_artist_1,
+          R.id.widget_recommend_play_1
+        )
+        bindRecommendationRow(
+          context, views, recommendations, 1,
+          R.id.widget_recommend_cover_2,
+          R.id.widget_recommend_title_2,
+          R.id.widget_recommend_artist_2,
+          R.id.widget_recommend_play_2
+        )
+        bindRecommendationRow(
+          context, views, recommendations, 2,
+          R.id.widget_recommend_cover_3,
+          R.id.widget_recommend_title_3,
+          R.id.widget_recommend_artist_3,
+          R.id.widget_recommend_play_3
+        )
+
+        views.setOnClickPendingIntent(
+          R.id.widget_recommend_root,
+          openPendingIntent(context)
+        )
         views.setOnClickPendingIntent(
           R.id.widget_prev,
           broadcastPendingIntent(context, ACTION_PREV, appWidgetId)
@@ -111,45 +140,21 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
           broadcastPendingIntent(context, ACTION_NEXT, appWidgetId)
         )
 
-        bindHistoryRow(context, views, history, 0,
-          R.id.widget_history_cover_1,
-          R.id.widget_history_title_1,
-          R.id.widget_history_artist_1,
-          R.id.widget_history_play_1
-        )
-        bindHistoryRow(context, views, history, 1,
-          R.id.widget_history_cover_2,
-          R.id.widget_history_title_2,
-          R.id.widget_history_artist_2,
-          R.id.widget_history_play_2
-        )
-        bindHistoryRow(context, views, history, 2,
-          R.id.widget_history_cover_3,
-          R.id.widget_history_title_3,
-          R.id.widget_history_artist_3,
-          R.id.widget_history_play_3
-        )
-
-        views.setOnClickPendingIntent(
-          R.id.widget_history_root,
-          openPendingIntent(context)
-        )
-
         appWidgetManager.updateAppWidget(appWidgetId, views)
       }
     }
 
-    private fun bindHistoryRow(
+    private fun bindRecommendationRow(
       context: Context,
       views: RemoteViews,
-      history: List<JSONObject>,
+      recommendations: List<JSONObject>,
       index: Int,
       coverId: Int,
       titleId: Int,
       artistId: Int,
       playId: Int
     ) {
-      if (index >= history.size) {
+      if (index >= recommendations.size) {
         views.setImageViewResource(coverId, android.R.color.transparent)
         views.setTextViewText(titleId, "")
         views.setTextViewText(artistId, "")
@@ -157,7 +162,7 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
         return
       }
 
-      val item = history[index]
+      val item = recommendations[index]
       val title = item.optString("title", "未命名")
       val artist = item.optString("artist", "")
       val cover = resolveCoverValue(item)
@@ -178,11 +183,11 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
 
       val id = item.optString("id", "")
       val intent = Intent(context, WidgetCommandReceiver::class.java).apply {
-        action = ACTION_HISTORY
+        action = ACTION_RECOMMENDATION
         putExtra("id", id)
       }
       val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-      val pending = PendingIntent.getBroadcast(context, ("history_$id").hashCode(), intent, flags)
+      val pending = PendingIntent.getBroadcast(context, ("recommend_$id").hashCode(), intent, flags)
       views.setOnClickPendingIntent(playId, pending)
     }
 
@@ -232,7 +237,7 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
         ?: Intent(context, com.anonymous.mobile.MainActivity::class.java)
       intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
       val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-      return PendingIntent.getActivity(context, "open_history_widget".hashCode(), intent, flags)
+      return PendingIntent.getActivity(context, "open_recommend_widget".hashCode(), intent, flags)
     }
   }
 }

@@ -1,7 +1,7 @@
 import { NativeModules } from "react-native";
 import { cacheCover } from "../services/cache";
 import { getImageUrl } from "../utils/image";
-import { Track, Playlist } from "../models";
+import { Album, Playlist, Track } from "../models";
 
 type WidgetUpdatePayload = {
   title: string;
@@ -37,12 +37,21 @@ type WidgetLatestItem = {
   type?: string;
 };
 
+type WidgetRecommendationItem = {
+  id: number | string;
+  title: string;
+  artist: string;
+  coverPath?: string | null;
+  type?: string;
+};
+
 type WidgetBridgeModule = {
   updateWidget: (payload: WidgetUpdatePayload) => Promise<void>;
   updateWidgetCollections?: (payload: {
     playlists: WidgetPlaylistItem[];
     history: WidgetHistoryItem[];
     latest: WidgetLatestItem[];
+    recommendations: WidgetRecommendationItem[];
   }) => Promise<void>;
 };
 
@@ -80,12 +89,14 @@ export const updateWidgetCollections = async (params: {
   playlists?: Playlist[];
   history?: (Track | Record<string, any>)[];
   latest?: Track[];
+  recommendations?: Album[];
 }): Promise<void> => {
   if (!NativeWidgetBridge?.updateWidgetCollections) return;
 
   const playlists = params.playlists || [];
   const history = params.history || [];
   const latest = params.latest || [];
+  const recommendations = params.recommendations || [];
 
   const playlistItems: WidgetPlaylistItem[] = await Promise.all(
     playlists.slice(0, 3).map(async (playlist) => {
@@ -150,11 +161,32 @@ export const updateWidgetCollections = async (params: {
     })
   );
 
+  const recommendationItems: WidgetRecommendationItem[] = await Promise.all(
+    recommendations.slice(0, 3).map(async (album) => {
+      const coverUrl = album.cover ? getImageUrl(album.cover) : null;
+      let coverPath: string | null = null;
+      if (coverUrl) {
+        const cached = await cacheCover(coverUrl);
+        if (!cached.startsWith("http://") && !cached.startsWith("https://")) {
+          coverPath = normalizeLocalPath(cached);
+        }
+      }
+      return {
+        id: album.id,
+        title: album.name,
+        artist: album.artist || "",
+        coverPath,
+        type: (album as any).type,
+      };
+    })
+  );
+
   try {
     await NativeWidgetBridge.updateWidgetCollections({
       playlists: playlistItems,
       history: historyItems,
       latest: latestItems,
+      recommendations: recommendationItems,
     });
   } catch (error) {
     if (__DEV__) {

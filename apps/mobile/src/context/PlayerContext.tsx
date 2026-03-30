@@ -8,6 +8,7 @@ import {
   getLatestTracks,
   getPlaylistById,
   getPlaylists,
+  getRecommendedAlbums,
   getTrackHistory,
   getRecommendedTracks,
   reportAudiobookProgress
@@ -403,6 +404,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           ? await getAlbumHistory(user.id, 0, 3, "AUDIOBOOK")
           : await getTrackHistory(user.id, 0, 3, "MUSIC");
       const latestRes = await getLatestTracks("MUSIC", false, 5);
+      const recommendationsRes = await getRecommendedAlbums(
+        mode,
+        true,
+        3,
+        recommendationLikeRatio
+      );
       const playlists = playlistsRes.code === 200 ? playlistsRes.data : [];
       const history = historyRes.code === 200
         ? mode === "AUDIOBOOK"
@@ -420,17 +427,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           : historyRes.data.list.map((item: any) => item.track).filter(Boolean)
         : [];
       const latest = latestRes.code === 200 ? latestRes.data : [];
+      const recommendations =
+        recommendationsRes.code === 200 ? recommendationsRes.data : [];
       await updateWidgetCollections({
         playlists,
         history,
         latest,
+        recommendations,
       });
     } catch (error) {
       if (__DEV__) {
         console.warn("[Widget] Failed to sync collections", error);
       }
     }
-  }, [user?.id, mode]);
+  }, [user?.id, mode, recommendationLikeRatio]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1584,6 +1594,21 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
               }
             } catch (error) {
               console.warn("Failed to play latest track from widget", error);
+            }
+          }
+          break;
+        }
+        case "play_recommendation": {
+          const rawId = String(payload?.payload?.id || payload?.id || "");
+          const albumId = rawId ? Number(rawId) : NaN;
+          if (!Number.isNaN(albumId)) {
+            try {
+              const tracksRes = await getAlbumTracks(albumId, 1000, 0);
+              if (tracksRes.code === 200 && tracksRes.data.list.length > 0) {
+                await playTrackList(tracksRes.data.list, 0);
+              }
+            } catch (error) {
+              console.warn("Failed to play recommendation album from widget", error);
             }
           }
           break;
