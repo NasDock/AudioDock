@@ -339,6 +339,11 @@ export default function MemberBenefitsScreen() {
   };
 
   const handlePayment = async (method: 'WECHAT' | 'ALIPAY') => {
+    if (method === "WECHAT") {
+      Alert.alert("提示", "微信支付正在上线中，请使用支付宝支付");
+      return;
+    }
+
     if (selectedPlanPrice == null) {
       Alert.alert("提示", "当前会员价格暂不可用，请稍后重试");
       return;

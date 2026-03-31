@@ -198,6 +198,11 @@ const MemberBenefits: React.FC = () => {
   };
 
   const handlePayment = async (method: 'WECHAT' | 'ALIPAY') => {
+    if (method === "WECHAT") {
+      message.info("微信支付正在上线中，请使用支付宝支付");
+      return;
+    }
+
     if (selectedPlanPrice == null) {
       message.warning("当前会员价格暂不可用，请稍后重试");
       return;
