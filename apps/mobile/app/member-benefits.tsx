@@ -1,5 +1,7 @@
 import { AntDesign, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { plusGetMe, plusGetVipCurrentLowestPrice, type VipCurrentLowestPriceData, type VipCurrentLowestPricePlan } from "@soundx/services";
+import * as WebBrowser from "expo-web-browser";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -13,7 +15,9 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
+import { syncWidgetMembership } from "../src/native/WidgetBridge";
 import {
   assertIosIapPolicy,
   createPlusPayment,
@@ -36,11 +40,35 @@ const ALIPAY_SCHEME = "alipaymock";
 
 export default function MemberBenefitsScreen() {
   const { colors } = useTheme();
+  const { setPlusToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>('lifetime');
   const [loading, setLoading] = useState(false);
   const [iapReady, setIapReady] = useState(false);
+  const [pricing, setPricing] = useState<VipCurrentLowestPriceData | null>(null);
+  const [pricingLoading, setPricingLoading] = useState(true);
+
+  const formatPrice = (price: number | null | undefined) => {
+    if (typeof price !== "number" || Number.isNaN(price)) return "--";
+    return Number.isInteger(price) ? String(price) : price.toFixed(2);
+  };
+
+  const formatActivityDateRange = (startsAt: string | null | undefined, endsAt: string | null | undefined) => {
+    if (!startsAt || !endsAt) return "";
+    const start = new Date(startsAt);
+    const end = new Date(endsAt);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
+    const pad = (value: number) => String(value).padStart(2, "0");
+    const format = (value: Date) => `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+    return `${format(start)} 至 ${format(end)}`;
+  };
+
+  const hasDiscount = (plan: VipCurrentLowestPricePlan | null | undefined) =>
+    !!plan && plan.discountPercent > 0 && plan.originalPrice > plan.currentPrice;
+
+  const selectedPlanPrice = pricing?.[selectedPlan]?.currentPrice ?? null;
+  const activityDateRange = formatActivityDateRange(pricing?.startsAt, pricing?.endsAt);
 
   const normalizeMemberUserId = (raw: string) => {
     try {
@@ -113,6 +141,38 @@ export default function MemberBenefitsScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPricing = async () => {
+      try {
+        setPricingLoading(true);
+        const res = await plusGetVipCurrentLowestPrice();
+        if (!mounted) return;
+        if (res.data.code === 200) {
+          setPricing(res.data.data ?? null);
+        } else {
+          setPricing(null);
+        }
+      } catch (error) {
+        console.warn("Failed to fetch VIP pricing", error);
+        if (mounted) {
+          setPricing(null);
+        }
+      } finally {
+        if (mounted) {
+          setPricingLoading(false);
+        }
+      }
+    };
+
+    void loadPricing();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const getUserId = async () => {
     const userIdStr = await AsyncStorage.getItem("plus_user_id");
     if (!userIdStr) {
@@ -176,7 +236,119 @@ export default function MemberBenefitsScreen() {
     return "";
   };
 
+  const sleep = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
+
+  const refreshVipStatus = async (): Promise<boolean> => {
+    try {
+      const plusToken = await AsyncStorage.getItem("plus_token");
+      const plusUserId = await AsyncStorage.getItem("plus_user_id");
+      if (!plusToken || !plusUserId) {
+        return false;
+      }
+      await setPlusToken(plusToken);
+      let id: any = plusUserId;
+      try {
+        id = JSON.parse(plusUserId);
+      } catch {}
+
+      const res = await plusGetMe(id);
+      const vipTier = res?.data?.data?.vipTier;
+      const isVip = !!vipTier && vipTier !== "NONE";
+      if (!isVip) {
+        return false;
+      }
+
+      await AsyncStorage.setItem("plus_vip_status", "true");
+      await AsyncStorage.setItem("plus_vip_data", JSON.stringify(res.data.data || {}));
+      await AsyncStorage.setItem("plus_vip_updated_at", Date.now().toString());
+      await syncWidgetMembership(true);
+      return true;
+    } catch (error) {
+      console.warn("Failed to refresh vip status", error);
+      return false;
+    }
+  };
+
+  const waitForVipActivation = async (shouldStop: () => boolean) => {
+    const startedAt = Date.now();
+    const timeoutMs = 5 * 60 * 1000;
+
+    while (Date.now() - startedAt < timeoutMs) {
+      if (shouldStop()) return false;
+      const activated = await refreshVipStatus();
+      if (activated) return true;
+      await sleep(2000);
+    }
+
+    return false;
+  };
+
+  const openCashierAndWaitForPayment = async (paymentUrl: string, orderId: string) => {
+    let browserClosed = false;
+    const browserPromise = WebBrowser.openBrowserAsync(paymentUrl, {
+      showTitle: true,
+      controlsColor: colors.primary,
+      presentationStyle:
+        Platform.OS === "ios"
+          ? WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET
+          : undefined,
+    }).then((result) => {
+      browserClosed = true;
+      return result;
+    });
+
+    const winner = await Promise.race([
+      browserPromise.then((result) => ({ type: "browser" as const, result })),
+      waitForVipActivation(() => browserClosed).then((paid) => ({
+        type: "payment" as const,
+        paid,
+      })),
+    ]);
+
+    if (winner.type === "payment" && winner.paid) {
+      try {
+        await WebBrowser.dismissBrowser();
+      } catch {}
+      await browserPromise.catch(() => null);
+      router.replace({
+        pathname: "/member-payment-success",
+        params: {
+          orderId,
+          tradeNo: "",
+          paidAt: new Date().toISOString(),
+        },
+      } as any);
+      return;
+    }
+
+    const paidAfterClose = await refreshVipStatus();
+    if (paidAfterClose) {
+      router.replace({
+        pathname: "/member-payment-success",
+        params: {
+          orderId,
+          tradeNo: "",
+          paidAt: new Date().toISOString(),
+        },
+      } as any);
+      return;
+    }
+
+    Alert.alert("提示", "支付窗口已关闭。如已完成支付，稍后可在会员详情查看是否生效。");
+  };
+
   const handlePayment = async (method: 'WECHAT' | 'ALIPAY') => {
+    if (method === "WECHAT") {
+      Alert.alert("提示", "微信支付正在上线中，请使用支付宝支付");
+      return;
+    }
+
+    if (selectedPlanPrice == null) {
+      Alert.alert("提示", "当前会员价格暂不可用，请稍后重试");
+      return;
+    }
+
     const userIdStr = await AsyncStorage.getItem("plus_user_id");
     if (!userIdStr) {
       Alert.alert("提示", "请先登录会员账号", [
@@ -188,7 +360,7 @@ export default function MemberBenefitsScreen() {
 
     setLoading(true);
     try {
-      const res = await createPlusPayment(userIdStr, selectedPlan, method);
+      const res = await createPlusPayment(userIdStr, selectedPlan, method, selectedPlanPrice);
 
       if (res.data.code === 201 || res.data.code === 200) {
         const { paymentUrl, wechatPay, alipayPay, orderId } = res.data.data || {};
@@ -229,12 +401,7 @@ export default function MemberBenefitsScreen() {
               } as any);
             }
           } else if (paymentUrl) {
-            const supported = await Linking.canOpenURL(paymentUrl);
-            if (supported) {
-              await Linking.openURL(paymentUrl);
-            } else {
-              Alert.alert("提示", "订单创建成功，但无法自动打开支付链接，请尝试手动支付。");
-            }
+            await openCashierAndWaitForPayment(paymentUrl, resolvedOrderId);
           } else {
             Alert.alert("支付失败", "后端未返回支付宝支付参数");
           }
@@ -271,11 +438,17 @@ export default function MemberBenefitsScreen() {
     }
   };
 
+  const showPricingDescription = () => {
+    if (!pricing?.name && !pricing?.description) return;
+    Alert.alert(pricing?.name || "活动说明", pricing?.description || "当前活动暂无更多说明");
+  };
+
   const comparisonData = [
     { feature: '基础功能', free: true, member: true },
     { feature: '设备接力', free: true, member: true },
     { feature: '同步控制', free: false, member: true },
     { feature: 'TTS生成有声书', free: false, member: true },
+    { feature: '桌面小部件', free: false, member: true },
     { feature: 'TV版', free: false, member: true },
     { feature: '车机版', free: false, member: true },
   ];
@@ -327,6 +500,16 @@ export default function MemberBenefitsScreen() {
           <Text style={[styles.dividerText, { color: colors.secondary }]}>会员方案</Text>
         </View>
 
+        {pricing?.name ? (
+          <View style={[styles.infoBanner, { backgroundColor: colors.card, borderColor: colors.primary + "33" }]}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
+            <View style={styles.infoBannerTextWrap}>
+              <Text style={[styles.infoBannerTitle, { color: colors.text }]}>
+                {pricing.name} 活动正在进行中{activityDateRange ? ` · ${activityDateRange}` : ""}
+              </Text>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.plansContainer}>
           <TouchableOpacity
@@ -340,9 +523,24 @@ export default function MemberBenefitsScreen() {
             <Text style={[styles.planName, { color: colors.text }]}>年卡</Text>
             <View style={styles.priceContainer}>
               <Text style={[styles.currency, { color: colors.primary }]}>¥</Text>
-              <Text style={[styles.priceAmount, { color: colors.primary }]}>20</Text>
+              <Text style={[styles.priceAmount, { color: colors.primary }]}>{formatPrice(pricing?.annual?.currentPrice)}</Text>
               <Text style={[styles.unit, { color: colors.secondary }]}>/年</Text>
+              {pricing?.name ? (
+                <TouchableOpacity onPress={showPricingDescription} hitSlop={8}>
+                  <Ionicons name="help-circle-outline" size={14} color={colors.secondary} />
+                </TouchableOpacity>
+              ) : null}
             </View>
+            {hasDiscount(pricing?.annual) ? (
+              <View style={styles.priceMeta}>
+                <Text style={[styles.originalPriceText, { color: colors.secondary }]}>
+                  原价 <Text style={styles.originalPriceValue}>¥{formatPrice(pricing?.annual?.originalPrice)}</Text>
+                </Text>
+                <Text style={[styles.savedPriceText, { color: colors.secondary }]}>
+                  立省 {formatPrice((pricing?.annual?.originalPrice ?? 0) - (pricing?.annual?.currentPrice ?? 0))}
+                </Text>
+              </View>
+            ) : null}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -359,9 +557,24 @@ export default function MemberBenefitsScreen() {
             <Text style={[styles.planName, { color: colors.text }]}>永久卡</Text>
             <View style={styles.priceContainer}>
               <Text style={[styles.currency, { color: colors.primary }]}>¥</Text>
-              <Text style={[styles.priceAmount, { color: colors.primary }]}>60</Text>
+              <Text style={[styles.priceAmount, { color: colors.primary }]}>{formatPrice(pricing?.lifetime?.currentPrice)}</Text>
               <Text style={[styles.unit, { color: colors.secondary }]}>/永久</Text>
+              {pricing?.name ? (
+                <TouchableOpacity onPress={showPricingDescription} hitSlop={8}>
+                  <Ionicons name="help-circle-outline" size={14} color={colors.secondary} />
+                </TouchableOpacity>
+              ) : null}
             </View>
+            {hasDiscount(pricing?.lifetime) ? (
+              <View style={styles.priceMeta}>
+                <Text style={[styles.originalPriceText, { color: colors.secondary }]}>
+                  原价 <Text style={styles.originalPriceValue}>¥{formatPrice(pricing?.lifetime?.originalPrice)}</Text>
+                </Text>
+                <Text style={[styles.savedPriceText, { color: colors.secondary }]}>
+                  立省 {formatPrice((pricing?.lifetime?.originalPrice ?? 0) - (pricing?.lifetime?.currentPrice ?? 0))}
+                </Text>
+              </View>
+            ) : null}
           </TouchableOpacity>
         </View>
 
@@ -370,13 +583,16 @@ export default function MemberBenefitsScreen() {
         <View style={styles.dividerContainer}>
           <Text style={[styles.dividerText, { color: colors.secondary }]}>支付方式</Text>
         </View>
+        <Text style={[styles.paymentHintText, { color: colors.secondary }]}>
+          虚拟产品售出无法退款，请理性消费
+        </Text>
 
         <View style={styles.paymentMethods}>
           {Platform.OS === "ios" ? (
             <TouchableOpacity
               style={[styles.paymentItem, { backgroundColor: colors.card, borderColor: colors.border, opacity: loading ? 0.6 : 1 }]}
               onPress={handleApplePurchase}
-              disabled={loading}
+              disabled={loading || selectedPlanPrice == null}
             >
               <Ionicons name="logo-apple" size={22} color={colors.text} />
               <Text style={[styles.paymentText, { color: colors.text }]}>App Store 内购</Text>
@@ -386,7 +602,7 @@ export default function MemberBenefitsScreen() {
               <TouchableOpacity
                 style={[styles.paymentItem, { backgroundColor: colors.card, borderColor: colors.border, opacity: loading ? 0.6 : 1 }]}
                 onPress={() => handlePayment('WECHAT')}
-                disabled={loading}
+                disabled={loading || selectedPlanPrice == null}
               >
                 <AntDesign name="wechat" size={24} color={'#1AAD19'} />
                 <Text style={[styles.paymentText, { color: colors.text }]}>微信</Text>
@@ -394,7 +610,7 @@ export default function MemberBenefitsScreen() {
               <TouchableOpacity
                 style={[styles.paymentItem, { backgroundColor: colors.card, borderColor: colors.border, opacity: loading ? 0.6 : 1 }]}
                 onPress={() => handlePayment('ALIPAY')}
-                disabled={loading}
+                disabled={loading || selectedPlanPrice == null}
               >
                 <AntDesign name="alipay-circle" size={24} color={'#02A9F1'} />
                 <Text style={[styles.paymentText, { color: colors.text }]}>支付宝</Text>
@@ -493,6 +709,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  infoBanner: {
+    marginTop: -8,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoBannerTextWrap: {
+    flex: 1,
+  },
+  infoBannerTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
   planName: {
     fontSize: 16,
     fontWeight: '600',
@@ -513,6 +747,20 @@ const styles = StyleSheet.create({
   },
   unit: {
     fontSize: 12,
+  },
+  originalPriceText: {
+    fontSize: 11,
+  },
+  originalPriceValue: {
+    textDecorationLine: 'line-through',
+  },
+  priceMeta: {
+    marginTop: 8,
+    alignItems: 'center',
+    gap: 2,
+  },
+  savedPriceText: {
+    fontSize: 11,
   },
   recommendBadge: {
     position: 'absolute',
@@ -547,6 +795,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 15,
+  },
+  paymentHintText: {
+    fontSize: 12,
+    marginTop: -8,
+    marginBottom: 12,
   },
   paymentItem: {
     flexDirection: 'row',

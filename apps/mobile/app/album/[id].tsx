@@ -4,6 +4,7 @@ import { CollectionSelectModal } from "@/src/components/CollectionSelectModal";
 import { FilePathModal } from "@/src/components/FilePathModal";
 import { FloatingActionButtons } from "@/src/components/FloatingActionButtons";
 import PlayingIndicator from "@/src/components/PlayingIndicator";
+import SkeletonBlock from "@/src/components/SkeletonBlock";
 import { TrackMoreModal } from "@/src/components/TrackMoreModal";
 import { useAuth } from "@/src/context/AuthContext";
 import { usePlayer } from "@/src/context/PlayerContext";
@@ -27,11 +28,17 @@ import {
   Alert,
   FlatList,
   Image,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+
+const ALBUM_COVER_SIZE = 200;
+const ALBUM_ACTION_SIZE = 44;
+const ALBUM_HEADER_ICON_SIZE = 24;
+const ALBUM_TRACK_COVER_SIZE = 20;
 
 export default function AlbumDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -218,29 +225,7 @@ export default function AlbumDetailScreen() {
   };
 
   if (loading) {
-    return (
-      <View
-        style={[
-          styles.container,
-          { backgroundColor: colors.background, justifyContent: "center" },
-        ]}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  if (loading) {
-    return (
-      <View
-        style={[
-          styles.container,
-          { backgroundColor: colors.background, justifyContent: "center" },
-        ]}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return <AlbumDetailSkeleton />;
   }
 
   if (!album) {
@@ -659,6 +644,83 @@ export default function AlbumDetailScreen() {
   );
 }
 
+function AlbumDetailSkeleton() {
+  const { colors } = useTheme();
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.customHeader, { backgroundColor: colors.background }]}>
+        <View style={styles.backButton}>
+          <SkeletonBlock width={28} height={28} borderRadius={14} />
+        </View>
+        <SkeletonBlock width="45%" height={22} borderRadius={11} />
+        <View style={styles.headerRight}>
+          <SkeletonBlock
+            width={ALBUM_HEADER_ICON_SIZE}
+            height={ALBUM_HEADER_ICON_SIZE}
+            borderRadius={ALBUM_HEADER_ICON_SIZE / 2}
+          />
+        </View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <SkeletonBlock
+            width={ALBUM_COVER_SIZE}
+            height={ALBUM_COVER_SIZE}
+            borderRadius={10}
+            style={{ marginBottom: 15 }}
+          />
+          <SkeletonBlock width={180} height={28} borderRadius={10} style={{ marginBottom: 10 }} />
+          <SkeletonBlock width={120} height={20} borderRadius={10} />
+
+          <View style={styles.actions}>
+            <SkeletonBlock width={150} height={44} borderRadius={25} />
+            <SkeletonBlock
+              width={ALBUM_ACTION_SIZE}
+              height={ALBUM_ACTION_SIZE}
+              borderRadius={ALBUM_ACTION_SIZE / 2}
+            />
+            <SkeletonBlock
+              width={ALBUM_ACTION_SIZE}
+              height={ALBUM_ACTION_SIZE}
+              borderRadius={ALBUM_ACTION_SIZE / 2}
+            />
+            <SkeletonBlock width={88} height={44} borderRadius={22} />
+          </View>
+        </View>
+
+        {Array.from({ length: 8 }).map((_, index) => (
+          <View
+            key={index}
+            style={[styles.trackItem, { borderBottomColor: colors.border }]}
+          >
+            <View style={styles.trackIndexContainer}>
+              <SkeletonBlock width={18} height={18} borderRadius={9} />
+            </View>
+            <SkeletonBlock
+              width={ALBUM_TRACK_COVER_SIZE}
+              height={ALBUM_TRACK_COVER_SIZE}
+              borderRadius={2}
+            />
+            <View style={styles.trackInfo}>
+              <SkeletonBlock
+                width={index % 3 === 0 ? "72%" : index % 3 === 1 ? "58%" : "66%"}
+                height={16}
+                borderRadius={8}
+              />
+            </View>
+            <SkeletonBlock width={36} height={12} borderRadius={6} />
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -694,8 +756,8 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   coverContainer: {
-    width: 200,
-    height: 200,
+    width: ALBUM_COVER_SIZE,
+    height: ALBUM_COVER_SIZE,
     borderRadius: 10,
     overflow: 'hidden',
     position: 'relative',
@@ -711,7 +773,7 @@ const styles = StyleSheet.create({
     left: 3,
     right: 3,
     height: 4,
-    width: 200 - 6,
+    width: ALBUM_COVER_SIZE - 6,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   progressBar: {
@@ -746,9 +808,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   likeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: ALBUM_ACTION_SIZE,
+    height: ALBUM_ACTION_SIZE,
+    borderRadius: ALBUM_ACTION_SIZE / 2,
     justifyContent: "center",
     alignItems: "center",
   },

@@ -1,7 +1,7 @@
 import { NativeModules } from "react-native";
 import { cacheCover } from "../services/cache";
 import { getImageUrl } from "../utils/image";
-import { Track, Playlist } from "../models";
+import { Album, Playlist, Track } from "../models";
 
 type WidgetUpdatePayload = {
   title: string;
@@ -10,6 +10,8 @@ type WidgetUpdatePayload = {
   isPlaying: boolean;
   playMode?: string;
   isLiked?: boolean;
+  position?: number;
+  duration?: number;
 };
 
 type WidgetPlaylistItem = {
@@ -35,13 +37,23 @@ type WidgetLatestItem = {
   type?: string;
 };
 
+type WidgetRecommendationItem = {
+  id: number | string;
+  title: string;
+  artist: string;
+  coverPath?: string | null;
+  type?: string;
+};
+
 type WidgetBridgeModule = {
   updateWidget: (payload: WidgetUpdatePayload) => Promise<void>;
   updateWidgetCollections?: (payload: {
     playlists: WidgetPlaylistItem[];
     history: WidgetHistoryItem[];
     latest: WidgetLatestItem[];
+    recommendations: WidgetRecommendationItem[];
   }) => Promise<void>;
+  updateWidgetMembership?: (payload: { isVip: boolean }) => Promise<void>;
 };
 
 const NativeWidgetBridge = NativeModules.WidgetBridge as WidgetBridgeModule | undefined;
@@ -59,6 +71,10 @@ export const updateWidget = async (payload: WidgetUpdatePayload): Promise<void> 
     artist: payload.artist,
     coverPath: payload.coverPath ? normalizeLocalPath(payload.coverPath) : null,
     isPlaying: payload.isPlaying,
+    playMode: payload.playMode,
+    isLiked: payload.isLiked,
+    position: payload.position ?? 0,
+    duration: payload.duration ?? 0,
   };
 
   try {
@@ -70,19 +86,29 @@ export const updateWidget = async (payload: WidgetUpdatePayload): Promise<void> 
   }
 };
 
+export const syncWidgetMembership = async (isVip: boolean): Promise<void> => {
+  if (!NativeWidgetBridge?.updateWidgetMembership) return;
+
+  try {
+    await NativeWidgetBridge.updateWidgetMembership({ isVip });
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("[WidgetBridge] updateWidgetMembership failed", error);
+    }
+  }
+};
+
 export const updateWidgetCollections = async (params: {
   playlists?: Playlist[];
-  history?: Array<Track | Record<string, any>>;
+  history?: (Track | Record<string, any>)[];
   latest?: Track[];
+  recommendations?: Album[];
 }): Promise<void> => {
   if (!NativeWidgetBridge?.updateWidgetCollections) return;
 
-  const playlists = params.playlists || [];
-  const history = params.history || [];
-  const latest = params.latest || [];
-
-  const playlistItems: WidgetPlaylistItem[] = await Promise.all(
-    playlists.slice(0, 3).map(async (playlist) => {
+  const playlistItems: WidgetPlaylistItem[] | undefined = params.playlists
+    ? await Promise.all(
+      params.playlists.slice(0, 3).map(async (playlist) => {
       const firstTrack = (playlist as any).tracks?.[0] as Track | undefined;
       const coverUrl = firstTrack?.cover ? getImageUrl(firstTrack.cover) : null;
       let coverPath: string | null = null;
@@ -97,11 +123,13 @@ export const updateWidgetCollections = async (params: {
         name: playlist.name,
         coverPath,
       };
-    })
-  );
+      })
+    )
+    : undefined;
 
-  const historyItems: WidgetHistoryItem[] = await Promise.all(
-    history.slice(0, 3).map(async (track) => {
+  const historyItems: WidgetHistoryItem[] | undefined = params.history
+    ? await Promise.all(
+      params.history.slice(0, 4).map(async (track) => {
       const title = (track as any).name || (track as any).title || "未命名";
       const artist = (track as any).artist || "";
       const album = (track as any).album || "";
@@ -121,11 +149,13 @@ export const updateWidgetCollections = async (params: {
         coverPath,
         type: (track as any).type,
       };
-    })
-  );
+      })
+    )
+    : undefined;
 
-  const latestItems: WidgetLatestItem[] = await Promise.all(
-    latest.slice(0, 5).map(async (track) => {
+  const latestItems: WidgetLatestItem[] | undefined = params.latest
+    ? await Promise.all(
+      params.latest.slice(0, 7).map(async (track) => {
       const coverUrl = track.cover ? getImageUrl(track.cover) : null;
       let coverPath: string | null = null;
       if (coverUrl) {
@@ -141,14 +171,43 @@ export const updateWidgetCollections = async (params: {
         coverPath,
         type: (track as any).type,
       };
-    })
-  );
+      })
+    )
+    : undefined;
+
+  const recommendationItems: WidgetRecommendationItem[] | undefined = params.recommendations
+    ? await Promise.all(
+      params.recommendations.slice(0, 4).map(async (album) => {
+      const coverUrl = album.cover ? getImageUrl(album.cover) : null;
+      let coverPath: string | null = null;
+      if (coverUrl) {
+        const cached = await cacheCover(coverUrl);
+        if (!cached.startsWith("http://") && !cached.startsWith("https://")) {
+          coverPath = normalizeLocalPath(cached);
+        }
+      }
+      return {
+        id: album.id,
+        title: album.name,
+        artist: album.artist || "",
+        coverPath,
+        type: (album as any).type,
+      };
+      })
+    )
+    : undefined;
 
   try {
-    await NativeWidgetBridge.updateWidgetCollections({
-      playlists: playlistItems,
-      history: historyItems,
-      latest: latestItems,
+    const payload: Record<string, unknown> = {};
+    if (playlistItems) payload.playlists = playlistItems;
+    if (historyItems) payload.history = historyItems;
+    if (latestItems) payload.latest = latestItems;
+    if (recommendationItems) payload.recommendations = recommendationItems;
+    await NativeWidgetBridge.updateWidgetCollections(payload as {
+      playlists: WidgetPlaylistItem[];
+      history: WidgetHistoryItem[];
+      latest: WidgetLatestItem[];
+      recommendations: WidgetRecommendationItem[];
     });
   } catch (error) {
     if (__DEV__) {

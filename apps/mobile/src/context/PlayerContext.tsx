@@ -8,6 +8,7 @@ import {
   getLatestTracks,
   getPlaylistById,
   getPlaylists,
+  getRecommendedAlbums,
   getTrackHistory,
   getRecommendedTracks,
   reportAudiobookProgress
@@ -152,7 +153,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { user, device, isLoading: isAuthLoading } = useAuth();
-  const { mode } = usePlayMode();
+  const { mode, setMode } = usePlayMode();
   const { showNotification } = useNotification();
   const { acceptRelay, cacheEnabled, recommendationLikeRatio } = useSettings();
   const [isPlaying, setIsPlaying] = useState(false);
@@ -174,6 +175,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const prevModeRef = useRef(mode);
   const isInitialLoadRef = useRef(true);
+  const skipNextModeRestoreRef = useRef(false);
 
   // Hook for progress
   const { position, duration } = useProgress();
@@ -188,6 +190,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     coverPath: "",
     playMode: "",
     isLiked: false,
+    position: 0,
+    duration: 0,
   });
   const widgetModeLockRef = React.useRef<{
     until: number;
@@ -250,6 +254,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           isPlaying: isPlayingNow,
           playMode: playMode,
           isLiked: false,
+          position: Math.floor(positionRef.current),
+          duration: Math.floor((activeTrack.duration as number | undefined) || 0),
         });
         lastWidgetStateRef.current = {
           trackId: activeTrack.id ?? null,
@@ -257,6 +263,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           coverPath: coverPath || "",
           playMode: playMode,
           isLiked: false,
+          position: Math.floor(positionRef.current),
+          duration: Math.floor((activeTrack.duration as number | undefined) || 0),
         };
             return;
           }
@@ -271,6 +279,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           isPlaying: false,
           playMode: "",
           isLiked: false,
+          position: 0,
+          duration: 0,
         });
         lastWidgetStateRef.current = {
           trackId: null,
@@ -278,6 +288,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           coverPath: "",
           playMode: "",
           isLiked: false,
+          position: 0,
+          duration: 0,
         };
         return;
       }
@@ -305,7 +317,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         lastState.isPlaying === isPlaying &&
         lastState.coverPath === nextCoverPath &&
         lastState.playMode === playModeValue &&
-        lastState.isLiked === isLiked
+        lastState.isLiked === isLiked &&
+        lastState.position === Math.floor(positionRef.current) &&
+        lastState.duration === Math.floor(duration || currentTrack.duration || 0)
       ) {
         return;
       }
@@ -316,6 +330,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         coverPath: nextCoverPath,
         playMode: playModeValue,
         isLiked,
+        position: Math.floor(positionRef.current),
+        duration: Math.floor(duration || currentTrack.duration || 0),
       };
 
       await updateWidget({
@@ -325,6 +341,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         isPlaying,
         playMode: playModeValue,
         isLiked,
+        position: Math.floor(positionRef.current),
+        duration: Math.floor(duration || currentTrack.duration || 0),
       });
     };
 
@@ -332,7 +350,51 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       cancelled = true;
     };
-  }, [currentTrack?.id, isPlaying, playMode, user?.id]);
+  }, [currentTrack?.id, isPlaying, playMode, user?.id, duration]);
+
+  useEffect(() => {
+    const syncWidgetProgress = async () => {
+      const track = currentTrackRef.current;
+      if (!track) return;
+
+      const nextPosition = Math.floor(position);
+      const nextDuration = Math.floor(duration || track.duration || 0);
+      const lastState = lastWidgetStateRef.current;
+
+      if (
+        lastState.trackId === track.id &&
+        lastState.position === nextPosition &&
+        lastState.duration === nextDuration
+      ) {
+        return;
+      }
+
+      const isLiked =
+        lastState.isLiked ??
+        !!track.likedByUsers?.some((like: any) => like.userId === user?.id);
+
+      await updateWidget({
+        title: track.name,
+        artist: track.artist,
+        coverPath: lastState.coverPath || null,
+        isPlaying,
+        playMode: lastState.playMode || playModeRef.current,
+        isLiked,
+        position: nextPosition,
+        duration: nextDuration,
+      });
+
+      lastWidgetStateRef.current = {
+        ...lastState,
+        trackId: track.id,
+        isPlaying,
+        position: nextPosition,
+        duration: nextDuration,
+      };
+    };
+
+    syncWidgetProgress();
+  }, [currentTrack?.id, position, duration, isPlaying, user?.id]);
 
   const refreshWidgetCollections = useCallback(async () => {
     if (!user) return;
@@ -343,6 +405,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           ? await getAlbumHistory(user.id, 0, 3, "AUDIOBOOK")
           : await getTrackHistory(user.id, 0, 3, "MUSIC");
       const latestRes = await getLatestTracks("MUSIC", false, 5);
+      const recommendationsRes = await getRecommendedAlbums(
+        mode,
+        true,
+        3,
+        recommendationLikeRatio
+      );
       const playlists = playlistsRes.code === 200 ? playlistsRes.data : [];
       const history = historyRes.code === 200
         ? mode === "AUDIOBOOK"
@@ -360,17 +428,50 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           : historyRes.data.list.map((item: any) => item.track).filter(Boolean)
         : [];
       const latest = latestRes.code === 200 ? latestRes.data : [];
+      const recommendations =
+        recommendationsRes.code === 200 ? recommendationsRes.data : [];
       await updateWidgetCollections({
         playlists,
         history,
         latest,
+        recommendations,
       });
     } catch (error) {
       if (__DEV__) {
         console.warn("[Widget] Failed to sync collections", error);
       }
     }
-  }, [user?.id, mode]);
+  }, [user?.id, mode, recommendationLikeRatio]);
+
+  const refreshLatestWidgetItems = useCallback(async () => {
+    try {
+      const latestRes = await getLatestTracks("MUSIC", false, 7);
+      const latest = latestRes.code === 200 ? latestRes.data : [];
+      await updateWidgetCollections({ latest });
+    } catch (error) {
+      if (__DEV__) {
+        console.warn("[Widget] Failed to refresh latest", error);
+      }
+    }
+  }, []);
+
+  const refreshRecommendationWidgetItems = useCallback(async () => {
+    try {
+      const recommendationsRes = await getRecommendedAlbums(
+        mode,
+        true,
+        4,
+        recommendationLikeRatio
+      );
+      const recommendations =
+        recommendationsRes.code === 200 ? recommendationsRes.data : [];
+      await updateWidgetCollections({ recommendations });
+    } catch (error) {
+      if (__DEV__) {
+        console.warn("[Widget] Failed to refresh recommendations", error);
+      }
+    }
+  }, [mode, recommendationLikeRatio]);
 
   useEffect(() => {
     let cancelled = false;
@@ -383,7 +484,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       cancelled = true;
     };
-  }, [refreshWidgetCollections, currentTrack?.id]);
+  }, [refreshWidgetCollections]);
 
   useEffect(() => {
     positionRef.current = position;
@@ -787,6 +888,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       isPlaying: nextIsPlaying,
       playMode: nextPlayMode,
       isLiked: liked,
+      position: Math.floor(positionRef.current),
+      duration: Math.floor(duration || track.duration || 0),
     });
 
     lastWidgetStateRef.current = {
@@ -795,6 +898,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       coverPath: coverPath || "",
       playMode: nextPlayMode,
       isLiked: liked,
+      position: Math.floor(positionRef.current),
+      duration: Math.floor(duration || track.duration || 0),
     };
   };
 
@@ -812,6 +917,19 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const togglePlayMode = async () => {
     const nextMode = getNextPlayMode(playModeRef.current);
     await applyPlayMode(nextMode);
+  };
+
+  const getContentModeForTrack = (track?: Track | null) =>
+    track?.type === TrackType.AUDIOBOOK ? "AUDIOBOOK" : "MUSIC";
+
+  const switchContentModeForIncomingTrack = async (track?: Track | null) => {
+    const nextMode = getContentModeForTrack(track);
+    if (mode === nextMode) return;
+
+    await savePlaybackState(prevModeRef.current);
+    skipNextModeRestoreRef.current = true;
+    await setMode(nextMode);
+    prevModeRef.current = nextMode;
   };
 
   const savePlaybackState = async (targetMode: string) => {
@@ -930,6 +1048,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         isInitialLoadRef.current = false;
         prevModeRef.current = mode;
       } else if (prevModeRef.current !== mode) {
+        if (skipNextModeRestoreRef.current) {
+          skipNextModeRestoreRef.current = false;
+          prevModeRef.current = mode;
+          return;
+        }
         await savePlaybackState(prevModeRef.current);
         await loadPlaybackState(mode);
         prevModeRef.current = mode;
@@ -1240,39 +1363,43 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (isSynced && sessionId) {
-      const handleSyncEvent = (payload: {
+      const handleSyncEvent = async (payload: {
         type: string;
         data: any;
         fromUserId: number;
       }) => {
         if (String(payload.fromUserId) === String(user?.id)) return;
         isProcessingSync.current = true;
-        switch (payload.type) {
-          case "play":
-            resume();
-            break;
-          case "pause":
-            pause();
-            break;
-          case "seek":
-            seekTo(payload.data);
-            break;
-          case "track_change":
-            if (currentTrackRef.current?.id !== payload.data.id) {
-              playTrack(payload.data);
-            }
-            break;
-          case "playlist":
-            setTrackList(payload.data);
-            break;
-          case "leave":
-            console.log("Participant left the session");
-            Alert.alert("同步状态", "对方已断开同步连接");
-            break;
+        try {
+          switch (payload.type) {
+            case "play":
+              await resume();
+              break;
+            case "pause":
+              await pause();
+              break;
+            case "seek":
+              await seekTo(payload.data);
+              break;
+            case "track_change":
+              if (currentTrackRef.current?.id !== payload.data.id) {
+                await switchContentModeForIncomingTrack(payload.data);
+                await playTrack(payload.data);
+              }
+              break;
+            case "playlist":
+              setTrackList(payload.data);
+              break;
+            case "leave":
+              console.log("Participant left the session");
+              Alert.alert("同步状态", "对方已断开同步连接");
+              break;
+          }
+        } finally {
+          setTimeout(() => {
+            isProcessingSync.current = false;
+          }, 100);
         }
-        setTimeout(() => {
-          isProcessingSync.current = false;
-        }, 100);
       };
 
       const handleRequestInitialState = (payload: {
@@ -1310,22 +1437,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (isSynced && lastAcceptedInvite) {
       console.log("Applying invite context: playlist and track");
-      isProcessingSync.current = true;
-      if (lastAcceptedInvite.playlist) {
-        setTrackList(lastAcceptedInvite.playlist);
-      }
-      if (lastAcceptedInvite.currentTrack) {
-        if (isSetup) {
-          playTrack(
+      const applyInviteContext = async () => {
+        isProcessingSync.current = true;
+        if (lastAcceptedInvite.currentTrack) {
+          await switchContentModeForIncomingTrack(lastAcceptedInvite.currentTrack);
+        }
+        if (lastAcceptedInvite.playlist) {
+          setTrackList(lastAcceptedInvite.playlist);
+        }
+        if (lastAcceptedInvite.currentTrack && isSetup) {
+          await playTrack(
             lastAcceptedInvite.currentTrack,
             lastAcceptedInvite.progress
           );
         }
-      }
-      // Allow states to settle before enabling broadcast
-      setTimeout(() => {
-        isProcessingSync.current = false;
-      }, 1000);
+        setTimeout(() => {
+          isProcessingSync.current = false;
+        }, 1000);
+      };
+
+      applyInviteContext();
     }
   }, [isSynced, lastAcceptedInvite?.sessionId, isSetup]);
 
@@ -1524,8 +1655,27 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           break;
         }
+        case "play_recommendation": {
+          const rawId = String(payload?.payload?.id || payload?.id || "");
+          const albumId = rawId ? Number(rawId) : NaN;
+          if (!Number.isNaN(albumId)) {
+            try {
+              const tracksRes = await getAlbumTracks(albumId, 1000, 0);
+              if (tracksRes.code === 200 && tracksRes.data.list.length > 0) {
+                await playTrackList(tracksRes.data.list, 0);
+              }
+            } catch (error) {
+              console.warn("Failed to play recommendation album from widget", error);
+            }
+          }
+          break;
+        }
         case "refresh_latest": {
-          await refreshWidgetCollections();
+          await refreshLatestWidgetItems();
+          break;
+        }
+        case "refresh_recommendation": {
+          await refreshRecommendationWidgetItems();
           break;
         }
         default:
@@ -1534,7 +1684,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     return () => subscription.remove();
-  }, [isPlaying, pause, resume, playNext, playPrevious, togglePlayMode, currentTrack, user]);
+  }, [
+    isPlaying,
+    pause,
+    resume,
+    playNext,
+    playPrevious,
+    togglePlayMode,
+    currentTrack,
+    user,
+    refreshLatestWidgetItems,
+    refreshRecommendationWidgetItems,
+  ]);
 
   // Force report on track change
   useEffect(() => {
@@ -1599,6 +1760,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                     },
                   });
                   // ✨ 有声书恢复时同时恢复整个专辑的播放列表
+                  await switchContentModeForIncomingTrack(trackData);
                   if (trackData.type === TrackType.AUDIOBOOK && trackData.albumId) {
                     try {
                       const tracksRes = await getAlbumTracks(

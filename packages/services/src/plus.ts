@@ -36,12 +36,14 @@ export interface LoginDto {
 
 export type PaymentMethod = "WECHAT" | "ALIPAY" | "STRIPE" | "PAYPAL" | "OTHER";
 export type VipTier = "NONE" | "BASIC" | "PREMIUM" | "LIFETIME";
+export type PaymentClientType = "web" | "desktop" | "mobile" | "mini";
 
 export interface CreatePaymentDto {
   userId: string;
   amount: number;
   currency: string;
   method: PaymentMethod;
+  clientType?: PaymentClientType;
   forVip: boolean;
   vipTier: VipTier;
   forPoints: boolean;
@@ -60,7 +62,7 @@ export interface WechatPayPayload {
 }
 
 export interface AlipayPayPayload {
-  orderString: string;
+  orderString: string | null;
   scheme?: string;
 }
 
@@ -99,6 +101,22 @@ export interface AppleIapVerifyDto {
   transactionId?: string;
   originalTransactionId?: string;
   transactionDate?: string;
+}
+
+export interface VipCurrentLowestPricePlan {
+  originalPrice: number;
+  discountPercent: number;
+  currentPrice: number;
+}
+
+export interface VipCurrentLowestPriceData {
+  activityId: string | null;
+  name?: string | null;
+  description?: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  annual: VipCurrentLowestPricePlan | null;
+  lifetime: VipCurrentLowestPricePlan | null;
 }
 
 // --- API Functions ---
@@ -171,6 +189,13 @@ export const plusTrackEvent = async (data: TrackingEventDto) => {
  */
 export const plusVerifyAppleIap = async (data: AppleIapVerifyDto) => {
   return plusRequest.post<ISuccessResponse<any>>("/payment/apple/verify", data);
+};
+
+/**
+ * VipController_currentLowestPrice: Get current lowest VIP price
+ */
+export const plusGetVipCurrentLowestPrice = async () => {
+  return plusRequest.get<ISuccessResponse<VipCurrentLowestPriceData>>("/vip/current-lowest-price");
 };
 
 /**

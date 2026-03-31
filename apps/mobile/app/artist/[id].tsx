@@ -2,6 +2,7 @@ import { AddToPlaylistModal } from "@/src/components/AddToPlaylistModal";
 import { ArtistMoreModal } from "@/src/components/ArtistMoreModal";
 import { FilePathModal } from "@/src/components/FilePathModal";
 import PlayingIndicator from "@/src/components/PlayingIndicator";
+import SkeletonBlock from "@/src/components/SkeletonBlock";
 import { useAuth } from "@/src/context/AuthContext";
 import { TrackMoreModal } from "@/src/components/TrackMoreModal";
 import { usePlayer } from "@/src/context/PlayerContext";
@@ -23,7 +24,6 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
     Alert,
     Image,
     ScrollView,
@@ -32,6 +32,12 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+
+const ARTIST_AVATAR_SIZE = 150;
+const ARTIST_ALBUM_COVER_SIZE = 120;
+const ARTIST_HEADER_ICON_SIZE = 24;
+const ARTIST_LIST_ACTION_SIZE = 36;
+const ARTIST_TRACK_COVER_SIZE = 20;
 
 export default function ArtistDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -190,16 +196,7 @@ export default function ArtistDetailScreen() {
   };
 
   if (loading) {
-    return (
-      <View
-        style={[
-          styles.container,
-          { backgroundColor: colors.background, justifyContent: "center" },
-        ]}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return <ArtistDetailSkeleton />;
   }
 
   if (!artist) {
@@ -433,7 +430,12 @@ export default function ArtistDetailScreen() {
                   <TouchableOpacity
                     key={col.id}
                     style={styles.albumCard}
-                    onPress={() => router.push(`/collection/${col.id}`)}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/collection/[id]",
+                        params: { id: String(col.id) },
+                      })
+                    }
                   >
                     <View style={styles.albumCoverContainer}>
                       <Image
@@ -651,6 +653,107 @@ export default function ArtistDetailScreen() {
   );
 }
 
+function ArtistDetailSkeleton() {
+  const { colors } = useTheme();
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.customHeader, { backgroundColor: colors.background }]}>
+        <View style={styles.backButton}>
+          <SkeletonBlock width={28} height={28} borderRadius={14} />
+        </View>
+        <View style={styles.headerRight}>
+          <SkeletonBlock
+            width={ARTIST_HEADER_ICON_SIZE}
+            height={ARTIST_HEADER_ICON_SIZE}
+            borderRadius={ARTIST_HEADER_ICON_SIZE / 2}
+          />
+        </View>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <SkeletonBlock
+            width={ARTIST_AVATAR_SIZE}
+            height={ARTIST_AVATAR_SIZE}
+            borderRadius={ARTIST_AVATAR_SIZE / 2}
+            style={{ marginBottom: 15 }}
+          />
+          <SkeletonBlock width={170} height={28} borderRadius={10} />
+        </View>
+
+        <View style={styles.section}>
+          <SkeletonBlock
+            width={140}
+            height={26}
+            borderRadius={10}
+            style={{ marginLeft: 20, marginBottom: 15 }}
+          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
+          >
+            {Array.from({ length: 3 }).map((_, index) => (
+              <View key={index} style={styles.albumCard}>
+                <SkeletonBlock
+                  width={ARTIST_ALBUM_COVER_SIZE}
+                  height={ARTIST_ALBUM_COVER_SIZE}
+                  borderRadius={10}
+                  style={{ marginBottom: 5 }}
+                />
+                <SkeletonBlock width={90} height={14} borderRadius={7} style={{ alignSelf: "center" }} />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={[styles.section, styles.trackList]}>
+          <View style={styles.sectionHeaderRow}>
+            <SkeletonBlock width={150} height={26} borderRadius={10} />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <SkeletonBlock
+                width={ARTIST_LIST_ACTION_SIZE}
+                height={ARTIST_LIST_ACTION_SIZE}
+                borderRadius={ARTIST_LIST_ACTION_SIZE / 2}
+              />
+              <SkeletonBlock
+                width={ARTIST_LIST_ACTION_SIZE}
+                height={ARTIST_LIST_ACTION_SIZE}
+                borderRadius={ARTIST_LIST_ACTION_SIZE / 2}
+              />
+            </View>
+          </View>
+
+          {Array.from({ length: 7 }).map((_, index) => (
+            <View
+              key={index}
+              style={[styles.trackItem, { borderBottomColor: colors.border }]}
+            >
+              <View style={styles.trackIndexContainer}>
+                <SkeletonBlock width={18} height={18} borderRadius={9} />
+              </View>
+              <View style={styles.trackInfo}>
+                <SkeletonBlock
+                  width={ARTIST_TRACK_COVER_SIZE}
+                  height={ARTIST_TRACK_COVER_SIZE}
+                  borderRadius={2}
+                />
+                <SkeletonBlock
+                  width={index % 2 === 0 ? "58%" : "70%"}
+                  height={16}
+                  borderRadius={8}
+                />
+              </View>
+              <SkeletonBlock width={36} height={12} borderRadius={6} />
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -671,9 +774,9 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   avatar: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    width: ARTIST_AVATAR_SIZE,
+    height: ARTIST_AVATAR_SIZE,
+    borderRadius: ARTIST_AVATAR_SIZE / 2,
     marginBottom: 15,
   },
   name: {
@@ -701,16 +804,16 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   playButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: ARTIST_LIST_ACTION_SIZE,
+    height: ARTIST_LIST_ACTION_SIZE,
+    borderRadius: ARTIST_LIST_ACTION_SIZE / 2,
     justifyContent: "center",
     alignItems: "center",
   },
   actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: ARTIST_LIST_ACTION_SIZE,
+    height: ARTIST_LIST_ACTION_SIZE,
+    borderRadius: ARTIST_LIST_ACTION_SIZE / 2,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -726,19 +829,19 @@ const styles = StyleSheet.create({
   },
   albumCard: {
     marginRight: 15,
-    width: 120,
+    width: ARTIST_ALBUM_COVER_SIZE,
   },
   albumCoverContainer: {
-    width: 120,
-    height: 120,
+    width: ARTIST_ALBUM_COVER_SIZE,
+    height: ARTIST_ALBUM_COVER_SIZE,
     borderRadius: 10,
     overflow: "hidden",
     position: "relative",
     marginBottom: 5,
   },
   albumCover: {
-    width: 120,
-    height: 120,
+    width: ARTIST_ALBUM_COVER_SIZE,
+    height: ARTIST_ALBUM_COVER_SIZE,
   },
   progressOverlay: {
     position: "absolute",

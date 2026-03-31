@@ -28,6 +28,7 @@ import {
   FlatList,
   Image,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -349,6 +350,23 @@ export default function PersonalScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenTtsTasks = () => {
+    setMenuVisible(false);
+
+    if (isPlusVip) {
+      router.push("/tts/tasks" as any);
+      return;
+    }
+
+    Alert.alert("会员功能", "开通会员才能使用 TTS 有声书转换功能", [
+      { text: "取消", style: "cancel" },
+      {
+        text: "去开通",
+        onPress: () => router.push("/member-benefits" as any),
+      },
+    ]);
   };
 
   const handleDeleteDownload = (item: Track) => {
@@ -786,6 +804,9 @@ export default function PersonalScreen() {
             </Text>
             {user && (
                 <TouchableOpacity onPress={async () => {
+                    if (Platform.OS === "ios") {
+                        return;
+                    }
                     const plusToken = await AsyncStorage.getItem("plus_token");
                     if (plusToken) {
                         if (isPlusVip) {
@@ -1069,10 +1090,7 @@ export default function PersonalScreen() {
               <>
                 <TouchableOpacity
                   style={styles.menuItem}
-                  onPress={() => {
-                    setMenuVisible(false);
-                    router.push("/tts/tasks" as any);
-                  }}
+                  onPress={handleOpenTtsTasks}
                 >
                   <Ionicons name="mic-outline" size={22} color={colors.text} />
                   <Text style={[styles.menuItemText, { color: colors.text }]}>

@@ -1,4 +1,5 @@
 import * as Linking from 'expo-linking';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useRouter, useSegments } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import "react-native-reanimated";
@@ -17,10 +18,11 @@ import { SquirrelAgent } from "../src/components/SquirrelAgent";
 import { GlobalBottomBar } from "../src/components/GlobalBottomBar";
 import { SettingsProvider, useSettings } from "../src/context/SettingsContext";
 import { SyncProvider } from "../src/context/SyncContext";
+import { syncWidgetMembership } from "../src/native/WidgetBridge";
 import { PlayerDetailView } from "./player";
 
 function RootLayoutNav() {
-  const { token, isLoading, sourceType, plusToken, user } = useAuth();
+  const { token, isLoading, plusToken, user } = useAuth();
   const { voiceAssistantEnabled, carLayoutMode } = useSettings();
   const { theme, colors } = useTheme();
   const { pause, resume, playNext, playPrevious, togglePlayMode, isPlaying, currentTrack, playTrackList } = usePlayer();
@@ -72,17 +74,14 @@ function RootLayoutNav() {
       segmentName === "member-detail" ||
       segmentName === "tts";
 
-    if (!token && inAuthGroup) {
-      router.replace({
-        pathname: "/login-form",
-        params: { type: sourceType || "AudioDock" },
-      } as any);
-    } else if (token && inAuthGroup && !plusToken) {
-       router.replace("/member-login");
+    if (!plusToken && inAuthGroup) {
+      router.replace("/member-login");
+    } else if (plusToken && !token && inAuthGroup) {
+      router.replace("/login");
     } else if (token && plusToken && !inAuthGroup && !isDetailPage) {
       router.replace("/(tabs)");
     }
-  }, [token, plusToken, segments, isLoading, sourceType]);
+  }, [token, plusToken, segments, isLoading]);
 
   useEffect(() => {
     if (!url) return;
@@ -216,6 +215,36 @@ function RootLayoutNav() {
 
     handle();
   }, [url, isPlaying, pause, resume, playNext, playPrevious, togglePlayMode, currentTrack, user, playTrackList, contentMode]);
+
+  useEffect(() => {
+    const syncVipState = async () => {
+      try {
+        if (!plusToken) {
+          await syncWidgetMembership(false);
+          return;
+        }
+
+        const plusVipStatus = await AsyncStorage.getItem("plus_vip_status");
+        const plusVipData = await AsyncStorage.getItem("plus_vip_data");
+        let isVip = plusVipStatus === "true";
+
+        if (!isVip && plusVipData) {
+          try {
+            const parsed = JSON.parse(plusVipData);
+            isVip = !!(parsed?.vipTier && parsed.vipTier !== "NONE");
+          } catch {
+            isVip = false;
+          }
+        }
+
+        await syncWidgetMembership(isVip);
+      } catch (error) {
+        console.warn("[WidgetBridge] sync membership failed", error);
+      }
+    };
+
+    syncVipState();
+  }, [plusToken]);
 
   const stack = (
     <Stack>

@@ -33,6 +33,7 @@ const CreateTask = lazy(() => import("./pages/TTS/CreateTask/index"));
 const ProductUpdates = lazy(() => import("./pages/ProductUpdates/index"));
 const MemberLogin = lazy(() => import("./pages/MemberLogin/index"));
 const MemberBenefits = lazy(() => import("./pages/MemberBenefits/index"));
+const MemberDetail = lazy(() => import("./pages/MemberDetail/index"));
 
 import { theme } from "antd";
 import { useEffect } from "react";
@@ -174,6 +175,7 @@ const AppContent = () => {
                   <Route path="/login" element={<Login />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/member-benefits" element={<MemberBenefits />} />
+                  <Route path="/member-detail" element={<MemberDetail />} />
 
                   {isAuthenticated ? (
                     <Route

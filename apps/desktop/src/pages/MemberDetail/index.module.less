@@ -1,0 +1,100 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 40px 20px;
+  -webkit-app-region: drag;
+  box-sizing: border-box;
+}
+
+.content {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 40px;
+  -webkit-app-region: no-drag;
+}
+
+.sectionCard {
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.backButton {
+  font-size: 18px;
+}
+
+.statusBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 20px;
+}
+
+.statusTitle {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.statusSubtitle {
+  font-size: 14px;
+}
+
+.detailList {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.detailLabel {
+  font-size: 14px;
+}
+
+.detailValue {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.benefitTable {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+
+  :global {
+    .ant-table-thead > tr > th {
+      background: transparent;
+      font-weight: 600;
+    }
+  }
+}
+
+.actionArea {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.logoutButton {
+  height: 44px;
+  font-weight: 600;
+}

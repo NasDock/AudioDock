@@ -6,11 +6,11 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.graphics.BitmapFactory
 import android.widget.RemoteViews
 import com.anonymous.mobile.R
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.math.roundToInt
 
 class AudioDockLatestTracksWidgetProvider : AppWidgetProvider() {
   override fun onUpdate(
@@ -35,6 +35,7 @@ class AudioDockLatestTracksWidgetProvider : AppWidgetProvider() {
     private const val ACTION_REFRESH = WidgetCommandReceiver.ACTION_WIDGET_REFRESH_LATEST
     private const val ACTION_PLAY = "com.soundx.widget.PLAY"
     private const val ACTION_PAUSE = "com.soundx.widget.PAUSE"
+    private const val ROW_COVER_SIZE_DP = 40
 
     fun updateAllWidgets(context: Context) {
       val manager = AppWidgetManager.getInstance(context)
@@ -55,7 +56,12 @@ class AudioDockLatestTracksWidgetProvider : AppWidgetProvider() {
 
         val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
         val (widthPx, heightPx) = resolveWidgetSize(context, options)
-        val background = resolveBackground(context, latest, widthPx, heightPx)
+        val background = WidgetImageUtils.themedGradientBackground(
+          widthPx,
+          heightPx,
+          state.colorPrimary,
+          state.colorSecondary
+        )
         if (background != null) {
           views.setImageViewBitmap(R.id.widget_bg, background)
         }
@@ -92,6 +98,18 @@ class AudioDockLatestTracksWidgetProvider : AppWidgetProvider() {
           R.id.widget_latest_title_5,
           R.id.widget_latest_artist_5,
           R.id.widget_latest_play_5
+        )
+        bindLatestRow(context, views, latest, 5,
+          R.id.widget_latest_cover_6,
+          R.id.widget_latest_title_6,
+          R.id.widget_latest_artist_6,
+          R.id.widget_latest_play_6
+        )
+        bindLatestRow(context, views, latest, 6,
+          R.id.widget_latest_cover_7,
+          R.id.widget_latest_title_7,
+          R.id.widget_latest_artist_7,
+          R.id.widget_latest_play_7
         )
 
         views.setOnClickPendingIntent(
@@ -142,7 +160,11 @@ class AudioDockLatestTracksWidgetProvider : AppWidgetProvider() {
 
       if (cover.isNotEmpty()) {
         val path = resolveCoverPath(context, cover)
-        val bitmap = BitmapFactory.decodeFile(path)
+        val bitmap = WidgetImageUtils.decodeSampledBitmap(
+          path,
+          dpToPx(context, ROW_COVER_SIZE_DP),
+          dpToPx(context, ROW_COVER_SIZE_DP)
+        )
         if (bitmap != null) {
           views.setImageViewBitmap(coverId, bitmap)
         } else {
@@ -185,20 +207,6 @@ class AudioDockLatestTracksWidgetProvider : AppWidgetProvider() {
       return item.optString("coverPath", "")
     }
 
-    private fun resolveBackground(
-      context: Context,
-      latest: List<JSONObject>,
-      widthPx: Int,
-      heightPx: Int
-    ): android.graphics.Bitmap? {
-      val first = latest.firstOrNull() ?: return null
-      val cover = resolveCoverValue(first)
-      if (cover.isEmpty()) return null
-      val path = resolveCoverPath(context, cover)
-      val bitmap = BitmapFactory.decodeFile(path) ?: return null
-      return WidgetImageUtils.blurredBackground(bitmap, widthPx, heightPx)
-    }
-
     private fun resolveWidgetSize(context: Context, options: android.os.Bundle?): Pair<Int, Int> {
       val density = context.resources.displayMetrics.density
       val widthDp = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH) ?: 250
@@ -206,6 +214,10 @@ class AudioDockLatestTracksWidgetProvider : AppWidgetProvider() {
       val widthPx = (widthDp * density).toInt().coerceAtLeast(1)
       val heightPx = (heightDp * density).toInt().coerceAtLeast(1)
       return Pair(widthPx, heightPx)
+    }
+
+    private fun dpToPx(context: Context, valueDp: Int): Int {
+      return (valueDp * context.resources.displayMetrics.density).roundToInt().coerceAtLeast(1)
     }
 
     private fun openPendingIntent(context: Context): PendingIntent {

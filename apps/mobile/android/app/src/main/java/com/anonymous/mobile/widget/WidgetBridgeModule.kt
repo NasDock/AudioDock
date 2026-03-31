@@ -11,6 +11,7 @@ import androidx.core.graphics.ColorUtils
 import androidx.palette.graphics.Palette
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.math.roundToInt
 
 class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
@@ -35,6 +36,16 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
         false
       }
       val isPlaying = payload.getBoolean("isPlaying")
+      val position = if (payload.hasKey("position") && !payload.isNull("position")) {
+        payload.getDouble("position").roundToInt()
+      } else {
+        0
+      }
+      val duration = if (payload.hasKey("duration") && !payload.isNull("duration")) {
+        payload.getDouble("duration").roundToInt()
+      } else {
+        0
+      }
 
       val (primaryColor, secondaryColor) = resolveColors(coverPath)
 
@@ -46,12 +57,16 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
         isPlaying,
         playMode,
         isLiked,
+        WidgetStore.load(reactContext).isVip,
         primaryColor,
-        secondaryColor
+        secondaryColor,
+        position,
+        duration
       )
       AudioDockWidgetProvider.updateAllWidgets(reactContext)
       AudioDockPlaylistWidgetProvider.updateAllWidgets(reactContext)
       AudioDockPlayerHistoryWidgetProvider.updateAllWidgets(reactContext)
+      AudioDockRecommendationWidgetProvider.updateAllWidgets(reactContext)
       promise.resolve(null)
     } catch (e: Exception) {
       promise.reject("WIDGET_UPDATE_FAILED", e)
@@ -61,17 +76,45 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
   @ReactMethod
   fun updateWidgetCollections(payload: ReadableMap, promise: Promise) {
     try {
-      val playlistsJson = serializeList(payload.getArray("playlists"))
-      val historyJson = serializeList(payload.getArray("history"))
-      val latestJson = serializeList(payload.getArray("latest"))
-      WidgetStore.saveCollections(reactContext, playlistsJson, historyJson, latestJson)
+      val playlistsJson = serializeOptionalList(payload, "playlists")
+      val historyJson = serializeOptionalList(payload, "history")
+      val latestJson = serializeOptionalList(payload, "latest")
+      val recommendationsJson = serializeOptionalList(payload, "recommendations")
+      WidgetStore.saveCollections(
+        reactContext,
+        playlistsJson,
+        historyJson,
+        latestJson,
+        recommendationsJson
+      )
       AudioDockWidgetProvider.updateAllWidgets(reactContext)
       AudioDockPlaylistWidgetProvider.updateAllWidgets(reactContext)
       AudioDockPlayerHistoryWidgetProvider.updateAllWidgets(reactContext)
       AudioDockLatestTracksWidgetProvider.updateAllWidgets(reactContext)
+      AudioDockRecommendationWidgetProvider.updateAllWidgets(reactContext)
       promise.resolve(null)
     } catch (e: Exception) {
       promise.reject("WIDGET_COLLECTIONS_UPDATE_FAILED", e)
+    }
+  }
+
+  private fun serializeOptionalList(payload: ReadableMap, key: String): String? {
+    if (!payload.hasKey(key) || payload.isNull(key)) return null
+    return serializeList(payload.getArray(key))
+  }
+
+  @ReactMethod
+  fun updateWidgetMembership(payload: ReadableMap, promise: Promise) {
+    try {
+      val isVip = if (payload.hasKey("isVip") && !payload.isNull("isVip")) {
+        payload.getBoolean("isVip")
+      } else {
+        false
+      }
+      WidgetStore.setVipStatus(reactContext, isVip)
+      promise.resolve(null)
+    } catch (e: Exception) {
+      promise.reject("WIDGET_MEMBERSHIP_UPDATE_FAILED", e)
     }
   }
 

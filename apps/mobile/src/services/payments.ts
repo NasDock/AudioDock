@@ -114,7 +114,7 @@ export type WechatPayPayload = {
 };
 
 export type AlipayPayPayload = {
-  orderString: string;
+  orderString: string | null;
   scheme?: string;
 };
 
@@ -124,11 +124,6 @@ export type PlusPaymentPayload = {
   qrCode?: string;
   wechatPay?: WechatPayPayload;
   alipayPay?: AlipayPayPayload;
-};
-
-export const VIP_PLAN_PRICE: Record<PaymentPlan, number> = {
-  annual: 0.01,
-  lifetime: 0.01,
 };
 
 export const VIP_PLAN_TIER: Record<PaymentPlan, "BASIC" | "LIFETIME"> = {
@@ -152,13 +147,15 @@ const normalizeUserId = (raw: string): string => {
 export const createPlusPayment = async (
   userIdRaw: string,
   plan: PaymentPlan,
-  method: PaymentMethod
+  method: PaymentMethod,
+  amount: number
 ) => {
   const payload: CreatePaymentDto = {
     userId: normalizeUserId(userIdRaw),
-    amount: VIP_PLAN_PRICE[plan],
+    amount,
     currency: "CNY",
     method,
+    clientType: "mobile",
     forVip: true,
     vipTier: VIP_PLAN_TIER[plan],
     forPoints: false,
@@ -188,14 +185,12 @@ export const payWithWeChat = async (
     const WeChat = getWeChatModule();
     console.log("[Pay][WeChat] payload", payload);
     await WeChat.pay({
-      appId: payload.appId,
       partnerId: payload.partnerId,
       prepayId: payload.prepayId,
       nonceStr: payload.nonceStr,
       timeStamp: payload.timeStamp,
       package: payload.package ?? "Sign=WXPay",
       sign: payload.sign,
-      signType: payload.signType ?? "MD5",
     });
     console.log("[Pay][WeChat] pay invoked");
     return;

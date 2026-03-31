@@ -75,6 +75,32 @@ target 'AudioDock' do
         config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
       end
     end
+
+    # Fix fmt consteval errors by forcing C++20 and disabling consteval in fmt
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
+        config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+        # Some pods override language standard; force via flags too.
+        if target.name == 'fmt'
+          config.build_settings['OTHER_CPLUSPLUSFLAGS'] = '$(inherited) -std=c++20 -DFMT_USE_CONSTEVAL=0 -DFMT_HEADER_ONLY'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = '$(inherited) FMT_USE_CONSTEVAL=0'
+        else
+          config.build_settings['OTHER_CPLUSPLUSFLAGS'] = '$(inherited) -std=c++20'
+        end
+      end
+    end
+
+    # Ensure app and other user targets inherit C++20 as well.
+    installer.aggregate_targets.each do |aggregate_target|
+      aggregate_target.user_project.targets.each do |target|
+        target.build_configurations.each do |config|
+          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
+          config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+          config.build_settings['OTHER_CPLUSPLUSFLAGS'] = '$(inherited) -std=c++20 -DFMT_USE_CONSTEVAL=0'
+        end
+      end
+    end
     installer.aggregate_targets.each do |aggregate_target|
       aggregate_target.user_project.targets.each do |target|
         target.build_configurations.each do |config|
