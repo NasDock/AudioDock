@@ -37,6 +37,7 @@ class AudioDockRecommendationWidgetProvider : AppWidgetProvider() {
     private const val ACTION_PAUSE = "com.soundx.widget.PAUSE"
     private const val ACTION_NEXT = "com.soundx.widget.NEXT"
     private const val ACTION_PREV = "com.soundx.widget.PREV"
+    private const val ACTION_REFRESH = WidgetCommandReceiver.ACTION_WIDGET_REFRESH_RECOMMENDATION
     private const val MAIN_COVER_SIZE_DP = 120
     private const val ROW_COVER_SIZE_DP = 40
 
@@ -127,6 +128,13 @@ class AudioDockRecommendationWidgetProvider : AppWidgetProvider() {
           R.id.widget_recommend_artist_3,
           R.id.widget_recommend_play_3
         )
+        bindRecommendationRow(
+          context, views, recommendations, 3,
+          R.id.widget_recommend_cover_4,
+          R.id.widget_recommend_title_4,
+          R.id.widget_recommend_artist_4,
+          R.id.widget_recommend_play_4
+        )
 
         views.setOnClickPendingIntent(
           R.id.widget_recommend_root,
@@ -143,6 +151,10 @@ class AudioDockRecommendationWidgetProvider : AppWidgetProvider() {
         views.setOnClickPendingIntent(
           R.id.widget_next,
           broadcastPendingIntent(context, ACTION_NEXT, appWidgetId)
+        )
+        views.setOnClickPendingIntent(
+          R.id.widget_recommend_refresh,
+          refreshPendingIntent(context)
         )
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
@@ -251,6 +263,14 @@ class AudioDockRecommendationWidgetProvider : AppWidgetProvider() {
       intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
       val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
       return PendingIntent.getActivity(context, "open_recommend_widget".hashCode(), intent, flags)
+    }
+
+    private fun refreshPendingIntent(context: Context): PendingIntent {
+      val intent = Intent(context, WidgetCommandReceiver::class.java).apply {
+        action = ACTION_REFRESH
+      }
+      val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+      return PendingIntent.getBroadcast(context, ACTION_REFRESH.hashCode(), intent, flags)
     }
   }
 }

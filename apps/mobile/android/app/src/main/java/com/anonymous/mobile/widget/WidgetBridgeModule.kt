@@ -76,10 +76,10 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
   @ReactMethod
   fun updateWidgetCollections(payload: ReadableMap, promise: Promise) {
     try {
-      val playlistsJson = serializeList(payload.getArray("playlists"))
-      val historyJson = serializeList(payload.getArray("history"))
-      val latestJson = serializeList(payload.getArray("latest"))
-      val recommendationsJson = serializeList(payload.getArray("recommendations"))
+      val playlistsJson = serializeOptionalList(payload, "playlists")
+      val historyJson = serializeOptionalList(payload, "history")
+      val latestJson = serializeOptionalList(payload, "latest")
+      val recommendationsJson = serializeOptionalList(payload, "recommendations")
       WidgetStore.saveCollections(
         reactContext,
         playlistsJson,
@@ -96,6 +96,11 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
     } catch (e: Exception) {
       promise.reject("WIDGET_COLLECTIONS_UPDATE_FAILED", e)
     }
+  }
+
+  private fun serializeOptionalList(payload: ReadableMap, key: String): String? {
+    if (!payload.hasKey(key) || payload.isNull(key)) return null
+    return serializeList(payload.getArray(key))
   }
 
   @ReactMethod

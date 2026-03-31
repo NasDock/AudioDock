@@ -98,6 +98,9 @@ class WidgetCommandReceiver : BroadcastReceiver() {
       ACTION_WIDGET_REFRESH_LATEST -> {
         WidgetCommandEmitterModule.sendCommand("refresh_latest")
       }
+      ACTION_WIDGET_REFRESH_RECOMMENDATION -> {
+        WidgetCommandEmitterModule.sendCommand("refresh_recommendation")
+      }
     }
   }
 
@@ -127,5 +130,6 @@ class WidgetCommandReceiver : BroadcastReceiver() {
     const val ACTION_WIDGET_LATEST = "com.soundx.widget.LATEST"
     const val ACTION_WIDGET_RECOMMENDATION = "com.soundx.widget.RECOMMENDATION"
     const val ACTION_WIDGET_REFRESH_LATEST = "com.soundx.widget.REFRESH_LATEST"
+    const val ACTION_WIDGET_REFRESH_RECOMMENDATION = "com.soundx.widget.REFRESH_RECOMMENDATION"
   }
 }

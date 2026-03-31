@@ -6,7 +6,6 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.graphics.BitmapFactory
 import android.view.View
 import android.widget.RemoteViews
 import com.anonymous.mobile.R
@@ -38,6 +37,8 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
     private const val ACTION_PAUSE = "com.soundx.widget.PAUSE"
     private const val ACTION_NEXT = "com.soundx.widget.NEXT"
     private const val ACTION_PREV = "com.soundx.widget.PREV"
+    private const val MAIN_COVER_SIZE_DP = 120
+    private const val ROW_COVER_SIZE_DP = 40
 
     fun updateAllWidgets(context: Context) {
       val manager = AppWidgetManager.getInstance(context)
@@ -61,7 +62,11 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
 
         val coverPath = state.coverPath
         if (!coverPath.isNullOrBlank()) {
-          val bitmap = BitmapFactory.decodeFile(coverPath)
+          val bitmap = WidgetImageUtils.decodeSampledBitmap(
+            coverPath,
+            dpToPx(context, MAIN_COVER_SIZE_DP),
+            dpToPx(context, MAIN_COVER_SIZE_DP)
+          )
           if (bitmap != null) {
             views.setImageViewBitmap(R.id.widget_cover, bitmap)
           } else {
@@ -129,6 +134,12 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
           R.id.widget_history_artist_3,
           R.id.widget_history_play_3
         )
+        bindHistoryRow(context, views, history, 3,
+          R.id.widget_history_cover_4,
+          R.id.widget_history_title_4,
+          R.id.widget_history_artist_4,
+          R.id.widget_history_play_4
+        )
 
         views.setOnClickPendingIntent(
           R.id.widget_history_root,
@@ -166,7 +177,11 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
 
       if (cover.isNotEmpty()) {
         val path = resolveCoverPath(context, cover)
-        val bitmap = BitmapFactory.decodeFile(path)
+        val bitmap = WidgetImageUtils.decodeSampledBitmap(
+          path,
+          dpToPx(context, ROW_COVER_SIZE_DP),
+          dpToPx(context, ROW_COVER_SIZE_DP)
+        )
         if (bitmap != null) {
           views.setImageViewBitmap(coverId, bitmap)
         } else {
@@ -216,6 +231,10 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
       val widthPx = (widthDp * density).toInt().coerceAtLeast(1)
       val heightPx = (heightDp * density).toInt().coerceAtLeast(1)
       return Pair(widthPx, heightPx)
+    }
+
+    private fun dpToPx(context: Context, valueDp: Int): Int {
+      return (valueDp * context.resources.displayMetrics.density).roundToInt().coerceAtLeast(1)
     }
 
     private fun broadcastPendingIntent(context: Context, action: String, widgetId: Int): PendingIntent {

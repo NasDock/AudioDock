@@ -442,6 +442,36 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [user?.id, mode, recommendationLikeRatio]);
 
+  const refreshLatestWidgetItems = useCallback(async () => {
+    try {
+      const latestRes = await getLatestTracks("MUSIC", false, 7);
+      const latest = latestRes.code === 200 ? latestRes.data : [];
+      await updateWidgetCollections({ latest });
+    } catch (error) {
+      if (__DEV__) {
+        console.warn("[Widget] Failed to refresh latest", error);
+      }
+    }
+  }, []);
+
+  const refreshRecommendationWidgetItems = useCallback(async () => {
+    try {
+      const recommendationsRes = await getRecommendedAlbums(
+        mode,
+        true,
+        4,
+        recommendationLikeRatio
+      );
+      const recommendations =
+        recommendationsRes.code === 200 ? recommendationsRes.data : [];
+      await updateWidgetCollections({ recommendations });
+    } catch (error) {
+      if (__DEV__) {
+        console.warn("[Widget] Failed to refresh recommendations", error);
+      }
+    }
+  }, [mode, recommendationLikeRatio]);
+
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
@@ -453,7 +483,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       cancelled = true;
     };
-  }, [refreshWidgetCollections, currentTrack?.id]);
+  }, [refreshWidgetCollections]);
 
   useEffect(() => {
     positionRef.current = position;
@@ -1614,7 +1644,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           break;
         }
         case "refresh_latest": {
-          await refreshWidgetCollections();
+          await refreshLatestWidgetItems();
+          break;
+        }
+        case "refresh_recommendation": {
+          await refreshRecommendationWidgetItems();
           break;
         }
         default:
@@ -1623,7 +1657,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     return () => subscription.remove();
-  }, [isPlaying, pause, resume, playNext, playPrevious, togglePlayMode, currentTrack, user]);
+  }, [
+    isPlaying,
+    pause,
+    resume,
+    playNext,
+    playPrevious,
+    togglePlayMode,
+    currentTrack,
+    user,
+    refreshLatestWidgetItems,
+    refreshRecommendationWidgetItems,
+  ]);
 
   // Force report on track change
   useEffect(() => {

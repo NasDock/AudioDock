@@ -99,6 +99,18 @@ class AudioDockLatestTracksWidgetProvider : AppWidgetProvider() {
           R.id.widget_latest_artist_5,
           R.id.widget_latest_play_5
         )
+        bindLatestRow(context, views, latest, 5,
+          R.id.widget_latest_cover_6,
+          R.id.widget_latest_title_6,
+          R.id.widget_latest_artist_6,
+          R.id.widget_latest_play_6
+        )
+        bindLatestRow(context, views, latest, 6,
+          R.id.widget_latest_cover_7,
+          R.id.widget_latest_title_7,
+          R.id.widget_latest_artist_7,
+          R.id.widget_latest_play_7
+        )
 
         views.setOnClickPendingIntent(
           R.id.widget_latest_root,

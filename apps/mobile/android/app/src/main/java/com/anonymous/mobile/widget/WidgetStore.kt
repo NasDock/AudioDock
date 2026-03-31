@@ -121,17 +121,17 @@ internal object WidgetStore {
 
   fun saveCollections(
     context: Context,
-    playlistsJson: String,
-    historyJson: String,
-    latestJson: String,
-    recommendationsJson: String
+    playlistsJson: String?,
+    historyJson: String?,
+    latestJson: String?,
+    recommendationsJson: String?
   ) {
-    prefs(context).edit()
-      .putString(KEY_PLAYLISTS, playlistsJson)
-      .putString(KEY_HISTORY, historyJson)
-      .putString(KEY_LATEST, latestJson)
-      .putString(KEY_RECOMMENDATIONS, recommendationsJson)
-      .apply()
+    val editor = prefs(context).edit()
+    if (playlistsJson != null) editor.putString(KEY_PLAYLISTS, playlistsJson)
+    if (historyJson != null) editor.putString(KEY_HISTORY, historyJson)
+    if (latestJson != null) editor.putString(KEY_LATEST, latestJson)
+    if (recommendationsJson != null) editor.putString(KEY_RECOMMENDATIONS, recommendationsJson)
+    editor.apply()
   }
 
   fun setPlayModeOverride(context: Context, mode: String, durationMs: Long = 2000L) {
