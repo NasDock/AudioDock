@@ -20,7 +20,7 @@ import {
   SearchOutlined,
   SettingOutlined,
   SunOutlined,
-  WifiOutlined
+  WifiOutlined,
 } from "@ant-design/icons";
 import {
   addSearchRecord,
@@ -33,7 +33,6 @@ import {
   getRunningImportTask,
   getSearchHistory,
   plusGetMe,
-  removePlusToken,
   searchAll,
   setPlusToken,
   setServiceConfig,
@@ -58,7 +57,7 @@ import {
   Tag,
   theme,
   Tooltip,
-  Typography
+  Typography,
 } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -171,15 +170,15 @@ const ServerSwitcherModal: React.FC<{
               ...item,
               list: newConfigs,
             }
-          : item
-      )
+          : item,
+      ),
     );
   };
 
   const handleConnect = async (
     address: string,
     configId: string,
-    sourceType: string
+    sourceType: string,
   ) => {
     setLoadingId(`${sourceType}_${configId}_${address}`);
     try {
@@ -199,111 +198,112 @@ const ServerSwitcherModal: React.FC<{
       >
         {configs.flatMap(({ type, list }) =>
           list.map((item, index) => {
-          const currentAddress = localStorage.getItem("serverAddress");
-          const currentSource = localStorage.getItem("selectedSourceType");
-          const isSourceMatch = currentSource === type;
-          const sourceLogo =
-            type === "Emby" ? emby : type === "Subsonic" ? subsonic : logo;
-          const displayName = `${type}数据源[${index + 1}]`;
+            const currentAddress = localStorage.getItem("serverAddress");
+            const currentSource = localStorage.getItem("selectedSourceType");
+            const isSourceMatch = currentSource === type;
+            const sourceLogo =
+              type === "Emby" ? emby : type === "Subsonic" ? subsonic : logo;
+            const displayName = `${type}数据源[${index + 1}]`;
 
-          const renderAddressRow = (label: string, address: string) => {
-            if (!address) return null;
-            const isActive = isSourceMatch && currentAddress === address;
-            const isConnecting = loadingId === `${type}_${item.id}_${address}`;
+            const renderAddressRow = (label: string, address: string) => {
+              if (!address) return null;
+              const isActive = isSourceMatch && currentAddress === address;
+              const isConnecting =
+                loadingId === `${type}_${item.id}_${address}`;
+
+              return (
+                <Flex
+                  key={address}
+                  justify="space-between"
+                  align="center"
+                  style={{
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    backgroundColor: isActive
+                      ? `${themeToken.colorPrimary}15`
+                      : "transparent",
+                    transition: "all 0.2s",
+                  }}
+                  className="address-row"
+                >
+                  <Flex vertical gap={2} style={{ flex: 1 }}>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      {label}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: isActive ? themeToken.colorPrimary : undefined,
+                      }}
+                    >
+                      {address}
+                    </Text>
+                  </Flex>
+                  <Flex align="center" gap={8}>
+                    {isActive ? (
+                      <Text type="success" style={{ fontSize: 10 }}>
+                        ● 已连接
+                      </Text>
+                    ) : (
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleConnect(address, item.id, type);
+                        }}
+                        style={{ fontSize: 10 }}
+                      >
+                        连接
+                      </Button>
+                    )}
+                    {isConnecting && <Spin size="small" />}
+                  </Flex>
+                </Flex>
+              );
+            };
 
             return (
-              <Flex
-                key={address}
-                justify="space-between"
-                align="center"
+              <Card
+                key={`${type}_${item.id}`}
+                size="small"
+                className={styles.switcherCard}
                 style={{
-                  padding: "6px 8px",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  backgroundColor: isActive
-                    ? `${themeToken.colorPrimary}15`
-                    : "transparent",
-                  transition: "all 0.2s",
+                  borderColor:
+                    isSourceMatch &&
+                    (currentAddress === item.internal ||
+                      currentAddress === item.external)
+                      ? themeToken.colorPrimary
+                      : undefined,
                 }}
-                className="address-row"
               >
-                <Flex vertical gap={2} style={{ flex: 1 }}>
-                  <Text type="secondary" style={{ fontSize: 11 }}>
-                    {label}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      color: isActive ? themeToken.colorPrimary : undefined,
-                    }}
-                  >
-                    {address}
-                  </Text>
-                </Flex>
-                <Flex align="center" gap={8}>
-                  {isActive ? (
-                    <Text type="success" style={{ fontSize: 10 }}>
-                      ● 已连接
-                    </Text>
-                  ) : (
+                <Flex vertical gap={8}>
+                  <Flex justify="space-between" align="center">
+                    <Flex align="center" gap={8}>
+                      <img style={{ width: 18 }} src={sourceLogo} alt={type} />
+                      <Text strong style={{ fontSize: 14 }}>
+                        {displayName}
+                      </Text>
+                      <Tag>{type}</Tag>
+                    </Flex>
                     <Button
+                      type="text"
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleConnect(address, item.id, type);
+                        handleDelete(type, item.id, e);
                       }}
-                      style={{ fontSize: 10 }}
-                    >
-                      连接
-                    </Button>
-                  )}
-                  {isConnecting && <Spin size="small" />}
-                </Flex>
-              </Flex>
-            );
-          };
-
-          return (
-            <Card
-              key={`${type}_${item.id}`}
-              size="small"
-              className={styles.switcherCard}
-              style={{
-                borderColor:
-                  isSourceMatch &&
-                  (currentAddress === item.internal ||
-                    currentAddress === item.external)
-                    ? themeToken.colorPrimary
-                    : undefined,
-              }}
-            >
-              <Flex vertical gap={8}>
-                <Flex justify="space-between" align="center">
-                  <Flex align="center" gap={8}>
-                    <img style={{ width: 18 }} src={sourceLogo} alt={type} />
-                    <Text strong style={{ fontSize: 14 }}>
-                      {displayName}
-                    </Text>
-                    <Tag>{type}</Tag>
+                    />
                   </Flex>
-                  <Button
-                    type="text"
-                    size="small"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(type, item.id, e);
-                    }}
-                  />
+                  <Flex vertical gap={4}>
+                    {renderAddressRow("内网地址", item.internal)}
+                    {renderAddressRow("外网地址", item.external)}
+                  </Flex>
                 </Flex>
-                <Flex vertical gap={4}>
-                  {renderAddressRow("内网地址", item.internal)}
-                  {renderAddressRow("外网地址", item.external)}
-                </Flex>
-              </Flex>
-            </Card>
-          );
-        })
+              </Card>
+            );
+          }),
         )}
 
         {configs.every((item) => item.list.length === 0) && (
@@ -361,7 +361,7 @@ const Header: React.FC = () => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importTask, setImportTask] = useState<ImportTask | null>(null);
   const [isPlusVip, setIsPlusVip] = useState(false);
-  const [plusVipData, setPlusVipData] = useState<any>(null);
+  const [, setPlusVipData] = useState<any>(null);
 
   const fetchSearchMeta = async () => {
     try {
@@ -441,7 +441,9 @@ const Header: React.FC = () => {
   const iconStyle = { color: token.colorTextSecondary };
   const actionIconStyle = { color: token.colorText };
 
-  const handleUpdateLibrary = async (mode: "incremental" | "full" | "compact") => {
+  const handleUpdateLibrary = async (
+    mode: "incremental" | "full" | "compact",
+  ) => {
     message.loading(
       `${mode === "incremental" ? "增量" : mode === "full" ? "全量" : "精简"}任务创建中...`,
     );
@@ -660,17 +662,19 @@ const Header: React.FC = () => {
 
       {/* User Actions */}
       <div className={styles.userActions}>
-        {playMode === TrackType.MUSIC && !isSubsonicSource() && !isEmbySource() && (
-          <Tooltip title="情景电台">
-            <div
-              className={`${styles.actionIcon} ${isRadioMode ? styles.radioActive : ""}`}
-              style={actionIconStyle}
-              onClick={() => usePlayerStore.getState().startRadioMode()}
-            >
-              <WifiOutlined />
-            </div>
-          </Tooltip>
-        )}
+        {playMode === TrackType.MUSIC &&
+          !isSubsonicSource() &&
+          !isEmbySource() && (
+            <Tooltip title="情景电台">
+              <div
+                className={`${styles.actionIcon} ${isRadioMode ? styles.radioActive : ""}`}
+                style={actionIconStyle}
+                onClick={() => usePlayerStore.getState().startRadioMode()}
+              >
+                <WifiOutlined />
+              </div>
+            </Tooltip>
+          )}
         {playMode !== TrackType.MUSIC && !isEmbySource() && (
           <Tooltip title="TTS">
             <div
@@ -863,11 +867,21 @@ const Header: React.FC = () => {
                       try {
                         const res = await uploadUserAvatar(user.id, file);
                         if (res.code === 200) {
-                          message.success("头像修改成功，可能需要重新登录以应用部分界面！");
+                          message.success(
+                            "头像修改成功，可能需要重新登录以应用部分界面！",
+                          );
                           // Updating user state is handled manually or via re-fetch
-                          const url = localStorage.getItem("serverAddress") || "http://localhost:3000";
-                          const updatedUser = { ...user, avatar: res.data.avatar };
-                          localStorage.setItem(`user_${url}`, JSON.stringify(updatedUser));
+                          const url =
+                            localStorage.getItem("serverAddress") ||
+                            "http://localhost:3000";
+                          const updatedUser = {
+                            ...user,
+                            avatar: res.data.avatar,
+                          };
+                          localStorage.setItem(
+                            `user_${url}`,
+                            JSON.stringify(updatedUser),
+                          );
                           useAuthStore.setState({ user: updatedUser as any });
                         } else {
                           message.error(res.message || "修改头像失败");
@@ -1018,16 +1032,24 @@ const Header: React.FC = () => {
             importTask.status !== TaskStatus.SUCCESS
               ? importTask.message
               : importTask?.status === TaskStatus.INITIALIZING
-                ? importTask?.mode === "compact" ? "正在初始化精简任务..." : "正在初始化..."
+                ? importTask?.mode === "compact"
+                  ? "正在初始化精简任务..."
+                  : "正在初始化..."
                 : importTask?.status === TaskStatus.PREPARING
-                  ? importTask?.mode === "compact" ? "正在精简数据库..." : "正在准备环境..."
-                : importTask?.status === TaskStatus.PARSING
-                  ? "正在解析媒体文件..."
-                  : importTask?.status === TaskStatus.SUCCESS
-                    ? importTask?.mode === "compact" ? "精简完成" : "入库完成"
-                    : importTask?.status === TaskStatus.FAILED
-                      ? importTask?.mode === "compact" ? "精简失败" : "入库失败"
-                      : "准备中"}
+                  ? importTask?.mode === "compact"
+                    ? "正在精简数据库..."
+                    : "正在准备环境..."
+                  : importTask?.status === TaskStatus.PARSING
+                    ? "正在解析媒体文件..."
+                    : importTask?.status === TaskStatus.SUCCESS
+                      ? importTask?.mode === "compact"
+                        ? "精简完成"
+                        : "入库完成"
+                      : importTask?.status === TaskStatus.FAILED
+                        ? importTask?.mode === "compact"
+                          ? "精简失败"
+                          : "入库失败"
+                        : "准备中"}
           </div>
           {importTask?.status === TaskStatus.FAILED && (
             <div style={{ color: token.colorError, marginBottom: 16 }}>
@@ -1051,41 +1073,42 @@ const Header: React.FC = () => {
             }
           />
           {importTask?.mode !== "compact" && (
-          <Flex vertical gap={4} style={{ marginTop: 12 }}>
-            <Flex justify="space-between" align="center">
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                本地文件入库进度
-              </Text>
-              <Text style={{ fontSize: 13 }}>
-                {importTask?.localCurrent || 0} / {importTask?.localTotal || 0}
-              </Text>
+            <Flex vertical gap={4} style={{ marginTop: 12 }}>
+              <Flex justify="space-between" align="center">
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  本地文件入库进度
+                </Text>
+                <Text style={{ fontSize: 13 }}>
+                  {importTask?.localCurrent || 0} /{" "}
+                  {importTask?.localTotal || 0}
+                </Text>
+              </Flex>
+              <Flex justify="space-between" align="center">
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  WebDAV 文件入库进度
+                </Text>
+                <Text style={{ fontSize: 13 }}>
+                  {importTask?.webdavCurrent || 0} /{" "}
+                  {importTask?.webdavTotal || 0}
+                </Text>
+              </Flex>
+              <Flex
+                justify="space-between"
+                align="center"
+                style={{
+                  marginTop: 4,
+                  paddingTop: 4,
+                  borderTop: `1px dashed ${token.colorBorderSecondary}`,
+                }}
+              >
+                <Text strong style={{ fontSize: 12 }}>
+                  总进度
+                </Text>
+                <Text strong style={{ fontSize: 13 }}>
+                  {importTask?.current || 0} / {importTask?.total || 0}
+                </Text>
+              </Flex>
             </Flex>
-            <Flex justify="space-between" align="center">
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                WebDAV 文件入库进度
-              </Text>
-              <Text style={{ fontSize: 13 }}>
-                {importTask?.webdavCurrent || 0} /{" "}
-                {importTask?.webdavTotal || 0}
-              </Text>
-            </Flex>
-            <Flex
-              justify="space-between"
-              align="center"
-              style={{
-                marginTop: 4,
-                paddingTop: 4,
-                borderTop: `1px dashed ${token.colorBorderSecondary}`,
-              }}
-            >
-              <Text strong style={{ fontSize: 12 }}>
-                总进度
-              </Text>
-              <Text strong style={{ fontSize: 13 }}>
-                {importTask?.current || 0} / {importTask?.total || 0}
-              </Text>
-            </Flex>
-          </Flex>
           )}
           {importTask?.mode !== "compact" && importTask?.currentFileName && (
             <div
@@ -1107,7 +1130,6 @@ const Header: React.FC = () => {
           )}
         </div>
       </Modal>
-
     </div>
   );
 };
