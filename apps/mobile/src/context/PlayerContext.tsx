@@ -153,7 +153,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { user, device, isLoading: isAuthLoading } = useAuth();
-  const { mode } = usePlayMode();
+  const { mode, setMode } = usePlayMode();
   const { showNotification } = useNotification();
   const { acceptRelay, cacheEnabled, recommendationLikeRatio } = useSettings();
   const [isPlaying, setIsPlaying] = useState(false);
@@ -175,6 +175,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const prevModeRef = useRef(mode);
   const isInitialLoadRef = useRef(true);
+  const skipNextModeRestoreRef = useRef(false);
 
   // Hook for progress
   const { position, duration } = useProgress();
@@ -918,6 +919,19 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     await applyPlayMode(nextMode);
   };
 
+  const getContentModeForTrack = (track?: Track | null) =>
+    track?.type === TrackType.AUDIOBOOK ? "AUDIOBOOK" : "MUSIC";
+
+  const switchContentModeForIncomingTrack = async (track?: Track | null) => {
+    const nextMode = getContentModeForTrack(track);
+    if (mode === nextMode) return;
+
+    await savePlaybackState(prevModeRef.current);
+    skipNextModeRestoreRef.current = true;
+    await setMode(nextMode);
+    prevModeRef.current = nextMode;
+  };
+
   const savePlaybackState = async (targetMode: string) => {
     if (!currentTrackRef.current || !isSetup) return;
     const state = {
@@ -1034,6 +1048,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         isInitialLoadRef.current = false;
         prevModeRef.current = mode;
       } else if (prevModeRef.current !== mode) {
+        if (skipNextModeRestoreRef.current) {
+          skipNextModeRestoreRef.current = false;
+          prevModeRef.current = mode;
+          return;
+        }
         await savePlaybackState(prevModeRef.current);
         await loadPlaybackState(mode);
         prevModeRef.current = mode;
@@ -1344,39 +1363,43 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (isSynced && sessionId) {
-      const handleSyncEvent = (payload: {
+      const handleSyncEvent = async (payload: {
         type: string;
         data: any;
         fromUserId: number;
       }) => {
         if (String(payload.fromUserId) === String(user?.id)) return;
         isProcessingSync.current = true;
-        switch (payload.type) {
-          case "play":
-            resume();
-            break;
-          case "pause":
-            pause();
-            break;
-          case "seek":
-            seekTo(payload.data);
-            break;
-          case "track_change":
-            if (currentTrackRef.current?.id !== payload.data.id) {
-              playTrack(payload.data);
-            }
-            break;
-          case "playlist":
-            setTrackList(payload.data);
-            break;
-          case "leave":
-            console.log("Participant left the session");
-            Alert.alert("同步状态", "对方已断开同步连接");
-            break;
+        try {
+          switch (payload.type) {
+            case "play":
+              await resume();
+              break;
+            case "pause":
+              await pause();
+              break;
+            case "seek":
+              await seekTo(payload.data);
+              break;
+            case "track_change":
+              if (currentTrackRef.current?.id !== payload.data.id) {
+                await switchContentModeForIncomingTrack(payload.data);
+                await playTrack(payload.data);
+              }
+              break;
+            case "playlist":
+              setTrackList(payload.data);
+              break;
+            case "leave":
+              console.log("Participant left the session");
+              Alert.alert("同步状态", "对方已断开同步连接");
+              break;
+          }
+        } finally {
+          setTimeout(() => {
+            isProcessingSync.current = false;
+          }, 100);
         }
-        setTimeout(() => {
-          isProcessingSync.current = false;
-        }, 100);
       };
 
       const handleRequestInitialState = (payload: {
@@ -1414,22 +1437,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (isSynced && lastAcceptedInvite) {
       console.log("Applying invite context: playlist and track");
-      isProcessingSync.current = true;
-      if (lastAcceptedInvite.playlist) {
-        setTrackList(lastAcceptedInvite.playlist);
-      }
-      if (lastAcceptedInvite.currentTrack) {
-        if (isSetup) {
-          playTrack(
+      const applyInviteContext = async () => {
+        isProcessingSync.current = true;
+        if (lastAcceptedInvite.currentTrack) {
+          await switchContentModeForIncomingTrack(lastAcceptedInvite.currentTrack);
+        }
+        if (lastAcceptedInvite.playlist) {
+          setTrackList(lastAcceptedInvite.playlist);
+        }
+        if (lastAcceptedInvite.currentTrack && isSetup) {
+          await playTrack(
             lastAcceptedInvite.currentTrack,
             lastAcceptedInvite.progress
           );
         }
-      }
-      // Allow states to settle before enabling broadcast
-      setTimeout(() => {
-        isProcessingSync.current = false;
-      }, 1000);
+        setTimeout(() => {
+          isProcessingSync.current = false;
+        }, 1000);
+      };
+
+      applyInviteContext();
     }
   }, [isSynced, lastAcceptedInvite?.sessionId, isSetup]);
 
@@ -1733,6 +1760,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                     },
                   });
                   // ✨ 有声书恢复时同时恢复整个专辑的播放列表
+                  await switchContentModeForIncomingTrack(trackData);
                   if (trackData.type === TrackType.AUDIOBOOK && trackData.albumId) {
                     try {
                       const tracksRes = await getAlbumTracks(

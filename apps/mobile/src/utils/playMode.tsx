@@ -8,12 +8,12 @@ const LEGACY_PLAY_MODE_KEY = "playMode";
 
 interface PlayModeContextType {
   mode: PlayMode;
-  setMode: (mode: PlayMode) => void;
+  setMode: (mode: PlayMode) => Promise<void>;
 }
 
 const PlayModeContext = createContext<PlayModeContextType>({
   mode: "MUSIC",
-  setMode: () => {},
+  setMode: async () => {},
 });
 
 export const usePlayMode = () => useContext(PlayModeContext);

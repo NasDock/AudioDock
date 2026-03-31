@@ -26,7 +26,7 @@ export default function MemberLoginScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { setPlusToken: setContextPlusToken } = useAuth();
+  const { setPlusToken: setContextPlusToken, token } = useAuth();
 
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -79,7 +79,7 @@ export default function MemberLoginScreen() {
             await AsyncStorage.setItem("plus_user_id", JSON.stringify(userId));
             setPlusToken(plusToken);
             await setContextPlusToken(plusToken);
-            router.replace("/(tabs)"); 
+            router.replace(token ? "/(tabs)" : "/login");
         } else {
             Alert.alert("登录失败", res.data.message || "手机号或验证码错误");
         }
