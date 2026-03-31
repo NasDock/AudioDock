@@ -131,6 +131,15 @@
       android:orientation="vertical"
       android:layout_marginTop="12dp">
 
+      <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="6dp"
+        android:text="为你推荐"
+        android:textColor="#CCFFFFFF"
+        android:textSize="11sp"
+        android:textStyle="normal" />
+
       <LinearLayout
         android:id="@+id/widget_recommend_row_1"
         android:layout_width="match_parent"
