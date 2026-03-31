@@ -16,6 +16,26 @@ const MemberBenefits: React.FC = () => {
   const [selectedPlan, setSelectedPlan] = useState<'annual' | 'lifetime'>('lifetime');
   const [loading, setLoading] = useState(false);
 
+  const openCashierWindow = (url: string) => {
+    const width = 960;
+    const height = 720;
+    const left = Math.max(0, Math.round(window.screenX + (window.outerWidth - width) / 2));
+    const top = Math.max(0, Math.round(window.screenY + (window.outerHeight - height) / 2));
+    const features = [
+      `width=${width}`,
+      `height=${height}`,
+      `left=${left}`,
+      `top=${top}`,
+      "resizable=yes",
+      "scrollbars=yes",
+    ].join(",");
+
+    const popup = window.open(url, "audiodock_payment_cashier", features);
+    if (!popup) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
+
   const handlePayment = async (method: 'WECHAT' | 'ALIPAY') => {
     const userIdStr = localStorage.getItem("plus_user_id");
     if (!userIdStr) {
@@ -38,6 +58,7 @@ const MemberBenefits: React.FC = () => {
         amount: selectedPlan === 'lifetime' ? 60 : 20,
         currency: "CNY",
         method,
+        clientType: "desktop",
         forVip: true,
         vipTier: selectedPlan === 'lifetime' ? "LIFETIME" : "BASIC",
         forPoints: false,
@@ -46,11 +67,14 @@ const MemberBenefits: React.FC = () => {
 
       hideLoading();
       if (res.data.code === 201 || res.data.code === 200) {
-        const { paymentUrl, qrCode } = res.data.data;
-        if (qrCode || paymentUrl) {
-            // 这里以后可以弹窗展示二维码，目前先跳转或提示
-            message.success("支付订单创建成功");
-            if (paymentUrl) window.open(paymentUrl, '_blank');
+        const { paymentUrl, alipayPay } = res.data.data;
+        if (paymentUrl) {
+            openCashierWindow(paymentUrl);
+            if (method === "ALIPAY" && !alipayPay?.orderString) {
+              message.success("支付宝收银台已打开");
+            } else {
+              message.success("支付订单创建成功");
+            }
         } else {
             message.info("订单已创建，请在手机端完成支付");
         }

@@ -1,5 +1,7 @@
 import { AntDesign, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { plusGetMe } from "@soundx/services";
+import * as WebBrowser from "expo-web-browser";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -13,7 +15,9 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
+import { syncWidgetMembership } from "../src/native/WidgetBridge";
 import {
   assertIosIapPolicy,
   createPlusPayment,
@@ -36,6 +40,7 @@ const ALIPAY_SCHEME = "alipaymock";
 
 export default function MemberBenefitsScreen() {
   const { colors } = useTheme();
+  const { setPlusToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>('lifetime');
@@ -176,6 +181,108 @@ export default function MemberBenefitsScreen() {
     return "";
   };
 
+  const sleep = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
+
+  const refreshVipStatus = async (): Promise<boolean> => {
+    try {
+      const plusToken = await AsyncStorage.getItem("plus_token");
+      const plusUserId = await AsyncStorage.getItem("plus_user_id");
+      if (!plusToken || !plusUserId) {
+        return false;
+      }
+      await setPlusToken(plusToken);
+      let id: any = plusUserId;
+      try {
+        id = JSON.parse(plusUserId);
+      } catch {}
+
+      const res = await plusGetMe(id);
+      const vipTier = res?.data?.data?.vipTier;
+      const isVip = !!vipTier && vipTier !== "NONE";
+      if (!isVip) {
+        return false;
+      }
+
+      await AsyncStorage.setItem("plus_vip_status", "true");
+      await AsyncStorage.setItem("plus_vip_data", JSON.stringify(res.data.data || {}));
+      await AsyncStorage.setItem("plus_vip_updated_at", Date.now().toString());
+      await syncWidgetMembership(true);
+      return true;
+    } catch (error) {
+      console.warn("Failed to refresh vip status", error);
+      return false;
+    }
+  };
+
+  const waitForVipActivation = async (shouldStop: () => boolean) => {
+    const startedAt = Date.now();
+    const timeoutMs = 5 * 60 * 1000;
+
+    while (Date.now() - startedAt < timeoutMs) {
+      if (shouldStop()) return false;
+      const activated = await refreshVipStatus();
+      if (activated) return true;
+      await sleep(2000);
+    }
+
+    return false;
+  };
+
+  const openCashierAndWaitForPayment = async (paymentUrl: string, orderId: string) => {
+    let browserClosed = false;
+    const browserPromise = WebBrowser.openBrowserAsync(paymentUrl, {
+      showTitle: true,
+      controlsColor: colors.primary,
+      presentationStyle:
+        Platform.OS === "ios"
+          ? WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET
+          : undefined,
+    }).then((result) => {
+      browserClosed = true;
+      return result;
+    });
+
+    const winner = await Promise.race([
+      browserPromise.then((result) => ({ type: "browser" as const, result })),
+      waitForVipActivation(() => browserClosed).then((paid) => ({
+        type: "payment" as const,
+        paid,
+      })),
+    ]);
+
+    if (winner.type === "payment" && winner.paid) {
+      try {
+        await WebBrowser.dismissBrowser();
+      } catch {}
+      await browserPromise.catch(() => null);
+      router.replace({
+        pathname: "/member-payment-success",
+        params: {
+          orderId,
+          tradeNo: "",
+          paidAt: new Date().toISOString(),
+        },
+      } as any);
+      return;
+    }
+
+    const paidAfterClose = await refreshVipStatus();
+    if (paidAfterClose) {
+      router.replace({
+        pathname: "/member-payment-success",
+        params: {
+          orderId,
+          tradeNo: "",
+          paidAt: new Date().toISOString(),
+        },
+      } as any);
+      return;
+    }
+
+    Alert.alert("提示", "支付窗口已关闭。如已完成支付，稍后可在会员详情查看是否生效。");
+  };
+
   const handlePayment = async (method: 'WECHAT' | 'ALIPAY') => {
     const userIdStr = await AsyncStorage.getItem("plus_user_id");
     if (!userIdStr) {
@@ -229,12 +336,7 @@ export default function MemberBenefitsScreen() {
               } as any);
             }
           } else if (paymentUrl) {
-            const supported = await Linking.canOpenURL(paymentUrl);
-            if (supported) {
-              await Linking.openURL(paymentUrl);
-            } else {
-              Alert.alert("提示", "订单创建成功，但无法自动打开支付链接，请尝试手动支付。");
-            }
+            await openCashierAndWaitForPayment(paymentUrl, resolvedOrderId);
           } else {
             Alert.alert("支付失败", "后端未返回支付宝支付参数");
           }

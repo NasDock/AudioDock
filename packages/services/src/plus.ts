@@ -36,12 +36,14 @@ export interface LoginDto {
 
 export type PaymentMethod = "WECHAT" | "ALIPAY" | "STRIPE" | "PAYPAL" | "OTHER";
 export type VipTier = "NONE" | "BASIC" | "PREMIUM" | "LIFETIME";
+export type PaymentClientType = "web" | "desktop" | "mobile" | "mini";
 
 export interface CreatePaymentDto {
   userId: string;
   amount: number;
   currency: string;
   method: PaymentMethod;
+  clientType?: PaymentClientType;
   forVip: boolean;
   vipTier: VipTier;
   forPoints: boolean;
@@ -60,7 +62,7 @@ export interface WechatPayPayload {
 }
 
 export interface AlipayPayPayload {
-  orderString: string;
+  orderString: string | null;
   scheme?: string;
 }
 
