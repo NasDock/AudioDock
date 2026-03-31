@@ -55,6 +55,7 @@ function RootLayoutNav() {
     const isDetailPage =
       segmentName === "artist" ||
       segmentName === "album" ||
+      segmentName === "collection" ||
       segmentName === "modal" ||
       segmentName === "player" ||
       segmentName === "search" ||
