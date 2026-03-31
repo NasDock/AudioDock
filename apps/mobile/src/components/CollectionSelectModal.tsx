@@ -5,6 +5,7 @@ import {
   Alert,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -77,6 +78,7 @@ export const CollectionSelectModal: React.FC<CollectionSelectModalProps> = ({
       if (membershipSet.has(collectionId)) return;
       await addAlbumToCollection(collectionId, albumId);
       setMembership((prev) => [...prev, collectionId]);
+      onClose();
     } catch (error) {
       console.error("Failed to update collection membership", error);
     }
@@ -115,13 +117,12 @@ export const CollectionSelectModal: React.FC<CollectionSelectModalProps> = ({
       >
         <Pressable style={styles.backdrop} onPress={onClose}>
           <Pressable
-            style={{ width: "100%", maxWidth: 450, alignSelf: "center" }}
+            style={{ width: "100%", maxWidth: 450, alignSelf: "center", backgroundColor: colors.card, paddingBottom: 0 }}
             onPress={(e) => e.stopPropagation()}
           >
             <View
               style={[
-                styles.modalContent,
-                { backgroundColor: colors.card, paddingBottom: insets.bottom + 8 },
+                styles.modalContent
               ]}
             >
               <View style={styles.handle} />
@@ -140,60 +141,66 @@ export const CollectionSelectModal: React.FC<CollectionSelectModalProps> = ({
               <Text style={[styles.subtitle, { color: colors.secondary }]}>
                 {album.name}
               </Text>
-
-              {loading ? (
-                <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 12 }} />
-              ) : (
-                <FlatList
-                  data={collections}
-                  keyExtractor={(item) => String(item.id)}
-                  renderItem={({ item }) => {
-                    const previewCover =
-                      item.cover || item.items?.[0]?.album?.cover || null;
-                    const count = item._count?.items ?? item.items?.length ?? 0;
-                    const selected = membershipSet.has(Number(item.id));
-                    return (
-                      <TouchableOpacity
-                        style={styles.option}
-                        onPress={() => addToCollection(Number(item.id))}
-                        disabled={selected}
-                      >
-                        <CachedImage
-                          source={{
-                            uri: getImageUrl(
-                              previewCover,
-                              `https://picsum.photos/seed/collection-${item.id}/200/200`,
-                            ),
-                          }}
-                          style={styles.cover}
-                        />
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.optionText, { color: colors.text }]} numberOfLines={1}>
-                            {item.name}
-                          </Text>
-                          <Text style={[styles.countText, { color: colors.secondary }]}>
-                            {count} 张专辑
-                          </Text>
-                        </View>
-                        <Ionicons
-                          name={selected ? "checkmark-circle" : "ellipse-outline"}
-                          size={20}
-                          color={selected ? colors.primary : colors.border}
-                        />
-                      </TouchableOpacity>
-                    );
-                  }}
-                  ItemSeparatorComponent={() => (
-                    <View style={{ height: 1, backgroundColor: colors.border, opacity: 0.3 }} />
-                  )}
-                  contentContainerStyle={{ paddingBottom: 8 }}
-                  ListEmptyComponent={
-                    <Text style={[styles.emptyText, { color: colors.secondary }]}>
-                      暂无合集，点击右上角创建
-                    </Text>
-                  }
-                />
-              )}
+              <View style={{ height: '100%' }}>
+                {loading ? (
+                  <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 12 }} />
+                ) : (
+                  <FlatList
+                    data={collections}
+                    keyExtractor={(item) => String(item.id)}
+                    contentInset={{ bottom: insets.bottom }}
+                    scrollIndicatorInsets={{ bottom: insets.bottom }}
+                    contentInsetAdjustmentBehavior="never"
+                    renderItem={({ item }) => {
+                      const previewCover =
+                        item.cover || item.items?.[0]?.album?.cover || null;
+                      const count = item._count?.items ?? item.items?.length ?? 0;
+                      const selected = membershipSet.has(Number(item.id));
+                      return (
+                        <TouchableOpacity
+                          style={styles.option}
+                          onPress={() => addToCollection(Number(item.id))}
+                          disabled={selected}
+                        >
+                          <CachedImage
+                            source={{
+                              uri: getImageUrl(
+                                previewCover,
+                                `https://picsum.photos/seed/collection-${item.id}/200/200`,
+                              ),
+                            }}
+                            style={styles.cover}
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.optionText, { color: colors.text }]} numberOfLines={1}>
+                              {item.name}
+                            </Text>
+                            <Text style={[styles.countText, { color: colors.secondary }]}>
+                              {count} 张专辑
+                            </Text>
+                          </View>
+                          <Ionicons
+                            name={selected ? "checkmark-circle" : "ellipse-outline"}
+                            size={20}
+                            color={selected ? colors.primary : colors.border}
+                          />
+                        </TouchableOpacity>
+                      );
+                    }}
+                    ItemSeparatorComponent={() => (
+                      <View style={{ height: 1, backgroundColor: colors.border, opacity: 0.3 }} />
+                    )}
+                    contentContainerStyle={{
+                      paddingBottom: 50,
+                    }}
+                    ListEmptyComponent={
+                      <Text style={[styles.emptyText, { color: colors.secondary }]}>
+                        暂无合集，点击右上角创建
+                      </Text>
+                    }
+                  />
+                )}
+              </View>
             </View>
           </Pressable>
         </Pressable>

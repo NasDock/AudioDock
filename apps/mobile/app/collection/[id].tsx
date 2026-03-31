@@ -250,7 +250,7 @@ export default function CollectionDetailScreen() {
       </Modal>
 
       <Modal visible={renameVisible} transparent animationType="fade" onRequestClose={() => setRenameVisible(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setRenameVisible(false)}>
+        <Pressable style={styles.backdropCenter} onPress={() => setRenameVisible(false)}>
           <Pressable style={[styles.renameBox, { backgroundColor: colors.card }]} onPress={(e) => e.stopPropagation()}>
             <Text style={[styles.title, { color: colors.text }]}>修改名称</Text>
             <TextInput
@@ -388,6 +388,12 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     alignItems: "center",
   },
+  backdropCenter: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   sheet: {
     width: "100%",
     maxHeight: "70%",
@@ -453,6 +459,7 @@ const styles = StyleSheet.create({
   uploadBtn: {
     marginTop: 12,
     paddingVertical: 12,
+    marginBottom: 30,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
