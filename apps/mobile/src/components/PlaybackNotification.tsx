@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useSegments } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,10 +11,16 @@ const PlaybackNotification: React.FC = () => {
   const { notification, hideNotification } = useNotification();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const segments = useSegments();
   const translateY = useRef(new Animated.Value(-300)).current;
+  const currentTabSegment = String(segments[1] || "");
+  const isHomeTab =
+    segments[0] === "(tabs)" && (!currentTabSegment || currentTabSegment === "index");
+  const shouldShowNotification =
+    !!notification && (notification.type !== "resume" || isHomeTab);
 
   useEffect(() => {
-    if (notification) {
+    if (shouldShowNotification) {
       Animated.spring(translateY, {
         toValue: insets.top + 10,
         useNativeDriver: true,
@@ -33,7 +40,7 @@ const PlaybackNotification: React.FC = () => {
         useNativeDriver: true,
       }).start();
     }
-  }, [notification]);
+  }, [shouldShowNotification, insets.top]);
 
   const handleAccept = () => {
     notification?.onAccept();
@@ -45,7 +52,7 @@ const PlaybackNotification: React.FC = () => {
     hideNotification();
   };
 
-  if (!notification) return null;
+  if (!notification || !shouldShowNotification) return null;
 
   const artwork = notification.track.cover 
     ? (notification.track.cover.startsWith('http') ? notification.track.cover : `${getBaseURL()}${notification.track.cover}`) 

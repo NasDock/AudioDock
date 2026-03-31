@@ -22,7 +22,7 @@ import { syncWidgetMembership } from "../src/native/WidgetBridge";
 import { PlayerDetailView } from "./player";
 
 function RootLayoutNav() {
-  const { token, isLoading, sourceType, plusToken, user } = useAuth();
+  const { token, isLoading, plusToken, user } = useAuth();
   const { voiceAssistantEnabled, carLayoutMode } = useSettings();
   const { theme, colors } = useTheme();
   const { pause, resume, playNext, playPrevious, togglePlayMode, isPlaying, currentTrack, playTrackList } = usePlayer();
@@ -74,17 +74,14 @@ function RootLayoutNav() {
       segmentName === "member-detail" ||
       segmentName === "tts";
 
-    if (!token && inAuthGroup) {
-      router.replace({
-        pathname: "/login-form",
-        params: { type: sourceType || "AudioDock" },
-      } as any);
-    } else if (token && inAuthGroup && !plusToken) {
-       router.replace("/member-login");
+    if (!plusToken && inAuthGroup) {
+      router.replace("/member-login");
+    } else if (plusToken && !token && inAuthGroup) {
+      router.replace("/login");
     } else if (token && plusToken && !inAuthGroup && !isDetailPage) {
       router.replace("/(tabs)");
     }
-  }, [token, plusToken, segments, isLoading, sourceType]);
+  }, [token, plusToken, segments, isLoading]);
 
   useEffect(() => {
     if (!url) return;

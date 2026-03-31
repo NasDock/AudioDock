@@ -114,7 +114,7 @@ export type WechatPayPayload = {
 };
 
 export type AlipayPayPayload = {
-  orderString: string;
+  orderString: string | null;
   scheme?: string;
 };
 
@@ -159,6 +159,7 @@ export const createPlusPayment = async (
     amount: VIP_PLAN_PRICE[plan],
     currency: "CNY",
     method,
+    clientType: "mobile",
     forVip: true,
     vipTier: VIP_PLAN_TIER[plan],
     forPoints: false,

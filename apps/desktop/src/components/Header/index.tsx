@@ -829,62 +829,7 @@ const Header: React.FC = () => {
               const plusToken = localStorage.getItem("plus_token");
               if (plusToken) {
                 if (isPlusVip) {
-                  modal.info({
-                    title: "会员详情",
-                    content: (
-                      <div style={{ marginTop: 12 }}>
-                        <Flex vertical gap={12}>
-                          <Flex justify="space-between">
-                            <Text type="secondary">会员等级</Text>
-                            <Text strong style={{ color: "#FFD700" }}>
-                              {plusVipData?.vipTier === "LIFETIME"
-                                ? "永久会员"
-                                : "年度会员"}
-                            </Text>
-                          </Flex>
-                          <Flex justify="space-between">
-                            <Text type="secondary">到期时间</Text>
-                            <Text>
-                              {plusVipData?.vipTier === "LIFETIME"
-                                ? "永久有效"
-                                : plusVipData?.vipExpiresAt
-                                  ? new Date(
-                                      plusVipData.vipExpiresAt,
-                                    ).toLocaleDateString()
-                                  : "未知"}
-                            </Text>
-                          </Flex>
-                          <Button 
-                            danger 
-                            ghost 
-                            size="small"
-                            style={{ marginTop: 8 }}
-                            onClick={() => {
-                              modal.confirm({
-                                title: "退出/切换会员账号",
-                                content: "确定要退出/切换会员账号吗？",
-                                okText: "确定",
-                                cancelText: "取消",
-                                onOk: () => {
-                                  localStorage.removeItem("plus_token");
-                                  localStorage.removeItem("plus_user_id");
-                                  removePlusToken();
-                                  setIsPlusVip(false);
-                                  setPlusVipData(null);
-                                  message.success("会员账号已退出/切换");
-                                  navigate("/member-login");
-                                }
-                              });
-                            }}
-                          >
-                            退出/切换会员账号
-                          </Button>
-                        </Flex>
-                      </div>
-                    ),
-                    icon: <CrownFilled style={{ color: "#FFD700" }} />,
-                    okText: "知道了",
-                  });
+                  navigate("/member-detail");
                 } else {
                   navigate("/member-benefits");
                 }
