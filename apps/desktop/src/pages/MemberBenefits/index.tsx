@@ -1,6 +1,6 @@
-import { AlipayCircleFilled, ArrowLeftOutlined, CheckOutlined, CloseOutlined, WechatFilled } from "@ant-design/icons";
-import { plusCreatePayment, plusGetMe, setPlusToken } from "@soundx/services";
-import { Button, Card, Divider, Flex, Layout, Table, Typography, theme } from "antd";
+import { AlipayCircleFilled, ArrowLeftOutlined, CheckOutlined, CloseOutlined, QuestionCircleOutlined, WechatFilled } from "@ant-design/icons";
+import { plusCreatePayment, plusGetMe, plusGetVipCurrentLowestPrice, setPlusToken, type VipCurrentLowestPriceData, type VipCurrentLowestPricePlan } from "@soundx/services";
+import { Alert, Button, Card, Divider, Flex, Layout, Table, Tooltip, Typography, theme } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
@@ -15,9 +15,32 @@ const MemberBenefits: React.FC = () => {
   const message = useMessage();
   const [selectedPlan, setSelectedPlan] = useState<'annual' | 'lifetime'>('lifetime');
   const [loading, setLoading] = useState(false);
+  const [pricing, setPricing] = useState<VipCurrentLowestPriceData | null>(null);
+  const [pricingLoading, setPricingLoading] = useState(true);
   const isElectronRuntime = typeof window !== "undefined" && !!(window as any).ipcRenderer;
   const paymentWindowRef = useRef<Window | null>(null);
   const stopPollingRef = useRef(false);
+
+  const formatPrice = (price: number | null | undefined) => {
+    if (typeof price !== "number" || Number.isNaN(price)) return "--";
+    return Number.isInteger(price) ? String(price) : price.toFixed(2);
+  };
+
+  const formatActivityDateRange = (startsAt: string | null | undefined, endsAt: string | null | undefined) => {
+    if (!startsAt || !endsAt) return "";
+    const start = new Date(startsAt);
+    const end = new Date(endsAt);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
+    const pad = (value: number) => String(value).padStart(2, "0");
+    const format = (value: Date) => `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+    return `${format(start)} 至 ${format(end)}`;
+  };
+
+  const hasDiscount = (plan: VipCurrentLowestPricePlan | null | undefined) =>
+    !!plan && plan.discountPercent > 0 && plan.originalPrice > plan.currentPrice;
+
+  const selectedPlanPrice = pricing?.[selectedPlan]?.currentPrice ?? null;
+  const activityDateRange = formatActivityDateRange(pricing?.startsAt, pricing?.endsAt);
 
   useEffect(() => {
     return () => {
@@ -25,6 +48,38 @@ const MemberBenefits: React.FC = () => {
       try {
         paymentWindowRef.current?.close();
       } catch {}
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPricing = async () => {
+      try {
+        setPricingLoading(true);
+        const res = await plusGetVipCurrentLowestPrice();
+        if (!mounted) return;
+        if (res.data.code === 200) {
+          setPricing(res.data.data ?? null);
+        } else {
+          setPricing(null);
+        }
+      } catch (error) {
+        console.warn("Failed to fetch VIP pricing", error);
+        if (mounted) {
+          setPricing(null);
+        }
+      } finally {
+        if (mounted) {
+          setPricingLoading(false);
+        }
+      }
+    };
+
+    void loadPricing();
+
+    return () => {
+      mounted = false;
     };
   }, []);
 
@@ -143,6 +198,11 @@ const MemberBenefits: React.FC = () => {
   };
 
   const handlePayment = async (method: 'WECHAT' | 'ALIPAY') => {
+    if (selectedPlanPrice == null) {
+      message.warning("当前会员价格暂不可用，请稍后重试");
+      return;
+    }
+
     const userIdStr = localStorage.getItem("plus_user_id");
     if (!userIdStr) {
       message.error("请先登录会员账号");
@@ -161,7 +221,7 @@ const MemberBenefits: React.FC = () => {
     try {
       const res = await plusCreatePayment({
         userId,
-        amount: 0.01,
+        amount: selectedPlanPrice,
         currency: "CNY",
         method,
         clientType: isElectronRuntime ? "desktop" : "web",
@@ -244,6 +304,15 @@ const MemberBenefits: React.FC = () => {
 
           <Divider style={{margin: '12px 0'}} />
 
+          {pricing?.name ? (
+            <Alert
+              type="info"
+              showIcon
+              message={`${pricing.name} 活动正在进行中${activityDateRange ? ` · ${activityDateRange}` : ""}`}
+              style={{ marginBottom: 16 }}
+            />
+          ) : null}
+
           {/* Comparison Table */}
           <Table 
             dataSource={comparisonData} 
@@ -269,9 +338,20 @@ const MemberBenefits: React.FC = () => {
                     <Title level={5}>年卡</Title>
                     <div className={styles.price}>
                         <span className={styles.currency}>¥</span>
-                        <span className={styles.amount}>20</span>
+                        <span className={styles.amount}>{formatPrice(pricing?.annual?.currentPrice)}</span>
                         <span className={styles.unit}>/年</span>
+                        {pricing?.name ? (
+                          <Tooltip title={pricing.description || "当前活动暂无更多说明"}>
+                            <QuestionCircleOutlined className={styles.unitIcon} />
+                          </Tooltip>
+                        ) : null}
                     </div>
+                    {hasDiscount(pricing?.annual) ? (
+                      <div className={styles.priceMeta}>
+                        <Text delete type="secondary">原价 ¥{formatPrice(pricing?.annual?.originalPrice)}</Text>
+                        <Text type="secondary">立省 {formatPrice((pricing?.annual?.originalPrice ?? 0) - (pricing?.annual?.currentPrice ?? 0))}</Text>
+                      </div>
+                    ) : null}
                 </Card>
                 <Card 
                   className={`${styles.priceCard} ${selectedPlan === 'lifetime' ? styles.selectedCard : ''}`}
@@ -286,21 +366,39 @@ const MemberBenefits: React.FC = () => {
                     <Title level={5}>永久卡</Title>
                     <div className={styles.price}>
                         <span className={styles.currency}>¥</span>
-                        <span className={styles.amount}>60</span>
+                        <span className={styles.amount}>{formatPrice(pricing?.lifetime?.currentPrice)}</span>
                         <span className={styles.unit}>/永久</span>
+                        {pricing?.name ? (
+                          <Tooltip title={pricing.description || "当前活动暂无更多说明"}>
+                            <QuestionCircleOutlined className={styles.unitIcon} />
+                          </Tooltip>
+                        ) : null}
                     </div>
+                    {hasDiscount(pricing?.lifetime) ? (
+                      <div className={styles.priceMeta}>
+                        <Text delete type="secondary">原价 ¥{formatPrice(pricing?.lifetime?.originalPrice)}</Text>
+                        <Text type="secondary">立省 {formatPrice((pricing?.lifetime?.originalPrice ?? 0) - (pricing?.lifetime?.currentPrice ?? 0))}</Text>
+                      </div>
+                    ) : null}
                 </Card>
             </Flex>
           </div>
 
-          <Text>支付方式</Text>
+          <div style={{ marginTop: 8, marginBottom: 8 }}>
+            <Text>支付方式</Text>
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                虚拟产品售出无法退款，请理性消费
+              </Text>
+            </div>
+          </div>
           <Flex justify="space-between" gap={20} className={styles.paymentMethods}>
              <Flex 
                 align="center" 
                 gap={8} 
                 className={styles.paymentItem}
-                onClick={() => !loading && handlePayment('WECHAT')}
-                style={{ opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+                onClick={() => !loading && selectedPlanPrice != null && handlePayment('WECHAT')}
+                style={{ opacity: loading || selectedPlanPrice == null ? 0.6 : 1, cursor: loading || selectedPlanPrice == null ? 'not-allowed' : 'pointer' }}
              >
                 <WechatFilled style={{ fontSize: 24, color: '#1AAD19' }} />
                 <Text style={{ fontWeight: 500 }}>微信</Text>
@@ -309,8 +407,8 @@ const MemberBenefits: React.FC = () => {
                 align="center" 
                 gap={8} 
                 className={styles.paymentItem}
-                onClick={() => !loading && handlePayment('ALIPAY')}
-                style={{ opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+                onClick={() => !loading && selectedPlanPrice != null && handlePayment('ALIPAY')}
+                style={{ opacity: loading || selectedPlanPrice == null ? 0.6 : 1, cursor: loading || selectedPlanPrice == null ? 'not-allowed' : 'pointer' }}
              >
                 <AlipayCircleFilled style={{ fontSize: 24, color: '#02A9F1' }} />
                 <Text style={{ fontWeight: 500 }}>支付宝</Text>
