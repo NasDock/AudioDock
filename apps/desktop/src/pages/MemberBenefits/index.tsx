@@ -1,7 +1,7 @@
 import { AlipayCircleFilled, ArrowLeftOutlined, CheckOutlined, CloseOutlined, WechatFilled } from "@ant-design/icons";
-import { plusCreatePayment } from "@soundx/services";
+import { plusCreatePayment, plusGetMe, setPlusToken } from "@soundx/services";
 import { Button, Card, Divider, Flex, Layout, Table, Typography, theme } from "antd";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
 import styles from "./index.module.less";
@@ -15,8 +15,77 @@ const MemberBenefits: React.FC = () => {
   const message = useMessage();
   const [selectedPlan, setSelectedPlan] = useState<'annual' | 'lifetime'>('lifetime');
   const [loading, setLoading] = useState(false);
+  const isElectronRuntime = typeof window !== "undefined" && !!(window as any).ipcRenderer;
+  const paymentWindowRef = useRef<Window | null>(null);
+  const stopPollingRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      stopPollingRef.current = true;
+      try {
+        paymentWindowRef.current?.close();
+      } catch {}
+    };
+  }, []);
+
+  const sleep = (ms: number) =>
+    new Promise((resolve) => window.setTimeout(resolve, ms));
+
+  const refreshVipStatus = async (): Promise<boolean> => {
+    try {
+      const plusToken = localStorage.getItem("plus_token");
+      const plusUserId = localStorage.getItem("plus_user_id");
+      if (!plusToken || !plusUserId) {
+        return false;
+      }
+
+      setPlusToken(plusToken);
+      let id: any = plusUserId;
+      try {
+        id = JSON.parse(plusUserId);
+      } catch {}
+
+      const res = await plusGetMe(id);
+      const vipTier = res?.data?.data?.vipTier;
+      const isVip = !!vipTier && vipTier !== "NONE";
+      if (!isVip) {
+        return false;
+      }
+
+      localStorage.setItem("plus_vip_status", "true");
+      localStorage.setItem("plus_vip_data", JSON.stringify(res.data.data || {}));
+      localStorage.setItem("plus_vip_updated_at", Date.now().toString());
+      return true;
+    } catch (error) {
+      console.warn("Failed to refresh vip status", error);
+      return false;
+    }
+  };
+
+  const waitForVipActivation = async () => {
+    const startedAt = Date.now();
+    const timeoutMs = 5 * 60 * 1000;
+
+    while (Date.now() - startedAt < timeoutMs && !stopPollingRef.current) {
+      const activated = await refreshVipStatus();
+      if (activated) {
+        return true;
+      }
+      if (paymentWindowRef.current?.closed) {
+        return false;
+      }
+      await sleep(2000);
+    }
+
+    return false;
+  };
 
   const openCashierWindow = (url: string) => {
+    if (!isElectronRuntime) {
+      paymentWindowRef.current = window.open(url, "_blank", "noopener,noreferrer");
+      return paymentWindowRef.current;
+    }
+
     const width = 960;
     const height = 720;
     const left = Math.max(0, Math.round(window.screenX + (window.outerWidth - width) / 2));
@@ -30,9 +99,46 @@ const MemberBenefits: React.FC = () => {
       "scrollbars=yes",
     ].join(",");
 
-    const popup = window.open(url, "audiodock_payment_cashier", features);
+    const popup = window.open(url, "audiodock_payment_cashier", features)
+      || window.open(url, "_blank", "noopener,noreferrer");
+    paymentWindowRef.current = popup;
+    return popup;
+  };
+
+  const openCashierAndWaitForPayment = async (paymentUrl: string) => {
+    stopPollingRef.current = false;
+    const popup = openCashierWindow(paymentUrl);
     if (!popup) {
-      window.open(url, "_blank", "noopener,noreferrer");
+      message.warning("支付窗口被拦截，请允许弹窗后重试");
+      return;
+    }
+
+    const activated = await waitForVipActivation();
+    if (activated) {
+      try {
+        paymentWindowRef.current?.close();
+      } catch {}
+      paymentWindowRef.current = null;
+      message.success("支付成功，会员权益已生效");
+      navigate("/member-detail", { replace: true });
+      return;
+    }
+
+    const paidAfterClose = await refreshVipStatus();
+    if (paidAfterClose) {
+      try {
+        paymentWindowRef.current?.close();
+      } catch {}
+      paymentWindowRef.current = null;
+      message.success("支付成功，会员权益已生效");
+      navigate("/member-detail", { replace: true });
+      return;
+    }
+
+    if (paymentWindowRef.current?.closed) {
+      message.info("支付窗口已关闭。如已完成支付，可稍后进入会员详情查看状态。");
+    } else {
+      message.info("支付处理中，可在收银台完成支付后自动返回会员状态。");
     }
   };
 
@@ -55,10 +161,10 @@ const MemberBenefits: React.FC = () => {
     try {
       const res = await plusCreatePayment({
         userId,
-        amount: selectedPlan === 'lifetime' ? 60 : 20,
+        amount: 0.01,
         currency: "CNY",
         method,
-        clientType: "desktop",
+        clientType: isElectronRuntime ? "desktop" : "web",
         forVip: true,
         vipTier: selectedPlan === 'lifetime' ? "LIFETIME" : "BASIC",
         forPoints: false,
@@ -69,7 +175,7 @@ const MemberBenefits: React.FC = () => {
       if (res.data.code === 201 || res.data.code === 200) {
         const { paymentUrl, alipayPay } = res.data.data;
         if (paymentUrl) {
-            openCashierWindow(paymentUrl);
+            void openCashierAndWaitForPayment(paymentUrl);
             if (method === "ALIPAY" && !alipayPay?.orderString) {
               message.success("支付宝收银台已打开");
             } else {
