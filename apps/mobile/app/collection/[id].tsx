@@ -1,13 +1,14 @@
 import { CachedImage } from "@/src/components/CachedImage";
+import SkeletonBlock from "@/src/components/SkeletonBlock";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Album, AudiobookCollection } from "@/src/models";
-import { getCollectionById, reorderCollection, updateCollection, uploadCollectionCover } from "@soundx/services";
+import { getCollectionById, removeAlbumFromCollection, reorderCollection, updateCollection, uploadCollectionCover } from "@soundx/services";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import {
-  ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -19,6 +20,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getImageUrl } from "@/src/utils/image";
+
+const COLLECTION_ITEM_COVER_SIZE = 20;
 
 export default function CollectionDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -123,17 +126,41 @@ export default function CollectionDetailScreen() {
     await handleReorder(nextAlbums);
   };
 
+  const handleRemoveAlbum = (album: Album) => {
+    if (!collection) return;
+    Alert.alert(
+      "移出合集",
+      `确定将《${album.name}》从当前合集移除吗？`,
+      [
+        { text: "取消", style: "cancel" },
+        {
+          text: "删除",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const res = await removeAlbumFromCollection(collection.id, album.id);
+              if (res.code === 200) {
+                setAlbums((prev) => prev.filter((item) => item.id !== album.id));
+              } else {
+                Alert.alert("提示", res.message || "移除失败");
+              }
+            } catch (error) {
+              console.error("Remove album failed", error);
+              Alert.alert("提示", "移除失败");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const cover = useMemo(
     () => collection?.cover || albums[0]?.cover || null,
     [collection, albums]
   );
 
   if (loading) {
-    return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return <CollectionDetailSkeleton />;
   }
 
   if (!collection) {
@@ -198,6 +225,16 @@ export default function CollectionDetailScreen() {
               color={index === albums.length - 1 ? colors.border : colors.secondary}
             />
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.reorderBtn}
+            onPress={() => handleRemoveAlbum(item)}
+          >
+            <Ionicons
+              name="trash-outline"
+              size={18}
+              color="#ff4d4f"
+            />
+          </TouchableOpacity>
         </View>
       )}
     </TouchableOpacity>
@@ -210,9 +247,6 @@ export default function CollectionDetailScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={() => setReorderMode((prev) => !prev)} style={styles.iconBtn}>
-            <Ionicons name="swap-vertical" size={20} color={colors.text} />
-          </TouchableOpacity>
           <TouchableOpacity onPress={() => setMoreVisible(true)} style={styles.iconBtn}>
             <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
           </TouchableOpacity>
@@ -239,13 +273,25 @@ export default function CollectionDetailScreen() {
         data={albums}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item, index }) => renderAlbumItem({ item, index })}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={styles.listContent}
       />
 
       <Modal visible={moreVisible} transparent animationType="slide" onRequestClose={() => setMoreVisible(false)}>
         <Pressable style={styles.backdrop} onPress={() => setMoreVisible(false)}>
           <Pressable style={[styles.sheet, { backgroundColor: colors.card }]} onPress={(e) => e.stopPropagation()}>
             <View style={styles.handle} />
+            <TouchableOpacity
+              style={styles.sheetItem}
+              onPress={() => {
+                setMoreVisible(false);
+                setReorderMode((prev) => !prev);
+              }}
+            >
+              <Ionicons name="swap-vertical" size={22} color={colors.text} />
+              <Text style={[styles.sheetText, { color: colors.text }]}>
+                {reorderMode ? "完成排序" : "调整排序"}
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.sheetItem}
               onPress={() => {
@@ -337,6 +383,53 @@ export default function CollectionDetailScreen() {
   );
 }
 
+function CollectionDetailSkeleton() {
+  const { colors } = useTheme();
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={styles.header}>
+        <View style={styles.backButton}>
+          <SkeletonBlock width={24} height={24} borderRadius={12} />
+        </View>
+        <View style={styles.headerActions}>
+          <SkeletonBlock width={20} height={20} borderRadius={10} />
+        </View>
+      </View>
+
+      <View style={styles.coverSection}>
+        <SkeletonBlock width={140} height={140} borderRadius={20} style={{ marginBottom: 12 }} />
+        <SkeletonBlock width={180} height={26} borderRadius={10} style={{ marginBottom: 8 }} />
+        <SkeletonBlock width={90} height={16} borderRadius={8} />
+      </View>
+
+      <View style={styles.listContent}>
+        {Array.from({ length: 8 }).map((_, index) => (
+          <View
+            key={index}
+            style={[styles.albumItem, { borderBottomColor: colors.border }]}
+          >
+            <SkeletonBlock
+              width={COLLECTION_ITEM_COVER_SIZE}
+              height={COLLECTION_ITEM_COVER_SIZE}
+              borderRadius={2}
+            />
+            <View style={styles.albumInfo}>
+              <SkeletonBlock
+                width={index % 3 === 0 ? "72%" : index % 3 === 1 ? "58%" : "66%"}
+                height={16}
+                borderRadius={8}
+                style={{ marginBottom: 6 }}
+              />
+              <SkeletonBlock width="36%" height={12} borderRadius={6} />
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -359,6 +452,10 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     gap: 12,
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   iconBtn: {
     padding: 6,
@@ -384,25 +481,24 @@ const styles = StyleSheet.create({
   albumItem: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
   },
   albumCover: {
-    width: 56,
-    height: 56,
-    borderRadius: 10,
-    marginRight: 12,
+    width: COLLECTION_ITEM_COVER_SIZE,
+    height: COLLECTION_ITEM_COVER_SIZE,
+    borderRadius: 2,
+  },
+  albumInfo: {
+    flex: 1,
+    marginHorizontal: 10,
   },
   albumTitle: {
-    fontSize: 15,
-    fontWeight: "500",
+    fontSize: 16,
+    marginBottom: 2,
   },
   albumSub: {
     fontSize: 12,
-    marginTop: 4,
   },
   reorderActions: {
     justifyContent: "center",
