@@ -17,7 +17,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getImageUrl } from "@/src/utils/image";
 
@@ -116,6 +115,14 @@ export default function CollectionDetailScreen() {
     await reorderCollection(collection.id, nextAlbums.map((a) => a.id));
   };
 
+  const moveAlbum = async (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= albums.length || fromIndex === toIndex) return;
+    const nextAlbums = [...albums];
+    const [moved] = nextAlbums.splice(fromIndex, 1);
+    nextAlbums.splice(toIndex, 0, moved);
+    await handleReorder(nextAlbums);
+  };
+
   const cover = useMemo(
     () => collection?.cover || albums[0]?.cover || null,
     [collection, albums]
@@ -137,16 +144,18 @@ export default function CollectionDetailScreen() {
     );
   }
 
-  const renderAlbumItem = ({ item, drag, isActive }: RenderItemParams<Album>) => (
+  const renderAlbumItem = ({ item, index }: { item: Album; index: number }) => (
     <TouchableOpacity
-      onLongPress={reorderMode ? drag : undefined}
-      disabled={isActive}
+      disabled={reorderMode}
       style={[
         styles.albumItem,
         { backgroundColor: colors.card, borderColor: colors.border },
-        isActive && { opacity: 0.7 },
       ]}
-      onPress={() => router.push(`/album/${item.id}`)}
+      onPress={() => {
+        if (!reorderMode) {
+          router.push(`/album/${item.id}`);
+        }
+      }}
     >
       <CachedImage
         source={{
@@ -166,7 +175,30 @@ export default function CollectionDetailScreen() {
         </Text>
       </View>
       {reorderMode && (
-        <Ionicons name="reorder-two" size={20} color={colors.secondary} />
+        <View style={styles.reorderActions}>
+          <TouchableOpacity
+            style={styles.reorderBtn}
+            onPress={() => void moveAlbum(index, index - 1)}
+            disabled={index === 0}
+          >
+            <Ionicons
+              name="chevron-up"
+              size={18}
+              color={index === 0 ? colors.border : colors.secondary}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.reorderBtn}
+            onPress={() => void moveAlbum(index, index + 1)}
+            disabled={index === albums.length - 1}
+          >
+            <Ionicons
+              name="chevron-down"
+              size={18}
+              color={index === albums.length - 1 ? colors.border : colors.secondary}
+            />
+          </TouchableOpacity>
+        </View>
       )}
     </TouchableOpacity>
   );
@@ -203,22 +235,12 @@ export default function CollectionDetailScreen() {
         </Text>
       </View>
 
-      {reorderMode ? (
-        <DraggableFlatList
-          data={albums}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={renderAlbumItem}
-          onDragEnd={({ data }) => handleReorder(data)}
-          contentContainerStyle={{ paddingBottom: 40 }}
-        />
-      ) : (
-        <FlatList
-          data={albums}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={(info) => renderAlbumItem({ ...info, drag: () => {}, isActive: false })}
-          contentContainerStyle={{ paddingBottom: 40 }}
-        />
-      )}
+      <FlatList
+        data={albums}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={({ item, index }) => renderAlbumItem({ item, index })}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      />
 
       <Modal visible={moreVisible} transparent animationType="slide" onRequestClose={() => setMoreVisible(false)}>
         <Pressable style={styles.backdrop} onPress={() => setMoreVisible(false)}>
@@ -381,6 +403,16 @@ const styles = StyleSheet.create({
   albumSub: {
     fontSize: 12,
     marginTop: 4,
+  },
+  reorderActions: {
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 2,
+    marginLeft: 8,
+  },
+  reorderBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   backdrop: {
     flex: 1,

@@ -36,7 +36,7 @@ export interface LoginDto {
 
 export type PaymentMethod = "WECHAT" | "ALIPAY" | "STRIPE" | "PAYPAL" | "OTHER";
 export type VipTier = "NONE" | "BASIC" | "PREMIUM" | "LIFETIME";
-export type PaymentClientType = "web" | "desktop" | "mobile" | "mini";
+export type PaymentClientType = "app" | "web" | "desktop" | "mobile" | "mini";
 
 export interface CreatePaymentDto {
   userId: string;
