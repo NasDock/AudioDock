@@ -155,7 +155,7 @@ export const createPlusPayment = async (
     amount,
     currency: "CNY",
     method,
-    clientType: "mobile",
+    clientType: "app",
     forVip: true,
     vipTier: VIP_PLAN_TIER[plan],
     forPoints: false,
