@@ -402,13 +402,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       const playlistsRes = await getPlaylists(mode as any, user.id);
       const historyRes =
         mode === "AUDIOBOOK"
-          ? await getAlbumHistory(user.id, 0, 3, "AUDIOBOOK")
-          : await getTrackHistory(user.id, 0, 3, "MUSIC");
-      const latestRes = await getLatestTracks("MUSIC", false, 5);
+          ? await getAlbumHistory(user.id, 0, 4, "AUDIOBOOK")
+          : await getTrackHistory(user.id, 0, 4, "MUSIC");
+      const latestRes = await getLatestTracks("MUSIC", false, 7);
       const recommendationsRes = await getRecommendedAlbums(
         mode,
         true,
-        3,
+        4,
         recommendationLikeRatio
       );
       const playlists = playlistsRes.code === 200 ? playlistsRes.data : [];
