@@ -1,9 +1,24 @@
 import axios from "axios";
 import { ISuccessResponse } from "./models";
+import { io, type Socket } from "socket.io-client";
+
+export const PLUS_API_BASE_URL = "https://www.audiodock.cn/api";
+export const PLUS_WS_BASE_URL = "https://www.audiodock.cn";
 
 const plusRequest = axios.create({
-  baseURL: "https://www.audiodock.cn/api",
+  baseURL: PLUS_API_BASE_URL,
 });
+
+let plusSocket: Socket | null = null;
+
+export const getPlusSocket = (): Socket => {
+  if (!plusSocket) {
+    plusSocket = io(PLUS_WS_BASE_URL, {
+      transports: ["websocket"],
+    });
+  }
+  return plusSocket;
+};
 
 /**
  * 设置 Plus 服务的验证 Token

@@ -10,7 +10,6 @@ import {
   plusCreatePayment,
   plusGetMe,
   plusGetVipCurrentLowestPrice,
-  setPlusToken,
   type VipCurrentLowestPriceData,
   type VipCurrentLowestPricePlan,
 } from "@soundx/services";
@@ -21,6 +20,7 @@ import {
   Divider,
   Flex,
   Layout,
+  Modal,
   Table,
   Tooltip,
   Typography,
@@ -29,6 +29,7 @@ import {
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
+import { useAuthStore } from "../../store/auth";
 import styles from "./index.module.less";
 
 const { Title, Text } = Typography;
@@ -38,6 +39,8 @@ const MemberBenefits: React.FC = () => {
   const { token } = theme.useToken();
   const navigate = useNavigate();
   const message = useMessage();
+  const { setPlusToken: setMemberToken } = useAuthStore();
+  const [modal, contextHolder] = Modal.useModal();
   const [selectedPlan, setSelectedPlan] = useState<"annual" | "lifetime">(
     "lifetime",
   );
@@ -127,7 +130,7 @@ const MemberBenefits: React.FC = () => {
         return false;
       }
 
-      setPlusToken(plusToken);
+      setMemberToken(plusToken);
       let id: any = plusUserId;
       try {
         id = JSON.parse(plusUserId);
@@ -244,6 +247,27 @@ const MemberBenefits: React.FC = () => {
     } else {
       message.info("支付处理中，可在收银台完成支付后自动返回会员状态。");
     }
+  };
+
+  const clearMemberSession = () => {
+    setMemberToken(null);
+    localStorage.removeItem("plus_vip_status");
+    localStorage.removeItem("plus_vip_data");
+    localStorage.removeItem("plus_vip_updated_at");
+  };
+
+  const handleChangeMember = () => {
+    modal.confirm({
+      title: "切换会员账号",
+      content: "继续后会清除当前会员账号的本地登录状态，并跳转到会员登录页。",
+      okText: "确认",
+      cancelText: "取消",
+      onOk: () => {
+        clearMemberSession();
+        message.success("已退出当前会员账号");
+        navigate("/member-login", { replace: true });
+      },
+    });
   };
 
   const handlePayment = async (method: "WECHAT" | "ALIPAY") => {
@@ -364,6 +388,7 @@ const MemberBenefits: React.FC = () => {
           className={styles.card}
           style={{ background: token.colorBgContainer }}
         >
+          {contextHolder}
           {/* Header */}
           <div className={styles.pageHeader}>
             <Button
@@ -534,6 +559,12 @@ const MemberBenefits: React.FC = () => {
               <AlipayCircleFilled style={{ fontSize: 24, color: "#02A9F1" }} />
               <Text style={{ fontWeight: 500 }}>支付宝</Text>
             </Flex>
+          </Flex>
+
+          <Divider style={{ margin: "28px 0 16px" }} />
+
+          <Flex gap={12} className={styles.accountActions}>
+            <Button onClick={handleChangeMember}>切换会员账号</Button>
           </Flex>
         </div>
       </Content>

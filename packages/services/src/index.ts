@@ -16,6 +16,7 @@ export * from "./admin";
 export * from "./config";
 export * from "./plus";
 export * from "./search-record";
+export * from "./scan-login";
 export * from "./track";
 export * from "./tts";
 export * from "./user";
