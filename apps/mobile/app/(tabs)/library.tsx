@@ -680,7 +680,7 @@ const CollectionList = () => {
   // Calculate columns dynamically
   const availableWidth = width - SCREEN_PADDING;
   const numColumns = Math.max(
-    2,
+    3,
     Math.floor((availableWidth + GAP) / (TARGET_WIDTH + GAP)),
   );
   const itemWidth = (availableWidth - (numColumns - 1) * GAP) / numColumns;

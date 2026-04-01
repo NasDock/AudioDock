@@ -21,7 +21,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getImageUrl } from "@/src/utils/image";
 
-const COLLECTION_ITEM_COVER_SIZE = 20;
+const COLLECTION_ITEM_COVER_SIZE = 56;
 
 export default function CollectionDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -247,9 +247,15 @@ export default function CollectionDetailScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={() => setMoreVisible(true)} style={styles.iconBtn}>
-            <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
-          </TouchableOpacity>
+          {reorderMode ? (
+            <TouchableOpacity onPress={() => setReorderMode(false)} style={styles.iconBtn}>
+              <Ionicons name="checkmark" size={22} color={colors.text} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={() => setMoreVisible(true)} style={styles.iconBtn}>
+              <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -487,7 +493,8 @@ const styles = StyleSheet.create({
   albumCover: {
     width: COLLECTION_ITEM_COVER_SIZE,
     height: COLLECTION_ITEM_COVER_SIZE,
-    borderRadius: 2,
+    borderRadius: 10,
+    marginRight: 12,
   },
   albumInfo: {
     flex: 1,
