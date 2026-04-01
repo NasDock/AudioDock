@@ -18,6 +18,7 @@ import { ImportController } from './controllers/import';
 import { LlmController } from './controllers/llm.controller';
 import { PlaylistController } from './controllers/playlist';
 import { SearchRecordController } from './controllers/search-record';
+import { ScanLoginController } from './controllers/scan-login.controller';
 import { TrackController } from './controllers/track';
 import { UserController } from './controllers/user';
 import { UserAlbumHistoryController } from './controllers/user-album-history';
@@ -38,6 +39,7 @@ import { ImportService } from './services/import';
 import { LlmService } from './services/llm.service';
 import { PlaylistService } from './services/playlist';
 import { SearchRecordService } from './services/search-record';
+import { ScanLoginService } from './services/scan-login.service';
 import { TrackService } from './services/track';
 import { UserService } from './services/user';
 import { UserAlbumHistoryService } from './services/user-album-history';
@@ -92,6 +94,7 @@ import { UserTrackLikeService } from './services/user-track-like';
     PlaylistController,
     FolderController,
     SearchRecordController,
+    ScanLoginController,
     LlmController,
   ],
   providers: [
@@ -124,6 +127,7 @@ import { UserTrackLikeService } from './services/user-track-like';
     PlaylistService,
     FolderService,
     SearchRecordService,
+    ScanLoginService,
     LlmService,
     SyncGateway,
   ],
