@@ -91,7 +91,8 @@
             "networkSecurityConfig": "res/xml/network_security_config.xml"
           }
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
