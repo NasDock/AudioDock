@@ -11,7 +11,7 @@ import {
   SOURCEMAP,
   SOURCETIPSMAP,
 } from "@soundx/services";
-import { Camera } from "expo-camera";
+import { Camera, CameraView } from "expo-camera";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -72,12 +72,24 @@ export default function LoginFormScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [permission, requestPermission] = Camera.useCameraPermissions();
+  const [permission, setPermission] = useState<any>(null);
   const [hasScanned, setHasScanned] = useState(false);
+
+  const requestPermission = async () => {
+    const nextPermission = await Camera.requestCameraPermissionsAsync();
+    setPermission(nextPermission);
+    return nextPermission;
+  };
 
   useEffect(() => {
     setPanelMode(isLandscape ? "manual" : "scan");
   }, [isLandscape]);
+
+  useEffect(() => {
+    Camera.getCameraPermissionsAsync()
+      .then(setPermission)
+      .catch((error) => console.error("Failed to load camera permission:", error));
+  }, []);
 
   useEffect(() => {
     loadSourceConfig(sourceType);
@@ -463,9 +475,9 @@ export default function LoginFormScreen() {
           请扫描 desktop 或 mobile 横屏登录页上的二维码，扫码后对方会展示待导入的数据源。
         </Text>
         <View style={styles.cameraFrame}>
-          <Camera
+          <CameraView
             style={styles.camera}
-            type={Camera.Constants.Type.back}
+            facing="back"
             onBarcodeScanned={handleBarcodeScanned}
           />
         </View>

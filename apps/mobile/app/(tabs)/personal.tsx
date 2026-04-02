@@ -53,7 +53,7 @@ import { CachedImage } from "@/src/components/CachedImage";
 import { UpdateModal } from "@/src/components/UpdateModal";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { claimScanLoginSession } from "@soundx/services";
-import { Camera } from "expo-camera";
+import { Camera, CameraView } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { collectMobileScanLoginPayload } from "../../src/utils/scanLogin";
 const logo = require("../../assets/images/logo.png");
@@ -110,7 +110,7 @@ export default function PersonalScreen() {
   const { playTrackList } = usePlayer();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [permission, requestPermission] = Camera.useCameraPermissions();
+  const [permission, setPermission] = useState<any>(null);
   const {
     checkUpdate,
     progress,
@@ -129,9 +129,21 @@ export default function PersonalScreen() {
   const [scanBusy, setScanBusy] = useState(false);
   const [hasScanned, setHasScanned] = useState(false);
 
+  const requestPermission = async () => {
+    const nextPermission = await Camera.requestCameraPermissionsAsync();
+    setPermission(nextPermission);
+    return nextPermission;
+  };
+
   useEffect(() => {
     setAvatarOverride((user as any)?.avatar || null);
   }, [user]);
+
+  useEffect(() => {
+    Camera.getCameraPermissionsAsync()
+      .then(setPermission)
+      .catch((error) => console.error("Failed to load camera permission:", error));
+  }, []);
 
   const handleOpenScanEntry = () => {
     setHasScanned(false);
@@ -1045,9 +1057,9 @@ export default function PersonalScreen() {
                   请扫描 desktop 或 mobile 横屏登录页上的二维码
                 </Text>
                 <View style={styles.scanCameraFrame}>
-                  <Camera
+                  <CameraView
                     style={styles.scanCamera}
-                    type={Camera.Constants.Type.back}
+                    facing="back"
                     onBarcodeScanned={hasScanned ? undefined : handleBarcodeScanned}
                   />
                 </View>
