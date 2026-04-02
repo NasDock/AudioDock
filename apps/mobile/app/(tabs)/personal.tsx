@@ -52,7 +52,10 @@ import { useCheckUpdate } from "@/hooks/useCheckUpdate";
 import { CachedImage } from "@/src/components/CachedImage";
 import { UpdateModal } from "@/src/components/UpdateModal";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { claimScanLoginSession } from "@soundx/services";
+import { Camera } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import { collectMobileScanLoginPayload } from "../../src/utils/scanLogin";
 const logo = require("../../assets/images/logo.png");
 const subsonicLogo = require("../../assets/images/subsonic.png");
 const embyLogo = require("../../assets/images/emby.png");
@@ -107,6 +110,7 @@ export default function PersonalScreen() {
   const { playTrackList } = usePlayer();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const [permission, requestPermission] = Camera.useCameraPermissions();
   const {
     checkUpdate,
     progress,
@@ -121,10 +125,49 @@ export default function PersonalScreen() {
   const [isModalVisible, setModalVisible] = useState(false);
   const [avatarOverride, setAvatarOverride] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [scanModalVisible, setScanModalVisible] = useState(false);
+  const [scanBusy, setScanBusy] = useState(false);
+  const [hasScanned, setHasScanned] = useState(false);
 
   useEffect(() => {
     setAvatarOverride((user as any)?.avatar || null);
   }, [user]);
+
+  const handleOpenScanEntry = () => {
+    setHasScanned(false);
+    setScanModalVisible(true);
+  };
+
+  const handleBarcodeScanned = async ({ data }: { data: string }) => {
+    if (hasScanned || scanBusy) return;
+    setHasScanned(true);
+    try {
+      setScanBusy(true);
+      const parsed = JSON.parse(data);
+      if (parsed?.kind !== "soundx-scan-login") {
+        throw new Error("不是有效的扫码登录二维码");
+      }
+
+      const payload = await collectMobileScanLoginPayload();
+      if (!payload.nativeAuth && !payload.plusAuth) {
+        throw new Error("当前设备还没有可供迁移的登录态，请先在本机登录");
+      }
+
+      await claimScanLoginSession(parsed.sessionId, {
+        secret: parsed.secret,
+        payload,
+      });
+
+      Alert.alert("扫码成功", "请在另一台设备上确认导入");
+      setScanModalVisible(false);
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert("扫码失败", error.message || "请重试");
+      setHasScanned(false);
+    } finally {
+      setScanBusy(false);
+    }
+  };
 
   const handleChangeAvatar = async () => {
     if (!user?.id || uploadingAvatar) return;
@@ -766,6 +809,12 @@ export default function PersonalScreen() {
           )}
 
           <TouchableOpacity
+            onPress={handleOpenScanEntry}
+            style={[styles.iconBtn, { marginRight: 10 }]}
+          >
+            <Ionicons name="scan-outline" size={22} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={() => router.push("/source-manage" as any)}
             style={[styles.iconBtn, { marginRight: 10 }]}
           >
@@ -958,6 +1007,67 @@ export default function PersonalScreen() {
           setModalVisible(false);
         }}
       />
+
+      <Modal
+        visible={scanModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setScanModalVisible(false)}
+      >
+        <View style={styles.scanModalOverlay}>
+          <View
+            style={[
+              styles.scanModalContent,
+              { backgroundColor: colors.card, borderColor: colors.border, paddingTop: insets.top + 16 },
+            ]}
+          >
+            <View style={styles.scanModalHeader}>
+              <Text style={[styles.scanModalTitle, { color: colors.text }]}>扫码登录</Text>
+              <TouchableOpacity onPress={() => setScanModalVisible(false)} style={styles.iconBtn}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {!permission?.granted ? (
+              <View style={styles.scanPermissionState}>
+                <Ionicons name="camera-outline" size={36} color={colors.text} />
+                <Text style={[styles.scanHintText, { color: colors.text }]}>需要开启相机权限后才能扫码</Text>
+                <TouchableOpacity
+                  style={[styles.scanPrimaryButton, { backgroundColor: colors.primary }]}
+                  onPress={requestPermission}
+                >
+                  <Text style={[styles.scanPrimaryButtonText, { color: colors.background }]}>开启相机扫码</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <Text style={[styles.scanHintText, { color: colors.secondary }]}>
+                  请扫描 desktop 或 mobile 横屏登录页上的二维码
+                </Text>
+                <View style={styles.scanCameraFrame}>
+                  <Camera
+                    style={styles.scanCamera}
+                    type={Camera.Constants.Type.back}
+                    onBarcodeScanned={hasScanned ? undefined : handleBarcodeScanned}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.scanSecondaryButton,
+                    { borderColor: colors.border, backgroundColor: colors.background },
+                  ]}
+                  onPress={() => setHasScanned(false)}
+                  disabled={scanBusy}
+                >
+                  <Text style={[styles.scanSecondaryButtonText, { color: colors.text }]}>
+                    {scanBusy ? "处理中..." : "重新扫码"}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={createModalVisible}
@@ -1599,6 +1709,75 @@ const styles = StyleSheet.create({
   importHideBtn: {
     paddingVertical: 12,
     alignItems: "center",
+  },
+  scanModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  scanModalContent: {
+    width: "100%",
+    maxWidth: 440,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderWidth: 1,
+  },
+  scanModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  scanModalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  scanPermissionState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 32,
+    gap: 16,
+  },
+  scanHintText: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    marginBottom: 14,
+  },
+  scanCameraFrame: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 16,
+    backgroundColor: "#000",
+  },
+  scanCamera: {
+    flex: 1,
+  },
+  scanPrimaryButton: {
+    minWidth: 160,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    alignItems: "center",
+  },
+  scanPrimaryButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  scanSecondaryButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  scanSecondaryButtonText: {
+    fontSize: 15,
+    fontWeight: "500",
   },
   serverItem: {
     flexDirection: "row",
