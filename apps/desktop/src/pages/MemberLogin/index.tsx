@@ -2,7 +2,7 @@ import {
   applyDesktopScanLoginResult,
 } from "../../utils/scanLogin";
 import {
-  confirmScanLoginSession,
+  consumeScanLoginSession,
   createScanLoginSession,
   getScanLoginSession,
   plusLogin,
@@ -76,10 +76,10 @@ const MemberLogin: React.FC = () => {
       scanSession.sessionId,
       scanSession.secret,
       async (status) => {
-        if (status.status !== "waiting_confirm") return;
+        if (status.status !== "waiting_confirm" && status.status !== "confirmed") return;
         try {
           setScanBusy(true);
-          const res = await confirmScanLoginSession(scanSession.sessionId, {
+          const res = await consumeScanLoginSession(scanSession.sessionId, {
             secret: scanSession.secret,
           });
           await applyDesktopScanLoginResult(res.data);

@@ -90,8 +90,18 @@ export const confirmScanLoginSession = async (
   sessionId: string,
   data: { secret: string; selections?: { type: string; configIds: string[] }[] },
 ) => {
-  return scanLoginRequest.post<any, ISuccessResponse<ScanLoginConfirmResult>>(
+  return scanLoginRequest.post<any, ISuccessResponse<ScanLoginSessionStatus>>(
     `/scan-login/session/${sessionId}/confirm`,
+    data,
+  );
+};
+
+export const consumeScanLoginSession = async (
+  sessionId: string,
+  data: { secret: string; selections?: { type: string; configIds: string[] }[] },
+) => {
+  return scanLoginRequest.post<any, ISuccessResponse<ScanLoginConfirmResult>>(
+    `/scan-login/session/${sessionId}/consume`,
     data,
   );
 };

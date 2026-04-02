@@ -54,6 +54,7 @@ interface SessionRecord {
   claimedAt?: number;
   confirmedAt?: number;
   payload?: ScanLoginClaimPayload;
+  confirmedSelections?: { type: string; configIds: string[] }[];
 }
 
 @Injectable()
@@ -138,13 +139,37 @@ export class ScanLoginService {
       throw new Error('当前二维码还没有可确认的登录信息');
     }
 
+    session.status = 'confirmed';
+    session.confirmedAt = Date.now();
+    session.confirmedSelections = selections;
+
+    return this.getSessionStatus(sessionId, secret);
+  }
+
+  consumeSession(
+    sessionId: string,
+    secret: string,
+    selections?: { type: string; configIds: string[] }[],
+  ) {
+    const session = this.getValidSession(sessionId, secret);
+
+    if (
+      (session.status !== 'waiting_confirm' && session.status !== 'confirmed') ||
+      !session.payload
+    ) {
+      throw new Error('当前二维码还没有可确认的登录信息');
+    }
+
     const selectedBundles = this.filterSelectedBundles(
       session.payload.sourceBundles,
-      selections,
+      selections?.length ? selections : session.confirmedSelections,
     );
 
     session.status = 'consumed';
-    session.confirmedAt = Date.now();
+    session.confirmedAt = session.confirmedAt || Date.now();
+    session.confirmedSelections = selections?.length
+      ? selections
+      : session.confirmedSelections;
 
     return {
       nativeAuth: session.payload.nativeAuth || null,

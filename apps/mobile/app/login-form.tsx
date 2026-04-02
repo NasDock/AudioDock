@@ -2,7 +2,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   claimScanLoginSession,
-  confirmScanLoginSession,
+  consumeScanLoginSession,
   createScanLoginSession,
   getScanLoginSession,
   type ScanLoginSession,
@@ -127,6 +127,31 @@ export default function LoginFormScreen() {
     });
     setSelectedConfigIds(nextSelected);
   }, [scanStatus?.sessionId, scanStatus?.status]);
+
+  useEffect(() => {
+    if (!scanSession || scanStatus?.status !== "confirmed") return;
+
+    const consumeConfirmedScan = async () => {
+      try {
+        setScanBusy(true);
+        const res = await consumeScanLoginSession(scanSession.sessionId, {
+          secret: scanSession.secret,
+        });
+        await applyMobileScanLoginResult(res.data, {
+          switchServer,
+          setPlusToken,
+        });
+        router.replace("/(tabs)" as any);
+      } catch (error: any) {
+        console.error(error);
+        Alert.alert("错误", error.message || "确认扫码登录失败");
+      } finally {
+        setScanBusy(false);
+      }
+    };
+
+    consumeConfirmedScan();
+  }, [scanSession?.sessionId, scanStatus?.status]);
 
   const qrValue = useMemo(() => {
     if (!scanSession) return "";
@@ -350,7 +375,7 @@ export default function LoginFormScreen() {
         type,
         configIds,
       }));
-      const res = await confirmScanLoginSession(scanSession.sessionId, {
+      const res = await consumeScanLoginSession(scanSession.sessionId, {
         secret: scanSession.secret,
         selections,
       });

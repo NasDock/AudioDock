@@ -22,7 +22,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Camera, CameraView } from "expo-camera";
 import {
   claimScanLoginSession,
-  confirmScanLoginSession,
+  consumeScanLoginSession,
   createScanLoginSession,
   getScanLoginSession,
   plusLogin,
@@ -153,10 +153,10 @@ export default function MemberLoginScreen() {
       scanSession.sessionId,
       scanSession.secret,
       async (status) => {
-        if (status.status !== "waiting_confirm") return;
+        if (status.status !== "waiting_confirm" && status.status !== "confirmed") return;
         try {
           setScanBusy(true);
-          const res = await confirmScanLoginSession(scanSession.sessionId, {
+          const res = await consumeScanLoginSession(scanSession.sessionId, {
             secret: scanSession.secret,
           });
           await applyMobileScanLoginResult(res.data, {
