@@ -19,10 +19,10 @@ import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Camera } from "expo-camera";
+import { Camera, CameraView } from "expo-camera";
 import {
   claimScanLoginSession,
-  confirmScanLoginSession,
+  consumeScanLoginSession,
   createScanLoginSession,
   getScanLoginSession,
   plusLogin,
@@ -42,7 +42,7 @@ export default function MemberLoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { setPlusToken: setContextPlusToken, token, switchServer } = useAuth();
-  const [permission, requestPermission] = Camera.useCameraPermissions();
+  const [permission, setPermission] = useState<any>(null);
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
 
@@ -55,6 +55,18 @@ export default function MemberLoginScreen() {
   const [scanSession, setScanSession] = useState<ScanLoginSession | null>(null);
   const [hasScanned, setHasScanned] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode>("sms");
+
+  const requestPermission = async () => {
+    const nextPermission = await Camera.requestCameraPermissionsAsync();
+    setPermission(nextPermission);
+    return nextPermission;
+  };
+
+  React.useEffect(() => {
+    Camera.getCameraPermissionsAsync()
+      .then(setPermission)
+      .catch((error) => console.error("Failed to load camera permission:", error));
+  }, []);
 
   const handleSendCode = async () => {
     if (!phone) {
@@ -141,10 +153,10 @@ export default function MemberLoginScreen() {
       scanSession.sessionId,
       scanSession.secret,
       async (status) => {
-        if (status.status !== "waiting_confirm") return;
+        if (status.status !== "waiting_confirm" && status.status !== "confirmed") return;
         try {
           setScanBusy(true);
-          const res = await confirmScanLoginSession(scanSession.sessionId, {
+          const res = await consumeScanLoginSession(scanSession.sessionId, {
             secret: scanSession.secret,
           });
           await applyMobileScanLoginResult(res.data, {
@@ -304,9 +316,9 @@ export default function MemberLoginScreen() {
                   <>
                     <Text style={[styles.label, { color: colors.text }]}>扫描另一台设备上的二维码</Text>
                     <View style={styles.cameraFrame}>
-                      <Camera
+                      <CameraView
                         style={styles.camera}
-                        type={Camera.Constants.Type.back}
+                        facing="back"
                         onBarcodeScanned={handleBarcodeScanned}
                       />
                     </View>

@@ -4,18 +4,23 @@ import {
   createCompactTask,
   createImportTask,
   createPlaylist,
+  claimScanLoginSession,
+  confirmScanLoginSession,
   getAlbumHistory,
   getFavoriteAlbums,
   getFavoriteTracks,
   getImportTask,
+  getScanLoginSession,
   getPlaylists,
   getRunningImportTask,
+  subscribeScanLoginSession,
   uploadUserAvatar,
   getTrackHistory,
   plusGetMe,
   setPlusToken,
   TaskStatus,
-  type ImportTask
+  type ImportTask,
+  type ScanLoginSessionStatus,
 } from "@soundx/services";
 import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
@@ -29,6 +34,7 @@ import {
   Image,
   Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -52,8 +58,7 @@ import { useCheckUpdate } from "@/hooks/useCheckUpdate";
 import { CachedImage } from "@/src/components/CachedImage";
 import { UpdateModal } from "@/src/components/UpdateModal";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { claimScanLoginSession } from "@soundx/services";
-import { Camera } from "expo-camera";
+import { Camera, CameraView } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { collectMobileScanLoginPayload } from "../../src/utils/scanLogin";
 const logo = require("../../assets/images/logo.png");
@@ -110,7 +115,7 @@ export default function PersonalScreen() {
   const { playTrackList } = usePlayer();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [permission, requestPermission] = Camera.useCameraPermissions();
+  const [permission, setPermission] = useState<any>(null);
   const {
     checkUpdate,
     progress,
@@ -128,15 +133,76 @@ export default function PersonalScreen() {
   const [scanModalVisible, setScanModalVisible] = useState(false);
   const [scanBusy, setScanBusy] = useState(false);
   const [hasScanned, setHasScanned] = useState(false);
+  const [scanSession, setScanSession] = useState<{ sessionId: string; secret: string } | null>(null);
+  const [scanStatus, setScanStatus] = useState<ScanLoginSessionStatus | null>(null);
+  const [selectedConfigIds, setSelectedConfigIds] = useState<Record<string, string[]>>({});
+  const [scanPendingDelivery, setScanPendingDelivery] = useState(false);
+
+  const requestPermission = async () => {
+    const nextPermission = await Camera.requestCameraPermissionsAsync();
+    setPermission(nextPermission);
+    return nextPermission;
+  };
 
   useEffect(() => {
     setAvatarOverride((user as any)?.avatar || null);
   }, [user]);
 
+  useEffect(() => {
+    Camera.getCameraPermissionsAsync()
+      .then(setPermission)
+      .catch((error) => console.error("Failed to load camera permission:", error));
+  }, []);
+
   const handleOpenScanEntry = () => {
     setHasScanned(false);
+    setScanSession(null);
+    setScanStatus(null);
+    setSelectedConfigIds({});
+    setScanPendingDelivery(false);
     setScanModalVisible(true);
   };
+
+  const handleCloseScanModal = () => {
+    setScanModalVisible(false);
+    setHasScanned(false);
+    setScanSession(null);
+    setScanStatus(null);
+    setSelectedConfigIds({});
+    setScanPendingDelivery(false);
+  };
+
+  useEffect(() => {
+    if (!scanSession) return;
+
+    getScanLoginSession(scanSession.sessionId, scanSession.secret)
+      .then((res) => setScanStatus(res.data))
+      .catch((error) => console.error("Failed to load scan session status:", error));
+
+    const unsubscribe = subscribeScanLoginSession(
+      scanSession.sessionId,
+      scanSession.secret,
+      (status) => setScanStatus(status),
+    );
+
+    return () => unsubscribe();
+  }, [scanSession?.sessionId, scanSession?.secret]);
+
+  useEffect(() => {
+    if (!scanPendingDelivery || !scanStatus) return;
+
+    if (scanStatus.status === "consumed") {
+      Alert.alert("登录已送达", "被扫码设备已收到登录数据。");
+      handleCloseScanModal();
+      return;
+    }
+
+    if (scanStatus.status === "expired") {
+      Alert.alert("二维码已过期", "请重新扫码后再试。");
+      setScanPendingDelivery(false);
+      setHasScanned(false);
+    }
+  }, [scanPendingDelivery, scanStatus?.status]);
 
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
     if (hasScanned || scanBusy) return;
@@ -153,17 +219,55 @@ export default function PersonalScreen() {
         throw new Error("当前设备还没有可供迁移的登录态，请先在本机登录");
       }
 
-      await claimScanLoginSession(parsed.sessionId, {
+      const res = await claimScanLoginSession(parsed.sessionId, {
         secret: parsed.secret,
         payload,
       });
-
-      Alert.alert("扫码成功", "请在另一台设备上确认导入");
-      setScanModalVisible(false);
+      const nextSelected: Record<string, string[]> = {};
+      res.data.sourceBundles.forEach((bundle) => {
+        nextSelected[bundle.type] = bundle.configs.map((config) => config.id);
+      });
+      setScanSession({ sessionId: parsed.sessionId, secret: parsed.secret });
+      setScanStatus(res.data);
+      setSelectedConfigIds(nextSelected);
     } catch (error: any) {
       console.error(error);
       Alert.alert("扫码失败", error.message || "请重试");
       setHasScanned(false);
+    } finally {
+      setScanBusy(false);
+    }
+  };
+
+  const toggleConfigSelection = (type: string, configId: string) => {
+    setSelectedConfigIds((prev) => {
+      const current = new Set(prev[type] || []);
+      if (current.has(configId)) current.delete(configId);
+      else current.add(configId);
+      return {
+        ...prev,
+        [type]: Array.from(current),
+      };
+    });
+  };
+
+  const handleConfirmScan = async () => {
+    if (!scanSession) return;
+    try {
+      setScanBusy(true);
+      const selections = Object.entries(selectedConfigIds).map(([type, configIds]) => ({
+        type,
+        configIds,
+      }));
+      await confirmScanLoginSession(scanSession.sessionId, {
+        secret: scanSession.secret,
+        selections,
+      });
+      setScanPendingDelivery(true);
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert("确认失败", error.message || "请重试");
+      setScanPendingDelivery(false);
     } finally {
       setScanBusy(false);
     }
@@ -1012,7 +1116,7 @@ export default function PersonalScreen() {
         visible={scanModalVisible}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setScanModalVisible(false)}
+        onRequestClose={handleCloseScanModal}
       >
         <View style={styles.scanModalOverlay}>
           <View
@@ -1023,7 +1127,7 @@ export default function PersonalScreen() {
           >
             <View style={styles.scanModalHeader}>
               <Text style={[styles.scanModalTitle, { color: colors.text }]}>扫码登录</Text>
-              <TouchableOpacity onPress={() => setScanModalVisible(false)} style={styles.iconBtn}>
+              <TouchableOpacity onPress={handleCloseScanModal} style={styles.iconBtn}>
                 <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
@@ -1039,15 +1143,88 @@ export default function PersonalScreen() {
                   <Text style={[styles.scanPrimaryButtonText, { color: colors.background }]}>开启相机扫码</Text>
                 </TouchableOpacity>
               </View>
+            ) : scanPendingDelivery ? (
+              <View style={styles.scanPermissionState}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.scanHintText, { color: colors.text }]}>
+                  正在等待被扫码设备接收登录数据，请保持当前页面开启。
+                </Text>
+              </View>
+            ) : scanStatus?.status === "waiting_confirm" ? (
+              <>
+                <Text style={[styles.scanHintText, { color: colors.secondary }]}>
+                  请选择要同步到被扫码设备的数据源，确认登录后会开始发送到目标设备。
+                </Text>
+                <ScrollView style={styles.scanConfirmList} contentContainerStyle={{ gap: 12 }}>
+                  {scanStatus.sourceBundles.map((bundle) => (
+                    <View
+                      key={bundle.type}
+                      style={[styles.scanBundleCard, { borderColor: colors.border, backgroundColor: colors.background }]}
+                    >
+                      <Text style={[styles.scanBundleTitle, { color: colors.text }]}>{bundle.type}</Text>
+                      {bundle.configs.map((config) => {
+                        const checked = (selectedConfigIds[bundle.type] || []).includes(config.id);
+                        return (
+                          <TouchableOpacity
+                            key={config.id}
+                            style={styles.scanBundleItem}
+                            onPress={() => toggleConfigSelection(bundle.type, config.id)}
+                          >
+                            <Ionicons
+                              name={checked ? "checkmark-circle" : "ellipse-outline"}
+                              size={22}
+                              color={checked ? colors.primary : colors.secondary}
+                            />
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.scanBundleItemTitle, { color: colors.text }]}>
+                                {config.name || "未命名数据源"}
+                              </Text>
+                              <Text style={[styles.scanBundleItemMeta, { color: colors.secondary }]}>
+                                {config.internal || "无内网地址"} / {config.external || "无外网地址"}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  ))}
+                </ScrollView>
+                <TouchableOpacity
+                  style={[styles.scanPrimaryButton, { backgroundColor: colors.primary, marginBottom: 12 }]}
+                  onPress={handleConfirmScan}
+                  disabled={scanBusy}
+                >
+                  {scanBusy ? (
+                    <ActivityIndicator color={colors.background} />
+                  ) : (
+                    <Text style={[styles.scanPrimaryButtonText, { color: colors.background }]}>确认登录</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.scanSecondaryButton,
+                    { borderColor: colors.border, backgroundColor: colors.background },
+                  ]}
+                  onPress={() => {
+                    setScanSession(null);
+                    setScanStatus(null);
+                    setSelectedConfigIds({});
+                    setHasScanned(false);
+                  }}
+                  disabled={scanBusy}
+                >
+                  <Text style={[styles.scanSecondaryButtonText, { color: colors.text }]}>返回重新扫码</Text>
+                </TouchableOpacity>
+              </>
             ) : (
               <>
                 <Text style={[styles.scanHintText, { color: colors.secondary }]}>
                   请扫描 desktop 或 mobile 横屏登录页上的二维码
                 </Text>
                 <View style={styles.scanCameraFrame}>
-                  <Camera
+                  <CameraView
                     style={styles.scanCamera}
-                    type={Camera.Constants.Type.back}
+                    facing="back"
                     onBarcodeScanned={hasScanned ? undefined : handleBarcodeScanned}
                   />
                 </View>
@@ -1778,6 +1955,34 @@ const styles = StyleSheet.create({
   scanSecondaryButtonText: {
     fontSize: 15,
     fontWeight: "500",
+  },
+  scanConfirmList: {
+    maxHeight: 320,
+    marginBottom: 16,
+  },
+  scanBundleCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    gap: 10,
+  },
+  scanBundleTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  scanBundleItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  scanBundleItemTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  scanBundleItemMeta: {
+    fontSize: 12,
+    lineHeight: 18,
   },
   serverItem: {
     flexDirection: "row",
