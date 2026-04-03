@@ -11,6 +11,7 @@ import {
   consumeScanLoginSession,
   createScanLoginSession,
   getScanLoginSession,
+  reportScanLoginResult,
   subscribeScanLoginSession,
   login,
   register,
@@ -71,7 +72,6 @@ const Login: React.FC = () => {
   const [scanSession, setScanSession] = useState<ScanLoginSession | null>(null);
   const [scanStatus, setScanStatus] = useState<ScanLoginSessionStatus | null>(null);
   const [scanBusy, setScanBusy] = useState(false);
-  const [selectedConfigIds, setSelectedConfigIds] = useState<Record<string, string[]>>({});
   const [loginForm] = Form.useForm();
 
   const queryParams = new URLSearchParams(location.search);
@@ -161,16 +161,6 @@ const Login: React.FC = () => {
   }, [scanSession]);
 
   useEffect(() => {
-    if (scanStatus?.status !== "waiting_confirm") return;
-
-    const nextSelected: Record<string, string[]> = {};
-    scanStatus.sourceBundles.forEach((bundle) => {
-      nextSelected[bundle.type] = bundle.configs.map((config) => config.id);
-    });
-    setSelectedConfigIds(nextSelected);
-  }, [scanStatus?.sessionId, scanStatus?.status]);
-
-  useEffect(() => {
     if (!scanSession || scanStatus?.status !== "confirmed") return;
 
     const consumeConfirmedScan = async () => {
@@ -179,12 +169,21 @@ const Login: React.FC = () => {
         const res = await consumeScanLoginSession(scanSession.sessionId, {
           secret: scanSession.secret,
         });
-        await applyDesktopScanLoginResult(res.data);
+
+        try {
+          await applyDesktopScanLoginResult(res.data);
+        } catch (applyErr: any) {
+          await reportScanLoginResult(scanSession.sessionId, { secret: scanSession.secret, success: false, error: applyErr.message });
+          throw applyErr;
+        }
+
+        await reportScanLoginResult(scanSession.sessionId, { secret: scanSession.secret, success: true });
         messageApi.success("扫码登录成功");
         navigate("/");
       } catch (error) {
         console.error(error);
         messageApi.error(error instanceof Error ? error.message : "扫码登录失败");
+        createTargetSession();
       } finally {
         setScanBusy(false);
       }
@@ -481,29 +480,6 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleConfirmScan = async () => {
-    if (!scanSession) return;
-    try {
-      setScanBusy(true);
-      const selections = Object.entries(selectedConfigIds).map(([type, configIds]) => ({
-        type,
-        configIds,
-      }));
-      const res = await consumeScanLoginSession(scanSession.sessionId, {
-        secret: scanSession.secret,
-        selections,
-      });
-      await applyDesktopScanLoginResult(res.data);
-      messageApi.success("扫码登录成功");
-      navigate("/");
-    } catch (error) {
-      console.error(error);
-      messageApi.error(error instanceof Error ? error.message : "确认扫码登录失败");
-    } finally {
-      setScanBusy(false);
-    }
-  };
-
   const qrValue = scanSession
     ? JSON.stringify({
         kind: "soundx-scan-login",
@@ -530,46 +506,13 @@ const Login: React.FC = () => {
       <div className={styles.content}>
         <div className={styles.scanPanel}>
           {scanStatus?.status === "waiting_confirm" ? (
-            <div className={styles.confirmPanel}>
-              <Title level={5} style={{ marginBottom: 8 }}>
-                确认同步内容
+            <div className={styles.confirmPanel} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
+              <Title level={5} style={{ marginBottom: 16 }}>
+                等待手机端确认
               </Title>
-              <Text type="secondary">
-                {scanStatus.deviceName ? `${scanStatus.deviceName} 已扫码。` : "已有设备扫码。"}
-                勾选后会把这些数据源保存到当前设备，并自动登录。
+              <Text type="secondary" style={{ textAlign: "center" }}>
+                手机已扫码。请在手机屏幕上勾选要导入的数据源，并在手机上点击确认发送...
               </Text>
-              <div className={styles.sourceList}>
-                {scanStatus.sourceBundles.map((bundle) => (
-                  <div key={bundle.type} className={styles.sourceGroup}>
-                    <Text strong>{bundle.type}</Text>
-                    <Checkbox.Group
-                      value={selectedConfigIds[bundle.type] || []}
-                      onChange={(values) =>
-                        setSelectedConfigIds((prev) => ({
-                          ...prev,
-                          [bundle.type]: values as string[],
-                        }))
-                      }
-                    >
-                      <Flex vertical gap={8} style={{ marginTop: 8 }}>
-                        {bundle.configs.map((config) => (
-                          <Checkbox key={config.id} value={config.id}>
-                            {config.name || "未命名数据源"}
-                            <div className={styles.configMeta}>
-                              {config.internal || "无内网地址"}
-                              {" / "}
-                              {config.external || "无外网地址"}
-                            </div>
-                          </Checkbox>
-                        ))}
-                      </Flex>
-                    </Checkbox.Group>
-                  </div>
-                ))}
-              </div>
-              <Button type="primary" block loading={scanBusy} onClick={handleConfirmScan}>
-                确认并登录
-              </Button>
             </div>
           ) : (
             <div className={styles.qrPanel}>
