@@ -5,7 +5,7 @@ import {
   consumeScanLoginSession,
   createScanLoginSession,
   getScanLoginSession,
-  reportScanLoginResult,
+  reportScanLoginResultViaSocket,
   type ScanLoginSession,
   type ScanLoginSessionStatus,
   subscribeScanLoginSession,
@@ -124,11 +124,11 @@ export default function LoginFormScreen() {
             setPlusToken,
           });
         } catch (applyErr: any) {
-           await reportScanLoginResult(scanSession.sessionId, { secret: scanSession.secret, success: false, error: applyErr.message });
+           reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, false, applyErr.message);
            throw applyErr;
         }
 
-        await reportScanLoginResult(scanSession.sessionId, { secret: scanSession.secret, success: true });
+        reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, true);
         router.replace("/(tabs)" as any);
       } catch (error: any) {
         console.error(error);

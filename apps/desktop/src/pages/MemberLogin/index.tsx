@@ -8,7 +8,9 @@ import {
   plusLogin,
   plusSendCode,
   subscribeScanLoginSession,
+  reportScanLoginResultViaSocket,
   type ScanLoginSession,
+  type ScanLoginSessionStatus,
 } from "@soundx/services";
 import { Button, Form, Input, Layout, QRCode, Typography, message, theme } from "antd";
 import React, { useEffect, useState } from "react";
@@ -31,6 +33,7 @@ const MemberLogin: React.FC = () => {
   const { setPlusToken } = useAuthStore();
   const [messageApi, contextHolder] = message.useMessage();
   const [scanSession, setScanSession] = useState<ScanLoginSession | null>(null);
+  const [scanStatus, setScanStatus] = useState<ScanLoginSessionStatus | null>(null);
   const [scanBusy, setScanBusy] = useState(false);
 
   const [countdown, setCountdown] = useState(0);
@@ -75,28 +78,43 @@ const MemberLogin: React.FC = () => {
     const unsubscribe = subscribeScanLoginSession(
       scanSession.sessionId,
       scanSession.secret,
-      async (status) => {
-        if (status.status !== "waiting_confirm" && status.status !== "confirmed") return;
-        try {
-          setScanBusy(true);
-          const res = await consumeScanLoginSession(scanSession.sessionId, {
-            secret: scanSession.secret,
-          });
-          await applyDesktopScanLoginResult(res.data);
-          messageApi.success("扫码登录成功");
-          navigate("/", { replace: true });
-        } catch (error) {
-          console.error(error);
-          messageApi.error(error instanceof Error ? error.message : "扫码登录失败");
-          createTargetSession();
-        } finally {
-          setScanBusy(false);
-        }
-      },
+      (status) => setScanStatus(status),
     );
 
     return () => unsubscribe();
   }, [scanSession]);
+
+  useEffect(() => {
+    if (!scanSession || scanStatus?.status !== "confirmed") return;
+
+    const consumeConfirmedScan = async () => {
+      try {
+        setScanBusy(true);
+        const res = await consumeScanLoginSession(scanSession.sessionId, {
+          secret: scanSession.secret,
+        });
+
+        try {
+          await applyDesktopScanLoginResult(res.data);
+        } catch (applyErr: any) {
+          reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, false, applyErr.message);
+          throw applyErr;
+        }
+
+        reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, true);
+        messageApi.success("扫码登录成功");
+        navigate("/", { replace: true });
+      } catch (error) {
+        console.error(error);
+        messageApi.error(error instanceof Error ? error.message : "扫码登录失败");
+        createTargetSession();
+      } finally {
+        setScanBusy(false);
+      }
+    };
+
+    consumeConfirmedScan();
+  }, [scanSession?.sessionId, scanStatus?.status]);
 
   const handleSendCode = async () => {
     try {
@@ -179,10 +197,19 @@ const MemberLogin: React.FC = () => {
         >
           <div className={styles.contentGrid}>
             <div className={styles.scanSection}>
-              {qrValue ? <QRCode value={qrValue} size={176} bordered={false} /> : null}
-              <Button onClick={createTargetSession} loading={scanBusy}>
-                刷新二维码
-              </Button>
+              {scanStatus?.status === "waiting_confirm" ? (
+                <div style={{ textAlign: "center", padding: "40px 0" }}>
+                  <Title level={5}>等待手机端确认</Title>
+                  <Text type="secondary">手机已扫码。请在手机屏幕上确认发送...</Text>
+                </div>
+              ) : (
+                <>
+                  {qrValue ? <QRCode value={qrValue} size={176} bordered={false} /> : null}
+                  <Button onClick={createTargetSession} loading={scanBusy}>
+                    刷新二维码
+                  </Button>
+                </>
+              )}
             </div>
 
             <div className={styles.formSection}>

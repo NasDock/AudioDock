@@ -134,11 +134,28 @@ export const subscribeScanLoginSession = (
     listener(payload.status);
   };
 
-  socket.emit("scan_login_watch", { sessionId, secret });
+  const handleReport = (payload: { sessionId: string; success: boolean; error?: string }) => {
+    if (payload?.sessionId !== sessionId) return;
+    listener({ status: payload.success ? "success" : "failed", sessionId } as any);
+  };
+
   socket.on(eventName, handleUpdate);
+  socket.on("scan_login_report_result", handleReport);
+  socket.emit("scan_login_watch", { sessionId, secret });
 
   return () => {
     socket.emit("scan_login_unwatch", { sessionId, secret });
     socket.off(eventName, handleUpdate);
+    socket.off("scan_login_report_result", handleReport);
   };
+};
+
+export const reportScanLoginResultViaSocket = (
+  sessionId: string,
+  secret: string,
+  success: boolean,
+  error?: string,
+) => {
+  const socket = getPlusSocket();
+  socket.emit("scan_login_report_result", { sessionId, secret, success, error });
 };

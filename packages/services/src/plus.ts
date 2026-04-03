@@ -3,7 +3,7 @@ import { ISuccessResponse } from "./models";
 import { io, type Socket } from "socket.io-client";
 
 export const PLUS_API_BASE_URL = "https://www.audiodock.cn/api";
-export const PLUS_WS_BASE_URL = "https://www.audiodock.cn";
+export const PLUS_WS_BASE_URL = "https://www.audiodock.cn/ws";
 
 const plusRequest = axios.create({
   baseURL: PLUS_API_BASE_URL,

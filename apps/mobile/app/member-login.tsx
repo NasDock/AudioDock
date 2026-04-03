@@ -27,7 +27,10 @@ import {
   plusSendCode,
   setPlusToken,
   subscribeScanLoginSession,
+  consumeScanLoginSession,
+  reportScanLoginResultViaSocket,
   type ScanLoginSession,
+  type ScanLoginSessionStatus,
 } from "@soundx/services";
 import QRCode from "react-native-qrcode-svg";
 
@@ -42,6 +45,9 @@ export default function MemberLoginScreen() {
   const [permission, setPermission] = useState<any>(null);
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
+
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scanStatus, setScanStatus] = useState<ScanLoginSessionStatus | null>(null);
 
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -141,15 +147,46 @@ export default function MemberLoginScreen() {
     const unsubscribe = subscribeScanLoginSession(
       scanSession.sessionId,
       scanSession.secret,
-      async (status) => {
-        if (status.status === "waiting_confirm") {
-          router.push(`/scan-confirm?sessionId=${scanSession.sessionId}&secret=${scanSession.secret}` as any);
-        }
-      },
+      (status) => setScanStatus(status),
     );
 
     return () => unsubscribe();
   }, [scanSession]);
+
+  React.useEffect(() => {
+    if (!scanSession || scanStatus?.status !== "confirmed") return;
+
+    const consumeConfirmedScan = async () => {
+      try {
+        setScanBusy(true);
+        const res = await consumeScanLoginSession(scanSession.sessionId, {
+          secret: scanSession.secret,
+        });
+
+        try {
+          const { applyMobileScanLoginResult } = await import("../src/utils/scanLogin");
+          await applyMobileScanLoginResult(res.data, {
+            switchServer,
+            setPlusToken: setContextPlusToken,
+          });
+        } catch (applyErr: any) {
+          reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, false, applyErr.message);
+          throw applyErr;
+        }
+
+        reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, true);
+        router.replace("/(tabs)" as any);
+      } catch (error: any) {
+        console.error(error);
+        Alert.alert("错误", error.message || "扫码登录失败");
+        createTargetSession();
+      } finally {
+        setScanBusy(false);
+      }
+    };
+
+    consumeConfirmedScan();
+  }, [scanSession?.sessionId, scanStatus?.status]);
 
 
 
@@ -273,20 +310,33 @@ export default function MemberLoginScreen() {
                   </>
                 ) : (
                   <>
-                    {qrValue ? (
-                      <View style={styles.qrBox}>
-                        <QRCode value={qrValue} size={180} />
-                        <Text style={{ color: colors.secondary, marginTop: 16, textAlign: "center" }}>
-                          请使用移动端扫码
+                    {scanStatus?.status === "waiting_confirm" ? (
+                      <View style={[styles.qrBox, { borderColor: colors.border, borderWidth: 1, borderRadius: 16, padding: 24, marginVertical: 20 }]}>
+                        <Text style={[styles.title, { color: colors.text, fontSize: 18 }]}>等待手机端确认</Text>
+                        <Text style={[styles.subtitle, { color: colors.secondary, marginTop: 8 }]}>
+                           手机已扫码。请在手机屏幕上勾选要导入的数据源，并在手机上点击确认发送...
                         </Text>
+                        <ActivityIndicator style={{ marginTop: 24 }} size="large" color={colors.primary} />
                       </View>
-                    ) : null}
-                    <TouchableOpacity
-                      style={[styles.ghostButton, { borderColor: colors.border, backgroundColor: colors.card, marginTop: 12 }]}
-                      onPress={createTargetSession}
-                    >
-                      <Text style={{ color: colors.text }}>刷新二维码</Text>
-                    </TouchableOpacity>
+                    ) : (
+                      <>
+                        {qrValue ? (
+                          <View style={styles.qrBox}>
+                            <QRCode value={qrValue} size={180} />
+                            <Text style={{ color: colors.secondary, marginTop: 16, textAlign: "center" }}>
+                              请使用移动端扫码
+                            </Text>
+                          </View>
+                        ) : null}
+                        <TouchableOpacity
+                          style={[styles.ghostButton, { borderColor: colors.border, backgroundColor: colors.card, marginTop: 12 }]}
+                          onPress={createTargetSession}
+                          disabled={scanBusy}
+                        >
+                          <Text style={{ color: colors.text }}>刷新二维码</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
                   </>
                 )}
               </View>
