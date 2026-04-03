@@ -4,6 +4,7 @@ import {
   speechToText,
 } from "@soundx/services";
 import { Audio } from "expo-av";
+import { Image as ExpoImage } from "expo-image";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -390,7 +391,11 @@ export const SquirrelAgent: React.FC = () => {
               },
             ]}
           >
-            <View style={styles.squirrelPlaceholder} />
+            <ExpoImage
+              source={require('../../assets/dexopt/squirrel.svg')}
+              style={styles.squirrel}
+              contentFit="contain"
+            />
             {state === "processing" && (
               <Animated.View 
                 style={[
