@@ -1,9 +1,24 @@
 import axios from "axios";
 import { ISuccessResponse } from "./models";
+import { io, type Socket } from "socket.io-client";
+
+export const PLUS_API_BASE_URL = "https://www.audiodock.cn/api";
+export const PLUS_WS_BASE_URL = "https://www.audiodock.cn/ws";
 
 const plusRequest = axios.create({
-  baseURL: "https://www.audiodock.cn/api",
+  baseURL: PLUS_API_BASE_URL,
 });
+
+let plusSocket: Socket | null = null;
+
+export const getPlusSocket = (): Socket => {
+  if (!plusSocket) {
+    plusSocket = io(PLUS_WS_BASE_URL, {
+      transports: ["websocket"],
+    });
+  }
+  return plusSocket;
+};
 
 /**
  * 设置 Plus 服务的验证 Token
@@ -36,12 +51,14 @@ export interface LoginDto {
 
 export type PaymentMethod = "WECHAT" | "ALIPAY" | "STRIPE" | "PAYPAL" | "OTHER";
 export type VipTier = "NONE" | "BASIC" | "PREMIUM" | "LIFETIME";
+export type PaymentClientType = "app" | "web" | "desktop" | "mobile" | "mini";
 
 export interface CreatePaymentDto {
   userId: string;
   amount: number;
   currency: string;
   method: PaymentMethod;
+  clientType?: PaymentClientType;
   forVip: boolean;
   vipTier: VipTier;
   forPoints: boolean;
@@ -60,7 +77,7 @@ export interface WechatPayPayload {
 }
 
 export interface AlipayPayPayload {
-  orderString: string;
+  orderString: string | null;
   scheme?: string;
 }
 
@@ -90,6 +107,31 @@ export interface TrackingEventDto {
   value?: number;
   occurredAt?: string;
   metadata?: Record<string, any>;
+}
+
+export interface AppleIapVerifyDto {
+  userId: string;
+  productId: string;
+  receipt: string;
+  transactionId?: string;
+  originalTransactionId?: string;
+  transactionDate?: string;
+}
+
+export interface VipCurrentLowestPricePlan {
+  originalPrice: number;
+  discountPercent: number;
+  currentPrice: number;
+}
+
+export interface VipCurrentLowestPriceData {
+  activityId: string | null;
+  name?: string | null;
+  description?: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  annual: VipCurrentLowestPricePlan | null;
+  lifetime: VipCurrentLowestPricePlan | null;
 }
 
 // --- API Functions ---
@@ -155,6 +197,20 @@ export const plusConsumePoints = async (data: ConsumePointsDto) => {
  */
 export const plusTrackEvent = async (data: TrackingEventDto) => {
   return plusRequest.post<ISuccessResponse<any>>("/tracking/events", data);
+};
+
+/**
+ * PaymentController_verifyAppleIap: Verify Apple IAP receipt
+ */
+export const plusVerifyAppleIap = async (data: AppleIapVerifyDto) => {
+  return plusRequest.post<ISuccessResponse<any>>("/payment/apple/verify", data);
+};
+
+/**
+ * VipController_currentLowestPrice: Get current lowest VIP price
+ */
+export const plusGetVipCurrentLowestPrice = async () => {
+  return plusRequest.get<ISuccessResponse<VipCurrentLowestPriceData>>("/vip/current-lowest-price");
 };
 
 /**

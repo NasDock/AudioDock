@@ -10,11 +10,12 @@ import {
   getImportTask,
   getPlaylists,
   getRunningImportTask,
+  uploadUserAvatar,
   getTrackHistory,
   plusGetMe,
   setPlusToken,
   TaskStatus,
-  type ImportTask
+  type ImportTask,
 } from "@soundx/services";
 import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
@@ -27,6 +28,8 @@ import {
   FlatList,
   Image,
   Modal,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -42,6 +45,7 @@ import {
   getDownloadedTracks,
   removeDownloadedTrack,
 } from "../../src/services/cache";
+import { getBaseURL } from "../../src/https";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
 
@@ -49,6 +53,7 @@ import { useCheckUpdate } from "@/hooks/useCheckUpdate";
 import { CachedImage } from "@/src/components/CachedImage";
 import { UpdateModal } from "@/src/components/UpdateModal";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 const logo = require("../../assets/images/logo.png");
 const subsonicLogo = require("../../assets/images/subsonic.png");
 const embyLogo = require("../../assets/images/emby.png");
@@ -103,6 +108,7 @@ export default function PersonalScreen() {
   const { playTrackList } = usePlayer();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const [permission, setPermission] = useState<any>(null);
   const {
     checkUpdate,
     progress,
@@ -115,6 +121,61 @@ export default function PersonalScreen() {
   } = useCheckUpdate();
 
   const [isModalVisible, setModalVisible] = useState(false);
+  const [avatarOverride, setAvatarOverride] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  useEffect(() => {
+    setAvatarOverride((user as any)?.avatar || null);
+  }, [user]);
+
+  const handleOpenScanEntry = () => {
+    router.push("/scan" as any);
+  };
+
+
+
+  const handleChangeAvatar = async () => {
+    if (!user?.id || uploadingAvatar) return;
+    if (sourceType !== "AudioDock") {
+      Alert.alert("提示", "当前源不支持修改头像");
+      return;
+    }
+    try {
+      setUploadingAvatar(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.9,
+      });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (!asset?.uri) return;
+      const fileName = asset.fileName || `user-${user.id}-${Date.now()}.jpg`;
+      const file = {
+        uri: asset.uri,
+        name: fileName,
+        type: asset.mimeType || "image/jpeg",
+      } as any;
+      const res = await uploadUserAvatar(user.id, file);
+      if (res.code === 200) {
+        const nextAvatar = res.data?.avatar || (res.data?.user as any)?.avatar || fileName;
+        setAvatarOverride(nextAvatar);
+        const baseUrl = getBaseURL();
+        if (baseUrl) {
+          const stored = await AsyncStorage.getItem(`user_${baseUrl}`);
+          const parsed = stored ? JSON.parse(stored) : {};
+          const updated = { ...parsed, avatar: nextAvatar };
+          await AsyncStorage.setItem(`user_${baseUrl}`, JSON.stringify(updated));
+        }
+      } else {
+        Alert.alert("修改失败", res.message || "上传头像失败");
+      }
+    } catch (error) {
+      console.error("Failed to upload user avatar:", error);
+      Alert.alert("修改失败", "上传头像失败");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   useEffect(() => {
     if (updateInfo) {
@@ -297,6 +358,23 @@ export default function PersonalScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenTtsTasks = () => {
+    setMenuVisible(false);
+
+    if (isPlusVip) {
+      router.push("/tts/tasks" as any);
+      return;
+    }
+
+    Alert.alert("会员功能", "开通会员才能使用 TTS 有声书转换功能", [
+      { text: "取消", style: "cancel" },
+      {
+        text: "去开通",
+        onPress: () => router.push("/member-benefits" as any),
+      },
+    ]);
   };
 
   const handleDeleteDownload = (item: Track) => {
@@ -696,6 +774,12 @@ export default function PersonalScreen() {
           )}
 
           <TouchableOpacity
+            onPress={handleOpenScanEntry}
+            style={[styles.iconBtn, { marginRight: 10 }]}
+          >
+            <Ionicons name="scan-outline" size={22} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={() => router.push("/source-manage" as any)}
             style={[styles.iconBtn, { marginRight: 10 }]}
           >
@@ -712,21 +796,31 @@ export default function PersonalScreen() {
 
       {/* User Info */}
       <View style={styles.userInfo}>
-        <CachedImage
-          source={{
-            uri: getImageUrl(
-              (user as any)?.avatar,
-              "https://picsum.photos/200",
-            ),
-          }} // Placeholder for avatar
-          style={styles.avatar}
-        />
+        <TouchableOpacity onPress={handleChangeAvatar} activeOpacity={0.8}>
+          <CachedImage
+            source={{
+              uri: getImageUrl(
+                avatarOverride,
+                "https://picsum.photos/200",
+              ),
+            }} // Placeholder for avatar
+            style={styles.avatar}
+          />
+          {user && (
+            <View style={[styles.avatarEditBadge, { backgroundColor: colors.card }]}>
+              <Ionicons name="camera" size={14} color={colors.text} />
+            </View>
+          )}
+        </TouchableOpacity>
         <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
             <Text style={[styles.nickname, { color: colors.text }]}>
             {user?.username || "未登录"}
             </Text>
             {user && (
                 <TouchableOpacity onPress={async () => {
+                    if (Platform.OS === "ios") {
+                        return;
+                    }
                     const plusToken = await AsyncStorage.getItem("plus_token");
                     if (plusToken) {
                         if (isPlusVip) {
@@ -879,6 +973,8 @@ export default function PersonalScreen() {
         }}
       />
 
+
+
       <Modal
         visible={createModalVisible}
         transparent={true}
@@ -1010,10 +1106,7 @@ export default function PersonalScreen() {
               <>
                 <TouchableOpacity
                   style={styles.menuItem}
-                  onPress={() => {
-                    setMenuVisible(false);
-                    router.push("/tts/tasks" as any);
-                  }}
+                  onPress={handleOpenTtsTasks}
                 >
                   <Ionicons name="mic-outline" size={22} color={colors.text} />
                   <Text style={[styles.menuItemText, { color: colors.text }]}>
@@ -1263,6 +1356,18 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     marginBottom: 15,
   },
+  avatarEditBadge: {
+    position: "absolute",
+    right: 0,
+    bottom: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.1)",
+  },
   nickname: {
     fontSize: 20,
     fontWeight: "bold",
@@ -1510,6 +1615,103 @@ const styles = StyleSheet.create({
   importHideBtn: {
     paddingVertical: 12,
     alignItems: "center",
+  },
+  scanModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  scanModalContent: {
+    width: "100%",
+    maxWidth: 440,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderWidth: 1,
+  },
+  scanModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  scanModalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  scanPermissionState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 32,
+    gap: 16,
+  },
+  scanHintText: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    marginBottom: 14,
+  },
+  scanCameraFrame: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 16,
+    backgroundColor: "#000",
+  },
+  scanCamera: {
+    flex: 1,
+  },
+  scanPrimaryButton: {
+    minWidth: 160,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    alignItems: "center",
+  },
+  scanPrimaryButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  scanSecondaryButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  scanSecondaryButtonText: {
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  scanConfirmList: {
+    maxHeight: 320,
+    marginBottom: 16,
+  },
+  scanBundleCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    gap: 10,
+  },
+  scanBundleTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  scanBundleItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  scanBundleItemTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  scanBundleItemMeta: {
+    fontSize: 12,
+    lineHeight: 18,
   },
   serverItem: {
     flexDirection: "row",

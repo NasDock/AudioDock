@@ -10,11 +10,15 @@ internal data class WidgetState(
   val isPlaying: Boolean,
   val playMode: String,
   val isLiked: Boolean,
+  val isVip: Boolean,
   val colorPrimary: Int,
   val colorSecondary: Int,
+  val position: Int,
+  val duration: Int,
   val playlistsJson: String,
   val historyJson: String,
-  val latestJson: String
+  val latestJson: String,
+  val recommendationsJson: String
 )
 
 internal object WidgetStore {
@@ -29,11 +33,15 @@ internal object WidgetStore {
   private const val KEY_IS_LIKED = "is_liked"
   private const val KEY_IS_LIKED_OVERRIDE = "is_liked_override"
   private const val KEY_IS_LIKED_OVERRIDE_UNTIL = "is_liked_override_until"
+  private const val KEY_IS_VIP = "is_vip"
   private const val KEY_COLOR_PRIMARY = "color_primary"
   private const val KEY_COLOR_SECONDARY = "color_secondary"
+  private const val KEY_POSITION = "position"
+  private const val KEY_DURATION = "duration"
   private const val KEY_PLAYLISTS = "playlists_json"
   private const val KEY_HISTORY = "history_json"
   private const val KEY_LATEST = "latest_json"
+  private const val KEY_RECOMMENDATIONS = "recommendations_json"
 
   private fun prefs(context: Context): SharedPreferences =
     context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -49,11 +57,15 @@ internal object WidgetStore {
       isPlaying = prefs.getBoolean(KEY_PLAYING, false),
       playMode = resolvedPlayMode,
       isLiked = resolvedLiked,
+      isVip = prefs.getBoolean(KEY_IS_VIP, false),
       colorPrimary = prefs.getInt(KEY_COLOR_PRIMARY, 0xFF000000.toInt()),
       colorSecondary = prefs.getInt(KEY_COLOR_SECONDARY, 0xFF000000.toInt()),
+      position = prefs.getInt(KEY_POSITION, 0),
+      duration = prefs.getInt(KEY_DURATION, 0),
       playlistsJson = prefs.getString(KEY_PLAYLISTS, "[]") ?: "[]",
       historyJson = prefs.getString(KEY_HISTORY, "[]") ?: "[]",
-      latestJson = prefs.getString(KEY_LATEST, "[]") ?: "[]"
+      latestJson = prefs.getString(KEY_LATEST, "[]") ?: "[]",
+      recommendationsJson = prefs.getString(KEY_RECOMMENDATIONS, "[]") ?: "[]"
     )
   }
 
@@ -65,11 +77,15 @@ internal object WidgetStore {
     isPlaying: Boolean,
     playMode: String,
     isLiked: Boolean,
+    isVip: Boolean = prefs(context).getBoolean(KEY_IS_VIP, false),
     colorPrimary: Int,
     colorSecondary: Int,
+    position: Int,
+    duration: Int,
     playlistsJson: String = prefs(context).getString(KEY_PLAYLISTS, "[]") ?: "[]",
     historyJson: String = prefs(context).getString(KEY_HISTORY, "[]") ?: "[]",
-    latestJson: String = prefs(context).getString(KEY_LATEST, "[]") ?: "[]"
+    latestJson: String = prefs(context).getString(KEY_LATEST, "[]") ?: "[]",
+    recommendationsJson: String = prefs(context).getString(KEY_RECOMMENDATIONS, "[]") ?: "[]"
   ) {
     val prefs = prefs(context)
     val now = System.currentTimeMillis()
@@ -83,11 +99,15 @@ internal object WidgetStore {
       .putString(KEY_ARTIST, artist)
       .putString(KEY_COVER, coverPath)
       .putBoolean(KEY_PLAYING, isPlaying)
+      .putBoolean(KEY_IS_VIP, isVip)
       .putInt(KEY_COLOR_PRIMARY, colorPrimary)
       .putInt(KEY_COLOR_SECONDARY, colorSecondary)
+      .putInt(KEY_POSITION, position)
+      .putInt(KEY_DURATION, duration)
       .putString(KEY_PLAYLISTS, playlistsJson)
       .putString(KEY_HISTORY, historyJson)
       .putString(KEY_LATEST, latestJson)
+      .putString(KEY_RECOMMENDATIONS, recommendationsJson)
 
     if (shouldWritePlayMode) {
       editor.putString(KEY_PLAY_MODE, playMode)
@@ -99,12 +119,19 @@ internal object WidgetStore {
     editor.apply()
   }
 
-  fun saveCollections(context: Context, playlistsJson: String, historyJson: String, latestJson: String) {
-    prefs(context).edit()
-      .putString(KEY_PLAYLISTS, playlistsJson)
-      .putString(KEY_HISTORY, historyJson)
-      .putString(KEY_LATEST, latestJson)
-      .apply()
+  fun saveCollections(
+    context: Context,
+    playlistsJson: String?,
+    historyJson: String?,
+    latestJson: String?,
+    recommendationsJson: String?
+  ) {
+    val editor = prefs(context).edit()
+    if (playlistsJson != null) editor.putString(KEY_PLAYLISTS, playlistsJson)
+    if (historyJson != null) editor.putString(KEY_HISTORY, historyJson)
+    if (latestJson != null) editor.putString(KEY_LATEST, latestJson)
+    if (recommendationsJson != null) editor.putString(KEY_RECOMMENDATIONS, recommendationsJson)
+    editor.apply()
   }
 
   fun setPlayModeOverride(context: Context, mode: String, durationMs: Long = 2000L) {
@@ -122,6 +149,12 @@ internal object WidgetStore {
       .putBoolean(KEY_IS_LIKED, liked)
       .putBoolean(KEY_IS_LIKED_OVERRIDE, liked)
       .putLong(KEY_IS_LIKED_OVERRIDE_UNTIL, until)
+      .apply()
+  }
+
+  fun setVipStatus(context: Context, isVip: Boolean) {
+    prefs(context).edit()
+      .putBoolean(KEY_IS_VIP, isVip)
       .apply()
   }
 

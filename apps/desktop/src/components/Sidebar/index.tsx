@@ -1,5 +1,6 @@
 import {
   AppstoreOutlined,
+  AppstoreAddOutlined,
   AudioOutlined,
   CloudDownloadOutlined,
   CompassOutlined,
@@ -90,6 +91,14 @@ const Sidebar: React.FC = () => {
           onClick={() => navigate("/category")}
           active={isActive("/category")}
         />
+        {mode === TrackType.AUDIOBOOK && (
+          <MenuItem
+            icon={<AppstoreAddOutlined />}
+            text="合集"
+            onClick={() => navigate("/collections")}
+            active={isActive("/collections")}
+          />
+        )}
         <MenuItem
           icon={<TeamOutlined />}
           text="艺术家"

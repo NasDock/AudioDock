@@ -6,7 +6,10 @@
   android:minResizeHeight="250dp"
   android:resizeMode="none"
   android:updatePeriodMillis="0"
+  android:configure="com.anonymous.mobile.widget.WidgetAccessGateActivity"
   android:initialLayout="@layout/widget_latest_tracks_large"
+  android:previewLayout="@layout/widget_latest_tracks_large"
+  android:previewImage="@drawable/widget_preview_large"
   android:widgetCategory="home_screen"
   android:targetCellWidth="4"
   android:targetCellHeight="4" />

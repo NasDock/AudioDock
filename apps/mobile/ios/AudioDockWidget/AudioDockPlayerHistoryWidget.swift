@@ -21,6 +21,7 @@ struct AudioDockPlayerHistoryEntry: TimelineEntry {
   let history: [WidgetHistoryItem]
   let colorPrimary: Color
   let colorSecondary: Color
+  let isVip: Bool
 }
 
 struct AudioDockPlayerHistoryProvider: TimelineProvider {
@@ -33,7 +34,8 @@ struct AudioDockPlayerHistoryProvider: TimelineProvider {
       cover: nil,
       history: [],
       colorPrimary: .black,
-      colorSecondary: .black
+      colorSecondary: .black,
+      isVip: true
     )
   }
 
@@ -56,6 +58,7 @@ struct AudioDockPlayerHistoryProvider: TimelineProvider {
     let secondaryHex = defaults?.string(forKey: "widget_color_secondary") ?? "#000000"
     let cover = loadCover(defaults: defaults)
     let history = loadHistory(defaults: defaults)
+    let isVip = defaults?.bool(forKey: "widget_is_vip") ?? false
 
     return AudioDockPlayerHistoryEntry(
       date: Date(),
@@ -65,7 +68,8 @@ struct AudioDockPlayerHistoryProvider: TimelineProvider {
       cover: cover,
       history: history,
       colorPrimary: Color(hex: primaryHex),
-      colorSecondary: Color(hex: secondaryHex)
+      colorSecondary: Color(hex: secondaryHex),
+      isVip: isVip
     )
   }
 
@@ -112,15 +116,37 @@ struct AudioDockPlayerHistoryWidgetView: View {
   let entry: AudioDockPlayerHistoryEntry
 
   var body: some View {
-    VStack(spacing: 10) {
-      topPlayerView
-      historyListView
+    Group {
+      if entry.isVip {
+        VStack(spacing: 10) {
+          topPlayerView
+          historyListView
+        }
+        .padding(14)
+      } else {
+        lockedView
+      }
     }
     .foregroundColor(.white)
-    .padding(14)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary, cover: entry.cover))
-    .widgetURL(URL(string: "audiodock://"))
+    .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary, cover: entry.isVip ? entry.cover : nil))
+    .widgetURL(URL(string: entry.isVip ? "audiodock://" : "audiodock://member-benefits"))
+  }
+
+  private var lockedView: some View {
+    VStack(spacing: 12) {
+      Image(systemName: "crown.fill")
+        .font(.system(size: 24))
+        .foregroundColor(.yellow)
+      Text("会员专属功能")
+        .font(.system(size: 14, weight: .bold))
+      Text("请在 App 中开通会员")
+        .font(.system(size: 11))
+        .opacity(0.7)
+    }
+    .padding()
+    .multilineTextAlignment(.center)
+    .frame(maxHeight: .infinity)
   }
 
   private var topPlayerView: some View {

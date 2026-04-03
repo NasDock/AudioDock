@@ -7,15 +7,11 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.Rect
-import android.graphics.Shader
 import android.os.Bundle
+import android.view.View
 import android.widget.RemoteViews
 import com.anonymous.mobile.R
+import kotlin.math.roundToInt
 
 open class AudioDockWidgetProvider : AppWidgetProvider() {
 
@@ -95,11 +91,9 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
         views.setTextViewText(R.id.widget_artist, state.artist)
 
         val coverPath = state.coverPath
-        var coverBitmap: Bitmap? = null
         if (!coverPath.isNullOrBlank()) {
           val bitmap = BitmapFactory.decodeFile(coverPath)
           if (bitmap != null) {
-            coverBitmap = bitmap
             views.setImageViewBitmap(R.id.widget_cover, bitmap)
           } else {
             views.setImageViewResource(R.id.widget_cover, android.R.color.transparent)
@@ -109,13 +103,28 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
         }
 
         val (widthPx, heightPx) = resolveWidgetSize(context, options)
-        val bgBitmap = when {
-          coverBitmap != null -> blurredBackground(coverBitmap!!, widthPx, heightPx)
-          else -> gradientBitmap(widthPx, heightPx, state.colorPrimary, state.colorSecondary)
-        }
+        val bgBitmap = WidgetImageUtils.themedGradientBackground(
+          widthPx,
+          heightPx,
+          state.colorPrimary,
+          state.colorSecondary
+        )
         if (bgBitmap != null) {
           views.setImageViewBitmap(R.id.widget_bg, bgBitmap)
         }
+
+        val shouldShowProgress = state.duration > 0 && state.position >= 0
+        val progress = if (shouldShowProgress) {
+          ((state.position.toFloat() / state.duration.toFloat()) * 1000f).roundToInt()
+            .coerceIn(0, 1000)
+        } else {
+          0
+        }
+        views.setViewVisibility(
+          R.id.widget_progress,
+          if (shouldShowProgress) View.VISIBLE else View.GONE
+        )
+        views.setProgressBar(R.id.widget_progress, 1000, progress, false)
 
         if (layoutId == R.layout.widget_large || layoutId == R.layout.widget_medium) {
           val modeIcon = when (normalizePlayMode(state.playMode)) {
@@ -236,29 +245,6 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
       val heightPx = (heightDp * density).toInt().coerceAtLeast(1)
       return Pair(widthPx, heightPx)
     }
-
-    private fun gradientBitmap(width: Int, height: Int, startColor: Int, endColor: Int): Bitmap? {
-      if (width <= 0 || height <= 0) return null
-      val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-      val canvas = Canvas(bitmap)
-      val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-      paint.shader = LinearGradient(
-        0f, 0f, width.toFloat(), height.toFloat(),
-        startColor, endColor, Shader.TileMode.CLAMP
-      )
-      canvas.drawRect(Rect(0, 0, width, height), paint)
-      return bitmap
-    }
-
-    private fun blurredBackground(source: Bitmap, targetWidth: Int, targetHeight: Int): Bitmap? {
-      if (targetWidth <= 0 || targetHeight <= 0) return null
-      val scale = 0.12f
-      val downW = (targetWidth * scale).toInt().coerceAtLeast(1)
-      val downH = (targetHeight * scale).toInt().coerceAtLeast(1)
-      val down = Bitmap.createScaledBitmap(source, downW, downH, true)
-      return Bitmap.createScaledBitmap(down, targetWidth, targetHeight, true)
-    }
-
     // Transport actions are handled in WidgetTransportService to avoid binding in a receiver.
   }
 }

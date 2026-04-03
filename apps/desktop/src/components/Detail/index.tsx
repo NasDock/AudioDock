@@ -4,6 +4,7 @@ import {
     ArrowUpOutlined,
     CaretRightOutlined,
     CloseOutlined,
+    EllipsisOutlined,
     HeartFilled,
     HeartOutlined,
     OrderedListOutlined,
@@ -17,14 +18,17 @@ import {
     getAlbumTracks,
     toggleAlbumLike,
     toggleAlbumUnLike,
+    uploadAlbumCover,
 } from "@soundx/services";
 import { useRequest } from "ahooks";
 import {
     Avatar,
     Button,
     Col,
+    Dropdown,
     Flex,
     Input,
+    type MenuProps,
     Row,
     Space,
     theme,
@@ -65,6 +69,7 @@ const Detail: React.FC = () => {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isBatchAddModalOpen, setIsBatchAddModalOpen] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   const location = useLocation();
   const hasResumed = React.useRef(false);
@@ -79,6 +84,9 @@ const Detail: React.FC = () => {
     currentTrack,
   } = usePlayerStore();
   const containerRef = useRef<HTMLDivElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const isAudioDockSource =
+    (localStorage.getItem("selectedSourceType") || "AudioDock") === "AudioDock";
 
   const pageSize = 50;
 
@@ -233,6 +241,43 @@ const Detail: React.FC = () => {
     }
   };
 
+  const handleCoverFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !album) return;
+    if (!isAudioDockSource) {
+      message.warning("仅 AudioDock 源支持修改封面");
+      return;
+    }
+    try {
+      setUploadingCover(true);
+      const res = await uploadAlbumCover(album.id, file);
+      if (res.code === 200) {
+        setAlbum(res.data);
+        message.success("封面已更新");
+      } else {
+        message.error(res.message || "封面上传失败");
+      }
+    } catch (error) {
+      console.error("Failed to upload album cover:", error);
+      message.error("封面上传失败");
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+
+  const coverMenuItems: MenuProps["items"] = [
+    {
+      key: "upload",
+      label: "修改封面",
+      onClick: () => coverInputRef.current?.click(),
+      disabled: uploadingCover || !isAudioDockSource,
+    },
+  ].filter(Boolean) as MenuProps["items"];
+
   const handlePlayAll = (
     resumeTrackId?: string | number,
     resumeProgress?: number,
@@ -378,7 +423,21 @@ const Detail: React.FC = () => {
           <div className={styles.bannerOverlay}></div>
 
           <Flex align="center" gap={16} className={styles.bannerContent}>
-            <Avatar size={50} src={getCoverUrl(album, album?.id)} />
+            <div className={styles.coverWrapper}>
+              <Avatar size={50} src={getCoverUrl(album, album?.id)} />
+              <Dropdown menu={{ items: coverMenuItems }} trigger={["click"]}>
+                <div className={styles.coverMenuButton}>
+                  <EllipsisOutlined />
+                </div>
+              </Dropdown>
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={handleCoverFileChange}
+              />
+            </div>
             <Flex vertical gap={0}>
               <Title level={4} style={{ color: "#fff", margin: 0 }}>
                 {album?.name || "Unknown Album"}

@@ -2,33 +2,40 @@ import {
     CheckSquareOutlined,
     CloseOutlined,
     DownloadOutlined,
+    EllipsisOutlined,
     PlusOutlined
 } from "@ant-design/icons";
 import {
     getAlbumsByArtist,
     getArtistById,
     getCollaborativeAlbumsByArtist,
+    getCollections,
     getTracksByArtist,
+    uploadArtistAvatar,
 } from "@soundx/services";
 import {
     Avatar,
     Button,
     Col,
+    Dropdown,
     Empty,
     Flex,
+    type MenuProps,
     message,
     Row,
     Skeleton,
     Typography
 } from "antd";
-import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import Cover from "../../components/Cover";
 import TrackList from "../../components/TrackList";
 import { getBaseURL } from "../../https";
 import { type Album, type Artist, type Track, TrackType } from "../../models";
 import { downloadTracks } from "../../services/downloadManager";
+import { resolveArtworkUri } from "../../services/trackResolver";
+import { useAuthStore } from "../../store/auth";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
 
@@ -36,6 +43,7 @@ const { Title } = Typography;
 
 const ArtistDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   // const message = useMessage(); // Use messageApi from antd 5
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -43,14 +51,20 @@ const ArtistDetail: React.FC = () => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [collaborativeAlbums, setCollaborativeAlbums] = useState<Album[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [relatedCollections, setRelatedCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { mode } = usePlayMode();
+  const { user } = useAuthStore();
   const isEmbySource = (localStorage.getItem("selectedSourceType") || "").toLowerCase() === "emby";
 
   // Selection Mode
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isBatchAddModalOpen, setIsBatchAddModalOpen] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const isAudioDockSource =
+    (localStorage.getItem("selectedSourceType") || "AudioDock") === "AudioDock";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -90,6 +104,35 @@ const ArtistDetail: React.FC = () => {
     fetchData();
   }, [id]);
 
+  useEffect(() => {
+    const loadRelatedCollections = async () => {
+      if (mode !== TrackType.AUDIOBOOK || !user?.id || !artist) {
+        setRelatedCollections([]);
+        return;
+      }
+      try {
+        const res = await getCollections(user.id);
+        if (res.code !== 200) {
+          setRelatedCollections([]);
+          return;
+        }
+        const artistAlbumIds = new Set(
+          [...albums, ...collaborativeAlbums].map((album) => String(album.id)),
+        );
+        const filtered = (res.data || []).filter((col: any) =>
+          (col.items || []).some((item: any) =>
+            artistAlbumIds.has(String(item.album?.id)),
+          ),
+        );
+        setRelatedCollections(filtered);
+      } catch (error) {
+        setRelatedCollections([]);
+      }
+    };
+
+    loadRelatedCollections();
+  }, [mode, user?.id, artist, albums, collaborativeAlbums]);
+
   const handleToggleSelectionMode = () => {
     setIsSelectionMode(!isSelectionMode);
     setSelectedRowKeys([]);
@@ -108,6 +151,42 @@ const ArtistDetail: React.FC = () => {
         }
     });
   };
+
+  const handleAvatarFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !artist) return;
+    if (!isAudioDockSource) {
+      messageApi.warning("仅 AudioDock 源支持修改封面");
+      return;
+    }
+    try {
+      setUploadingAvatar(true);
+      const res = await uploadArtistAvatar(artist.id, file);
+      if (res.code === 200) {
+        setArtist(res.data);
+        messageApi.success("封面已更新");
+      } else {
+        messageApi.error(res.message || "封面上传失败");
+      }
+    } catch (error) {
+      console.error("Failed to upload artist cover:", error);
+      messageApi.error("封面上传失败");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const avatarMenuItems: MenuProps["items"] = [
+    {
+      key: "upload",
+      label: "修改封面",
+      onClick: () => avatarInputRef.current?.click(),
+      disabled: uploadingAvatar || !isAudioDockSource,
+    },
+  ];
 
 
 
@@ -157,19 +236,33 @@ const ArtistDetail: React.FC = () => {
     <div className={styles.container}>
       <div className={styles.header}>
         {contextHolder}
-        <Avatar
-          src={
-            artist?.avatar
-              ? artist.avatar.startsWith("http")
-                ? artist.avatar
-                : `${getBaseURL()}${artist.avatar}`
-              : undefined
-          }
-          size={200}
-          shape="circle"
-          className={styles.avatar}
-          icon={!artist.avatar && artist.name[0]}
-        />
+        <div className={styles.avatarWrapper}>
+          <Avatar
+            src={
+              artist?.avatar
+                ? artist.avatar.startsWith("http")
+                  ? artist.avatar
+                  : `${getBaseURL()}${artist.avatar}`
+                : undefined
+            }
+            size={200}
+            shape="circle"
+            className={styles.avatar}
+            icon={!artist.avatar && artist.name[0]}
+          />
+          <Dropdown menu={{ items: avatarMenuItems }} trigger={["click"]}>
+            <div className={styles.avatarMenuButton}>
+              <EllipsisOutlined />
+            </div>
+          </Dropdown>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handleAvatarFileChange}
+          />
+        </div>
         <Title level={2} className={styles.artistName}>
           {artist.name}
         </Title>
@@ -201,6 +294,44 @@ const ArtistDetail: React.FC = () => {
                 <Cover item={album} />
               </Col>
             ))}
+          </Row>
+        </div>
+      )}
+
+      {mode === TrackType.AUDIOBOOK && relatedCollections.length > 0 && (
+        <div className={styles.content} style={{ marginTop: "48px" }}>
+          <Title level={4} className={styles.sectionTitle}>
+            相关合集 ({relatedCollections.length})
+          </Title>
+          <Row gutter={[24, 24]}>
+            {relatedCollections.map((col) => {
+              const cover =
+                col.cover || col.items?.[0]?.album?.cover || undefined;
+              const count = col._count?.items ?? col.items?.length ?? 0;
+              return (
+                <Col key={col.id}>
+                  <div
+                    className={styles.collectionCard}
+                    onClick={() => navigate(`/collection/${col.id}`)}
+                  >
+                    <div className={styles.collectionCoverWrap}>
+                      <img
+                        className={styles.collectionCover}
+                        src={
+                          resolveArtworkUri(cover) ||
+                          `https://picsum.photos/seed/${col.id}/300/300`
+                        }
+                        alt={col.name}
+                      />
+                    </div>
+                    <div className={styles.collectionName}>{col.name}</div>
+                    <div className={styles.collectionCount}>
+                      {count} 张专辑
+                    </div>
+                  </div>
+                </Col>
+              );
+            })}
           </Row>
         </div>
       )}

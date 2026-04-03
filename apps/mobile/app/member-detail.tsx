@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
+import { syncWidgetMembership } from "../src/native/WidgetBridge";
 
 export default function MemberDetailScreen() {
   const router = useRouter();
@@ -40,6 +41,9 @@ export default function MemberDetailScreen() {
         const res = await plusGetMe(id);
         if (res.data.code === 200 && res.data.data) {
           setVipData(res.data.data);
+          await syncWidgetMembership(
+            !!(res.data.data.vipTier && res.data.data.vipTier !== "NONE")
+          );
         }
       }
     } catch (err) {
@@ -72,6 +76,17 @@ export default function MemberDetailScreen() {
   }
 
   const isVip = vipData?.vipTier && vipData?.vipTier !== "NONE";
+  const comparisonData = [
+    { feature: "基础功能", free: true, member: true },
+    { feature: "设备接力", free: true, member: true },
+    { feature: "同步控制", free: false, member: true },
+    { feature: "TTS生成有声书", free: false, member: true },
+    { feature: "桌面小部件", free: false, member: true },
+    { feature: "TV版 (待上线)", free: false, member: true },
+    { feature: "车机模式", free: false, member: true },
+    { feature: "扫码登录", free: false, member: true },
+    { feature: "语音助手", free: false, member: true },
+  ];
   const tierName = vipData?.vipTier === "LIFETIME" ? "永久会员" : "年度会员";
   const expiryDate = vipData?.vipTier === "LIFETIME" ? "永久有效" : (vipData?.vipExpiresAt ? new Date(vipData.vipExpiresAt).toLocaleDateString() : "未知");
 
@@ -121,9 +136,39 @@ export default function MemberDetailScreen() {
           )}
         </View>
 
-        <TouchableOpacity 
-            style={[styles.logoutButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={handleLogout}
+        <View style={[styles.benefitsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.benefitsHeader}>
+            <Text style={[styles.benefitsHeaderText, { flex: 2, color: colors.secondary }]}>权益功能</Text>
+            <Text style={[styles.benefitsHeaderText, { flex: 1, textAlign: "center", color: colors.secondary }]}>非会员</Text>
+            <Text style={[styles.benefitsHeaderText, { flex: 1, textAlign: "center", color: colors.secondary }]}>会员</Text>
+          </View>
+          {comparisonData.map((item, index) => (
+            <View
+              key={item.feature}
+              style={[
+                styles.benefitsRow,
+                { borderTopWidth: index === 0 ? 0 : StyleSheet.hairlineWidth, borderTopColor: colors.border },
+              ]}
+            >
+              <Text style={[styles.benefitsFeatureText, { flex: 2, color: colors.text }]}>{item.feature}</Text>
+              <View style={{ flex: 1, alignItems: "center" }}>
+                <Ionicons
+                  name={item.free ? "checkmark-circle" : "close-circle"}
+                  size={18}
+                  color={item.free ? colors.primary : colors.secondary}
+                  style={{ opacity: item.free ? 1 : 0.3 }}
+                />
+              </View>
+              <View style={{ flex: 1, alignItems: "center" }}>
+                <Ionicons name="checkmark-circle" size={20} color="#FFD700" />
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <TouchableOpacity
+          style={[styles.logoutButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={handleLogout}
         >
           <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
           <Text style={styles.logoutText}>退出/切换会员账号</Text>
@@ -161,7 +206,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 10,
   },
   vipInfo: {
     alignItems: 'center',
@@ -202,6 +247,33 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  benefitsCard: {
+    width: "100%",
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 10,
+    overflow: "hidden",
+    marginBottom: 10,
+  },
+  benefitsHeader: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  benefitsHeaderText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  benefitsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  benefitsFeatureText: {
+    fontSize: 14,
+    fontWeight: "500",
   },
   logoutButton: {
     flexDirection: 'row',

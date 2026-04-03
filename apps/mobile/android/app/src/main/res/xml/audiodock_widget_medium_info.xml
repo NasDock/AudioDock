@@ -6,7 +6,10 @@
   android:minResizeHeight="110dp"
   android:resizeMode="none"
   android:updatePeriodMillis="0"
+  android:configure="com.anonymous.mobile.widget.WidgetAccessGateActivity"
   android:initialLayout="@layout/widget_medium"
+  android:previewLayout="@layout/widget_medium"
+  android:previewImage="@drawable/widget_preview_medium"
   android:widgetCategory="home_screen"
   android:targetCellWidth="4"
   android:targetCellHeight="2" />

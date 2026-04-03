@@ -6,11 +6,11 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.graphics.BitmapFactory
 import android.widget.RemoteViews
 import com.anonymous.mobile.R
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.math.roundToInt
 
 class AudioDockPlaylistWidgetProvider : AppWidgetProvider() {
   override fun onUpdate(
@@ -34,6 +34,7 @@ class AudioDockPlaylistWidgetProvider : AppWidgetProvider() {
     private const val ACTION_PLAYLIST = WidgetCommandReceiver.ACTION_WIDGET_PLAYLIST
     private const val ACTION_PLAY = "com.soundx.widget.PLAY"
     private const val ACTION_PAUSE = "com.soundx.widget.PAUSE"
+    private const val ROW_COVER_SIZE_DP = 44
 
     fun updateAllWidgets(context: Context) {
       val manager = AppWidgetManager.getInstance(context)
@@ -55,7 +56,12 @@ class AudioDockPlaylistWidgetProvider : AppWidgetProvider() {
 
         val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
         val (widthPx, heightPx) = resolveWidgetSize(context, options)
-        val background = resolveBackground(context, playlists, widthPx, heightPx)
+        val background = WidgetImageUtils.themedGradientBackground(
+          widthPx,
+          heightPx,
+          state.colorPrimary,
+          state.colorSecondary
+        )
         if (background != null) {
           views.setImageViewBitmap(R.id.widget_bg, background)
         }
@@ -135,7 +141,11 @@ class AudioDockPlaylistWidgetProvider : AppWidgetProvider() {
 
       if (cover.isNotEmpty()) {
         val path = resolveCoverPath(context, cover)
-        val bitmap = BitmapFactory.decodeFile(path)
+        val bitmap = WidgetImageUtils.decodeSampledBitmap(
+          path,
+          dpToPx(context, ROW_COVER_SIZE_DP),
+          dpToPx(context, ROW_COVER_SIZE_DP)
+        )
         if (bitmap != null) {
           views.setImageViewBitmap(coverId, bitmap)
         } else {
@@ -178,28 +188,6 @@ class AudioDockPlaylistWidgetProvider : AppWidgetProvider() {
       return item.optString("coverPath", "")
     }
 
-    private fun resolveBackground(
-      context: Context,
-      playlists: List<JSONObject>,
-      widthPx: Int,
-      heightPx: Int
-    ): android.graphics.Bitmap? {
-      val first = playlists.firstOrNull() ?: return null
-      val cover = resolveCoverValue(first)
-      if (cover.isEmpty()) return null
-      val path = resolveCoverPath(context, cover)
-      val bitmap = BitmapFactory.decodeFile(path) ?: return null
-      return blurredBackground(bitmap, widthPx, heightPx)
-    }
-
-    private fun blurredBackground(source: android.graphics.Bitmap, targetWidth: Int, targetHeight: Int): android.graphics.Bitmap? {
-      val scale = 0.12f
-      val downW = (targetWidth * scale).toInt().coerceAtLeast(1)
-      val downH = (targetHeight * scale).toInt().coerceAtLeast(1)
-      val down = android.graphics.Bitmap.createScaledBitmap(source, downW, downH, true)
-      return android.graphics.Bitmap.createScaledBitmap(down, targetWidth, targetHeight, true)
-    }
-
     private fun resolveWidgetSize(context: Context, options: android.os.Bundle?): Pair<Int, Int> {
       val density = context.resources.displayMetrics.density
       val widthDp = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH) ?: 250
@@ -207,6 +195,10 @@ class AudioDockPlaylistWidgetProvider : AppWidgetProvider() {
       val widthPx = (widthDp * density).toInt().coerceAtLeast(1)
       val heightPx = (heightDp * density).toInt().coerceAtLeast(1)
       return Pair(widthPx, heightPx)
+    }
+
+    private fun dpToPx(context: Context, valueDp: Int): Int {
+      return (valueDp * context.resources.displayMetrics.density).roundToInt().coerceAtLeast(1)
     }
 
     private fun openPendingIntent(context: Context): PendingIntent {

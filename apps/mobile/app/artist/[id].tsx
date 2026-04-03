@@ -1,6 +1,8 @@
 import { AddToPlaylistModal } from "@/src/components/AddToPlaylistModal";
+import { ArtistMoreModal } from "@/src/components/ArtistMoreModal";
 import { FilePathModal } from "@/src/components/FilePathModal";
 import PlayingIndicator from "@/src/components/PlayingIndicator";
+import SkeletonBlock from "@/src/components/SkeletonBlock";
 import { useAuth } from "@/src/context/AuthContext";
 import { TrackMoreModal } from "@/src/components/TrackMoreModal";
 import { usePlayer } from "@/src/context/PlayerContext";
@@ -10,16 +12,18 @@ import { downloadTracks } from "@/src/services/downloadManager";
 import { getImageUrl } from "@/src/utils/image";
 import { usePlayMode } from "@/src/utils/playMode";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import {
     getAlbumsByArtist,
     getArtistById,
     getCollaborativeAlbumsByArtist,
+    getCollections,
     getTracksByArtist,
+    uploadArtistAvatar,
 } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
     Alert,
     Image,
     ScrollView,
@@ -29,20 +33,28 @@ import {
     View,
 } from "react-native";
 
+const ARTIST_AVATAR_SIZE = 150;
+const ARTIST_ALBUM_COVER_SIZE = 120;
+const ARTIST_HEADER_ICON_SIZE = 24;
+const ARTIST_LIST_ACTION_SIZE = 36;
+const ARTIST_TRACK_COVER_SIZE = 20;
+
 export default function ArtistDetailScreen() {
   const { id } = useLocalSearchParams();
   const { colors } = useTheme();
   const { playTrackList, currentTrack, isPlaying } = usePlayer();
   const { mode } = usePlayMode();
-  const { sourceType } = useAuth();
+  const { sourceType, user } = useAuth();
   const router = useRouter();
   const [artist, setArtist] = useState<Artist | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [collaborativeAlbums, setCollaborativeAlbums] = useState<Album[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [relatedCollections, setRelatedCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [moreModalVisible, setMoreModalVisible] = useState(false);
+  const [artistMoreVisible, setArtistMoreVisible] = useState(false);
   const [addToPlaylistVisible, setAddToPlaylistVisible] = useState(false);
   const [filePathVisible, setFilePathVisible] = useState(false);
   const [propertyTrack, setPropertyTrack] = useState<Track | null>(null);
@@ -50,12 +62,42 @@ export default function ArtistDetailScreen() {
   const [selectedTrackIds, setSelectedTrackIds] = useState<(number | string)[]>(
     [],
   );
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   useEffect(() => {
     if (id) {
       loadData(id as string);
     }
   }, [id]);
+
+  useEffect(() => {
+    const loadRelatedCollections = async () => {
+      if (mode !== TrackType.AUDIOBOOK || !user?.id || !artist) {
+        setRelatedCollections([]);
+        return;
+      }
+      try {
+        const res = await getCollections(user.id);
+        if (res.code !== 200) {
+          setRelatedCollections([]);
+          return;
+        }
+        const artistAlbumIds = new Set(
+          [...albums, ...collaborativeAlbums].map((album) => String(album.id)),
+        );
+        const filtered = (res.data || []).filter((col: any) =>
+          (col.items || []).some((item: any) =>
+            artistAlbumIds.has(String(item.album?.id)),
+          ),
+        );
+        setRelatedCollections(filtered);
+      } catch (error) {
+        setRelatedCollections([]);
+      }
+    };
+
+    loadRelatedCollections();
+  }, [mode, user?.id, artist, albums, collaborativeAlbums]);
 
   const loadData = async (artistId: string) => {
     try {
@@ -82,6 +124,41 @@ export default function ArtistDetailScreen() {
       console.error("Failed to load artist details:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateCover = async () => {
+    if (!artist || uploadingCover) return;
+    if (sourceType !== "AudioDock") {
+      Alert.alert("提示", "仅 AudioDock 源支持修改封面");
+      return;
+    }
+    try {
+      setUploadingCover(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.9,
+      });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (!asset?.uri) return;
+      const fileName = asset.fileName || `artist-${artist.id}-${Date.now()}.jpg`;
+      const file = {
+        uri: asset.uri,
+        name: fileName,
+        type: asset.mimeType || "image/jpeg",
+      } as any;
+      const res = await uploadArtistAvatar(artist.id, file);
+      if (res.code === 200) {
+        setArtist(res.data);
+      } else {
+        Alert.alert("上传失败", res.message || "封面上传失败");
+      }
+    } catch (error) {
+      console.error("Failed to upload artist cover:", error);
+      Alert.alert("上传失败", "封面上传失败");
+    } finally {
+      setUploadingCover(false);
     }
   };
 
@@ -119,16 +196,7 @@ export default function ArtistDetailScreen() {
   };
 
   if (loading) {
-    return (
-      <View
-        style={[
-          styles.container,
-          { backgroundColor: colors.background, justifyContent: "center" },
-        ]}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return <ArtistDetailSkeleton />;
   }
 
   if (!artist) {
@@ -161,7 +229,7 @@ export default function ArtistDetailScreen() {
             color={colors.text}
           />
         </TouchableOpacity>
-        {isSelectionMode && (
+        {isSelectionMode ? (
           <View style={styles.headerRight}>
             <Text
               style={[styles.headerTitle, { color: colors.text }]}
@@ -190,6 +258,16 @@ export default function ArtistDetailScreen() {
                 name="cloud-download-outline"
                 size={24}
                 color={selectedTrackIds.length ? colors.text : colors.secondary}
+              />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => setArtistMoreVisible(true)}>
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={24}
+                color={colors.text}
               />
             </TouchableOpacity>
           </View>
@@ -326,6 +404,59 @@ export default function ArtistDetailScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {mode === TrackType.AUDIOBOOK && relatedCollections.length > 0 && (
+          <View style={styles.section}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: colors.text, paddingHorizontal: 20 },
+              ]}
+            >
+              相关合集 ({relatedCollections.length})
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ paddingHorizontal: 20, paddingBottom: 20 }}
+            >
+              {relatedCollections.map((col) => {
+                const cover =
+                  col.cover || col.items?.[0]?.album?.cover || undefined;
+                return (
+                  <TouchableOpacity
+                    key={col.id}
+                    style={styles.albumCard}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/collection/[id]",
+                        params: { id: String(col.id) },
+                      })
+                    }
+                  >
+                    <View style={styles.albumCoverContainer}>
+                      <Image
+                        source={{
+                          uri: getImageUrl(
+                            cover,
+                            `https://picsum.photos/seed/collection-${col.id}/200/200`,
+                          ),
+                        }}
+                        style={styles.albumCover}
+                      />
+                    </View>
+                    <Text
+                      style={[styles.albumName, { color: colors.text }]}
+                      numberOfLines={1}
+                    >
+                      {col.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
         )}
@@ -497,6 +628,13 @@ export default function ArtistDetailScreen() {
         }}
       />
 
+      <ArtistMoreModal
+        visible={artistMoreVisible}
+        artist={artist}
+        onClose={() => setArtistMoreVisible(false)}
+        onUpdateCover={handleUpdateCover}
+      />
+
       <AddToPlaylistModal
         visible={addToPlaylistVisible}
         trackId={isSelectionMode ? null : (selectedTrack?.id ?? null)}
@@ -511,6 +649,107 @@ export default function ArtistDetailScreen() {
         path={propertyTrack?.path}
         onClose={() => setFilePathVisible(false)}
       />
+    </View>
+  );
+}
+
+function ArtistDetailSkeleton() {
+  const { colors } = useTheme();
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.customHeader, { backgroundColor: colors.background }]}>
+        <View style={styles.backButton}>
+          <SkeletonBlock width={28} height={28} borderRadius={14} />
+        </View>
+        <View style={styles.headerRight}>
+          <SkeletonBlock
+            width={ARTIST_HEADER_ICON_SIZE}
+            height={ARTIST_HEADER_ICON_SIZE}
+            borderRadius={ARTIST_HEADER_ICON_SIZE / 2}
+          />
+        </View>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <SkeletonBlock
+            width={ARTIST_AVATAR_SIZE}
+            height={ARTIST_AVATAR_SIZE}
+            borderRadius={ARTIST_AVATAR_SIZE / 2}
+            style={{ marginBottom: 15 }}
+          />
+          <SkeletonBlock width={170} height={28} borderRadius={10} />
+        </View>
+
+        <View style={styles.section}>
+          <SkeletonBlock
+            width={140}
+            height={26}
+            borderRadius={10}
+            style={{ marginLeft: 20, marginBottom: 15 }}
+          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
+          >
+            {Array.from({ length: 3 }).map((_, index) => (
+              <View key={index} style={styles.albumCard}>
+                <SkeletonBlock
+                  width={ARTIST_ALBUM_COVER_SIZE}
+                  height={ARTIST_ALBUM_COVER_SIZE}
+                  borderRadius={10}
+                  style={{ marginBottom: 5 }}
+                />
+                <SkeletonBlock width={90} height={14} borderRadius={7} style={{ alignSelf: "center" }} />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={[styles.section, styles.trackList]}>
+          <View style={styles.sectionHeaderRow}>
+            <SkeletonBlock width={150} height={26} borderRadius={10} />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <SkeletonBlock
+                width={ARTIST_LIST_ACTION_SIZE}
+                height={ARTIST_LIST_ACTION_SIZE}
+                borderRadius={ARTIST_LIST_ACTION_SIZE / 2}
+              />
+              <SkeletonBlock
+                width={ARTIST_LIST_ACTION_SIZE}
+                height={ARTIST_LIST_ACTION_SIZE}
+                borderRadius={ARTIST_LIST_ACTION_SIZE / 2}
+              />
+            </View>
+          </View>
+
+          {Array.from({ length: 7 }).map((_, index) => (
+            <View
+              key={index}
+              style={[styles.trackItem, { borderBottomColor: colors.border }]}
+            >
+              <View style={styles.trackIndexContainer}>
+                <SkeletonBlock width={18} height={18} borderRadius={9} />
+              </View>
+              <View style={styles.trackInfo}>
+                <SkeletonBlock
+                  width={ARTIST_TRACK_COVER_SIZE}
+                  height={ARTIST_TRACK_COVER_SIZE}
+                  borderRadius={2}
+                />
+                <SkeletonBlock
+                  width={index % 2 === 0 ? "58%" : "70%"}
+                  height={16}
+                  borderRadius={8}
+                />
+              </View>
+              <SkeletonBlock width={36} height={12} borderRadius={6} />
+            </View>
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -535,9 +774,9 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   avatar: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    width: ARTIST_AVATAR_SIZE,
+    height: ARTIST_AVATAR_SIZE,
+    borderRadius: ARTIST_AVATAR_SIZE / 2,
     marginBottom: 15,
   },
   name: {
@@ -565,16 +804,16 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   playButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: ARTIST_LIST_ACTION_SIZE,
+    height: ARTIST_LIST_ACTION_SIZE,
+    borderRadius: ARTIST_LIST_ACTION_SIZE / 2,
     justifyContent: "center",
     alignItems: "center",
   },
   actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: ARTIST_LIST_ACTION_SIZE,
+    height: ARTIST_LIST_ACTION_SIZE,
+    borderRadius: ARTIST_LIST_ACTION_SIZE / 2,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -590,19 +829,19 @@ const styles = StyleSheet.create({
   },
   albumCard: {
     marginRight: 15,
-    width: 120,
+    width: ARTIST_ALBUM_COVER_SIZE,
   },
   albumCoverContainer: {
-    width: 120,
-    height: 120,
+    width: ARTIST_ALBUM_COVER_SIZE,
+    height: ARTIST_ALBUM_COVER_SIZE,
     borderRadius: 10,
     overflow: "hidden",
     position: "relative",
     marginBottom: 5,
   },
   albumCover: {
-    width: 120,
-    height: 120,
+    width: ARTIST_ALBUM_COVER_SIZE,
+    height: ARTIST_ALBUM_COVER_SIZE,
   },
   progressOverlay: {
     position: "absolute",

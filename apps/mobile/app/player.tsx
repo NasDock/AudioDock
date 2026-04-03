@@ -18,6 +18,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,6 +29,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PlayerMoreModal } from "../src/components/PlayerMoreModal";
 import { PlaylistModal } from "../src/components/PlaylistModal";
+import { FloatingActionButtons } from "../src/components/FloatingActionButtons";
 import SyncModal from "../src/components/SyncModal";
 import { isCached } from "../src/services/cache";
 import { useSettings } from "@/src/context/SettingsContext";
@@ -215,7 +217,7 @@ export function PlayerDetailView({
       if (!plusToken || !plusUserId) {
         Alert.alert("提示", "该功能是VIP功能，仅在开通VIP的情况使用。", [
           { text: "取消", style: "cancel" },
-          { text: "立即开通", onPress: () => router.push("/member-benefits" as any) },
+          ...(Platform.OS !== "ios" ? [{ text: "立即开通", onPress: () => router.push("/member-benefits" as any), style: "default" as const }] : []),
         ]);
         return;
       }
@@ -233,7 +235,7 @@ export function PlayerDetailView({
       } else {
         Alert.alert("提示", "该功能是VIP功能，仅在开通VIP的情况使用。", [
           { text: "取消", style: "cancel" },
-          { text: "立即开通", onPress: () => router.push("/member-benefits" as any) },
+          ...(Platform.OS !== "ios" ? [{ text: "立即开通", onPress: () => router.push("/member-benefits" as any), style: "default" as const }] : []),
         ]);
       }
     } catch (error) {
@@ -406,18 +408,23 @@ export function PlayerDetailView({
     lyricFontSize,
   ]);
 
+  const scrollToCurrentInPlaylist = (animated: boolean = true) => {
+    if (!currentTrack || trackList.length === 0) return;
+    const index = trackList.findIndex((t) => t.id === currentTrack.id);
+    if (index !== -1) {
+      playlistRef.current?.scrollToIndex({
+        index,
+        animated,
+        viewPosition: 0.5,
+      });
+    }
+  };
+
   useEffect(() => {
     if (currentTrack && trackList.length > 0) {
-      const index = trackList.findIndex((t) => t.id === currentTrack.id);
-      if (index !== -1) {
-        setTimeout(() => {
-          playlistRef.current?.scrollToIndex({
-            index,
-            animated: true,
-            viewPosition: 0.5,
-          });
-        }, 500);
-      }
+      setTimeout(() => {
+        scrollToCurrentInPlaylist(true);
+      }, 500);
     }
   }, [currentTrack?.id, trackList.length]);
 
@@ -515,98 +522,107 @@ export function PlayerDetailView({
   }
 
   const renderPlaylist = () => (
-    <FlatList
-      ref={playlistRef}
-      data={trackList}
-      keyExtractor={(item) => item.id.toString()}
-      onScrollToIndexFailed={(info) => {
-        playlistRef.current?.scrollToOffset({
-          offset: info.averageItemLength * info.index,
-          animated: true,
-        });
-      }}
-      renderItem={({ item, index }) => (
-        <TouchableOpacity
-          style={[
-            styles.playlistItem,
-            currentTrack?.id === item.id && styles.activePlaylistItem,
-          ]}
-          onPress={() => playTrackList(trackList, index)}
-        >
-          <View style={styles.trackIndexContainer}>
-            {currentTrack?.id === item.id && isPlaying ? (
-              <PlayingIndicator />
-            ) : (
+    <View style={styles.playlistContainer}>
+      <FlatList
+        ref={playlistRef}
+        data={trackList}
+        keyExtractor={(item) => item.id.toString()}
+        onScrollToIndexFailed={(info) => {
+          playlistRef.current?.scrollToOffset({
+            offset: info.averageItemLength * info.index,
+            animated: true,
+          });
+        }}
+        renderItem={({ item, index }) => (
+          <TouchableOpacity
+            style={[
+              styles.playlistItem,
+              currentTrack?.id === item.id && styles.activePlaylistItem,
+            ]}
+            onPress={() => playTrackList(trackList, index)}
+          >
+            <View style={styles.trackIndexContainer}>
+              {currentTrack?.id === item.id && isPlaying ? (
+                <PlayingIndicator />
+              ) : (
+                <Text
+                  style={[
+                    styles.trackIndex,
+                    {
+                      color:
+                        currentTrack?.id === item.id
+                          ? colors.primary
+                          : colors.secondary,
+                    },
+                  ]}
+                >
+                  {index + 1}
+                </Text>
+              )}
+            </View>
+            <Image
+              source={{
+                uri: getImageUrl(item.cover, `https://picsum.photos/seed/${item.id}/20/20`),
+              }}
+              style={styles.playlistItemCover}
+            />
+            <View style={{ flex: 1, marginLeft: 10 }}>
               <Text
                 style={[
-                  styles.trackIndex,
+                  styles.playlistItemText,
                   {
                     color:
                       currentTrack?.id === item.id
                         ? colors.primary
-                        : colors.secondary,
+                        : currentTrack?.type === TrackType.AUDIOBOOK &&
+                            ((item as any).progress > 0 ||
+                              (item.listenedAsAudiobookByUsers &&
+                                item.listenedAsAudiobookByUsers[0] &&
+                                item.listenedAsAudiobookByUsers[0].progress > 0))
+                          ? colors.secondary
+                          : colors.text,
                   },
                 ]}
+                numberOfLines={1}
               >
-                {index + 1}
+                {item.name}
               </Text>
-            )}
-          </View>
-          <Image
-            source={{
-              uri: getImageUrl(item.cover, `https://picsum.photos/seed/${item.id}/20/20`),
-            }}
-            style={styles.playlistItemCover}
-          />
-          <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text
-              style={[
-                styles.playlistItemText,
-                {
-                  color:
+              {currentTrack?.type === TrackType.AUDIOBOOK &&
+                (() => {
+                  const displayProgress =
                     currentTrack?.id === item.id
-                      ? colors.primary
-                      : currentTrack?.type === TrackType.AUDIOBOOK &&
-                          ((item as any).progress > 0 ||
-                            (item.listenedAsAudiobookByUsers &&
-                              item.listenedAsAudiobookByUsers[0] &&
-                              item.listenedAsAudiobookByUsers[0].progress > 0))
-                        ? colors.secondary
-                        : colors.text,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {item.name}
-            </Text>
-            {currentTrack?.type === TrackType.AUDIOBOOK &&
-              (() => {
-                const displayProgress =
-                  currentTrack?.id === item.id
-                    ? position
-                    : (item as any).progress ||
-                      item.listenedAsAudiobookByUsers?.[0]?.progress ||
-                      0;
-                if (displayProgress <= 0) return null;
-                return (
-                  <Text
-                    style={{
-                      fontSize: 10,
-                      color: colors.secondary,
-                      marginTop: 2,
-                    }}
-                  >
-                    已听{" "}
-                    {Math.floor((displayProgress / (item.duration || 1)) * 100)}
-                    %
-                  </Text>
-                );
-              })()}
-          </View>
-        </TouchableOpacity>
+                      ? position
+                      : (item as any).progress ||
+                        item.listenedAsAudiobookByUsers?.[0]?.progress ||
+                        0;
+                  if (displayProgress <= 0) return null;
+                  return (
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        color: colors.secondary,
+                        marginTop: 2,
+                      }}
+                    >
+                      已听{" "}
+                      {Math.floor((displayProgress / (item.duration || 1)) * 100)}
+                      %
+                    </Text>
+                  );
+                })()}
+            </View>
+          </TouchableOpacity>
+        )}
+        style={styles.playlist}
+      />
+      {trackList.length > 20 && (
+        <FloatingActionButtons
+          flatListRef={playlistRef}
+          onLocateCurrent={() => scrollToCurrentInPlaylist(true)}
+          locateDisabled={!currentTrack || trackList.findIndex((t) => t.id === currentTrack.id) === -1}
+        />
       )}
-      style={styles.playlist}
-    />
+    </View>
   );
 
   const renderControls = () => (
@@ -1249,6 +1265,21 @@ const styles = StyleSheet.create({
     top: 20,
     left: 20,
     zIndex: 10,
+  },
+  playlistContainer: {
+    flex: 1,
+  },
+  playlistHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  playlistTitle: {
+    fontSize: 14,
+    fontWeight: "600",
   },
   playlist: {
     flex: 1,

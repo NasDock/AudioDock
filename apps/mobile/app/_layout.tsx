@@ -1,4 +1,5 @@
 import * as Linking from 'expo-linking';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useRouter, useSegments } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import "react-native-reanimated";
@@ -17,16 +18,18 @@ import { SquirrelAgent } from "../src/components/SquirrelAgent";
 import { GlobalBottomBar } from "../src/components/GlobalBottomBar";
 import { SettingsProvider, useSettings } from "../src/context/SettingsContext";
 import { SyncProvider } from "../src/context/SyncContext";
+import { syncWidgetMembership } from "../src/native/WidgetBridge";
 import { PlayerDetailView } from "./player";
 
 function RootLayoutNav() {
-  const { token, isLoading, sourceType, plusToken, user } = useAuth();
+  const { token, isLoading, plusToken, user } = useAuth();
   const { voiceAssistantEnabled, carLayoutMode } = useSettings();
   const { theme, colors } = useTheme();
   const { pause, resume, playNext, playPrevious, togglePlayMode, isPlaying, currentTrack, playTrackList } = usePlayer();
   const { mode: contentMode } = usePlayMode();
   const segments = useSegments();
   const router = useRouter();
+  const [isVip, setIsVip] = React.useState(false);
   const fuAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -53,6 +56,7 @@ function RootLayoutNav() {
     const isDetailPage =
       segmentName === "artist" ||
       segmentName === "album" ||
+      segmentName === "collection" ||
       segmentName === "modal" ||
       segmentName === "player" ||
       segmentName === "search" ||
@@ -67,21 +71,21 @@ function RootLayoutNav() {
       segmentName === "login" ||
       segmentName === "member-login" ||
       segmentName === "member-benefits" ||
+      segmentName === "member-payment-success" ||
       segmentName === "forgot-password" ||
       segmentName === "member-detail" ||
-      segmentName === "tts";
+      segmentName === "tts" ||
+      segmentName === "scan" ||
+      segmentName === "scan-confirm";
 
-    if (!token && inAuthGroup) {
-      router.replace({
-        pathname: "/login-form",
-        params: { type: sourceType || "AudioDock" },
-      } as any);
-    } else if (token && inAuthGroup && !plusToken) {
-       router.replace("/member-login");
+    if (!plusToken && inAuthGroup) {
+      router.replace("/member-login");
+    } else if (plusToken && !token && inAuthGroup) {
+      router.replace("/login");
     } else if (token && plusToken && !inAuthGroup && !isDetailPage) {
       router.replace("/(tabs)");
     }
-  }, [token, plusToken, segments, isLoading, sourceType]);
+  }, [token, plusToken, segments, isLoading]);
 
   useEffect(() => {
     if (!url) return;
@@ -216,6 +220,42 @@ function RootLayoutNav() {
     handle();
   }, [url, isPlaying, pause, resume, playNext, playPrevious, togglePlayMode, currentTrack, user, playTrackList, contentMode]);
 
+  useEffect(() => {
+    const syncVipState = async () => {
+      try {
+        if (!plusToken) {
+          setIsVip(false);
+          await syncWidgetMembership(false);
+          return;
+        }
+
+        const plusVipStatus = await AsyncStorage.getItem("plus_vip_status");
+        const plusVipData = await AsyncStorage.getItem("plus_vip_data");
+        let vip = plusVipStatus === "true";
+
+        if (!vip && plusVipData) {
+          try {
+            const parsed = JSON.parse(plusVipData);
+            vip = !!(parsed?.vipTier && parsed.vipTier !== "NONE");
+          } catch {
+            vip = false;
+          }
+        }
+
+        setIsVip(vip);
+        await syncWidgetMembership(vip);
+      } catch (error) {
+        console.warn("[WidgetBridge] sync membership failed", error);
+      }
+    };
+
+    syncVipState();
+    
+    // 定期轮询会员状态（可选，也可以在页面进入时触发）
+    const timer = setInterval(syncVipState, 3000); 
+    return () => clearInterval(timer);
+  }, [plusToken]);
+
   const stack = (
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -258,6 +298,7 @@ function RootLayoutNav() {
       />
       <Stack.Screen name="playlist/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="album/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="collection/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="artist/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="folder/index" options={{ headerShown: false }} />
       <Stack.Screen name="folder/[id]" options={{ headerShown: false }} />
@@ -265,6 +306,7 @@ function RootLayoutNav() {
       <Stack.Screen name="widget" options={{ headerShown: false }} />
       <Stack.Screen name="source-manage" options={{ headerShown: false }} />
       <Stack.Screen name="member-detail" options={{ headerShown: false }} />
+      <Stack.Screen name="member-payment-success" options={{ headerShown: false }} />
       <Stack.Screen 
         name="login-form" 
         options={{ 
@@ -314,6 +356,8 @@ function RootLayoutNav() {
           animation: 'slide_from_right'
         }} 
       />
+      <Stack.Screen name="scan" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="scan-confirm" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
     </Stack>
   );
 
@@ -330,6 +374,9 @@ function RootLayoutNav() {
     rootSegment === "product-updates" ||
     rootSegment === "member-detail" ||
     rootSegment === "member-benefits" ||
+    rootSegment === "member-payment-success" ||
+    rootSegment === "scan" ||
+    rootSegment === "scan-confirm" ||
     rootSegment === "modal";
   const showBottomBar = !hideBottomBar;
 
@@ -358,7 +405,7 @@ function RootLayoutNav() {
         )}
       </View>
       {(segments[0] as string) !== "player" && <PlaylistModal />}
-      {(segments[0] as string) !== "player" && voiceAssistantEnabled && <SquirrelAgent />}
+      {(segments[0] as string) !== "player" && voiceAssistantEnabled && isVip && <SquirrelAgent />}
       {theme === 'festive' && segments[0] !== 'player' && (
         <Animated.View 
           pointerEvents="none" 

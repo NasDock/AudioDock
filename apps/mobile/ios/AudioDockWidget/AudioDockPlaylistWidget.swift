@@ -18,6 +18,7 @@ struct AudioDockPlaylistEntry: TimelineEntry {
   let colorPrimary: Color
   let colorSecondary: Color
   let backgroundCover: UIImage?
+  let isVip: Bool
 }
 
 struct AudioDockPlaylistProvider: TimelineProvider {
@@ -28,7 +29,8 @@ struct AudioDockPlaylistProvider: TimelineProvider {
       isPlaying: false,
       colorPrimary: .black,
       colorSecondary: .black,
-      backgroundCover: nil
+      backgroundCover: nil,
+      isVip: true
     )
   }
 
@@ -49,6 +51,7 @@ struct AudioDockPlaylistProvider: TimelineProvider {
     let playlists = loadPlaylists(defaults: defaults)
     let backgroundCover = playlists.first?.cover
     let isPlaying = defaults?.bool(forKey: "widget_is_playing") ?? false
+    let isVip = defaults?.bool(forKey: "widget_is_vip") ?? false
 
     return AudioDockPlaylistEntry(
       date: Date(),
@@ -56,7 +59,8 @@ struct AudioDockPlaylistProvider: TimelineProvider {
       isPlaying: isPlaying,
       colorPrimary: Color(hex: primaryHex),
       colorSecondary: Color(hex: secondaryHex),
-      backgroundCover: backgroundCover
+      backgroundCover: backgroundCover,
+      isVip: isVip
     )
   }
 
@@ -91,37 +95,59 @@ struct AudioDockPlaylistWidgetView: View {
   let entry: AudioDockPlaylistEntry
 
   var body: some View {
-    VStack(spacing: 10) {
-      HStack {
-        Text("播放列表")
-          .font(.system(size: 15, weight: .bold))
-        Spacer()
-        headerPlayPause
-      }
-
-      VStack(spacing: 8) {
-        ForEach(entry.playlists) { item in
-          HStack(spacing: 10) {
-            coverView(item.cover)
-              .frame(width: 44, height: 44)
-              .cornerRadius(8)
-            Text(item.name)
-              .font(.system(size: 13, weight: .medium))
-              .lineLimit(1)
-              .frame(maxWidth: .infinity, alignment: .leading)
-            playButton(for: item.id)
+    Group {
+      if entry.isVip {
+        VStack(spacing: 10) {
+          HStack {
+            Text("播放列表")
+              .font(.system(size: 15, weight: .bold))
+            Spacer()
+            headerPlayPause
           }
-        }
-      }
-      .frame(maxWidth: .infinity, alignment: .top)
 
-      Spacer(minLength: 0)
+          VStack(spacing: 8) {
+            ForEach(entry.playlists) { item in
+              HStack(spacing: 10) {
+                coverView(item.cover)
+                  .frame(width: 44, height: 44)
+                  .cornerRadius(8)
+                Text(item.name)
+                  .font(.system(size: 13, weight: .medium))
+                  .lineLimit(1)
+                  .frame(maxWidth: .infinity, alignment: .leading)
+                playButton(for: item.id)
+              }
+            }
+          }
+          .frame(maxWidth: .infinity, alignment: .top)
+
+          Spacer(minLength: 0)
+        }
+        .padding(14)
+      } else {
+        lockedView
+      }
     }
     .foregroundColor(.white)
-    .padding(14)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary, cover: entry.backgroundCover))
-    .widgetURL(URL(string: "audiodock://"))
+    .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary, cover: entry.isVip ? entry.backgroundCover : nil))
+    .widgetURL(URL(string: entry.isVip ? "audiodock://" : "audiodock://member-benefits"))
+  }
+
+  private var lockedView: some View {
+    VStack(spacing: 12) {
+      Image(systemName: "crown.fill")
+        .font(.system(size: 24))
+        .foregroundColor(.yellow)
+      Text("会员专属功能")
+        .font(.system(size: 14, weight: .bold))
+      Text("请在 App 中开通会员")
+        .font(.system(size: 11))
+        .opacity(0.7)
+    }
+    .padding()
+    .multilineTextAlignment(.center)
+    .frame(maxHeight: .infinity)
   }
 
   private func coverView(_ image: UIImage?) -> some View {

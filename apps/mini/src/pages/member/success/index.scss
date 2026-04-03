@@ -1,0 +1,96 @@
+.payment-success-container {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 20px 15px;
+  background-color: #fff;
+}
+
+.back-btn {
+  padding: 8px;
+  width: 80rpx;
+}
+
+.back-icon {
+  font-size: 40rpx;
+  color: #333;
+}
+
+.header-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.card {
+  margin: 40rpx 30rpx;
+  background-color: #fff;
+  border-radius: 30rpx;
+  padding: 60rpx 40rpx;
+  align-items: center;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+}
+
+.success-icon {
+  font-size: 120rpx;
+  color: #2ecc71;
+  margin-bottom: 20rpx;
+}
+
+.success-text {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 40rpx;
+}
+
+.info-block {
+  width: 100%;
+  margin-top: 20rpx;
+}
+
+.info-label {
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 8rpx;
+}
+
+.info-value {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.refresh-row {
+  margin-top: 30rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.refresh-text {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.primary-button {
+  margin-top: 40rpx;
+  background-color: #007aff;
+  padding: 28rpx 60rpx;
+  border-radius: 50rpx;
+}
+
+.primary-button-text {
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: 600;
+}

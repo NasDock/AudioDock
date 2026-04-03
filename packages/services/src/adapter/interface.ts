@@ -1,4 +1,4 @@
-import { Album, Artist, ILoadMoreData, ISuccessResponse, ITableData, Playlist, Track } from "../models";
+import { Album, Artist, AudiobookCollection, AudiobookCollectionAlbum, ILoadMoreData, ISuccessResponse, ITableData, Playlist, Track } from "../models";
 
 export interface ITrackAdapter {
   getTrackList(): Promise<ISuccessResponse<Track[]>>;
@@ -35,6 +35,7 @@ export interface IAlbumAdapter {
   getAlbumTracks(id: number | string, pageSize: number, skip: number, sort?: "asc" | "desc", keyword?: string, userId?: number | string, sortBy?: string): Promise<ISuccessResponse<{ list: any[]; total: number }>>;
   getAlbumsByArtist(artist: string): Promise<ISuccessResponse<Album[]>>;
   getCollaborativeAlbumsByArtist(artist: string): Promise<ISuccessResponse<Album[]>>;
+  uploadAlbumCover(id: number | string, file: any): Promise<ISuccessResponse<Album>>;
   toggleLike(id: number | string, userId: number | string): Promise<ISuccessResponse<any>>;
   toggleUnLike(id: number | string, userId: number | string): Promise<ISuccessResponse<any>>;
   getFavoriteAlbums(userId: number | string, loadCount: number, pageSize: number, type?: string): Promise<ISuccessResponse<ILoadMoreData<{ album: Album, createdAt: string | Date }>>>;
@@ -51,6 +52,7 @@ export interface IArtistAdapter {
   batchDeleteArtists(ids: (number | string)[]): Promise<ISuccessResponse<boolean>>;
   getArtistById(id: number | string): Promise<ISuccessResponse<Artist>>;
   getLatestArtists(type: string, random?: boolean, pageSize?: number): Promise<ISuccessResponse<Artist[]>>;
+  uploadArtistAvatar(id: number | string, file: any): Promise<ISuccessResponse<Artist>>;
 }
 
 export interface IPlaylistAdapter {
@@ -64,6 +66,19 @@ export interface IPlaylistAdapter {
   removeTrackFromPlaylist(playlistId: number | string, trackId: number | string): Promise<ISuccessResponse<boolean>>;
 }
 
+export interface IAudioCollectionAdapter {
+  createCollection(userId: number | string, data: { name?: string; cover?: string | null; albumId?: number | string }): Promise<ISuccessResponse<AudiobookCollection>>;
+  getCollections(userId: number | string): Promise<ISuccessResponse<AudiobookCollection[]>>;
+  getCollectionById(id: number | string): Promise<ISuccessResponse<AudiobookCollection>>;
+  updateCollection(id: number | string, data: { name?: string; cover?: string | null }): Promise<ISuccessResponse<AudiobookCollection>>;
+  uploadCollectionCover(id: number | string, file: any): Promise<ISuccessResponse<AudiobookCollection>>;
+  deleteCollection(id: number | string): Promise<ISuccessResponse<boolean>>;
+  addAlbumToCollection(collectionId: number | string, albumId: number | string): Promise<ISuccessResponse<AudiobookCollectionAlbum | boolean>>;
+  removeAlbumFromCollection(collectionId: number | string, albumId: number | string): Promise<ISuccessResponse<boolean>>;
+  reorderCollection(collectionId: number | string, albumIds: (number | string)[]): Promise<ISuccessResponse<boolean>>;
+  getCollectionMembership(albumId: number | string, userId: number | string): Promise<ISuccessResponse<number[]>>;
+}
+
 import { IAuthAdapter, IUserAdapter } from "./interface-user-auth";
 
 // ... existing code ...
@@ -73,6 +88,7 @@ export interface IMusicAdapter {
   album: IAlbumAdapter;
   artist: IArtistAdapter;
   playlist: IPlaylistAdapter;
+  collection: IAudioCollectionAdapter;
   user: IUserAdapter;
   auth: IAuthAdapter;
 }

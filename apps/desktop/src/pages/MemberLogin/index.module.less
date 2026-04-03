@@ -10,12 +10,33 @@
 
 .card {
   width: 100%;
-  max-width: 400px;
+  max-width: 860px;
   padding: 40px;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   position: relative;
   -webkit-app-region: no-drag;
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: minmax(260px, 300px) 350px;
+  gap: 32px;
+  align-items: center;
+  justify-content: center;
+}
+
+.scanSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.formSection {
+  min-width: 0;
+  width: 350px;
 }
 
 .header {
@@ -46,4 +67,14 @@
 
 .footer {
   text-align: center;
+}
+
+@media (max-width: 780px) {
+  .card {
+    max-width: 460px;
+  }
+
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
 }

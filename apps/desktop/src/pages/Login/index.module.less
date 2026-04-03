@@ -1,7 +1,7 @@
 .container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
   width: 100vw;
   position: relative;
   justify-content: center;
@@ -17,38 +17,101 @@
 }
 
 .content {
-  width: 100%;
-  max-width: 420px;
-  padding: 40px;
-  text-align: center;
+  width: min(1040px, calc(100vw - 64px));
+  display: grid;
+  grid-template-columns: minmax(320px, 380px) minmax(360px, 1fr);
+  gap: 24px;
+  align-items: stretch;
   -webkit-app-region: no-drag;
 }
 
+.scanPanel,
+.formPanel {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 18px 60px rgba(15, 23, 42, 0.08);
+}
+
 .header {
-  margin-bottom: 10px;
+  margin-bottom: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  text-align: center;
+  gap: 6px;
 }
 
 .logo {
   width: 80px;
   height: 80px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .form {
   text-align: left;
+
   :global(.ant-form-item-label) {
-    margin-bottom: 0px;
-    padding-bottom: 0px;
+    margin-bottom: 0;
+    padding-bottom: 0;
+
     :global(label) {
       height: 30px !important;
     }
   }
 }
 
-.footerLink {
-  margin-top: 16px;
+.qrPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.qrText {
   text-align: center;
+  line-height: 1.6;
+}
+
+.confirmPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sourceList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.sourceGroup {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.configMeta {
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.55);
+  margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+  .content {
+    grid-template-columns: 1fr;
+    width: min(640px, calc(100vw - 32px));
+    margin-top: 88px;
+    margin-bottom: 24px;
+  }
+
+  .backButton {
+    top: 20px;
+    left: 16px;
+  }
 }

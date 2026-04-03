@@ -150,6 +150,7 @@ export interface User {
   id: number | string;
   username: string;
   password?: string;
+  avatar?: string | null;
   is_admin: boolean;
   expiresAt?: string | Date | null;
   createdAt?: string | Date;
@@ -174,6 +175,27 @@ export interface Playlist {
   _count?: {
     tracks: number;
   };
+}
+
+export interface AudiobookCollection {
+  id: number | string;
+  name: string;
+  cover: string | null;
+  type: TrackType;
+  userId: number | string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  items?: AudiobookCollectionAlbum[];
+  _count?: { items: number };
+}
+
+export interface AudiobookCollectionAlbum {
+  id: number | string;
+  collectionId: number | string;
+  albumId: number | string;
+  order: number;
+  createdAt: string | Date;
+  album?: Album;
 }
 export interface Device {
   id: number | string;

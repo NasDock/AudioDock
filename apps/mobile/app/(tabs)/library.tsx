@@ -1,13 +1,13 @@
 import { AddToPlaylistModal } from "@/src/components/AddToPlaylistModal";
 import { CachedImage } from "@/src/components/CachedImage";
 import { FloatingActionButtons } from "@/src/components/FloatingActionButtons";
+import SkeletonBlock from "@/src/components/SkeletonBlock";
 import { Ionicons } from "@expo/vector-icons";
-import { getArtistList, loadMoreAlbum, loadMoreTrack } from "@soundx/services";
+import { getArtistList, getCollections, loadMoreAlbum, loadMoreTrack } from "@soundx/services";
 import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Animated,
   Easing,
@@ -31,6 +31,8 @@ import { trackEvent } from "../../src/services/tracking";
 const GAP = 15;
 const SCREEN_PADDING = 40; // 20 horizontal padding * 2
 const TARGET_WIDTH = 100; // Slightly smaller target for dense list
+const SONG_SKELETON_COUNT = 9;
+const GRID_SKELETON_COUNT = 12;
 
 interface SongListProps {
   isSelectionMode: boolean;
@@ -145,10 +147,10 @@ const SongList = ({
 
   if (loading) {
     return (
-      <ActivityIndicator
-        size="large"
-        color={colors.primary}
-        style={{ marginTop: 20 }}
+      <SongListSkeleton
+        isSelectionMode={isSelectionMode}
+        showHeartbeatMode={mode === "MUSIC"}
+        heartbeatModeActive={heartbeatModeActive}
       />
     );
   }
@@ -384,10 +386,12 @@ const ArtistList = ({
 
   if (loading) {
     return (
-      <ActivityIndicator
-        size="large"
-        color={colors.primary}
-        style={{ marginTop: 20 }}
+      <GridListSkeleton
+        itemWidth={itemWidth}
+        numColumns={numColumns}
+        circle
+        showHeartbeatMode={mode === "MUSIC"}
+        heartbeatModeActive={heartbeatModeActive}
       />
     );
   }
@@ -547,10 +551,11 @@ const AlbumList = ({
 
   if (loading) {
     return (
-      <ActivityIndicator
-        size="large"
-        color={colors.primary}
-        style={{ marginTop: 20 }}
+      <GridListSkeleton
+        itemWidth={itemWidth}
+        numColumns={numColumns}
+        showHeartbeatMode={mode === "MUSIC"}
+        heartbeatModeActive={heartbeatModeActive}
       />
     );
   }
@@ -660,6 +665,115 @@ const AlbumList = ({
   );
 };
 
+const CollectionList = () => {
+  const { colors } = useTheme();
+  const router = useRouter();
+  const { mode } = usePlayMode();
+  const { user } = useAuth();
+  const { width } = useWindowDimensions();
+  const [collections, setCollections] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Calculate columns dynamically
+  const availableWidth = width - SCREEN_PADDING;
+  const numColumns = Math.max(
+    3,
+    Math.floor((availableWidth + GAP) / (TARGET_WIDTH + GAP)),
+  );
+  const itemWidth = (availableWidth - (numColumns - 1) * GAP) / numColumns;
+
+  useEffect(() => {
+    if (mode !== "AUDIOBOOK" || !user) return;
+    loadCollections();
+  }, [mode, user]);
+
+  const loadCollections = async () => {
+    if (!user) return;
+    try {
+      setLoading(true);
+      const res = await getCollections(user.id);
+      if (res.code === 200 && res.data) {
+        setCollections(res.data);
+      }
+    } catch (error) {
+      console.error("Failed to load collections:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <GridListSkeleton itemWidth={itemWidth} numColumns={numColumns} />;
+  }
+
+  return (
+    <View style={styles.listContainer}>
+      <FlatList
+        data={collections}
+        numColumns={numColumns}
+        key={`collection-list-${numColumns}`}
+        columnWrapperStyle={{ gap: GAP, marginBottom: 15 }}
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={({ item }) => {
+          const previewCover =
+            item.cover || item.items?.[0]?.album?.cover || null;
+          const count = item._count?.items ?? item.items?.length ?? 0;
+          return (
+            <TouchableOpacity
+              style={{ width: itemWidth }}
+              onPress={() =>
+                router.push({
+                  pathname: "/collection/[id]",
+                  params: { id: String(item.id) },
+                })
+              }
+            >
+              <View
+                style={[
+                  styles.albumImageContainer,
+                  { width: itemWidth, height: itemWidth },
+                ]}
+              >
+                <CachedImage
+                  source={{
+                    uri: getImageUrl(
+                      previewCover,
+                      `https://picsum.photos/seed/collection-${item.id}/200/200`,
+                    ),
+                  }}
+                  style={[
+                    styles.albumImage,
+                    {
+                      width: itemWidth,
+                      height: itemWidth,
+                      backgroundColor: colors.card,
+                    },
+                  ]}
+                />
+              </View>
+              <Text
+                style={[styles.collectionTitle, { color: colors.text }]}
+                numberOfLines={1}
+              >
+                {item.name}
+              </Text>
+              <Text
+                style={[styles.collectionMeta, { color: colors.secondary }]}
+                numberOfLines={1}
+              >
+                {count} 张专辑
+              </Text>
+            </TouchableOpacity>
+          );
+        }}
+      />
+    </View>
+  );
+};
+
 export default function LibraryScreen() {
   const { colors, theme } = useTheme();
   const router = useRouter();
@@ -667,7 +781,7 @@ export default function LibraryScreen() {
   const { sourceType, user, device } = useAuth();
   const { playTrackList } = usePlayer();
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<"songs" | "artists" | "albums">(
+  const [activeTab, setActiveTab] = useState<"songs" | "artists" | "albums" | "collections">(
     "songs",
   );
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -702,6 +816,9 @@ export default function LibraryScreen() {
     // So if mode is MUSIC, we might want to default to songs or let user switch.
     // Keeping "artists" as default might be fine, or switch if current tab is invalid.
     if (mode === "AUDIOBOOK" && activeTab === "songs") {
+      setActiveTab("artists");
+    }
+    if (mode !== "AUDIOBOOK" && activeTab === "collections") {
       setActiveTab("artists");
     }
     // Exit selection mode when switching tabs
@@ -920,6 +1037,29 @@ export default function LibraryScreen() {
               专辑
             </Text>
           </TouchableOpacity>
+          {mode === "AUDIOBOOK" && (
+            <TouchableOpacity
+              style={[
+                styles.segmentItem,
+                activeTab === "collections" && { backgroundColor: colors.primary },
+              ]}
+              onPress={() => setActiveTab("collections")}
+            >
+              <Text
+                style={[
+                  styles.segmentText,
+                  {
+                    color:
+                      activeTab === "collections"
+                        ? colors.background
+                        : colors.secondary,
+                  },
+                ]}
+              >
+                合集
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -941,14 +1081,176 @@ export default function LibraryScreen() {
             setHeartbeatModeActive((prev) => !prev)
           }
         />
-      ) : (
+      ) : activeTab === "albums" ? (
         <AlbumList
           heartbeatModeActive={heartbeatModeActive}
           onToggleHeartbeatMode={() =>
             setHeartbeatModeActive((prev) => !prev)
           }
         />
+      ) : (
+        <CollectionList />
       )}
+    </View>
+  );
+}
+
+function SongListSkeleton({
+  isSelectionMode,
+  showHeartbeatMode,
+  heartbeatModeActive,
+}: {
+  isSelectionMode: boolean;
+  showHeartbeatMode: boolean;
+  heartbeatModeActive: boolean;
+}) {
+  return (
+    <View style={styles.listContainer}>
+      {isSelectionMode && (
+        <View style={styles.selectionHeader}>
+          <SkeletonBlock width={24} height={24} borderRadius={12} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <SkeletonBlock width={96} height={18} borderRadius={9} />
+            <SkeletonBlock width={24} height={24} borderRadius={12} />
+            <SkeletonBlock width={24} height={24} borderRadius={12} />
+          </View>
+        </View>
+      )}
+      <View style={styles.listContent}>
+        {Array.from({ length: SONG_SKELETON_COUNT }).map((_, index) => (
+          <View key={index} style={styles.songItem}>
+            {isSelectionMode ? (
+              <View style={styles.checkboxContainer}>
+                <SkeletonBlock width={24} height={24} borderRadius={12} />
+              </View>
+            ) : (
+              <SkeletonBlock
+                width={styles.songImage.width}
+                height={styles.songImage.height}
+                borderRadius={styles.songImage.borderRadius}
+                style={{ marginRight: styles.songImage.marginRight }}
+              />
+            )}
+            <View style={styles.songInfo}>
+              <SkeletonBlock
+                width={index % 3 === 0 ? "58%" : index % 3 === 1 ? "72%" : "66%"}
+                height={16}
+                borderRadius={8}
+                style={{ marginBottom: 8 }}
+              />
+              <SkeletonBlock
+                width={index % 2 === 0 ? "42%" : "55%"}
+                height={12}
+                borderRadius={6}
+              />
+            </View>
+          </View>
+        ))}
+      </View>
+      {showHeartbeatMode && (
+        <LibraryFloatingSkeleton
+          showLocate={false}
+          showHeartbeatMode
+          heartbeatModeActive={heartbeatModeActive}
+        />
+      )}
+    </View>
+  );
+}
+
+function GridListSkeleton({
+  itemWidth,
+  numColumns,
+  circle = false,
+  showHeartbeatMode = false,
+  heartbeatModeActive = false,
+}: {
+  itemWidth: number;
+  numColumns: number;
+  circle?: boolean;
+  showHeartbeatMode?: boolean;
+  heartbeatModeActive?: boolean;
+}) {
+  const rows = Math.ceil(GRID_SKELETON_COUNT / numColumns);
+
+  return (
+    <View style={styles.listContainer}>
+      <View style={styles.listContent}>
+        {Array.from({ length: rows }).map((_, rowIndex) => (
+          <View
+            key={rowIndex}
+            style={{ flexDirection: "row", gap: GAP, marginBottom: 15 }}
+          >
+            {Array.from({ length: numColumns }).map((__, colIndex) => {
+              const index = rowIndex * numColumns + colIndex;
+              if (index >= GRID_SKELETON_COUNT) {
+                return <View key={colIndex} style={{ width: itemWidth }} />;
+              }
+
+              return (
+                <View key={colIndex} style={{ width: itemWidth }}>
+                  <SkeletonBlock
+                    width={itemWidth}
+                    height={itemWidth}
+                    borderRadius={circle ? itemWidth / 2 : styles.albumImageContainer.borderRadius}
+                    style={{ marginBottom: 8, alignSelf: "center" }}
+                  />
+                  <SkeletonBlock
+                    width={circle ? itemWidth * 0.72 : itemWidth * 0.8}
+                    height={14}
+                    borderRadius={7}
+                    style={{
+                      marginBottom: 6,
+                      alignSelf: circle ? "center" : "flex-start",
+                    }}
+                  />
+                  <SkeletonBlock
+                    width={circle ? itemWidth * 0.52 : itemWidth * 0.58}
+                    height={12}
+                    borderRadius={6}
+                    style={{
+                      alignSelf: circle ? "center" : "flex-start",
+                    }}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        ))}
+      </View>
+      {showHeartbeatMode && (
+        <LibraryFloatingSkeleton
+          showLocate
+          showHeartbeatMode
+          heartbeatModeActive={heartbeatModeActive}
+        />
+      )}
+    </View>
+  );
+}
+
+function LibraryFloatingSkeleton({
+  showLocate,
+  showHeartbeatMode,
+  heartbeatModeActive,
+}: {
+  showLocate: boolean;
+  showHeartbeatMode: boolean;
+  heartbeatModeActive: boolean;
+}) {
+  return (
+    <View style={styles.skeletonFloatingContainer}>
+      <SkeletonBlock width={38} height={38} borderRadius={19} />
+      {showLocate && <SkeletonBlock width={38} height={38} borderRadius={19} />}
+      {showHeartbeatMode && (
+        <SkeletonBlock
+          width={38}
+          height={38}
+          borderRadius={19}
+          style={{ opacity: heartbeatModeActive ? 0.95 : undefined }}
+        />
+      )}
+      <SkeletonBlock width={38} height={38} borderRadius={19} />
     </View>
   );
 }
@@ -1032,6 +1334,16 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#333",
   },
+  collectionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "left",
+    marginBottom: 4,
+  },
+  collectionMeta: {
+    fontSize: 12,
+    textAlign: "left",
+  },
   albumImageContainer: {
     borderRadius: 15,
     overflow: "hidden",
@@ -1105,5 +1417,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+  },
+  skeletonFloatingContainer: {
+    position: "absolute",
+    right: 20,
+    bottom: 150,
+    gap: 12,
+    zIndex: 100,
   },
 });

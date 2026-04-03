@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.soundx.mobile.dev",
+      "bundleIdentifier": "com.audiodock.app",
       "infoPlist": {
         "UISupportedInterfaceOrientations": [
           "UIInterfaceOrientationPortrait",
@@ -91,7 +91,8 @@
             "networkSecurityConfig": "res/xml/network_security_config.xml"
           }
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,

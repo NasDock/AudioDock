@@ -1,0 +1,62 @@
+.scan-page {
+  min-height: 100vh;
+  background-color: #fff;
+  padding: 24px;
+}
+
+.header {
+  padding: 20px 0;
+  text-align: center;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #333;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 60px;
+}
+
+.desc {
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.scan-placeholder {
+  width: 200px;
+  height: 200px;
+  border: 2px dashed #ccc;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+
+.scan-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.scan-text {
+  font-size: 14px;
+  color: #999;
+}
+
+.scan-btn {
+  width: 200px;
+  height: 44px;
+  line-height: 44px;
+  background-color: #007aff;
+  color: #fff;
+  border-radius: 22px;
+  font-size: 16px;
+}

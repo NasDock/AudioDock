@@ -146,4 +146,12 @@ export class SubsonicArtistAdapter implements IArtistAdapter {
 
     return this.response(uniqueList);
   }
+
+  async uploadArtistAvatar(id: number | string, file: any) {
+    return {
+      code: 501,
+      message: "Subsonic adapter does not support cover upload.",
+      data: null as any,
+    };
+  }
 }

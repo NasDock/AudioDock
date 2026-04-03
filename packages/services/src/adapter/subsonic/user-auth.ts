@@ -49,6 +49,14 @@ export class SubsonicUserAdapter implements IUserAdapter {
     const res = await this.client.get<{users: { user: any[] }}>("getUsers");
     return this.response(res.users?.user || []);
   }
+
+  async uploadUserAvatar(id: number | string, file: any): Promise<ISuccessResponse<any>> {
+    return {
+      code: 501,
+      message: "Subsonic adapter does not support avatar upload.",
+      data: null
+    };
+  }
 }
 
 export class SubsonicAuthAdapter implements IAuthAdapter {

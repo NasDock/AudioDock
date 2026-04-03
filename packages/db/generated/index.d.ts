@@ -29,6 +29,16 @@ export type Album = $Result.DefaultSelection<Prisma.$AlbumPayload>
  */
 export type Artist = $Result.DefaultSelection<Prisma.$ArtistPayload>
 /**
+ * Model AudiobookCollection
+ * 
+ */
+export type AudiobookCollection = $Result.DefaultSelection<Prisma.$AudiobookCollectionPayload>
+/**
+ * Model AudiobookCollectionAlbum
+ * 
+ */
+export type AudiobookCollectionAlbum = $Result.DefaultSelection<Prisma.$AudiobookCollectionAlbumPayload>
+/**
  * Model UserTrackLike
  * 
  */
@@ -287,6 +297,26 @@ export class PrismaClient<
     * ```
     */
   get artist(): Prisma.ArtistDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.audiobookCollection`: Exposes CRUD operations for the **AudiobookCollection** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AudiobookCollections
+    * const audiobookCollections = await prisma.audiobookCollection.findMany()
+    * ```
+    */
+  get audiobookCollection(): Prisma.AudiobookCollectionDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.audiobookCollectionAlbum`: Exposes CRUD operations for the **AudiobookCollectionAlbum** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AudiobookCollectionAlbums
+    * const audiobookCollectionAlbums = await prisma.audiobookCollectionAlbum.findMany()
+    * ```
+    */
+  get audiobookCollectionAlbum(): Prisma.AudiobookCollectionAlbumDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.userTrackLike`: Exposes CRUD operations for the **UserTrackLike** model.
@@ -880,6 +910,8 @@ export namespace Prisma {
     Track: 'Track',
     Album: 'Album',
     Artist: 'Artist',
+    AudiobookCollection: 'AudiobookCollection',
+    AudiobookCollectionAlbum: 'AudiobookCollectionAlbum',
     UserTrackLike: 'UserTrackLike',
     UserTrackHistory: 'UserTrackHistory',
     UserAlbumLike: 'UserAlbumLike',
@@ -913,7 +945,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "track" | "album" | "artist" | "userTrackLike" | "userTrackHistory" | "userAlbumLike" | "userAlbumHistory" | "userAudiobookLike" | "userAudiobookHistory" | "user" | "systemSetting" | "searchRecord" | "device" | "playlist" | "folder" | "ttsUserConfig" | "ttsTask" | "ttsChapterTask"
+      modelProps: "track" | "album" | "artist" | "audiobookCollection" | "audiobookCollectionAlbum" | "userTrackLike" | "userTrackHistory" | "userAlbumLike" | "userAlbumHistory" | "userAudiobookLike" | "userAudiobookHistory" | "user" | "systemSetting" | "searchRecord" | "device" | "playlist" | "folder" | "ttsUserConfig" | "ttsTask" | "ttsChapterTask"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1136,6 +1168,154 @@ export namespace Prisma {
           count: {
             args: Prisma.ArtistCountArgs<ExtArgs>
             result: $Utils.Optional<ArtistCountAggregateOutputType> | number
+          }
+        }
+      }
+      AudiobookCollection: {
+        payload: Prisma.$AudiobookCollectionPayload<ExtArgs>
+        fields: Prisma.AudiobookCollectionFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.AudiobookCollectionFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.AudiobookCollectionFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionPayload>
+          }
+          findFirst: {
+            args: Prisma.AudiobookCollectionFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.AudiobookCollectionFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionPayload>
+          }
+          findMany: {
+            args: Prisma.AudiobookCollectionFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionPayload>[]
+          }
+          create: {
+            args: Prisma.AudiobookCollectionCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionPayload>
+          }
+          createMany: {
+            args: Prisma.AudiobookCollectionCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.AudiobookCollectionCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionPayload>[]
+          }
+          delete: {
+            args: Prisma.AudiobookCollectionDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionPayload>
+          }
+          update: {
+            args: Prisma.AudiobookCollectionUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionPayload>
+          }
+          deleteMany: {
+            args: Prisma.AudiobookCollectionDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.AudiobookCollectionUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.AudiobookCollectionUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionPayload>[]
+          }
+          upsert: {
+            args: Prisma.AudiobookCollectionUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionPayload>
+          }
+          aggregate: {
+            args: Prisma.AudiobookCollectionAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateAudiobookCollection>
+          }
+          groupBy: {
+            args: Prisma.AudiobookCollectionGroupByArgs<ExtArgs>
+            result: $Utils.Optional<AudiobookCollectionGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.AudiobookCollectionCountArgs<ExtArgs>
+            result: $Utils.Optional<AudiobookCollectionCountAggregateOutputType> | number
+          }
+        }
+      }
+      AudiobookCollectionAlbum: {
+        payload: Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>
+        fields: Prisma.AudiobookCollectionAlbumFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.AudiobookCollectionAlbumFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionAlbumPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.AudiobookCollectionAlbumFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionAlbumPayload>
+          }
+          findFirst: {
+            args: Prisma.AudiobookCollectionAlbumFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionAlbumPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.AudiobookCollectionAlbumFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionAlbumPayload>
+          }
+          findMany: {
+            args: Prisma.AudiobookCollectionAlbumFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionAlbumPayload>[]
+          }
+          create: {
+            args: Prisma.AudiobookCollectionAlbumCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionAlbumPayload>
+          }
+          createMany: {
+            args: Prisma.AudiobookCollectionAlbumCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.AudiobookCollectionAlbumCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionAlbumPayload>[]
+          }
+          delete: {
+            args: Prisma.AudiobookCollectionAlbumDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionAlbumPayload>
+          }
+          update: {
+            args: Prisma.AudiobookCollectionAlbumUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionAlbumPayload>
+          }
+          deleteMany: {
+            args: Prisma.AudiobookCollectionAlbumDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.AudiobookCollectionAlbumUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.AudiobookCollectionAlbumUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionAlbumPayload>[]
+          }
+          upsert: {
+            args: Prisma.AudiobookCollectionAlbumUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AudiobookCollectionAlbumPayload>
+          }
+          aggregate: {
+            args: Prisma.AudiobookCollectionAlbumAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateAudiobookCollectionAlbum>
+          }
+          groupBy: {
+            args: Prisma.AudiobookCollectionAlbumGroupByArgs<ExtArgs>
+            result: $Utils.Optional<AudiobookCollectionAlbumGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.AudiobookCollectionAlbumCountArgs<ExtArgs>
+            result: $Utils.Optional<AudiobookCollectionAlbumCountAggregateOutputType> | number
           }
         }
       }
@@ -2336,6 +2516,8 @@ export namespace Prisma {
     track?: TrackOmit
     album?: AlbumOmit
     artist?: ArtistOmit
+    audiobookCollection?: AudiobookCollectionOmit
+    audiobookCollectionAlbum?: AudiobookCollectionAlbumOmit
     userTrackLike?: UserTrackLikeOmit
     userTrackHistory?: UserTrackHistoryOmit
     userAlbumLike?: UserAlbumLikeOmit
@@ -2515,12 +2697,14 @@ export namespace Prisma {
     tracks: number
     likedByUsers: number
     listenedByUsers: number
+    collectionItems: number
   }
 
   export type AlbumCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     tracks?: boolean | AlbumCountOutputTypeCountTracksArgs
     likedByUsers?: boolean | AlbumCountOutputTypeCountLikedByUsersArgs
     listenedByUsers?: boolean | AlbumCountOutputTypeCountListenedByUsersArgs
+    collectionItems?: boolean | AlbumCountOutputTypeCountCollectionItemsArgs
   }
 
   // Custom InputTypes
@@ -2553,6 +2737,13 @@ export namespace Prisma {
    */
   export type AlbumCountOutputTypeCountListenedByUsersArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: UserAlbumHistoryWhereInput
+  }
+
+  /**
+   * AlbumCountOutputType without action
+   */
+  export type AlbumCountOutputTypeCountCollectionItemsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AudiobookCollectionAlbumWhereInput
   }
 
 
@@ -2588,6 +2779,37 @@ export namespace Prisma {
 
 
   /**
+   * Count Type AudiobookCollectionCountOutputType
+   */
+
+  export type AudiobookCollectionCountOutputType = {
+    items: number
+  }
+
+  export type AudiobookCollectionCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    items?: boolean | AudiobookCollectionCountOutputTypeCountItemsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * AudiobookCollectionCountOutputType without action
+   */
+  export type AudiobookCollectionCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionCountOutputType
+     */
+    select?: AudiobookCollectionCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * AudiobookCollectionCountOutputType without action
+   */
+  export type AudiobookCollectionCountOutputTypeCountItemsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AudiobookCollectionAlbumWhereInput
+  }
+
+
+  /**
    * Count Type UserCountOutputType
    */
 
@@ -2599,6 +2821,7 @@ export namespace Prisma {
     likedAudiobooks: number
     listenedAudiobooks: number
     playlists: number
+    audiobookCollections: number
     devices: number
     searchRecords: number
   }
@@ -2611,6 +2834,7 @@ export namespace Prisma {
     likedAudiobooks?: boolean | UserCountOutputTypeCountLikedAudiobooksArgs
     listenedAudiobooks?: boolean | UserCountOutputTypeCountListenedAudiobooksArgs
     playlists?: boolean | UserCountOutputTypeCountPlaylistsArgs
+    audiobookCollections?: boolean | UserCountOutputTypeCountAudiobookCollectionsArgs
     devices?: boolean | UserCountOutputTypeCountDevicesArgs
     searchRecords?: boolean | UserCountOutputTypeCountSearchRecordsArgs
   }
@@ -2673,6 +2897,13 @@ export namespace Prisma {
    */
   export type UserCountOutputTypeCountPlaylistsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: PlaylistWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountAudiobookCollectionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AudiobookCollectionWhereInput
   }
 
   /**
@@ -4566,6 +4797,7 @@ export namespace Prisma {
     tracks?: boolean | Album$tracksArgs<ExtArgs>
     likedByUsers?: boolean | Album$likedByUsersArgs<ExtArgs>
     listenedByUsers?: boolean | Album$listenedByUsersArgs<ExtArgs>
+    collectionItems?: boolean | Album$collectionItemsArgs<ExtArgs>
     _count?: boolean | AlbumCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["album"]>
 
@@ -4607,6 +4839,7 @@ export namespace Prisma {
     tracks?: boolean | Album$tracksArgs<ExtArgs>
     likedByUsers?: boolean | Album$likedByUsersArgs<ExtArgs>
     listenedByUsers?: boolean | Album$listenedByUsersArgs<ExtArgs>
+    collectionItems?: boolean | Album$collectionItemsArgs<ExtArgs>
     _count?: boolean | AlbumCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type AlbumIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -4621,6 +4854,7 @@ export namespace Prisma {
        */
       likedByUsers: Prisma.$UserAlbumLikePayload<ExtArgs>[]
       listenedByUsers: Prisma.$UserAlbumHistoryPayload<ExtArgs>[]
+      collectionItems: Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
@@ -5028,6 +5262,7 @@ export namespace Prisma {
     tracks<T extends Album$tracksArgs<ExtArgs> = {}>(args?: Subset<T, Album$tracksArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TrackPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     likedByUsers<T extends Album$likedByUsersArgs<ExtArgs> = {}>(args?: Subset<T, Album$likedByUsersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserAlbumLikePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     listenedByUsers<T extends Album$listenedByUsersArgs<ExtArgs> = {}>(args?: Subset<T, Album$listenedByUsersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserAlbumHistoryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    collectionItems<T extends Album$collectionItemsArgs<ExtArgs> = {}>(args?: Subset<T, Album$collectionItemsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -5520,6 +5755,30 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: UserAlbumHistoryScalarFieldEnum | UserAlbumHistoryScalarFieldEnum[]
+  }
+
+  /**
+   * Album.collectionItems
+   */
+  export type Album$collectionItemsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionAlbum
+     */
+    select?: AudiobookCollectionAlbumSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollectionAlbum
+     */
+    omit?: AudiobookCollectionAlbumOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionAlbumInclude<ExtArgs> | null
+    where?: AudiobookCollectionAlbumWhereInput
+    orderBy?: AudiobookCollectionAlbumOrderByWithRelationInput | AudiobookCollectionAlbumOrderByWithRelationInput[]
+    cursor?: AudiobookCollectionAlbumWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: AudiobookCollectionAlbumScalarFieldEnum | AudiobookCollectionAlbumScalarFieldEnum[]
   }
 
   /**
@@ -6653,6 +6912,2266 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: ArtistInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model AudiobookCollection
+   */
+
+  export type AggregateAudiobookCollection = {
+    _count: AudiobookCollectionCountAggregateOutputType | null
+    _avg: AudiobookCollectionAvgAggregateOutputType | null
+    _sum: AudiobookCollectionSumAggregateOutputType | null
+    _min: AudiobookCollectionMinAggregateOutputType | null
+    _max: AudiobookCollectionMaxAggregateOutputType | null
+  }
+
+  export type AudiobookCollectionAvgAggregateOutputType = {
+    id: number | null
+    userId: number | null
+  }
+
+  export type AudiobookCollectionSumAggregateOutputType = {
+    id: number | null
+    userId: number | null
+  }
+
+  export type AudiobookCollectionMinAggregateOutputType = {
+    id: number | null
+    name: string | null
+    cover: string | null
+    type: $Enums.TrackType | null
+    createdAt: Date | null
+    updatedAt: Date | null
+    userId: number | null
+  }
+
+  export type AudiobookCollectionMaxAggregateOutputType = {
+    id: number | null
+    name: string | null
+    cover: string | null
+    type: $Enums.TrackType | null
+    createdAt: Date | null
+    updatedAt: Date | null
+    userId: number | null
+  }
+
+  export type AudiobookCollectionCountAggregateOutputType = {
+    id: number
+    name: number
+    cover: number
+    type: number
+    createdAt: number
+    updatedAt: number
+    userId: number
+    _all: number
+  }
+
+
+  export type AudiobookCollectionAvgAggregateInputType = {
+    id?: true
+    userId?: true
+  }
+
+  export type AudiobookCollectionSumAggregateInputType = {
+    id?: true
+    userId?: true
+  }
+
+  export type AudiobookCollectionMinAggregateInputType = {
+    id?: true
+    name?: true
+    cover?: true
+    type?: true
+    createdAt?: true
+    updatedAt?: true
+    userId?: true
+  }
+
+  export type AudiobookCollectionMaxAggregateInputType = {
+    id?: true
+    name?: true
+    cover?: true
+    type?: true
+    createdAt?: true
+    updatedAt?: true
+    userId?: true
+  }
+
+  export type AudiobookCollectionCountAggregateInputType = {
+    id?: true
+    name?: true
+    cover?: true
+    type?: true
+    createdAt?: true
+    updatedAt?: true
+    userId?: true
+    _all?: true
+  }
+
+  export type AudiobookCollectionAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AudiobookCollection to aggregate.
+     */
+    where?: AudiobookCollectionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AudiobookCollections to fetch.
+     */
+    orderBy?: AudiobookCollectionOrderByWithRelationInput | AudiobookCollectionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: AudiobookCollectionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AudiobookCollections from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AudiobookCollections.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned AudiobookCollections
+    **/
+    _count?: true | AudiobookCollectionCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: AudiobookCollectionAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AudiobookCollectionSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AudiobookCollectionMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AudiobookCollectionMaxAggregateInputType
+  }
+
+  export type GetAudiobookCollectionAggregateType<T extends AudiobookCollectionAggregateArgs> = {
+        [P in keyof T & keyof AggregateAudiobookCollection]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAudiobookCollection[P]>
+      : GetScalarType<T[P], AggregateAudiobookCollection[P]>
+  }
+
+
+
+
+  export type AudiobookCollectionGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AudiobookCollectionWhereInput
+    orderBy?: AudiobookCollectionOrderByWithAggregationInput | AudiobookCollectionOrderByWithAggregationInput[]
+    by: AudiobookCollectionScalarFieldEnum[] | AudiobookCollectionScalarFieldEnum
+    having?: AudiobookCollectionScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AudiobookCollectionCountAggregateInputType | true
+    _avg?: AudiobookCollectionAvgAggregateInputType
+    _sum?: AudiobookCollectionSumAggregateInputType
+    _min?: AudiobookCollectionMinAggregateInputType
+    _max?: AudiobookCollectionMaxAggregateInputType
+  }
+
+  export type AudiobookCollectionGroupByOutputType = {
+    id: number
+    name: string
+    cover: string | null
+    type: $Enums.TrackType
+    createdAt: Date
+    updatedAt: Date
+    userId: number
+    _count: AudiobookCollectionCountAggregateOutputType | null
+    _avg: AudiobookCollectionAvgAggregateOutputType | null
+    _sum: AudiobookCollectionSumAggregateOutputType | null
+    _min: AudiobookCollectionMinAggregateOutputType | null
+    _max: AudiobookCollectionMaxAggregateOutputType | null
+  }
+
+  type GetAudiobookCollectionGroupByPayload<T extends AudiobookCollectionGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AudiobookCollectionGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AudiobookCollectionGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AudiobookCollectionGroupByOutputType[P]>
+            : GetScalarType<T[P], AudiobookCollectionGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type AudiobookCollectionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    cover?: boolean
+    type?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    userId?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    items?: boolean | AudiobookCollection$itemsArgs<ExtArgs>
+    _count?: boolean | AudiobookCollectionCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["audiobookCollection"]>
+
+  export type AudiobookCollectionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    cover?: boolean
+    type?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    userId?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["audiobookCollection"]>
+
+  export type AudiobookCollectionSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    cover?: boolean
+    type?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    userId?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["audiobookCollection"]>
+
+  export type AudiobookCollectionSelectScalar = {
+    id?: boolean
+    name?: boolean
+    cover?: boolean
+    type?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    userId?: boolean
+  }
+
+  export type AudiobookCollectionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "cover" | "type" | "createdAt" | "updatedAt" | "userId", ExtArgs["result"]["audiobookCollection"]>
+  export type AudiobookCollectionInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    items?: boolean | AudiobookCollection$itemsArgs<ExtArgs>
+    _count?: boolean | AudiobookCollectionCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type AudiobookCollectionIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type AudiobookCollectionIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $AudiobookCollectionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "AudiobookCollection"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+      items: Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      name: string
+      cover: string | null
+      type: $Enums.TrackType
+      createdAt: Date
+      updatedAt: Date
+      userId: number
+    }, ExtArgs["result"]["audiobookCollection"]>
+    composites: {}
+  }
+
+  type AudiobookCollectionGetPayload<S extends boolean | null | undefined | AudiobookCollectionDefaultArgs> = $Result.GetResult<Prisma.$AudiobookCollectionPayload, S>
+
+  type AudiobookCollectionCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<AudiobookCollectionFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: AudiobookCollectionCountAggregateInputType | true
+    }
+
+  export interface AudiobookCollectionDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AudiobookCollection'], meta: { name: 'AudiobookCollection' } }
+    /**
+     * Find zero or one AudiobookCollection that matches the filter.
+     * @param {AudiobookCollectionFindUniqueArgs} args - Arguments to find a AudiobookCollection
+     * @example
+     * // Get one AudiobookCollection
+     * const audiobookCollection = await prisma.audiobookCollection.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends AudiobookCollectionFindUniqueArgs>(args: SelectSubset<T, AudiobookCollectionFindUniqueArgs<ExtArgs>>): Prisma__AudiobookCollectionClient<$Result.GetResult<Prisma.$AudiobookCollectionPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one AudiobookCollection that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {AudiobookCollectionFindUniqueOrThrowArgs} args - Arguments to find a AudiobookCollection
+     * @example
+     * // Get one AudiobookCollection
+     * const audiobookCollection = await prisma.audiobookCollection.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends AudiobookCollectionFindUniqueOrThrowArgs>(args: SelectSubset<T, AudiobookCollectionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AudiobookCollectionClient<$Result.GetResult<Prisma.$AudiobookCollectionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AudiobookCollection that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AudiobookCollectionFindFirstArgs} args - Arguments to find a AudiobookCollection
+     * @example
+     * // Get one AudiobookCollection
+     * const audiobookCollection = await prisma.audiobookCollection.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends AudiobookCollectionFindFirstArgs>(args?: SelectSubset<T, AudiobookCollectionFindFirstArgs<ExtArgs>>): Prisma__AudiobookCollectionClient<$Result.GetResult<Prisma.$AudiobookCollectionPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AudiobookCollection that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AudiobookCollectionFindFirstOrThrowArgs} args - Arguments to find a AudiobookCollection
+     * @example
+     * // Get one AudiobookCollection
+     * const audiobookCollection = await prisma.audiobookCollection.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends AudiobookCollectionFindFirstOrThrowArgs>(args?: SelectSubset<T, AudiobookCollectionFindFirstOrThrowArgs<ExtArgs>>): Prisma__AudiobookCollectionClient<$Result.GetResult<Prisma.$AudiobookCollectionPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more AudiobookCollections that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AudiobookCollectionFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all AudiobookCollections
+     * const audiobookCollections = await prisma.audiobookCollection.findMany()
+     * 
+     * // Get first 10 AudiobookCollections
+     * const audiobookCollections = await prisma.audiobookCollection.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const audiobookCollectionWithIdOnly = await prisma.audiobookCollection.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends AudiobookCollectionFindManyArgs>(args?: SelectSubset<T, AudiobookCollectionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AudiobookCollectionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a AudiobookCollection.
+     * @param {AudiobookCollectionCreateArgs} args - Arguments to create a AudiobookCollection.
+     * @example
+     * // Create one AudiobookCollection
+     * const AudiobookCollection = await prisma.audiobookCollection.create({
+     *   data: {
+     *     // ... data to create a AudiobookCollection
+     *   }
+     * })
+     * 
+     */
+    create<T extends AudiobookCollectionCreateArgs>(args: SelectSubset<T, AudiobookCollectionCreateArgs<ExtArgs>>): Prisma__AudiobookCollectionClient<$Result.GetResult<Prisma.$AudiobookCollectionPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many AudiobookCollections.
+     * @param {AudiobookCollectionCreateManyArgs} args - Arguments to create many AudiobookCollections.
+     * @example
+     * // Create many AudiobookCollections
+     * const audiobookCollection = await prisma.audiobookCollection.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends AudiobookCollectionCreateManyArgs>(args?: SelectSubset<T, AudiobookCollectionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many AudiobookCollections and returns the data saved in the database.
+     * @param {AudiobookCollectionCreateManyAndReturnArgs} args - Arguments to create many AudiobookCollections.
+     * @example
+     * // Create many AudiobookCollections
+     * const audiobookCollection = await prisma.audiobookCollection.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many AudiobookCollections and only return the `id`
+     * const audiobookCollectionWithIdOnly = await prisma.audiobookCollection.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends AudiobookCollectionCreateManyAndReturnArgs>(args?: SelectSubset<T, AudiobookCollectionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AudiobookCollectionPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a AudiobookCollection.
+     * @param {AudiobookCollectionDeleteArgs} args - Arguments to delete one AudiobookCollection.
+     * @example
+     * // Delete one AudiobookCollection
+     * const AudiobookCollection = await prisma.audiobookCollection.delete({
+     *   where: {
+     *     // ... filter to delete one AudiobookCollection
+     *   }
+     * })
+     * 
+     */
+    delete<T extends AudiobookCollectionDeleteArgs>(args: SelectSubset<T, AudiobookCollectionDeleteArgs<ExtArgs>>): Prisma__AudiobookCollectionClient<$Result.GetResult<Prisma.$AudiobookCollectionPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one AudiobookCollection.
+     * @param {AudiobookCollectionUpdateArgs} args - Arguments to update one AudiobookCollection.
+     * @example
+     * // Update one AudiobookCollection
+     * const audiobookCollection = await prisma.audiobookCollection.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends AudiobookCollectionUpdateArgs>(args: SelectSubset<T, AudiobookCollectionUpdateArgs<ExtArgs>>): Prisma__AudiobookCollectionClient<$Result.GetResult<Prisma.$AudiobookCollectionPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more AudiobookCollections.
+     * @param {AudiobookCollectionDeleteManyArgs} args - Arguments to filter AudiobookCollections to delete.
+     * @example
+     * // Delete a few AudiobookCollections
+     * const { count } = await prisma.audiobookCollection.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends AudiobookCollectionDeleteManyArgs>(args?: SelectSubset<T, AudiobookCollectionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AudiobookCollections.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AudiobookCollectionUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many AudiobookCollections
+     * const audiobookCollection = await prisma.audiobookCollection.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends AudiobookCollectionUpdateManyArgs>(args: SelectSubset<T, AudiobookCollectionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AudiobookCollections and returns the data updated in the database.
+     * @param {AudiobookCollectionUpdateManyAndReturnArgs} args - Arguments to update many AudiobookCollections.
+     * @example
+     * // Update many AudiobookCollections
+     * const audiobookCollection = await prisma.audiobookCollection.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more AudiobookCollections and only return the `id`
+     * const audiobookCollectionWithIdOnly = await prisma.audiobookCollection.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends AudiobookCollectionUpdateManyAndReturnArgs>(args: SelectSubset<T, AudiobookCollectionUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AudiobookCollectionPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one AudiobookCollection.
+     * @param {AudiobookCollectionUpsertArgs} args - Arguments to update or create a AudiobookCollection.
+     * @example
+     * // Update or create a AudiobookCollection
+     * const audiobookCollection = await prisma.audiobookCollection.upsert({
+     *   create: {
+     *     // ... data to create a AudiobookCollection
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the AudiobookCollection we want to update
+     *   }
+     * })
+     */
+    upsert<T extends AudiobookCollectionUpsertArgs>(args: SelectSubset<T, AudiobookCollectionUpsertArgs<ExtArgs>>): Prisma__AudiobookCollectionClient<$Result.GetResult<Prisma.$AudiobookCollectionPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of AudiobookCollections.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AudiobookCollectionCountArgs} args - Arguments to filter AudiobookCollections to count.
+     * @example
+     * // Count the number of AudiobookCollections
+     * const count = await prisma.audiobookCollection.count({
+     *   where: {
+     *     // ... the filter for the AudiobookCollections we want to count
+     *   }
+     * })
+    **/
+    count<T extends AudiobookCollectionCountArgs>(
+      args?: Subset<T, AudiobookCollectionCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AudiobookCollectionCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a AudiobookCollection.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AudiobookCollectionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AudiobookCollectionAggregateArgs>(args: Subset<T, AudiobookCollectionAggregateArgs>): Prisma.PrismaPromise<GetAudiobookCollectionAggregateType<T>>
+
+    /**
+     * Group by AudiobookCollection.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AudiobookCollectionGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends AudiobookCollectionGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: AudiobookCollectionGroupByArgs['orderBy'] }
+        : { orderBy?: AudiobookCollectionGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, AudiobookCollectionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAudiobookCollectionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the AudiobookCollection model
+   */
+  readonly fields: AudiobookCollectionFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for AudiobookCollection.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__AudiobookCollectionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    items<T extends AudiobookCollection$itemsArgs<ExtArgs> = {}>(args?: Subset<T, AudiobookCollection$itemsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the AudiobookCollection model
+   */
+  interface AudiobookCollectionFieldRefs {
+    readonly id: FieldRef<"AudiobookCollection", 'Int'>
+    readonly name: FieldRef<"AudiobookCollection", 'String'>
+    readonly cover: FieldRef<"AudiobookCollection", 'String'>
+    readonly type: FieldRef<"AudiobookCollection", 'TrackType'>
+    readonly createdAt: FieldRef<"AudiobookCollection", 'DateTime'>
+    readonly updatedAt: FieldRef<"AudiobookCollection", 'DateTime'>
+    readonly userId: FieldRef<"AudiobookCollection", 'Int'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * AudiobookCollection findUnique
+   */
+  export type AudiobookCollectionFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollection
+     */
+    select?: AudiobookCollectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollection
+     */
+    omit?: AudiobookCollectionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionInclude<ExtArgs> | null
+    /**
+     * Filter, which AudiobookCollection to fetch.
+     */
+    where: AudiobookCollectionWhereUniqueInput
+  }
+
+  /**
+   * AudiobookCollection findUniqueOrThrow
+   */
+  export type AudiobookCollectionFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollection
+     */
+    select?: AudiobookCollectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollection
+     */
+    omit?: AudiobookCollectionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionInclude<ExtArgs> | null
+    /**
+     * Filter, which AudiobookCollection to fetch.
+     */
+    where: AudiobookCollectionWhereUniqueInput
+  }
+
+  /**
+   * AudiobookCollection findFirst
+   */
+  export type AudiobookCollectionFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollection
+     */
+    select?: AudiobookCollectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollection
+     */
+    omit?: AudiobookCollectionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionInclude<ExtArgs> | null
+    /**
+     * Filter, which AudiobookCollection to fetch.
+     */
+    where?: AudiobookCollectionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AudiobookCollections to fetch.
+     */
+    orderBy?: AudiobookCollectionOrderByWithRelationInput | AudiobookCollectionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AudiobookCollections.
+     */
+    cursor?: AudiobookCollectionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AudiobookCollections from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AudiobookCollections.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AudiobookCollections.
+     */
+    distinct?: AudiobookCollectionScalarFieldEnum | AudiobookCollectionScalarFieldEnum[]
+  }
+
+  /**
+   * AudiobookCollection findFirstOrThrow
+   */
+  export type AudiobookCollectionFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollection
+     */
+    select?: AudiobookCollectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollection
+     */
+    omit?: AudiobookCollectionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionInclude<ExtArgs> | null
+    /**
+     * Filter, which AudiobookCollection to fetch.
+     */
+    where?: AudiobookCollectionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AudiobookCollections to fetch.
+     */
+    orderBy?: AudiobookCollectionOrderByWithRelationInput | AudiobookCollectionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AudiobookCollections.
+     */
+    cursor?: AudiobookCollectionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AudiobookCollections from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AudiobookCollections.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AudiobookCollections.
+     */
+    distinct?: AudiobookCollectionScalarFieldEnum | AudiobookCollectionScalarFieldEnum[]
+  }
+
+  /**
+   * AudiobookCollection findMany
+   */
+  export type AudiobookCollectionFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollection
+     */
+    select?: AudiobookCollectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollection
+     */
+    omit?: AudiobookCollectionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionInclude<ExtArgs> | null
+    /**
+     * Filter, which AudiobookCollections to fetch.
+     */
+    where?: AudiobookCollectionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AudiobookCollections to fetch.
+     */
+    orderBy?: AudiobookCollectionOrderByWithRelationInput | AudiobookCollectionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing AudiobookCollections.
+     */
+    cursor?: AudiobookCollectionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AudiobookCollections from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AudiobookCollections.
+     */
+    skip?: number
+    distinct?: AudiobookCollectionScalarFieldEnum | AudiobookCollectionScalarFieldEnum[]
+  }
+
+  /**
+   * AudiobookCollection create
+   */
+  export type AudiobookCollectionCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollection
+     */
+    select?: AudiobookCollectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollection
+     */
+    omit?: AudiobookCollectionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionInclude<ExtArgs> | null
+    /**
+     * The data needed to create a AudiobookCollection.
+     */
+    data: XOR<AudiobookCollectionCreateInput, AudiobookCollectionUncheckedCreateInput>
+  }
+
+  /**
+   * AudiobookCollection createMany
+   */
+  export type AudiobookCollectionCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many AudiobookCollections.
+     */
+    data: AudiobookCollectionCreateManyInput | AudiobookCollectionCreateManyInput[]
+  }
+
+  /**
+   * AudiobookCollection createManyAndReturn
+   */
+  export type AudiobookCollectionCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollection
+     */
+    select?: AudiobookCollectionSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollection
+     */
+    omit?: AudiobookCollectionOmit<ExtArgs> | null
+    /**
+     * The data used to create many AudiobookCollections.
+     */
+    data: AudiobookCollectionCreateManyInput | AudiobookCollectionCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AudiobookCollection update
+   */
+  export type AudiobookCollectionUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollection
+     */
+    select?: AudiobookCollectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollection
+     */
+    omit?: AudiobookCollectionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionInclude<ExtArgs> | null
+    /**
+     * The data needed to update a AudiobookCollection.
+     */
+    data: XOR<AudiobookCollectionUpdateInput, AudiobookCollectionUncheckedUpdateInput>
+    /**
+     * Choose, which AudiobookCollection to update.
+     */
+    where: AudiobookCollectionWhereUniqueInput
+  }
+
+  /**
+   * AudiobookCollection updateMany
+   */
+  export type AudiobookCollectionUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update AudiobookCollections.
+     */
+    data: XOR<AudiobookCollectionUpdateManyMutationInput, AudiobookCollectionUncheckedUpdateManyInput>
+    /**
+     * Filter which AudiobookCollections to update
+     */
+    where?: AudiobookCollectionWhereInput
+    /**
+     * Limit how many AudiobookCollections to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AudiobookCollection updateManyAndReturn
+   */
+  export type AudiobookCollectionUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollection
+     */
+    select?: AudiobookCollectionSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollection
+     */
+    omit?: AudiobookCollectionOmit<ExtArgs> | null
+    /**
+     * The data used to update AudiobookCollections.
+     */
+    data: XOR<AudiobookCollectionUpdateManyMutationInput, AudiobookCollectionUncheckedUpdateManyInput>
+    /**
+     * Filter which AudiobookCollections to update
+     */
+    where?: AudiobookCollectionWhereInput
+    /**
+     * Limit how many AudiobookCollections to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AudiobookCollection upsert
+   */
+  export type AudiobookCollectionUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollection
+     */
+    select?: AudiobookCollectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollection
+     */
+    omit?: AudiobookCollectionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionInclude<ExtArgs> | null
+    /**
+     * The filter to search for the AudiobookCollection to update in case it exists.
+     */
+    where: AudiobookCollectionWhereUniqueInput
+    /**
+     * In case the AudiobookCollection found by the `where` argument doesn't exist, create a new AudiobookCollection with this data.
+     */
+    create: XOR<AudiobookCollectionCreateInput, AudiobookCollectionUncheckedCreateInput>
+    /**
+     * In case the AudiobookCollection was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<AudiobookCollectionUpdateInput, AudiobookCollectionUncheckedUpdateInput>
+  }
+
+  /**
+   * AudiobookCollection delete
+   */
+  export type AudiobookCollectionDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollection
+     */
+    select?: AudiobookCollectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollection
+     */
+    omit?: AudiobookCollectionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionInclude<ExtArgs> | null
+    /**
+     * Filter which AudiobookCollection to delete.
+     */
+    where: AudiobookCollectionWhereUniqueInput
+  }
+
+  /**
+   * AudiobookCollection deleteMany
+   */
+  export type AudiobookCollectionDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AudiobookCollections to delete
+     */
+    where?: AudiobookCollectionWhereInput
+    /**
+     * Limit how many AudiobookCollections to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * AudiobookCollection.items
+   */
+  export type AudiobookCollection$itemsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionAlbum
+     */
+    select?: AudiobookCollectionAlbumSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollectionAlbum
+     */
+    omit?: AudiobookCollectionAlbumOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionAlbumInclude<ExtArgs> | null
+    where?: AudiobookCollectionAlbumWhereInput
+    orderBy?: AudiobookCollectionAlbumOrderByWithRelationInput | AudiobookCollectionAlbumOrderByWithRelationInput[]
+    cursor?: AudiobookCollectionAlbumWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: AudiobookCollectionAlbumScalarFieldEnum | AudiobookCollectionAlbumScalarFieldEnum[]
+  }
+
+  /**
+   * AudiobookCollection without action
+   */
+  export type AudiobookCollectionDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollection
+     */
+    select?: AudiobookCollectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollection
+     */
+    omit?: AudiobookCollectionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model AudiobookCollectionAlbum
+   */
+
+  export type AggregateAudiobookCollectionAlbum = {
+    _count: AudiobookCollectionAlbumCountAggregateOutputType | null
+    _avg: AudiobookCollectionAlbumAvgAggregateOutputType | null
+    _sum: AudiobookCollectionAlbumSumAggregateOutputType | null
+    _min: AudiobookCollectionAlbumMinAggregateOutputType | null
+    _max: AudiobookCollectionAlbumMaxAggregateOutputType | null
+  }
+
+  export type AudiobookCollectionAlbumAvgAggregateOutputType = {
+    id: number | null
+    collectionId: number | null
+    albumId: number | null
+    order: number | null
+  }
+
+  export type AudiobookCollectionAlbumSumAggregateOutputType = {
+    id: number | null
+    collectionId: number | null
+    albumId: number | null
+    order: number | null
+  }
+
+  export type AudiobookCollectionAlbumMinAggregateOutputType = {
+    id: number | null
+    collectionId: number | null
+    albumId: number | null
+    order: number | null
+    createdAt: Date | null
+  }
+
+  export type AudiobookCollectionAlbumMaxAggregateOutputType = {
+    id: number | null
+    collectionId: number | null
+    albumId: number | null
+    order: number | null
+    createdAt: Date | null
+  }
+
+  export type AudiobookCollectionAlbumCountAggregateOutputType = {
+    id: number
+    collectionId: number
+    albumId: number
+    order: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type AudiobookCollectionAlbumAvgAggregateInputType = {
+    id?: true
+    collectionId?: true
+    albumId?: true
+    order?: true
+  }
+
+  export type AudiobookCollectionAlbumSumAggregateInputType = {
+    id?: true
+    collectionId?: true
+    albumId?: true
+    order?: true
+  }
+
+  export type AudiobookCollectionAlbumMinAggregateInputType = {
+    id?: true
+    collectionId?: true
+    albumId?: true
+    order?: true
+    createdAt?: true
+  }
+
+  export type AudiobookCollectionAlbumMaxAggregateInputType = {
+    id?: true
+    collectionId?: true
+    albumId?: true
+    order?: true
+    createdAt?: true
+  }
+
+  export type AudiobookCollectionAlbumCountAggregateInputType = {
+    id?: true
+    collectionId?: true
+    albumId?: true
+    order?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type AudiobookCollectionAlbumAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AudiobookCollectionAlbum to aggregate.
+     */
+    where?: AudiobookCollectionAlbumWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AudiobookCollectionAlbums to fetch.
+     */
+    orderBy?: AudiobookCollectionAlbumOrderByWithRelationInput | AudiobookCollectionAlbumOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: AudiobookCollectionAlbumWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AudiobookCollectionAlbums from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AudiobookCollectionAlbums.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned AudiobookCollectionAlbums
+    **/
+    _count?: true | AudiobookCollectionAlbumCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: AudiobookCollectionAlbumAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AudiobookCollectionAlbumSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AudiobookCollectionAlbumMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AudiobookCollectionAlbumMaxAggregateInputType
+  }
+
+  export type GetAudiobookCollectionAlbumAggregateType<T extends AudiobookCollectionAlbumAggregateArgs> = {
+        [P in keyof T & keyof AggregateAudiobookCollectionAlbum]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAudiobookCollectionAlbum[P]>
+      : GetScalarType<T[P], AggregateAudiobookCollectionAlbum[P]>
+  }
+
+
+
+
+  export type AudiobookCollectionAlbumGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AudiobookCollectionAlbumWhereInput
+    orderBy?: AudiobookCollectionAlbumOrderByWithAggregationInput | AudiobookCollectionAlbumOrderByWithAggregationInput[]
+    by: AudiobookCollectionAlbumScalarFieldEnum[] | AudiobookCollectionAlbumScalarFieldEnum
+    having?: AudiobookCollectionAlbumScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AudiobookCollectionAlbumCountAggregateInputType | true
+    _avg?: AudiobookCollectionAlbumAvgAggregateInputType
+    _sum?: AudiobookCollectionAlbumSumAggregateInputType
+    _min?: AudiobookCollectionAlbumMinAggregateInputType
+    _max?: AudiobookCollectionAlbumMaxAggregateInputType
+  }
+
+  export type AudiobookCollectionAlbumGroupByOutputType = {
+    id: number
+    collectionId: number
+    albumId: number
+    order: number
+    createdAt: Date
+    _count: AudiobookCollectionAlbumCountAggregateOutputType | null
+    _avg: AudiobookCollectionAlbumAvgAggregateOutputType | null
+    _sum: AudiobookCollectionAlbumSumAggregateOutputType | null
+    _min: AudiobookCollectionAlbumMinAggregateOutputType | null
+    _max: AudiobookCollectionAlbumMaxAggregateOutputType | null
+  }
+
+  type GetAudiobookCollectionAlbumGroupByPayload<T extends AudiobookCollectionAlbumGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AudiobookCollectionAlbumGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AudiobookCollectionAlbumGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AudiobookCollectionAlbumGroupByOutputType[P]>
+            : GetScalarType<T[P], AudiobookCollectionAlbumGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type AudiobookCollectionAlbumSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    collectionId?: boolean
+    albumId?: boolean
+    order?: boolean
+    createdAt?: boolean
+    collection?: boolean | AudiobookCollectionDefaultArgs<ExtArgs>
+    album?: boolean | AlbumDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["audiobookCollectionAlbum"]>
+
+  export type AudiobookCollectionAlbumSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    collectionId?: boolean
+    albumId?: boolean
+    order?: boolean
+    createdAt?: boolean
+    collection?: boolean | AudiobookCollectionDefaultArgs<ExtArgs>
+    album?: boolean | AlbumDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["audiobookCollectionAlbum"]>
+
+  export type AudiobookCollectionAlbumSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    collectionId?: boolean
+    albumId?: boolean
+    order?: boolean
+    createdAt?: boolean
+    collection?: boolean | AudiobookCollectionDefaultArgs<ExtArgs>
+    album?: boolean | AlbumDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["audiobookCollectionAlbum"]>
+
+  export type AudiobookCollectionAlbumSelectScalar = {
+    id?: boolean
+    collectionId?: boolean
+    albumId?: boolean
+    order?: boolean
+    createdAt?: boolean
+  }
+
+  export type AudiobookCollectionAlbumOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "collectionId" | "albumId" | "order" | "createdAt", ExtArgs["result"]["audiobookCollectionAlbum"]>
+  export type AudiobookCollectionAlbumInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    collection?: boolean | AudiobookCollectionDefaultArgs<ExtArgs>
+    album?: boolean | AlbumDefaultArgs<ExtArgs>
+  }
+  export type AudiobookCollectionAlbumIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    collection?: boolean | AudiobookCollectionDefaultArgs<ExtArgs>
+    album?: boolean | AlbumDefaultArgs<ExtArgs>
+  }
+  export type AudiobookCollectionAlbumIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    collection?: boolean | AudiobookCollectionDefaultArgs<ExtArgs>
+    album?: boolean | AlbumDefaultArgs<ExtArgs>
+  }
+
+  export type $AudiobookCollectionAlbumPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "AudiobookCollectionAlbum"
+    objects: {
+      collection: Prisma.$AudiobookCollectionPayload<ExtArgs>
+      album: Prisma.$AlbumPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      collectionId: number
+      albumId: number
+      order: number
+      createdAt: Date
+    }, ExtArgs["result"]["audiobookCollectionAlbum"]>
+    composites: {}
+  }
+
+  type AudiobookCollectionAlbumGetPayload<S extends boolean | null | undefined | AudiobookCollectionAlbumDefaultArgs> = $Result.GetResult<Prisma.$AudiobookCollectionAlbumPayload, S>
+
+  type AudiobookCollectionAlbumCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<AudiobookCollectionAlbumFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: AudiobookCollectionAlbumCountAggregateInputType | true
+    }
+
+  export interface AudiobookCollectionAlbumDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AudiobookCollectionAlbum'], meta: { name: 'AudiobookCollectionAlbum' } }
+    /**
+     * Find zero or one AudiobookCollectionAlbum that matches the filter.
+     * @param {AudiobookCollectionAlbumFindUniqueArgs} args - Arguments to find a AudiobookCollectionAlbum
+     * @example
+     * // Get one AudiobookCollectionAlbum
+     * const audiobookCollectionAlbum = await prisma.audiobookCollectionAlbum.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends AudiobookCollectionAlbumFindUniqueArgs>(args: SelectSubset<T, AudiobookCollectionAlbumFindUniqueArgs<ExtArgs>>): Prisma__AudiobookCollectionAlbumClient<$Result.GetResult<Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one AudiobookCollectionAlbum that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {AudiobookCollectionAlbumFindUniqueOrThrowArgs} args - Arguments to find a AudiobookCollectionAlbum
+     * @example
+     * // Get one AudiobookCollectionAlbum
+     * const audiobookCollectionAlbum = await prisma.audiobookCollectionAlbum.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends AudiobookCollectionAlbumFindUniqueOrThrowArgs>(args: SelectSubset<T, AudiobookCollectionAlbumFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AudiobookCollectionAlbumClient<$Result.GetResult<Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AudiobookCollectionAlbum that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AudiobookCollectionAlbumFindFirstArgs} args - Arguments to find a AudiobookCollectionAlbum
+     * @example
+     * // Get one AudiobookCollectionAlbum
+     * const audiobookCollectionAlbum = await prisma.audiobookCollectionAlbum.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends AudiobookCollectionAlbumFindFirstArgs>(args?: SelectSubset<T, AudiobookCollectionAlbumFindFirstArgs<ExtArgs>>): Prisma__AudiobookCollectionAlbumClient<$Result.GetResult<Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AudiobookCollectionAlbum that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AudiobookCollectionAlbumFindFirstOrThrowArgs} args - Arguments to find a AudiobookCollectionAlbum
+     * @example
+     * // Get one AudiobookCollectionAlbum
+     * const audiobookCollectionAlbum = await prisma.audiobookCollectionAlbum.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends AudiobookCollectionAlbumFindFirstOrThrowArgs>(args?: SelectSubset<T, AudiobookCollectionAlbumFindFirstOrThrowArgs<ExtArgs>>): Prisma__AudiobookCollectionAlbumClient<$Result.GetResult<Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more AudiobookCollectionAlbums that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AudiobookCollectionAlbumFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all AudiobookCollectionAlbums
+     * const audiobookCollectionAlbums = await prisma.audiobookCollectionAlbum.findMany()
+     * 
+     * // Get first 10 AudiobookCollectionAlbums
+     * const audiobookCollectionAlbums = await prisma.audiobookCollectionAlbum.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const audiobookCollectionAlbumWithIdOnly = await prisma.audiobookCollectionAlbum.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends AudiobookCollectionAlbumFindManyArgs>(args?: SelectSubset<T, AudiobookCollectionAlbumFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a AudiobookCollectionAlbum.
+     * @param {AudiobookCollectionAlbumCreateArgs} args - Arguments to create a AudiobookCollectionAlbum.
+     * @example
+     * // Create one AudiobookCollectionAlbum
+     * const AudiobookCollectionAlbum = await prisma.audiobookCollectionAlbum.create({
+     *   data: {
+     *     // ... data to create a AudiobookCollectionAlbum
+     *   }
+     * })
+     * 
+     */
+    create<T extends AudiobookCollectionAlbumCreateArgs>(args: SelectSubset<T, AudiobookCollectionAlbumCreateArgs<ExtArgs>>): Prisma__AudiobookCollectionAlbumClient<$Result.GetResult<Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many AudiobookCollectionAlbums.
+     * @param {AudiobookCollectionAlbumCreateManyArgs} args - Arguments to create many AudiobookCollectionAlbums.
+     * @example
+     * // Create many AudiobookCollectionAlbums
+     * const audiobookCollectionAlbum = await prisma.audiobookCollectionAlbum.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends AudiobookCollectionAlbumCreateManyArgs>(args?: SelectSubset<T, AudiobookCollectionAlbumCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many AudiobookCollectionAlbums and returns the data saved in the database.
+     * @param {AudiobookCollectionAlbumCreateManyAndReturnArgs} args - Arguments to create many AudiobookCollectionAlbums.
+     * @example
+     * // Create many AudiobookCollectionAlbums
+     * const audiobookCollectionAlbum = await prisma.audiobookCollectionAlbum.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many AudiobookCollectionAlbums and only return the `id`
+     * const audiobookCollectionAlbumWithIdOnly = await prisma.audiobookCollectionAlbum.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends AudiobookCollectionAlbumCreateManyAndReturnArgs>(args?: SelectSubset<T, AudiobookCollectionAlbumCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a AudiobookCollectionAlbum.
+     * @param {AudiobookCollectionAlbumDeleteArgs} args - Arguments to delete one AudiobookCollectionAlbum.
+     * @example
+     * // Delete one AudiobookCollectionAlbum
+     * const AudiobookCollectionAlbum = await prisma.audiobookCollectionAlbum.delete({
+     *   where: {
+     *     // ... filter to delete one AudiobookCollectionAlbum
+     *   }
+     * })
+     * 
+     */
+    delete<T extends AudiobookCollectionAlbumDeleteArgs>(args: SelectSubset<T, AudiobookCollectionAlbumDeleteArgs<ExtArgs>>): Prisma__AudiobookCollectionAlbumClient<$Result.GetResult<Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one AudiobookCollectionAlbum.
+     * @param {AudiobookCollectionAlbumUpdateArgs} args - Arguments to update one AudiobookCollectionAlbum.
+     * @example
+     * // Update one AudiobookCollectionAlbum
+     * const audiobookCollectionAlbum = await prisma.audiobookCollectionAlbum.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends AudiobookCollectionAlbumUpdateArgs>(args: SelectSubset<T, AudiobookCollectionAlbumUpdateArgs<ExtArgs>>): Prisma__AudiobookCollectionAlbumClient<$Result.GetResult<Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more AudiobookCollectionAlbums.
+     * @param {AudiobookCollectionAlbumDeleteManyArgs} args - Arguments to filter AudiobookCollectionAlbums to delete.
+     * @example
+     * // Delete a few AudiobookCollectionAlbums
+     * const { count } = await prisma.audiobookCollectionAlbum.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends AudiobookCollectionAlbumDeleteManyArgs>(args?: SelectSubset<T, AudiobookCollectionAlbumDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AudiobookCollectionAlbums.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AudiobookCollectionAlbumUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many AudiobookCollectionAlbums
+     * const audiobookCollectionAlbum = await prisma.audiobookCollectionAlbum.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends AudiobookCollectionAlbumUpdateManyArgs>(args: SelectSubset<T, AudiobookCollectionAlbumUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AudiobookCollectionAlbums and returns the data updated in the database.
+     * @param {AudiobookCollectionAlbumUpdateManyAndReturnArgs} args - Arguments to update many AudiobookCollectionAlbums.
+     * @example
+     * // Update many AudiobookCollectionAlbums
+     * const audiobookCollectionAlbum = await prisma.audiobookCollectionAlbum.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more AudiobookCollectionAlbums and only return the `id`
+     * const audiobookCollectionAlbumWithIdOnly = await prisma.audiobookCollectionAlbum.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends AudiobookCollectionAlbumUpdateManyAndReturnArgs>(args: SelectSubset<T, AudiobookCollectionAlbumUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one AudiobookCollectionAlbum.
+     * @param {AudiobookCollectionAlbumUpsertArgs} args - Arguments to update or create a AudiobookCollectionAlbum.
+     * @example
+     * // Update or create a AudiobookCollectionAlbum
+     * const audiobookCollectionAlbum = await prisma.audiobookCollectionAlbum.upsert({
+     *   create: {
+     *     // ... data to create a AudiobookCollectionAlbum
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the AudiobookCollectionAlbum we want to update
+     *   }
+     * })
+     */
+    upsert<T extends AudiobookCollectionAlbumUpsertArgs>(args: SelectSubset<T, AudiobookCollectionAlbumUpsertArgs<ExtArgs>>): Prisma__AudiobookCollectionAlbumClient<$Result.GetResult<Prisma.$AudiobookCollectionAlbumPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of AudiobookCollectionAlbums.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AudiobookCollectionAlbumCountArgs} args - Arguments to filter AudiobookCollectionAlbums to count.
+     * @example
+     * // Count the number of AudiobookCollectionAlbums
+     * const count = await prisma.audiobookCollectionAlbum.count({
+     *   where: {
+     *     // ... the filter for the AudiobookCollectionAlbums we want to count
+     *   }
+     * })
+    **/
+    count<T extends AudiobookCollectionAlbumCountArgs>(
+      args?: Subset<T, AudiobookCollectionAlbumCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AudiobookCollectionAlbumCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a AudiobookCollectionAlbum.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AudiobookCollectionAlbumAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AudiobookCollectionAlbumAggregateArgs>(args: Subset<T, AudiobookCollectionAlbumAggregateArgs>): Prisma.PrismaPromise<GetAudiobookCollectionAlbumAggregateType<T>>
+
+    /**
+     * Group by AudiobookCollectionAlbum.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AudiobookCollectionAlbumGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends AudiobookCollectionAlbumGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: AudiobookCollectionAlbumGroupByArgs['orderBy'] }
+        : { orderBy?: AudiobookCollectionAlbumGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, AudiobookCollectionAlbumGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAudiobookCollectionAlbumGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the AudiobookCollectionAlbum model
+   */
+  readonly fields: AudiobookCollectionAlbumFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for AudiobookCollectionAlbum.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__AudiobookCollectionAlbumClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    collection<T extends AudiobookCollectionDefaultArgs<ExtArgs> = {}>(args?: Subset<T, AudiobookCollectionDefaultArgs<ExtArgs>>): Prisma__AudiobookCollectionClient<$Result.GetResult<Prisma.$AudiobookCollectionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    album<T extends AlbumDefaultArgs<ExtArgs> = {}>(args?: Subset<T, AlbumDefaultArgs<ExtArgs>>): Prisma__AlbumClient<$Result.GetResult<Prisma.$AlbumPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the AudiobookCollectionAlbum model
+   */
+  interface AudiobookCollectionAlbumFieldRefs {
+    readonly id: FieldRef<"AudiobookCollectionAlbum", 'Int'>
+    readonly collectionId: FieldRef<"AudiobookCollectionAlbum", 'Int'>
+    readonly albumId: FieldRef<"AudiobookCollectionAlbum", 'Int'>
+    readonly order: FieldRef<"AudiobookCollectionAlbum", 'Int'>
+    readonly createdAt: FieldRef<"AudiobookCollectionAlbum", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * AudiobookCollectionAlbum findUnique
+   */
+  export type AudiobookCollectionAlbumFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionAlbum
+     */
+    select?: AudiobookCollectionAlbumSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollectionAlbum
+     */
+    omit?: AudiobookCollectionAlbumOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionAlbumInclude<ExtArgs> | null
+    /**
+     * Filter, which AudiobookCollectionAlbum to fetch.
+     */
+    where: AudiobookCollectionAlbumWhereUniqueInput
+  }
+
+  /**
+   * AudiobookCollectionAlbum findUniqueOrThrow
+   */
+  export type AudiobookCollectionAlbumFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionAlbum
+     */
+    select?: AudiobookCollectionAlbumSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollectionAlbum
+     */
+    omit?: AudiobookCollectionAlbumOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionAlbumInclude<ExtArgs> | null
+    /**
+     * Filter, which AudiobookCollectionAlbum to fetch.
+     */
+    where: AudiobookCollectionAlbumWhereUniqueInput
+  }
+
+  /**
+   * AudiobookCollectionAlbum findFirst
+   */
+  export type AudiobookCollectionAlbumFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionAlbum
+     */
+    select?: AudiobookCollectionAlbumSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollectionAlbum
+     */
+    omit?: AudiobookCollectionAlbumOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionAlbumInclude<ExtArgs> | null
+    /**
+     * Filter, which AudiobookCollectionAlbum to fetch.
+     */
+    where?: AudiobookCollectionAlbumWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AudiobookCollectionAlbums to fetch.
+     */
+    orderBy?: AudiobookCollectionAlbumOrderByWithRelationInput | AudiobookCollectionAlbumOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AudiobookCollectionAlbums.
+     */
+    cursor?: AudiobookCollectionAlbumWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AudiobookCollectionAlbums from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AudiobookCollectionAlbums.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AudiobookCollectionAlbums.
+     */
+    distinct?: AudiobookCollectionAlbumScalarFieldEnum | AudiobookCollectionAlbumScalarFieldEnum[]
+  }
+
+  /**
+   * AudiobookCollectionAlbum findFirstOrThrow
+   */
+  export type AudiobookCollectionAlbumFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionAlbum
+     */
+    select?: AudiobookCollectionAlbumSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollectionAlbum
+     */
+    omit?: AudiobookCollectionAlbumOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionAlbumInclude<ExtArgs> | null
+    /**
+     * Filter, which AudiobookCollectionAlbum to fetch.
+     */
+    where?: AudiobookCollectionAlbumWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AudiobookCollectionAlbums to fetch.
+     */
+    orderBy?: AudiobookCollectionAlbumOrderByWithRelationInput | AudiobookCollectionAlbumOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AudiobookCollectionAlbums.
+     */
+    cursor?: AudiobookCollectionAlbumWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AudiobookCollectionAlbums from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AudiobookCollectionAlbums.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AudiobookCollectionAlbums.
+     */
+    distinct?: AudiobookCollectionAlbumScalarFieldEnum | AudiobookCollectionAlbumScalarFieldEnum[]
+  }
+
+  /**
+   * AudiobookCollectionAlbum findMany
+   */
+  export type AudiobookCollectionAlbumFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionAlbum
+     */
+    select?: AudiobookCollectionAlbumSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollectionAlbum
+     */
+    omit?: AudiobookCollectionAlbumOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionAlbumInclude<ExtArgs> | null
+    /**
+     * Filter, which AudiobookCollectionAlbums to fetch.
+     */
+    where?: AudiobookCollectionAlbumWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AudiobookCollectionAlbums to fetch.
+     */
+    orderBy?: AudiobookCollectionAlbumOrderByWithRelationInput | AudiobookCollectionAlbumOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing AudiobookCollectionAlbums.
+     */
+    cursor?: AudiobookCollectionAlbumWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AudiobookCollectionAlbums from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AudiobookCollectionAlbums.
+     */
+    skip?: number
+    distinct?: AudiobookCollectionAlbumScalarFieldEnum | AudiobookCollectionAlbumScalarFieldEnum[]
+  }
+
+  /**
+   * AudiobookCollectionAlbum create
+   */
+  export type AudiobookCollectionAlbumCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionAlbum
+     */
+    select?: AudiobookCollectionAlbumSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollectionAlbum
+     */
+    omit?: AudiobookCollectionAlbumOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionAlbumInclude<ExtArgs> | null
+    /**
+     * The data needed to create a AudiobookCollectionAlbum.
+     */
+    data: XOR<AudiobookCollectionAlbumCreateInput, AudiobookCollectionAlbumUncheckedCreateInput>
+  }
+
+  /**
+   * AudiobookCollectionAlbum createMany
+   */
+  export type AudiobookCollectionAlbumCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many AudiobookCollectionAlbums.
+     */
+    data: AudiobookCollectionAlbumCreateManyInput | AudiobookCollectionAlbumCreateManyInput[]
+  }
+
+  /**
+   * AudiobookCollectionAlbum createManyAndReturn
+   */
+  export type AudiobookCollectionAlbumCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionAlbum
+     */
+    select?: AudiobookCollectionAlbumSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollectionAlbum
+     */
+    omit?: AudiobookCollectionAlbumOmit<ExtArgs> | null
+    /**
+     * The data used to create many AudiobookCollectionAlbums.
+     */
+    data: AudiobookCollectionAlbumCreateManyInput | AudiobookCollectionAlbumCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionAlbumIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AudiobookCollectionAlbum update
+   */
+  export type AudiobookCollectionAlbumUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionAlbum
+     */
+    select?: AudiobookCollectionAlbumSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollectionAlbum
+     */
+    omit?: AudiobookCollectionAlbumOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionAlbumInclude<ExtArgs> | null
+    /**
+     * The data needed to update a AudiobookCollectionAlbum.
+     */
+    data: XOR<AudiobookCollectionAlbumUpdateInput, AudiobookCollectionAlbumUncheckedUpdateInput>
+    /**
+     * Choose, which AudiobookCollectionAlbum to update.
+     */
+    where: AudiobookCollectionAlbumWhereUniqueInput
+  }
+
+  /**
+   * AudiobookCollectionAlbum updateMany
+   */
+  export type AudiobookCollectionAlbumUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update AudiobookCollectionAlbums.
+     */
+    data: XOR<AudiobookCollectionAlbumUpdateManyMutationInput, AudiobookCollectionAlbumUncheckedUpdateManyInput>
+    /**
+     * Filter which AudiobookCollectionAlbums to update
+     */
+    where?: AudiobookCollectionAlbumWhereInput
+    /**
+     * Limit how many AudiobookCollectionAlbums to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AudiobookCollectionAlbum updateManyAndReturn
+   */
+  export type AudiobookCollectionAlbumUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionAlbum
+     */
+    select?: AudiobookCollectionAlbumSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollectionAlbum
+     */
+    omit?: AudiobookCollectionAlbumOmit<ExtArgs> | null
+    /**
+     * The data used to update AudiobookCollectionAlbums.
+     */
+    data: XOR<AudiobookCollectionAlbumUpdateManyMutationInput, AudiobookCollectionAlbumUncheckedUpdateManyInput>
+    /**
+     * Filter which AudiobookCollectionAlbums to update
+     */
+    where?: AudiobookCollectionAlbumWhereInput
+    /**
+     * Limit how many AudiobookCollectionAlbums to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionAlbumIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AudiobookCollectionAlbum upsert
+   */
+  export type AudiobookCollectionAlbumUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionAlbum
+     */
+    select?: AudiobookCollectionAlbumSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollectionAlbum
+     */
+    omit?: AudiobookCollectionAlbumOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionAlbumInclude<ExtArgs> | null
+    /**
+     * The filter to search for the AudiobookCollectionAlbum to update in case it exists.
+     */
+    where: AudiobookCollectionAlbumWhereUniqueInput
+    /**
+     * In case the AudiobookCollectionAlbum found by the `where` argument doesn't exist, create a new AudiobookCollectionAlbum with this data.
+     */
+    create: XOR<AudiobookCollectionAlbumCreateInput, AudiobookCollectionAlbumUncheckedCreateInput>
+    /**
+     * In case the AudiobookCollectionAlbum was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<AudiobookCollectionAlbumUpdateInput, AudiobookCollectionAlbumUncheckedUpdateInput>
+  }
+
+  /**
+   * AudiobookCollectionAlbum delete
+   */
+  export type AudiobookCollectionAlbumDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionAlbum
+     */
+    select?: AudiobookCollectionAlbumSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollectionAlbum
+     */
+    omit?: AudiobookCollectionAlbumOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionAlbumInclude<ExtArgs> | null
+    /**
+     * Filter which AudiobookCollectionAlbum to delete.
+     */
+    where: AudiobookCollectionAlbumWhereUniqueInput
+  }
+
+  /**
+   * AudiobookCollectionAlbum deleteMany
+   */
+  export type AudiobookCollectionAlbumDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AudiobookCollectionAlbums to delete
+     */
+    where?: AudiobookCollectionAlbumWhereInput
+    /**
+     * Limit how many AudiobookCollectionAlbums to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * AudiobookCollectionAlbum without action
+   */
+  export type AudiobookCollectionAlbumDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollectionAlbum
+     */
+    select?: AudiobookCollectionAlbumSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollectionAlbum
+     */
+    omit?: AudiobookCollectionAlbumOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionAlbumInclude<ExtArgs> | null
   }
 
 
@@ -13371,6 +15890,7 @@ export namespace Prisma {
     id: number | null
     username: string | null
     password: string | null
+    avatar: string | null
     is_admin: boolean | null
     expiresAt: Date | null
     createdAt: Date | null
@@ -13380,6 +15900,7 @@ export namespace Prisma {
     id: number | null
     username: string | null
     password: string | null
+    avatar: string | null
     is_admin: boolean | null
     expiresAt: Date | null
     createdAt: Date | null
@@ -13389,6 +15910,7 @@ export namespace Prisma {
     id: number
     username: number
     password: number
+    avatar: number
     is_admin: number
     expiresAt: number
     createdAt: number
@@ -13408,6 +15930,7 @@ export namespace Prisma {
     id?: true
     username?: true
     password?: true
+    avatar?: true
     is_admin?: true
     expiresAt?: true
     createdAt?: true
@@ -13417,6 +15940,7 @@ export namespace Prisma {
     id?: true
     username?: true
     password?: true
+    avatar?: true
     is_admin?: true
     expiresAt?: true
     createdAt?: true
@@ -13426,6 +15950,7 @@ export namespace Prisma {
     id?: true
     username?: true
     password?: true
+    avatar?: true
     is_admin?: true
     expiresAt?: true
     createdAt?: true
@@ -13522,6 +16047,7 @@ export namespace Prisma {
     id: number
     username: string
     password: string
+    avatar: string | null
     is_admin: boolean
     expiresAt: Date | null
     createdAt: Date
@@ -13550,6 +16076,7 @@ export namespace Prisma {
     id?: boolean
     username?: boolean
     password?: boolean
+    avatar?: boolean
     is_admin?: boolean
     expiresAt?: boolean
     createdAt?: boolean
@@ -13560,6 +16087,7 @@ export namespace Prisma {
     likedAudiobooks?: boolean | User$likedAudiobooksArgs<ExtArgs>
     listenedAudiobooks?: boolean | User$listenedAudiobooksArgs<ExtArgs>
     playlists?: boolean | User$playlistsArgs<ExtArgs>
+    audiobookCollections?: boolean | User$audiobookCollectionsArgs<ExtArgs>
     devices?: boolean | User$devicesArgs<ExtArgs>
     searchRecords?: boolean | User$searchRecordsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -13569,6 +16097,7 @@ export namespace Prisma {
     id?: boolean
     username?: boolean
     password?: boolean
+    avatar?: boolean
     is_admin?: boolean
     expiresAt?: boolean
     createdAt?: boolean
@@ -13578,6 +16107,7 @@ export namespace Prisma {
     id?: boolean
     username?: boolean
     password?: boolean
+    avatar?: boolean
     is_admin?: boolean
     expiresAt?: boolean
     createdAt?: boolean
@@ -13587,12 +16117,13 @@ export namespace Prisma {
     id?: boolean
     username?: boolean
     password?: boolean
+    avatar?: boolean
     is_admin?: boolean
     expiresAt?: boolean
     createdAt?: boolean
   }
 
-  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "username" | "password" | "is_admin" | "expiresAt" | "createdAt", ExtArgs["result"]["user"]>
+  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "username" | "password" | "avatar" | "is_admin" | "expiresAt" | "createdAt", ExtArgs["result"]["user"]>
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     likedTracks?: boolean | User$likedTracksArgs<ExtArgs>
     listenedTracks?: boolean | User$listenedTracksArgs<ExtArgs>
@@ -13601,6 +16132,7 @@ export namespace Prisma {
     likedAudiobooks?: boolean | User$likedAudiobooksArgs<ExtArgs>
     listenedAudiobooks?: boolean | User$listenedAudiobooksArgs<ExtArgs>
     playlists?: boolean | User$playlistsArgs<ExtArgs>
+    audiobookCollections?: boolean | User$audiobookCollectionsArgs<ExtArgs>
     devices?: boolean | User$devicesArgs<ExtArgs>
     searchRecords?: boolean | User$searchRecordsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -13640,6 +16172,10 @@ export namespace Prisma {
        */
       playlists: Prisma.$PlaylistPayload<ExtArgs>[]
       /**
+       * 用户创建的有声书合集
+       */
+      audiobookCollections: Prisma.$AudiobookCollectionPayload<ExtArgs>[]
+      /**
        * 用户设备列表
        */
       devices: Prisma.$DevicePayload<ExtArgs>[]
@@ -13661,6 +16197,10 @@ export namespace Prisma {
        * 加密后的用户密码
        */
       password: string
+      /**
+       * 用户头像
+       */
+      avatar: string | null
       /**
        * 是否为管理员用户，默认 false
        */
@@ -14074,6 +16614,7 @@ export namespace Prisma {
     likedAudiobooks<T extends User$likedAudiobooksArgs<ExtArgs> = {}>(args?: Subset<T, User$likedAudiobooksArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserAudiobookLikePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     listenedAudiobooks<T extends User$listenedAudiobooksArgs<ExtArgs> = {}>(args?: Subset<T, User$listenedAudiobooksArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserAudiobookHistoryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     playlists<T extends User$playlistsArgs<ExtArgs> = {}>(args?: Subset<T, User$playlistsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PlaylistPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    audiobookCollections<T extends User$audiobookCollectionsArgs<ExtArgs> = {}>(args?: Subset<T, User$audiobookCollectionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AudiobookCollectionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     devices<T extends User$devicesArgs<ExtArgs> = {}>(args?: Subset<T, User$devicesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DevicePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     searchRecords<T extends User$searchRecordsArgs<ExtArgs> = {}>(args?: Subset<T, User$searchRecordsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SearchRecordPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
@@ -14108,6 +16649,7 @@ export namespace Prisma {
     readonly id: FieldRef<"User", 'Int'>
     readonly username: FieldRef<"User", 'String'>
     readonly password: FieldRef<"User", 'String'>
+    readonly avatar: FieldRef<"User", 'String'>
     readonly is_admin: FieldRef<"User", 'Boolean'>
     readonly expiresAt: FieldRef<"User", 'DateTime'>
     readonly createdAt: FieldRef<"User", 'DateTime'>
@@ -14662,6 +17204,30 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: PlaylistScalarFieldEnum | PlaylistScalarFieldEnum[]
+  }
+
+  /**
+   * User.audiobookCollections
+   */
+  export type User$audiobookCollectionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AudiobookCollection
+     */
+    select?: AudiobookCollectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AudiobookCollection
+     */
+    omit?: AudiobookCollectionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AudiobookCollectionInclude<ExtArgs> | null
+    where?: AudiobookCollectionWhereInput
+    orderBy?: AudiobookCollectionOrderByWithRelationInput | AudiobookCollectionOrderByWithRelationInput[]
+    cursor?: AudiobookCollectionWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: AudiobookCollectionScalarFieldEnum | AudiobookCollectionScalarFieldEnum[]
   }
 
   /**
@@ -23612,6 +26178,30 @@ export namespace Prisma {
   export type ArtistScalarFieldEnum = (typeof ArtistScalarFieldEnum)[keyof typeof ArtistScalarFieldEnum]
 
 
+  export const AudiobookCollectionScalarFieldEnum: {
+    id: 'id',
+    name: 'name',
+    cover: 'cover',
+    type: 'type',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt',
+    userId: 'userId'
+  };
+
+  export type AudiobookCollectionScalarFieldEnum = (typeof AudiobookCollectionScalarFieldEnum)[keyof typeof AudiobookCollectionScalarFieldEnum]
+
+
+  export const AudiobookCollectionAlbumScalarFieldEnum: {
+    id: 'id',
+    collectionId: 'collectionId',
+    albumId: 'albumId',
+    order: 'order',
+    createdAt: 'createdAt'
+  };
+
+  export type AudiobookCollectionAlbumScalarFieldEnum = (typeof AudiobookCollectionAlbumScalarFieldEnum)[keyof typeof AudiobookCollectionAlbumScalarFieldEnum]
+
+
   export const UserTrackLikeScalarFieldEnum: {
     id: 'id',
     userId: 'userId',
@@ -23681,6 +26271,7 @@ export namespace Prisma {
     id: 'id',
     username: 'username',
     password: 'password',
+    avatar: 'avatar',
     is_admin: 'is_admin',
     expiresAt: 'expiresAt',
     createdAt: 'createdAt'
@@ -24017,6 +26608,7 @@ export namespace Prisma {
     tracks?: TrackListRelationFilter
     likedByUsers?: UserAlbumLikeListRelationFilter
     listenedByUsers?: UserAlbumHistoryListRelationFilter
+    collectionItems?: AudiobookCollectionAlbumListRelationFilter
   }
 
   export type AlbumOrderByWithRelationInput = {
@@ -24031,6 +26623,7 @@ export namespace Prisma {
     tracks?: TrackOrderByRelationAggregateInput
     likedByUsers?: UserAlbumLikeOrderByRelationAggregateInput
     listenedByUsers?: UserAlbumHistoryOrderByRelationAggregateInput
+    collectionItems?: AudiobookCollectionAlbumOrderByRelationAggregateInput
   }
 
   export type AlbumWhereUniqueInput = Prisma.AtLeast<{
@@ -24048,6 +26641,7 @@ export namespace Prisma {
     tracks?: TrackListRelationFilter
     likedByUsers?: UserAlbumLikeListRelationFilter
     listenedByUsers?: UserAlbumHistoryListRelationFilter
+    collectionItems?: AudiobookCollectionAlbumListRelationFilter
   }, "id">
 
   export type AlbumOrderByWithAggregationInput = {
@@ -24140,6 +26734,137 @@ export namespace Prisma {
     type?: EnumTrackTypeWithAggregatesFilter<"Artist"> | $Enums.TrackType
     status?: EnumFileStatusWithAggregatesFilter<"Artist"> | $Enums.FileStatus
     trashedAt?: DateTimeNullableWithAggregatesFilter<"Artist"> | Date | string | null
+  }
+
+  export type AudiobookCollectionWhereInput = {
+    AND?: AudiobookCollectionWhereInput | AudiobookCollectionWhereInput[]
+    OR?: AudiobookCollectionWhereInput[]
+    NOT?: AudiobookCollectionWhereInput | AudiobookCollectionWhereInput[]
+    id?: IntFilter<"AudiobookCollection"> | number
+    name?: StringFilter<"AudiobookCollection"> | string
+    cover?: StringNullableFilter<"AudiobookCollection"> | string | null
+    type?: EnumTrackTypeFilter<"AudiobookCollection"> | $Enums.TrackType
+    createdAt?: DateTimeFilter<"AudiobookCollection"> | Date | string
+    updatedAt?: DateTimeFilter<"AudiobookCollection"> | Date | string
+    userId?: IntFilter<"AudiobookCollection"> | number
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    items?: AudiobookCollectionAlbumListRelationFilter
+  }
+
+  export type AudiobookCollectionOrderByWithRelationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    cover?: SortOrderInput | SortOrder
+    type?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    userId?: SortOrder
+    user?: UserOrderByWithRelationInput
+    items?: AudiobookCollectionAlbumOrderByRelationAggregateInput
+  }
+
+  export type AudiobookCollectionWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: AudiobookCollectionWhereInput | AudiobookCollectionWhereInput[]
+    OR?: AudiobookCollectionWhereInput[]
+    NOT?: AudiobookCollectionWhereInput | AudiobookCollectionWhereInput[]
+    name?: StringFilter<"AudiobookCollection"> | string
+    cover?: StringNullableFilter<"AudiobookCollection"> | string | null
+    type?: EnumTrackTypeFilter<"AudiobookCollection"> | $Enums.TrackType
+    createdAt?: DateTimeFilter<"AudiobookCollection"> | Date | string
+    updatedAt?: DateTimeFilter<"AudiobookCollection"> | Date | string
+    userId?: IntFilter<"AudiobookCollection"> | number
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    items?: AudiobookCollectionAlbumListRelationFilter
+  }, "id">
+
+  export type AudiobookCollectionOrderByWithAggregationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    cover?: SortOrderInput | SortOrder
+    type?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    userId?: SortOrder
+    _count?: AudiobookCollectionCountOrderByAggregateInput
+    _avg?: AudiobookCollectionAvgOrderByAggregateInput
+    _max?: AudiobookCollectionMaxOrderByAggregateInput
+    _min?: AudiobookCollectionMinOrderByAggregateInput
+    _sum?: AudiobookCollectionSumOrderByAggregateInput
+  }
+
+  export type AudiobookCollectionScalarWhereWithAggregatesInput = {
+    AND?: AudiobookCollectionScalarWhereWithAggregatesInput | AudiobookCollectionScalarWhereWithAggregatesInput[]
+    OR?: AudiobookCollectionScalarWhereWithAggregatesInput[]
+    NOT?: AudiobookCollectionScalarWhereWithAggregatesInput | AudiobookCollectionScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"AudiobookCollection"> | number
+    name?: StringWithAggregatesFilter<"AudiobookCollection"> | string
+    cover?: StringNullableWithAggregatesFilter<"AudiobookCollection"> | string | null
+    type?: EnumTrackTypeWithAggregatesFilter<"AudiobookCollection"> | $Enums.TrackType
+    createdAt?: DateTimeWithAggregatesFilter<"AudiobookCollection"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"AudiobookCollection"> | Date | string
+    userId?: IntWithAggregatesFilter<"AudiobookCollection"> | number
+  }
+
+  export type AudiobookCollectionAlbumWhereInput = {
+    AND?: AudiobookCollectionAlbumWhereInput | AudiobookCollectionAlbumWhereInput[]
+    OR?: AudiobookCollectionAlbumWhereInput[]
+    NOT?: AudiobookCollectionAlbumWhereInput | AudiobookCollectionAlbumWhereInput[]
+    id?: IntFilter<"AudiobookCollectionAlbum"> | number
+    collectionId?: IntFilter<"AudiobookCollectionAlbum"> | number
+    albumId?: IntFilter<"AudiobookCollectionAlbum"> | number
+    order?: IntFilter<"AudiobookCollectionAlbum"> | number
+    createdAt?: DateTimeFilter<"AudiobookCollectionAlbum"> | Date | string
+    collection?: XOR<AudiobookCollectionScalarRelationFilter, AudiobookCollectionWhereInput>
+    album?: XOR<AlbumScalarRelationFilter, AlbumWhereInput>
+  }
+
+  export type AudiobookCollectionAlbumOrderByWithRelationInput = {
+    id?: SortOrder
+    collectionId?: SortOrder
+    albumId?: SortOrder
+    order?: SortOrder
+    createdAt?: SortOrder
+    collection?: AudiobookCollectionOrderByWithRelationInput
+    album?: AlbumOrderByWithRelationInput
+  }
+
+  export type AudiobookCollectionAlbumWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    collectionId_albumId?: AudiobookCollectionAlbumCollectionIdAlbumIdCompoundUniqueInput
+    AND?: AudiobookCollectionAlbumWhereInput | AudiobookCollectionAlbumWhereInput[]
+    OR?: AudiobookCollectionAlbumWhereInput[]
+    NOT?: AudiobookCollectionAlbumWhereInput | AudiobookCollectionAlbumWhereInput[]
+    collectionId?: IntFilter<"AudiobookCollectionAlbum"> | number
+    albumId?: IntFilter<"AudiobookCollectionAlbum"> | number
+    order?: IntFilter<"AudiobookCollectionAlbum"> | number
+    createdAt?: DateTimeFilter<"AudiobookCollectionAlbum"> | Date | string
+    collection?: XOR<AudiobookCollectionScalarRelationFilter, AudiobookCollectionWhereInput>
+    album?: XOR<AlbumScalarRelationFilter, AlbumWhereInput>
+  }, "id" | "collectionId_albumId">
+
+  export type AudiobookCollectionAlbumOrderByWithAggregationInput = {
+    id?: SortOrder
+    collectionId?: SortOrder
+    albumId?: SortOrder
+    order?: SortOrder
+    createdAt?: SortOrder
+    _count?: AudiobookCollectionAlbumCountOrderByAggregateInput
+    _avg?: AudiobookCollectionAlbumAvgOrderByAggregateInput
+    _max?: AudiobookCollectionAlbumMaxOrderByAggregateInput
+    _min?: AudiobookCollectionAlbumMinOrderByAggregateInput
+    _sum?: AudiobookCollectionAlbumSumOrderByAggregateInput
+  }
+
+  export type AudiobookCollectionAlbumScalarWhereWithAggregatesInput = {
+    AND?: AudiobookCollectionAlbumScalarWhereWithAggregatesInput | AudiobookCollectionAlbumScalarWhereWithAggregatesInput[]
+    OR?: AudiobookCollectionAlbumScalarWhereWithAggregatesInput[]
+    NOT?: AudiobookCollectionAlbumScalarWhereWithAggregatesInput | AudiobookCollectionAlbumScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"AudiobookCollectionAlbum"> | number
+    collectionId?: IntWithAggregatesFilter<"AudiobookCollectionAlbum"> | number
+    albumId?: IntWithAggregatesFilter<"AudiobookCollectionAlbum"> | number
+    order?: IntWithAggregatesFilter<"AudiobookCollectionAlbum"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"AudiobookCollectionAlbum"> | Date | string
   }
 
   export type UserTrackLikeWhereInput = {
@@ -24508,6 +27233,7 @@ export namespace Prisma {
     id?: IntFilter<"User"> | number
     username?: StringFilter<"User"> | string
     password?: StringFilter<"User"> | string
+    avatar?: StringNullableFilter<"User"> | string | null
     is_admin?: BoolFilter<"User"> | boolean
     expiresAt?: DateTimeNullableFilter<"User"> | Date | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
@@ -24518,6 +27244,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeListRelationFilter
     listenedAudiobooks?: UserAudiobookHistoryListRelationFilter
     playlists?: PlaylistListRelationFilter
+    audiobookCollections?: AudiobookCollectionListRelationFilter
     devices?: DeviceListRelationFilter
     searchRecords?: SearchRecordListRelationFilter
   }
@@ -24526,6 +27253,7 @@ export namespace Prisma {
     id?: SortOrder
     username?: SortOrder
     password?: SortOrder
+    avatar?: SortOrderInput | SortOrder
     is_admin?: SortOrder
     expiresAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
@@ -24536,6 +27264,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeOrderByRelationAggregateInput
     listenedAudiobooks?: UserAudiobookHistoryOrderByRelationAggregateInput
     playlists?: PlaylistOrderByRelationAggregateInput
+    audiobookCollections?: AudiobookCollectionOrderByRelationAggregateInput
     devices?: DeviceOrderByRelationAggregateInput
     searchRecords?: SearchRecordOrderByRelationAggregateInput
   }
@@ -24547,6 +27276,7 @@ export namespace Prisma {
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
     password?: StringFilter<"User"> | string
+    avatar?: StringNullableFilter<"User"> | string | null
     is_admin?: BoolFilter<"User"> | boolean
     expiresAt?: DateTimeNullableFilter<"User"> | Date | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
@@ -24557,6 +27287,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeListRelationFilter
     listenedAudiobooks?: UserAudiobookHistoryListRelationFilter
     playlists?: PlaylistListRelationFilter
+    audiobookCollections?: AudiobookCollectionListRelationFilter
     devices?: DeviceListRelationFilter
     searchRecords?: SearchRecordListRelationFilter
   }, "id" | "username">
@@ -24565,6 +27296,7 @@ export namespace Prisma {
     id?: SortOrder
     username?: SortOrder
     password?: SortOrder
+    avatar?: SortOrderInput | SortOrder
     is_admin?: SortOrder
     expiresAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
@@ -24582,6 +27314,7 @@ export namespace Prisma {
     id?: IntWithAggregatesFilter<"User"> | number
     username?: StringWithAggregatesFilter<"User"> | string
     password?: StringWithAggregatesFilter<"User"> | string
+    avatar?: StringNullableWithAggregatesFilter<"User"> | string | null
     is_admin?: BoolWithAggregatesFilter<"User"> | boolean
     expiresAt?: DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
@@ -25248,6 +27981,7 @@ export namespace Prisma {
     tracks?: TrackCreateNestedManyWithoutAlbumEntityInput
     likedByUsers?: UserAlbumLikeCreateNestedManyWithoutAlbumInput
     listenedByUsers?: UserAlbumHistoryCreateNestedManyWithoutAlbumInput
+    collectionItems?: AudiobookCollectionAlbumCreateNestedManyWithoutAlbumInput
   }
 
   export type AlbumUncheckedCreateInput = {
@@ -25262,6 +27996,7 @@ export namespace Prisma {
     tracks?: TrackUncheckedCreateNestedManyWithoutAlbumEntityInput
     likedByUsers?: UserAlbumLikeUncheckedCreateNestedManyWithoutAlbumInput
     listenedByUsers?: UserAlbumHistoryUncheckedCreateNestedManyWithoutAlbumInput
+    collectionItems?: AudiobookCollectionAlbumUncheckedCreateNestedManyWithoutAlbumInput
   }
 
   export type AlbumUpdateInput = {
@@ -25275,6 +28010,7 @@ export namespace Prisma {
     tracks?: TrackUpdateManyWithoutAlbumEntityNestedInput
     likedByUsers?: UserAlbumLikeUpdateManyWithoutAlbumNestedInput
     listenedByUsers?: UserAlbumHistoryUpdateManyWithoutAlbumNestedInput
+    collectionItems?: AudiobookCollectionAlbumUpdateManyWithoutAlbumNestedInput
   }
 
   export type AlbumUncheckedUpdateInput = {
@@ -25289,6 +28025,7 @@ export namespace Prisma {
     tracks?: TrackUncheckedUpdateManyWithoutAlbumEntityNestedInput
     likedByUsers?: UserAlbumLikeUncheckedUpdateManyWithoutAlbumNestedInput
     listenedByUsers?: UserAlbumHistoryUncheckedUpdateManyWithoutAlbumNestedInput
+    collectionItems?: AudiobookCollectionAlbumUncheckedUpdateManyWithoutAlbumNestedInput
   }
 
   export type AlbumCreateManyInput = {
@@ -25385,6 +28122,127 @@ export namespace Prisma {
     type?: EnumTrackTypeFieldUpdateOperationsInput | $Enums.TrackType
     status?: EnumFileStatusFieldUpdateOperationsInput | $Enums.FileStatus
     trashedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type AudiobookCollectionCreateInput = {
+    name: string
+    cover?: string | null
+    type?: $Enums.TrackType
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutAudiobookCollectionsInput
+    items?: AudiobookCollectionAlbumCreateNestedManyWithoutCollectionInput
+  }
+
+  export type AudiobookCollectionUncheckedCreateInput = {
+    id?: number
+    name: string
+    cover?: string | null
+    type?: $Enums.TrackType
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    userId: number
+    items?: AudiobookCollectionAlbumUncheckedCreateNestedManyWithoutCollectionInput
+  }
+
+  export type AudiobookCollectionUpdateInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    cover?: NullableStringFieldUpdateOperationsInput | string | null
+    type?: EnumTrackTypeFieldUpdateOperationsInput | $Enums.TrackType
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutAudiobookCollectionsNestedInput
+    items?: AudiobookCollectionAlbumUpdateManyWithoutCollectionNestedInput
+  }
+
+  export type AudiobookCollectionUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    cover?: NullableStringFieldUpdateOperationsInput | string | null
+    type?: EnumTrackTypeFieldUpdateOperationsInput | $Enums.TrackType
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    userId?: IntFieldUpdateOperationsInput | number
+    items?: AudiobookCollectionAlbumUncheckedUpdateManyWithoutCollectionNestedInput
+  }
+
+  export type AudiobookCollectionCreateManyInput = {
+    id?: number
+    name: string
+    cover?: string | null
+    type?: $Enums.TrackType
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    userId: number
+  }
+
+  export type AudiobookCollectionUpdateManyMutationInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    cover?: NullableStringFieldUpdateOperationsInput | string | null
+    type?: EnumTrackTypeFieldUpdateOperationsInput | $Enums.TrackType
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AudiobookCollectionUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    cover?: NullableStringFieldUpdateOperationsInput | string | null
+    type?: EnumTrackTypeFieldUpdateOperationsInput | $Enums.TrackType
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    userId?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type AudiobookCollectionAlbumCreateInput = {
+    order?: number
+    createdAt?: Date | string
+    collection: AudiobookCollectionCreateNestedOneWithoutItemsInput
+    album: AlbumCreateNestedOneWithoutCollectionItemsInput
+  }
+
+  export type AudiobookCollectionAlbumUncheckedCreateInput = {
+    id?: number
+    collectionId: number
+    albumId: number
+    order?: number
+    createdAt?: Date | string
+  }
+
+  export type AudiobookCollectionAlbumUpdateInput = {
+    order?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    collection?: AudiobookCollectionUpdateOneRequiredWithoutItemsNestedInput
+    album?: AlbumUpdateOneRequiredWithoutCollectionItemsNestedInput
+  }
+
+  export type AudiobookCollectionAlbumUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    collectionId?: IntFieldUpdateOperationsInput | number
+    albumId?: IntFieldUpdateOperationsInput | number
+    order?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AudiobookCollectionAlbumCreateManyInput = {
+    id?: number
+    collectionId: number
+    albumId: number
+    order?: number
+    createdAt?: Date | string
+  }
+
+  export type AudiobookCollectionAlbumUpdateManyMutationInput = {
+    order?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AudiobookCollectionAlbumUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    collectionId?: IntFieldUpdateOperationsInput | number
+    albumId?: IntFieldUpdateOperationsInput | number
+    order?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type UserTrackLikeCreateInput = {
@@ -25688,6 +28546,7 @@ export namespace Prisma {
   export type UserCreateInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -25698,6 +28557,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryCreateNestedManyWithoutUserInput
     playlists?: PlaylistCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
   }
@@ -25706,6 +28566,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -25716,6 +28577,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUncheckedCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedCreateNestedManyWithoutUserInput
     playlists?: PlaylistUncheckedCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
   }
@@ -25723,6 +28585,7 @@ export namespace Prisma {
   export type UserUpdateInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -25733,6 +28596,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
   }
@@ -25741,6 +28605,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -25751,6 +28616,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUncheckedUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUncheckedUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
   }
@@ -25759,6 +28625,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -25767,6 +28634,7 @@ export namespace Prisma {
   export type UserUpdateManyMutationInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -25776,6 +28644,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -26625,6 +29494,12 @@ export namespace Prisma {
     none?: UserAlbumHistoryWhereInput
   }
 
+  export type AudiobookCollectionAlbumListRelationFilter = {
+    every?: AudiobookCollectionAlbumWhereInput
+    some?: AudiobookCollectionAlbumWhereInput
+    none?: AudiobookCollectionAlbumWhereInput
+  }
+
   export type TrackOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
@@ -26634,6 +29509,10 @@ export namespace Prisma {
   }
 
   export type UserAlbumHistoryOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type AudiobookCollectionAlbumOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -26716,6 +29595,99 @@ export namespace Prisma {
   export type UserScalarRelationFilter = {
     is?: UserWhereInput
     isNot?: UserWhereInput
+  }
+
+  export type AudiobookCollectionCountOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    cover?: SortOrder
+    type?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    userId?: SortOrder
+  }
+
+  export type AudiobookCollectionAvgOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+  }
+
+  export type AudiobookCollectionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    cover?: SortOrder
+    type?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    userId?: SortOrder
+  }
+
+  export type AudiobookCollectionMinOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    cover?: SortOrder
+    type?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    userId?: SortOrder
+  }
+
+  export type AudiobookCollectionSumOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+  }
+
+  export type AudiobookCollectionScalarRelationFilter = {
+    is?: AudiobookCollectionWhereInput
+    isNot?: AudiobookCollectionWhereInput
+  }
+
+  export type AlbumScalarRelationFilter = {
+    is?: AlbumWhereInput
+    isNot?: AlbumWhereInput
+  }
+
+  export type AudiobookCollectionAlbumCollectionIdAlbumIdCompoundUniqueInput = {
+    collectionId: number
+    albumId: number
+  }
+
+  export type AudiobookCollectionAlbumCountOrderByAggregateInput = {
+    id?: SortOrder
+    collectionId?: SortOrder
+    albumId?: SortOrder
+    order?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type AudiobookCollectionAlbumAvgOrderByAggregateInput = {
+    id?: SortOrder
+    collectionId?: SortOrder
+    albumId?: SortOrder
+    order?: SortOrder
+  }
+
+  export type AudiobookCollectionAlbumMaxOrderByAggregateInput = {
+    id?: SortOrder
+    collectionId?: SortOrder
+    albumId?: SortOrder
+    order?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type AudiobookCollectionAlbumMinOrderByAggregateInput = {
+    id?: SortOrder
+    collectionId?: SortOrder
+    albumId?: SortOrder
+    order?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type AudiobookCollectionAlbumSumOrderByAggregateInput = {
+    id?: SortOrder
+    collectionId?: SortOrder
+    albumId?: SortOrder
+    order?: SortOrder
   }
 
   export type TrackScalarRelationFilter = {
@@ -26821,11 +29793,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedBoolFilter<$PrismaModel>
     _max?: NestedBoolFilter<$PrismaModel>
-  }
-
-  export type AlbumScalarRelationFilter = {
-    is?: AlbumWhereInput
-    isNot?: AlbumWhereInput
   }
 
   export type UserAlbumLikeCountOrderByAggregateInput = {
@@ -26970,6 +29937,12 @@ export namespace Prisma {
     progress?: SortOrder
   }
 
+  export type AudiobookCollectionListRelationFilter = {
+    every?: AudiobookCollectionWhereInput
+    some?: AudiobookCollectionWhereInput
+    none?: AudiobookCollectionWhereInput
+  }
+
   export type DeviceListRelationFilter = {
     every?: DeviceWhereInput
     some?: DeviceWhereInput
@@ -26980,6 +29953,10 @@ export namespace Prisma {
     every?: SearchRecordWhereInput
     some?: SearchRecordWhereInput
     none?: SearchRecordWhereInput
+  }
+
+  export type AudiobookCollectionOrderByRelationAggregateInput = {
+    _count?: SortOrder
   }
 
   export type DeviceOrderByRelationAggregateInput = {
@@ -26994,6 +29971,7 @@ export namespace Prisma {
     id?: SortOrder
     username?: SortOrder
     password?: SortOrder
+    avatar?: SortOrder
     is_admin?: SortOrder
     expiresAt?: SortOrder
     createdAt?: SortOrder
@@ -27007,6 +29985,7 @@ export namespace Prisma {
     id?: SortOrder
     username?: SortOrder
     password?: SortOrder
+    avatar?: SortOrder
     is_admin?: SortOrder
     expiresAt?: SortOrder
     createdAt?: SortOrder
@@ -27016,6 +29995,7 @@ export namespace Prisma {
     id?: SortOrder
     username?: SortOrder
     password?: SortOrder
+    avatar?: SortOrder
     is_admin?: SortOrder
     expiresAt?: SortOrder
     createdAt?: SortOrder
@@ -27645,6 +30625,13 @@ export namespace Prisma {
     connect?: UserAlbumHistoryWhereUniqueInput | UserAlbumHistoryWhereUniqueInput[]
   }
 
+  export type AudiobookCollectionAlbumCreateNestedManyWithoutAlbumInput = {
+    create?: XOR<AudiobookCollectionAlbumCreateWithoutAlbumInput, AudiobookCollectionAlbumUncheckedCreateWithoutAlbumInput> | AudiobookCollectionAlbumCreateWithoutAlbumInput[] | AudiobookCollectionAlbumUncheckedCreateWithoutAlbumInput[]
+    connectOrCreate?: AudiobookCollectionAlbumCreateOrConnectWithoutAlbumInput | AudiobookCollectionAlbumCreateOrConnectWithoutAlbumInput[]
+    createMany?: AudiobookCollectionAlbumCreateManyAlbumInputEnvelope
+    connect?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+  }
+
   export type TrackUncheckedCreateNestedManyWithoutAlbumEntityInput = {
     create?: XOR<TrackCreateWithoutAlbumEntityInput, TrackUncheckedCreateWithoutAlbumEntityInput> | TrackCreateWithoutAlbumEntityInput[] | TrackUncheckedCreateWithoutAlbumEntityInput[]
     connectOrCreate?: TrackCreateOrConnectWithoutAlbumEntityInput | TrackCreateOrConnectWithoutAlbumEntityInput[]
@@ -27664,6 +30651,13 @@ export namespace Prisma {
     connectOrCreate?: UserAlbumHistoryCreateOrConnectWithoutAlbumInput | UserAlbumHistoryCreateOrConnectWithoutAlbumInput[]
     createMany?: UserAlbumHistoryCreateManyAlbumInputEnvelope
     connect?: UserAlbumHistoryWhereUniqueInput | UserAlbumHistoryWhereUniqueInput[]
+  }
+
+  export type AudiobookCollectionAlbumUncheckedCreateNestedManyWithoutAlbumInput = {
+    create?: XOR<AudiobookCollectionAlbumCreateWithoutAlbumInput, AudiobookCollectionAlbumUncheckedCreateWithoutAlbumInput> | AudiobookCollectionAlbumCreateWithoutAlbumInput[] | AudiobookCollectionAlbumUncheckedCreateWithoutAlbumInput[]
+    connectOrCreate?: AudiobookCollectionAlbumCreateOrConnectWithoutAlbumInput | AudiobookCollectionAlbumCreateOrConnectWithoutAlbumInput[]
+    createMany?: AudiobookCollectionAlbumCreateManyAlbumInputEnvelope
+    connect?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
   }
 
   export type TrackUpdateManyWithoutAlbumEntityNestedInput = {
@@ -27708,6 +30702,20 @@ export namespace Prisma {
     deleteMany?: UserAlbumHistoryScalarWhereInput | UserAlbumHistoryScalarWhereInput[]
   }
 
+  export type AudiobookCollectionAlbumUpdateManyWithoutAlbumNestedInput = {
+    create?: XOR<AudiobookCollectionAlbumCreateWithoutAlbumInput, AudiobookCollectionAlbumUncheckedCreateWithoutAlbumInput> | AudiobookCollectionAlbumCreateWithoutAlbumInput[] | AudiobookCollectionAlbumUncheckedCreateWithoutAlbumInput[]
+    connectOrCreate?: AudiobookCollectionAlbumCreateOrConnectWithoutAlbumInput | AudiobookCollectionAlbumCreateOrConnectWithoutAlbumInput[]
+    upsert?: AudiobookCollectionAlbumUpsertWithWhereUniqueWithoutAlbumInput | AudiobookCollectionAlbumUpsertWithWhereUniqueWithoutAlbumInput[]
+    createMany?: AudiobookCollectionAlbumCreateManyAlbumInputEnvelope
+    set?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    disconnect?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    delete?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    connect?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    update?: AudiobookCollectionAlbumUpdateWithWhereUniqueWithoutAlbumInput | AudiobookCollectionAlbumUpdateWithWhereUniqueWithoutAlbumInput[]
+    updateMany?: AudiobookCollectionAlbumUpdateManyWithWhereWithoutAlbumInput | AudiobookCollectionAlbumUpdateManyWithWhereWithoutAlbumInput[]
+    deleteMany?: AudiobookCollectionAlbumScalarWhereInput | AudiobookCollectionAlbumScalarWhereInput[]
+  }
+
   export type TrackUncheckedUpdateManyWithoutAlbumEntityNestedInput = {
     create?: XOR<TrackCreateWithoutAlbumEntityInput, TrackUncheckedCreateWithoutAlbumEntityInput> | TrackCreateWithoutAlbumEntityInput[] | TrackUncheckedCreateWithoutAlbumEntityInput[]
     connectOrCreate?: TrackCreateOrConnectWithoutAlbumEntityInput | TrackCreateOrConnectWithoutAlbumEntityInput[]
@@ -27750,6 +30758,20 @@ export namespace Prisma {
     deleteMany?: UserAlbumHistoryScalarWhereInput | UserAlbumHistoryScalarWhereInput[]
   }
 
+  export type AudiobookCollectionAlbumUncheckedUpdateManyWithoutAlbumNestedInput = {
+    create?: XOR<AudiobookCollectionAlbumCreateWithoutAlbumInput, AudiobookCollectionAlbumUncheckedCreateWithoutAlbumInput> | AudiobookCollectionAlbumCreateWithoutAlbumInput[] | AudiobookCollectionAlbumUncheckedCreateWithoutAlbumInput[]
+    connectOrCreate?: AudiobookCollectionAlbumCreateOrConnectWithoutAlbumInput | AudiobookCollectionAlbumCreateOrConnectWithoutAlbumInput[]
+    upsert?: AudiobookCollectionAlbumUpsertWithWhereUniqueWithoutAlbumInput | AudiobookCollectionAlbumUpsertWithWhereUniqueWithoutAlbumInput[]
+    createMany?: AudiobookCollectionAlbumCreateManyAlbumInputEnvelope
+    set?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    disconnect?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    delete?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    connect?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    update?: AudiobookCollectionAlbumUpdateWithWhereUniqueWithoutAlbumInput | AudiobookCollectionAlbumUpdateWithWhereUniqueWithoutAlbumInput[]
+    updateMany?: AudiobookCollectionAlbumUpdateManyWithWhereWithoutAlbumInput | AudiobookCollectionAlbumUpdateManyWithWhereWithoutAlbumInput[]
+    deleteMany?: AudiobookCollectionAlbumScalarWhereInput | AudiobookCollectionAlbumScalarWhereInput[]
+  }
+
   export type TrackCreateNestedManyWithoutArtistEntityInput = {
     create?: XOR<TrackCreateWithoutArtistEntityInput, TrackUncheckedCreateWithoutArtistEntityInput> | TrackCreateWithoutArtistEntityInput[] | TrackUncheckedCreateWithoutArtistEntityInput[]
     connectOrCreate?: TrackCreateOrConnectWithoutArtistEntityInput | TrackCreateOrConnectWithoutArtistEntityInput[]
@@ -27790,6 +30812,90 @@ export namespace Prisma {
     update?: TrackUpdateWithWhereUniqueWithoutArtistEntityInput | TrackUpdateWithWhereUniqueWithoutArtistEntityInput[]
     updateMany?: TrackUpdateManyWithWhereWithoutArtistEntityInput | TrackUpdateManyWithWhereWithoutArtistEntityInput[]
     deleteMany?: TrackScalarWhereInput | TrackScalarWhereInput[]
+  }
+
+  export type UserCreateNestedOneWithoutAudiobookCollectionsInput = {
+    create?: XOR<UserCreateWithoutAudiobookCollectionsInput, UserUncheckedCreateWithoutAudiobookCollectionsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutAudiobookCollectionsInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type AudiobookCollectionAlbumCreateNestedManyWithoutCollectionInput = {
+    create?: XOR<AudiobookCollectionAlbumCreateWithoutCollectionInput, AudiobookCollectionAlbumUncheckedCreateWithoutCollectionInput> | AudiobookCollectionAlbumCreateWithoutCollectionInput[] | AudiobookCollectionAlbumUncheckedCreateWithoutCollectionInput[]
+    connectOrCreate?: AudiobookCollectionAlbumCreateOrConnectWithoutCollectionInput | AudiobookCollectionAlbumCreateOrConnectWithoutCollectionInput[]
+    createMany?: AudiobookCollectionAlbumCreateManyCollectionInputEnvelope
+    connect?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+  }
+
+  export type AudiobookCollectionAlbumUncheckedCreateNestedManyWithoutCollectionInput = {
+    create?: XOR<AudiobookCollectionAlbumCreateWithoutCollectionInput, AudiobookCollectionAlbumUncheckedCreateWithoutCollectionInput> | AudiobookCollectionAlbumCreateWithoutCollectionInput[] | AudiobookCollectionAlbumUncheckedCreateWithoutCollectionInput[]
+    connectOrCreate?: AudiobookCollectionAlbumCreateOrConnectWithoutCollectionInput | AudiobookCollectionAlbumCreateOrConnectWithoutCollectionInput[]
+    createMany?: AudiobookCollectionAlbumCreateManyCollectionInputEnvelope
+    connect?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+  }
+
+  export type UserUpdateOneRequiredWithoutAudiobookCollectionsNestedInput = {
+    create?: XOR<UserCreateWithoutAudiobookCollectionsInput, UserUncheckedCreateWithoutAudiobookCollectionsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutAudiobookCollectionsInput
+    upsert?: UserUpsertWithoutAudiobookCollectionsInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutAudiobookCollectionsInput, UserUpdateWithoutAudiobookCollectionsInput>, UserUncheckedUpdateWithoutAudiobookCollectionsInput>
+  }
+
+  export type AudiobookCollectionAlbumUpdateManyWithoutCollectionNestedInput = {
+    create?: XOR<AudiobookCollectionAlbumCreateWithoutCollectionInput, AudiobookCollectionAlbumUncheckedCreateWithoutCollectionInput> | AudiobookCollectionAlbumCreateWithoutCollectionInput[] | AudiobookCollectionAlbumUncheckedCreateWithoutCollectionInput[]
+    connectOrCreate?: AudiobookCollectionAlbumCreateOrConnectWithoutCollectionInput | AudiobookCollectionAlbumCreateOrConnectWithoutCollectionInput[]
+    upsert?: AudiobookCollectionAlbumUpsertWithWhereUniqueWithoutCollectionInput | AudiobookCollectionAlbumUpsertWithWhereUniqueWithoutCollectionInput[]
+    createMany?: AudiobookCollectionAlbumCreateManyCollectionInputEnvelope
+    set?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    disconnect?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    delete?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    connect?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    update?: AudiobookCollectionAlbumUpdateWithWhereUniqueWithoutCollectionInput | AudiobookCollectionAlbumUpdateWithWhereUniqueWithoutCollectionInput[]
+    updateMany?: AudiobookCollectionAlbumUpdateManyWithWhereWithoutCollectionInput | AudiobookCollectionAlbumUpdateManyWithWhereWithoutCollectionInput[]
+    deleteMany?: AudiobookCollectionAlbumScalarWhereInput | AudiobookCollectionAlbumScalarWhereInput[]
+  }
+
+  export type AudiobookCollectionAlbumUncheckedUpdateManyWithoutCollectionNestedInput = {
+    create?: XOR<AudiobookCollectionAlbumCreateWithoutCollectionInput, AudiobookCollectionAlbumUncheckedCreateWithoutCollectionInput> | AudiobookCollectionAlbumCreateWithoutCollectionInput[] | AudiobookCollectionAlbumUncheckedCreateWithoutCollectionInput[]
+    connectOrCreate?: AudiobookCollectionAlbumCreateOrConnectWithoutCollectionInput | AudiobookCollectionAlbumCreateOrConnectWithoutCollectionInput[]
+    upsert?: AudiobookCollectionAlbumUpsertWithWhereUniqueWithoutCollectionInput | AudiobookCollectionAlbumUpsertWithWhereUniqueWithoutCollectionInput[]
+    createMany?: AudiobookCollectionAlbumCreateManyCollectionInputEnvelope
+    set?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    disconnect?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    delete?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    connect?: AudiobookCollectionAlbumWhereUniqueInput | AudiobookCollectionAlbumWhereUniqueInput[]
+    update?: AudiobookCollectionAlbumUpdateWithWhereUniqueWithoutCollectionInput | AudiobookCollectionAlbumUpdateWithWhereUniqueWithoutCollectionInput[]
+    updateMany?: AudiobookCollectionAlbumUpdateManyWithWhereWithoutCollectionInput | AudiobookCollectionAlbumUpdateManyWithWhereWithoutCollectionInput[]
+    deleteMany?: AudiobookCollectionAlbumScalarWhereInput | AudiobookCollectionAlbumScalarWhereInput[]
+  }
+
+  export type AudiobookCollectionCreateNestedOneWithoutItemsInput = {
+    create?: XOR<AudiobookCollectionCreateWithoutItemsInput, AudiobookCollectionUncheckedCreateWithoutItemsInput>
+    connectOrCreate?: AudiobookCollectionCreateOrConnectWithoutItemsInput
+    connect?: AudiobookCollectionWhereUniqueInput
+  }
+
+  export type AlbumCreateNestedOneWithoutCollectionItemsInput = {
+    create?: XOR<AlbumCreateWithoutCollectionItemsInput, AlbumUncheckedCreateWithoutCollectionItemsInput>
+    connectOrCreate?: AlbumCreateOrConnectWithoutCollectionItemsInput
+    connect?: AlbumWhereUniqueInput
+  }
+
+  export type AudiobookCollectionUpdateOneRequiredWithoutItemsNestedInput = {
+    create?: XOR<AudiobookCollectionCreateWithoutItemsInput, AudiobookCollectionUncheckedCreateWithoutItemsInput>
+    connectOrCreate?: AudiobookCollectionCreateOrConnectWithoutItemsInput
+    upsert?: AudiobookCollectionUpsertWithoutItemsInput
+    connect?: AudiobookCollectionWhereUniqueInput
+    update?: XOR<XOR<AudiobookCollectionUpdateToOneWithWhereWithoutItemsInput, AudiobookCollectionUpdateWithoutItemsInput>, AudiobookCollectionUncheckedUpdateWithoutItemsInput>
+  }
+
+  export type AlbumUpdateOneRequiredWithoutCollectionItemsNestedInput = {
+    create?: XOR<AlbumCreateWithoutCollectionItemsInput, AlbumUncheckedCreateWithoutCollectionItemsInput>
+    connectOrCreate?: AlbumCreateOrConnectWithoutCollectionItemsInput
+    upsert?: AlbumUpsertWithoutCollectionItemsInput
+    connect?: AlbumWhereUniqueInput
+    update?: XOR<XOR<AlbumUpdateToOneWithWhereWithoutCollectionItemsInput, AlbumUpdateWithoutCollectionItemsInput>, AlbumUncheckedUpdateWithoutCollectionItemsInput>
   }
 
   export type UserCreateNestedOneWithoutLikedTracksInput = {
@@ -28027,6 +31133,13 @@ export namespace Prisma {
     connect?: PlaylistWhereUniqueInput | PlaylistWhereUniqueInput[]
   }
 
+  export type AudiobookCollectionCreateNestedManyWithoutUserInput = {
+    create?: XOR<AudiobookCollectionCreateWithoutUserInput, AudiobookCollectionUncheckedCreateWithoutUserInput> | AudiobookCollectionCreateWithoutUserInput[] | AudiobookCollectionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AudiobookCollectionCreateOrConnectWithoutUserInput | AudiobookCollectionCreateOrConnectWithoutUserInput[]
+    createMany?: AudiobookCollectionCreateManyUserInputEnvelope
+    connect?: AudiobookCollectionWhereUniqueInput | AudiobookCollectionWhereUniqueInput[]
+  }
+
   export type DeviceCreateNestedManyWithoutUserInput = {
     create?: XOR<DeviceCreateWithoutUserInput, DeviceUncheckedCreateWithoutUserInput> | DeviceCreateWithoutUserInput[] | DeviceUncheckedCreateWithoutUserInput[]
     connectOrCreate?: DeviceCreateOrConnectWithoutUserInput | DeviceCreateOrConnectWithoutUserInput[]
@@ -28088,6 +31201,13 @@ export namespace Prisma {
     connectOrCreate?: PlaylistCreateOrConnectWithoutUserInput | PlaylistCreateOrConnectWithoutUserInput[]
     createMany?: PlaylistCreateManyUserInputEnvelope
     connect?: PlaylistWhereUniqueInput | PlaylistWhereUniqueInput[]
+  }
+
+  export type AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<AudiobookCollectionCreateWithoutUserInput, AudiobookCollectionUncheckedCreateWithoutUserInput> | AudiobookCollectionCreateWithoutUserInput[] | AudiobookCollectionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AudiobookCollectionCreateOrConnectWithoutUserInput | AudiobookCollectionCreateOrConnectWithoutUserInput[]
+    createMany?: AudiobookCollectionCreateManyUserInputEnvelope
+    connect?: AudiobookCollectionWhereUniqueInput | AudiobookCollectionWhereUniqueInput[]
   }
 
   export type DeviceUncheckedCreateNestedManyWithoutUserInput = {
@@ -28200,6 +31320,20 @@ export namespace Prisma {
     update?: PlaylistUpdateWithWhereUniqueWithoutUserInput | PlaylistUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: PlaylistUpdateManyWithWhereWithoutUserInput | PlaylistUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: PlaylistScalarWhereInput | PlaylistScalarWhereInput[]
+  }
+
+  export type AudiobookCollectionUpdateManyWithoutUserNestedInput = {
+    create?: XOR<AudiobookCollectionCreateWithoutUserInput, AudiobookCollectionUncheckedCreateWithoutUserInput> | AudiobookCollectionCreateWithoutUserInput[] | AudiobookCollectionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AudiobookCollectionCreateOrConnectWithoutUserInput | AudiobookCollectionCreateOrConnectWithoutUserInput[]
+    upsert?: AudiobookCollectionUpsertWithWhereUniqueWithoutUserInput | AudiobookCollectionUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: AudiobookCollectionCreateManyUserInputEnvelope
+    set?: AudiobookCollectionWhereUniqueInput | AudiobookCollectionWhereUniqueInput[]
+    disconnect?: AudiobookCollectionWhereUniqueInput | AudiobookCollectionWhereUniqueInput[]
+    delete?: AudiobookCollectionWhereUniqueInput | AudiobookCollectionWhereUniqueInput[]
+    connect?: AudiobookCollectionWhereUniqueInput | AudiobookCollectionWhereUniqueInput[]
+    update?: AudiobookCollectionUpdateWithWhereUniqueWithoutUserInput | AudiobookCollectionUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: AudiobookCollectionUpdateManyWithWhereWithoutUserInput | AudiobookCollectionUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: AudiobookCollectionScalarWhereInput | AudiobookCollectionScalarWhereInput[]
   }
 
   export type DeviceUpdateManyWithoutUserNestedInput = {
@@ -28326,6 +31460,20 @@ export namespace Prisma {
     update?: PlaylistUpdateWithWhereUniqueWithoutUserInput | PlaylistUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: PlaylistUpdateManyWithWhereWithoutUserInput | PlaylistUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: PlaylistScalarWhereInput | PlaylistScalarWhereInput[]
+  }
+
+  export type AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<AudiobookCollectionCreateWithoutUserInput, AudiobookCollectionUncheckedCreateWithoutUserInput> | AudiobookCollectionCreateWithoutUserInput[] | AudiobookCollectionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AudiobookCollectionCreateOrConnectWithoutUserInput | AudiobookCollectionCreateOrConnectWithoutUserInput[]
+    upsert?: AudiobookCollectionUpsertWithWhereUniqueWithoutUserInput | AudiobookCollectionUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: AudiobookCollectionCreateManyUserInputEnvelope
+    set?: AudiobookCollectionWhereUniqueInput | AudiobookCollectionWhereUniqueInput[]
+    disconnect?: AudiobookCollectionWhereUniqueInput | AudiobookCollectionWhereUniqueInput[]
+    delete?: AudiobookCollectionWhereUniqueInput | AudiobookCollectionWhereUniqueInput[]
+    connect?: AudiobookCollectionWhereUniqueInput | AudiobookCollectionWhereUniqueInput[]
+    update?: AudiobookCollectionUpdateWithWhereUniqueWithoutUserInput | AudiobookCollectionUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: AudiobookCollectionUpdateManyWithWhereWithoutUserInput | AudiobookCollectionUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: AudiobookCollectionScalarWhereInput | AudiobookCollectionScalarWhereInput[]
   }
 
   export type DeviceUncheckedUpdateManyWithoutUserNestedInput = {
@@ -28901,6 +32049,7 @@ export namespace Prisma {
     trashedAt?: Date | string | null
     likedByUsers?: UserAlbumLikeCreateNestedManyWithoutAlbumInput
     listenedByUsers?: UserAlbumHistoryCreateNestedManyWithoutAlbumInput
+    collectionItems?: AudiobookCollectionAlbumCreateNestedManyWithoutAlbumInput
   }
 
   export type AlbumUncheckedCreateWithoutTracksInput = {
@@ -28914,6 +32063,7 @@ export namespace Prisma {
     trashedAt?: Date | string | null
     likedByUsers?: UserAlbumLikeUncheckedCreateNestedManyWithoutAlbumInput
     listenedByUsers?: UserAlbumHistoryUncheckedCreateNestedManyWithoutAlbumInput
+    collectionItems?: AudiobookCollectionAlbumUncheckedCreateNestedManyWithoutAlbumInput
   }
 
   export type AlbumCreateOrConnectWithoutTracksInput = {
@@ -29104,6 +32254,7 @@ export namespace Prisma {
     trashedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     likedByUsers?: UserAlbumLikeUpdateManyWithoutAlbumNestedInput
     listenedByUsers?: UserAlbumHistoryUpdateManyWithoutAlbumNestedInput
+    collectionItems?: AudiobookCollectionAlbumUpdateManyWithoutAlbumNestedInput
   }
 
   export type AlbumUncheckedUpdateWithoutTracksInput = {
@@ -29117,6 +32268,7 @@ export namespace Prisma {
     trashedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     likedByUsers?: UserAlbumLikeUncheckedUpdateManyWithoutAlbumNestedInput
     listenedByUsers?: UserAlbumHistoryUncheckedUpdateManyWithoutAlbumNestedInput
+    collectionItems?: AudiobookCollectionAlbumUncheckedUpdateManyWithoutAlbumNestedInput
   }
 
   export type UserTrackLikeUpsertWithWhereUniqueWithoutTrackInput = {
@@ -29384,6 +32536,28 @@ export namespace Prisma {
     data: UserAlbumHistoryCreateManyAlbumInput | UserAlbumHistoryCreateManyAlbumInput[]
   }
 
+  export type AudiobookCollectionAlbumCreateWithoutAlbumInput = {
+    order?: number
+    createdAt?: Date | string
+    collection: AudiobookCollectionCreateNestedOneWithoutItemsInput
+  }
+
+  export type AudiobookCollectionAlbumUncheckedCreateWithoutAlbumInput = {
+    id?: number
+    collectionId: number
+    order?: number
+    createdAt?: Date | string
+  }
+
+  export type AudiobookCollectionAlbumCreateOrConnectWithoutAlbumInput = {
+    where: AudiobookCollectionAlbumWhereUniqueInput
+    create: XOR<AudiobookCollectionAlbumCreateWithoutAlbumInput, AudiobookCollectionAlbumUncheckedCreateWithoutAlbumInput>
+  }
+
+  export type AudiobookCollectionAlbumCreateManyAlbumInputEnvelope = {
+    data: AudiobookCollectionAlbumCreateManyAlbumInput | AudiobookCollectionAlbumCreateManyAlbumInput[]
+  }
+
   export type TrackUpsertWithWhereUniqueWithoutAlbumEntityInput = {
     where: TrackWhereUniqueInput
     update: XOR<TrackUpdateWithoutAlbumEntityInput, TrackUncheckedUpdateWithoutAlbumEntityInput>
@@ -29477,6 +32651,33 @@ export namespace Prisma {
     listenedAt?: DateTimeFilter<"UserAlbumHistory"> | Date | string
   }
 
+  export type AudiobookCollectionAlbumUpsertWithWhereUniqueWithoutAlbumInput = {
+    where: AudiobookCollectionAlbumWhereUniqueInput
+    update: XOR<AudiobookCollectionAlbumUpdateWithoutAlbumInput, AudiobookCollectionAlbumUncheckedUpdateWithoutAlbumInput>
+    create: XOR<AudiobookCollectionAlbumCreateWithoutAlbumInput, AudiobookCollectionAlbumUncheckedCreateWithoutAlbumInput>
+  }
+
+  export type AudiobookCollectionAlbumUpdateWithWhereUniqueWithoutAlbumInput = {
+    where: AudiobookCollectionAlbumWhereUniqueInput
+    data: XOR<AudiobookCollectionAlbumUpdateWithoutAlbumInput, AudiobookCollectionAlbumUncheckedUpdateWithoutAlbumInput>
+  }
+
+  export type AudiobookCollectionAlbumUpdateManyWithWhereWithoutAlbumInput = {
+    where: AudiobookCollectionAlbumScalarWhereInput
+    data: XOR<AudiobookCollectionAlbumUpdateManyMutationInput, AudiobookCollectionAlbumUncheckedUpdateManyWithoutAlbumInput>
+  }
+
+  export type AudiobookCollectionAlbumScalarWhereInput = {
+    AND?: AudiobookCollectionAlbumScalarWhereInput | AudiobookCollectionAlbumScalarWhereInput[]
+    OR?: AudiobookCollectionAlbumScalarWhereInput[]
+    NOT?: AudiobookCollectionAlbumScalarWhereInput | AudiobookCollectionAlbumScalarWhereInput[]
+    id?: IntFilter<"AudiobookCollectionAlbum"> | number
+    collectionId?: IntFilter<"AudiobookCollectionAlbum"> | number
+    albumId?: IntFilter<"AudiobookCollectionAlbum"> | number
+    order?: IntFilter<"AudiobookCollectionAlbum"> | number
+    createdAt?: DateTimeFilter<"AudiobookCollectionAlbum"> | Date | string
+  }
+
   export type TrackCreateWithoutArtistEntityInput = {
     name: string
     path: string
@@ -29553,12 +32754,14 @@ export namespace Prisma {
     data: XOR<TrackUpdateManyMutationInput, TrackUncheckedUpdateManyWithoutArtistEntityInput>
   }
 
-  export type UserCreateWithoutLikedTracksInput = {
+  export type UserCreateWithoutAudiobookCollectionsInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
+    likedTracks?: UserTrackLikeCreateNestedManyWithoutUserInput
     listenedTracks?: UserTrackHistoryCreateNestedManyWithoutUserInput
     likedAlbums?: UserAlbumLikeCreateNestedManyWithoutUserInput
     listenedAlbums?: UserAlbumHistoryCreateNestedManyWithoutUserInput
@@ -29569,10 +32772,263 @@ export namespace Prisma {
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
   }
 
+  export type UserUncheckedCreateWithoutAudiobookCollectionsInput = {
+    id?: number
+    username: string
+    password: string
+    avatar?: string | null
+    is_admin?: boolean
+    expiresAt?: Date | string | null
+    createdAt?: Date | string
+    likedTracks?: UserTrackLikeUncheckedCreateNestedManyWithoutUserInput
+    listenedTracks?: UserTrackHistoryUncheckedCreateNestedManyWithoutUserInput
+    likedAlbums?: UserAlbumLikeUncheckedCreateNestedManyWithoutUserInput
+    listenedAlbums?: UserAlbumHistoryUncheckedCreateNestedManyWithoutUserInput
+    likedAudiobooks?: UserAudiobookLikeUncheckedCreateNestedManyWithoutUserInput
+    listenedAudiobooks?: UserAudiobookHistoryUncheckedCreateNestedManyWithoutUserInput
+    playlists?: PlaylistUncheckedCreateNestedManyWithoutUserInput
+    devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
+    searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutAudiobookCollectionsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutAudiobookCollectionsInput, UserUncheckedCreateWithoutAudiobookCollectionsInput>
+  }
+
+  export type AudiobookCollectionAlbumCreateWithoutCollectionInput = {
+    order?: number
+    createdAt?: Date | string
+    album: AlbumCreateNestedOneWithoutCollectionItemsInput
+  }
+
+  export type AudiobookCollectionAlbumUncheckedCreateWithoutCollectionInput = {
+    id?: number
+    albumId: number
+    order?: number
+    createdAt?: Date | string
+  }
+
+  export type AudiobookCollectionAlbumCreateOrConnectWithoutCollectionInput = {
+    where: AudiobookCollectionAlbumWhereUniqueInput
+    create: XOR<AudiobookCollectionAlbumCreateWithoutCollectionInput, AudiobookCollectionAlbumUncheckedCreateWithoutCollectionInput>
+  }
+
+  export type AudiobookCollectionAlbumCreateManyCollectionInputEnvelope = {
+    data: AudiobookCollectionAlbumCreateManyCollectionInput | AudiobookCollectionAlbumCreateManyCollectionInput[]
+  }
+
+  export type UserUpsertWithoutAudiobookCollectionsInput = {
+    update: XOR<UserUpdateWithoutAudiobookCollectionsInput, UserUncheckedUpdateWithoutAudiobookCollectionsInput>
+    create: XOR<UserCreateWithoutAudiobookCollectionsInput, UserUncheckedCreateWithoutAudiobookCollectionsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutAudiobookCollectionsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutAudiobookCollectionsInput, UserUncheckedUpdateWithoutAudiobookCollectionsInput>
+  }
+
+  export type UserUpdateWithoutAudiobookCollectionsInput = {
+    username?: StringFieldUpdateOperationsInput | string
+    password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
+    is_admin?: BoolFieldUpdateOperationsInput | boolean
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    likedTracks?: UserTrackLikeUpdateManyWithoutUserNestedInput
+    listenedTracks?: UserTrackHistoryUpdateManyWithoutUserNestedInput
+    likedAlbums?: UserAlbumLikeUpdateManyWithoutUserNestedInput
+    listenedAlbums?: UserAlbumHistoryUpdateManyWithoutUserNestedInput
+    likedAudiobooks?: UserAudiobookLikeUpdateManyWithoutUserNestedInput
+    listenedAudiobooks?: UserAudiobookHistoryUpdateManyWithoutUserNestedInput
+    playlists?: PlaylistUpdateManyWithoutUserNestedInput
+    devices?: DeviceUpdateManyWithoutUserNestedInput
+    searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutAudiobookCollectionsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    username?: StringFieldUpdateOperationsInput | string
+    password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
+    is_admin?: BoolFieldUpdateOperationsInput | boolean
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    likedTracks?: UserTrackLikeUncheckedUpdateManyWithoutUserNestedInput
+    listenedTracks?: UserTrackHistoryUncheckedUpdateManyWithoutUserNestedInput
+    likedAlbums?: UserAlbumLikeUncheckedUpdateManyWithoutUserNestedInput
+    listenedAlbums?: UserAlbumHistoryUncheckedUpdateManyWithoutUserNestedInput
+    likedAudiobooks?: UserAudiobookLikeUncheckedUpdateManyWithoutUserNestedInput
+    listenedAudiobooks?: UserAudiobookHistoryUncheckedUpdateManyWithoutUserNestedInput
+    playlists?: PlaylistUncheckedUpdateManyWithoutUserNestedInput
+    devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
+    searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type AudiobookCollectionAlbumUpsertWithWhereUniqueWithoutCollectionInput = {
+    where: AudiobookCollectionAlbumWhereUniqueInput
+    update: XOR<AudiobookCollectionAlbumUpdateWithoutCollectionInput, AudiobookCollectionAlbumUncheckedUpdateWithoutCollectionInput>
+    create: XOR<AudiobookCollectionAlbumCreateWithoutCollectionInput, AudiobookCollectionAlbumUncheckedCreateWithoutCollectionInput>
+  }
+
+  export type AudiobookCollectionAlbumUpdateWithWhereUniqueWithoutCollectionInput = {
+    where: AudiobookCollectionAlbumWhereUniqueInput
+    data: XOR<AudiobookCollectionAlbumUpdateWithoutCollectionInput, AudiobookCollectionAlbumUncheckedUpdateWithoutCollectionInput>
+  }
+
+  export type AudiobookCollectionAlbumUpdateManyWithWhereWithoutCollectionInput = {
+    where: AudiobookCollectionAlbumScalarWhereInput
+    data: XOR<AudiobookCollectionAlbumUpdateManyMutationInput, AudiobookCollectionAlbumUncheckedUpdateManyWithoutCollectionInput>
+  }
+
+  export type AudiobookCollectionCreateWithoutItemsInput = {
+    name: string
+    cover?: string | null
+    type?: $Enums.TrackType
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutAudiobookCollectionsInput
+  }
+
+  export type AudiobookCollectionUncheckedCreateWithoutItemsInput = {
+    id?: number
+    name: string
+    cover?: string | null
+    type?: $Enums.TrackType
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    userId: number
+  }
+
+  export type AudiobookCollectionCreateOrConnectWithoutItemsInput = {
+    where: AudiobookCollectionWhereUniqueInput
+    create: XOR<AudiobookCollectionCreateWithoutItemsInput, AudiobookCollectionUncheckedCreateWithoutItemsInput>
+  }
+
+  export type AlbumCreateWithoutCollectionItemsInput = {
+    name: string
+    artist: string
+    cover?: string | null
+    year?: string | null
+    type?: $Enums.TrackType
+    status?: $Enums.FileStatus
+    trashedAt?: Date | string | null
+    tracks?: TrackCreateNestedManyWithoutAlbumEntityInput
+    likedByUsers?: UserAlbumLikeCreateNestedManyWithoutAlbumInput
+    listenedByUsers?: UserAlbumHistoryCreateNestedManyWithoutAlbumInput
+  }
+
+  export type AlbumUncheckedCreateWithoutCollectionItemsInput = {
+    id?: number
+    name: string
+    artist: string
+    cover?: string | null
+    year?: string | null
+    type?: $Enums.TrackType
+    status?: $Enums.FileStatus
+    trashedAt?: Date | string | null
+    tracks?: TrackUncheckedCreateNestedManyWithoutAlbumEntityInput
+    likedByUsers?: UserAlbumLikeUncheckedCreateNestedManyWithoutAlbumInput
+    listenedByUsers?: UserAlbumHistoryUncheckedCreateNestedManyWithoutAlbumInput
+  }
+
+  export type AlbumCreateOrConnectWithoutCollectionItemsInput = {
+    where: AlbumWhereUniqueInput
+    create: XOR<AlbumCreateWithoutCollectionItemsInput, AlbumUncheckedCreateWithoutCollectionItemsInput>
+  }
+
+  export type AudiobookCollectionUpsertWithoutItemsInput = {
+    update: XOR<AudiobookCollectionUpdateWithoutItemsInput, AudiobookCollectionUncheckedUpdateWithoutItemsInput>
+    create: XOR<AudiobookCollectionCreateWithoutItemsInput, AudiobookCollectionUncheckedCreateWithoutItemsInput>
+    where?: AudiobookCollectionWhereInput
+  }
+
+  export type AudiobookCollectionUpdateToOneWithWhereWithoutItemsInput = {
+    where?: AudiobookCollectionWhereInput
+    data: XOR<AudiobookCollectionUpdateWithoutItemsInput, AudiobookCollectionUncheckedUpdateWithoutItemsInput>
+  }
+
+  export type AudiobookCollectionUpdateWithoutItemsInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    cover?: NullableStringFieldUpdateOperationsInput | string | null
+    type?: EnumTrackTypeFieldUpdateOperationsInput | $Enums.TrackType
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutAudiobookCollectionsNestedInput
+  }
+
+  export type AudiobookCollectionUncheckedUpdateWithoutItemsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    cover?: NullableStringFieldUpdateOperationsInput | string | null
+    type?: EnumTrackTypeFieldUpdateOperationsInput | $Enums.TrackType
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    userId?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type AlbumUpsertWithoutCollectionItemsInput = {
+    update: XOR<AlbumUpdateWithoutCollectionItemsInput, AlbumUncheckedUpdateWithoutCollectionItemsInput>
+    create: XOR<AlbumCreateWithoutCollectionItemsInput, AlbumUncheckedCreateWithoutCollectionItemsInput>
+    where?: AlbumWhereInput
+  }
+
+  export type AlbumUpdateToOneWithWhereWithoutCollectionItemsInput = {
+    where?: AlbumWhereInput
+    data: XOR<AlbumUpdateWithoutCollectionItemsInput, AlbumUncheckedUpdateWithoutCollectionItemsInput>
+  }
+
+  export type AlbumUpdateWithoutCollectionItemsInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    artist?: StringFieldUpdateOperationsInput | string
+    cover?: NullableStringFieldUpdateOperationsInput | string | null
+    year?: NullableStringFieldUpdateOperationsInput | string | null
+    type?: EnumTrackTypeFieldUpdateOperationsInput | $Enums.TrackType
+    status?: EnumFileStatusFieldUpdateOperationsInput | $Enums.FileStatus
+    trashedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    tracks?: TrackUpdateManyWithoutAlbumEntityNestedInput
+    likedByUsers?: UserAlbumLikeUpdateManyWithoutAlbumNestedInput
+    listenedByUsers?: UserAlbumHistoryUpdateManyWithoutAlbumNestedInput
+  }
+
+  export type AlbumUncheckedUpdateWithoutCollectionItemsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    artist?: StringFieldUpdateOperationsInput | string
+    cover?: NullableStringFieldUpdateOperationsInput | string | null
+    year?: NullableStringFieldUpdateOperationsInput | string | null
+    type?: EnumTrackTypeFieldUpdateOperationsInput | $Enums.TrackType
+    status?: EnumFileStatusFieldUpdateOperationsInput | $Enums.FileStatus
+    trashedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    tracks?: TrackUncheckedUpdateManyWithoutAlbumEntityNestedInput
+    likedByUsers?: UserAlbumLikeUncheckedUpdateManyWithoutAlbumNestedInput
+    listenedByUsers?: UserAlbumHistoryUncheckedUpdateManyWithoutAlbumNestedInput
+  }
+
+  export type UserCreateWithoutLikedTracksInput = {
+    username: string
+    password: string
+    avatar?: string | null
+    is_admin?: boolean
+    expiresAt?: Date | string | null
+    createdAt?: Date | string
+    listenedTracks?: UserTrackHistoryCreateNestedManyWithoutUserInput
+    likedAlbums?: UserAlbumLikeCreateNestedManyWithoutUserInput
+    listenedAlbums?: UserAlbumHistoryCreateNestedManyWithoutUserInput
+    likedAudiobooks?: UserAudiobookLikeCreateNestedManyWithoutUserInput
+    listenedAudiobooks?: UserAudiobookHistoryCreateNestedManyWithoutUserInput
+    playlists?: PlaylistCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
+    devices?: DeviceCreateNestedManyWithoutUserInput
+    searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
+  }
+
   export type UserUncheckedCreateWithoutLikedTracksInput = {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -29582,6 +33038,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUncheckedCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedCreateNestedManyWithoutUserInput
     playlists?: PlaylistUncheckedCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
   }
@@ -29661,6 +33118,7 @@ export namespace Prisma {
   export type UserUpdateWithoutLikedTracksInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -29670,6 +33128,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
   }
@@ -29678,6 +33137,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -29687,6 +33147,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUncheckedUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUncheckedUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
   }
@@ -29756,6 +33217,7 @@ export namespace Prisma {
   export type UserCreateWithoutListenedTracksInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -29765,6 +33227,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryCreateNestedManyWithoutUserInput
     playlists?: PlaylistCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
   }
@@ -29773,6 +33236,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -29782,6 +33246,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUncheckedCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedCreateNestedManyWithoutUserInput
     playlists?: PlaylistUncheckedCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
   }
@@ -29883,6 +33348,7 @@ export namespace Prisma {
   export type UserUpdateWithoutListenedTracksInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -29892,6 +33358,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
   }
@@ -29900,6 +33367,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -29909,6 +33377,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUncheckedUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUncheckedUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
   }
@@ -30006,6 +33475,7 @@ export namespace Prisma {
   export type UserCreateWithoutLikedAlbumsInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30015,6 +33485,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryCreateNestedManyWithoutUserInput
     playlists?: PlaylistCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
   }
@@ -30023,6 +33494,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30032,6 +33504,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUncheckedCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedCreateNestedManyWithoutUserInput
     playlists?: PlaylistUncheckedCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
   }
@@ -30051,6 +33524,7 @@ export namespace Prisma {
     trashedAt?: Date | string | null
     tracks?: TrackCreateNestedManyWithoutAlbumEntityInput
     listenedByUsers?: UserAlbumHistoryCreateNestedManyWithoutAlbumInput
+    collectionItems?: AudiobookCollectionAlbumCreateNestedManyWithoutAlbumInput
   }
 
   export type AlbumUncheckedCreateWithoutLikedByUsersInput = {
@@ -30064,6 +33538,7 @@ export namespace Prisma {
     trashedAt?: Date | string | null
     tracks?: TrackUncheckedCreateNestedManyWithoutAlbumEntityInput
     listenedByUsers?: UserAlbumHistoryUncheckedCreateNestedManyWithoutAlbumInput
+    collectionItems?: AudiobookCollectionAlbumUncheckedCreateNestedManyWithoutAlbumInput
   }
 
   export type AlbumCreateOrConnectWithoutLikedByUsersInput = {
@@ -30085,6 +33560,7 @@ export namespace Prisma {
   export type UserUpdateWithoutLikedAlbumsInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30094,6 +33570,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
   }
@@ -30102,6 +33579,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30111,6 +33589,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUncheckedUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUncheckedUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
   }
@@ -30136,6 +33615,7 @@ export namespace Prisma {
     trashedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     tracks?: TrackUpdateManyWithoutAlbumEntityNestedInput
     listenedByUsers?: UserAlbumHistoryUpdateManyWithoutAlbumNestedInput
+    collectionItems?: AudiobookCollectionAlbumUpdateManyWithoutAlbumNestedInput
   }
 
   export type AlbumUncheckedUpdateWithoutLikedByUsersInput = {
@@ -30149,11 +33629,13 @@ export namespace Prisma {
     trashedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     tracks?: TrackUncheckedUpdateManyWithoutAlbumEntityNestedInput
     listenedByUsers?: UserAlbumHistoryUncheckedUpdateManyWithoutAlbumNestedInput
+    collectionItems?: AudiobookCollectionAlbumUncheckedUpdateManyWithoutAlbumNestedInput
   }
 
   export type UserCreateWithoutListenedAlbumsInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30163,6 +33645,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryCreateNestedManyWithoutUserInput
     playlists?: PlaylistCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
   }
@@ -30171,6 +33654,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30180,6 +33664,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUncheckedCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedCreateNestedManyWithoutUserInput
     playlists?: PlaylistUncheckedCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
   }
@@ -30199,6 +33684,7 @@ export namespace Prisma {
     trashedAt?: Date | string | null
     tracks?: TrackCreateNestedManyWithoutAlbumEntityInput
     likedByUsers?: UserAlbumLikeCreateNestedManyWithoutAlbumInput
+    collectionItems?: AudiobookCollectionAlbumCreateNestedManyWithoutAlbumInput
   }
 
   export type AlbumUncheckedCreateWithoutListenedByUsersInput = {
@@ -30212,6 +33698,7 @@ export namespace Prisma {
     trashedAt?: Date | string | null
     tracks?: TrackUncheckedCreateNestedManyWithoutAlbumEntityInput
     likedByUsers?: UserAlbumLikeUncheckedCreateNestedManyWithoutAlbumInput
+    collectionItems?: AudiobookCollectionAlbumUncheckedCreateNestedManyWithoutAlbumInput
   }
 
   export type AlbumCreateOrConnectWithoutListenedByUsersInput = {
@@ -30233,6 +33720,7 @@ export namespace Prisma {
   export type UserUpdateWithoutListenedAlbumsInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30242,6 +33730,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
   }
@@ -30250,6 +33739,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30259,6 +33749,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUncheckedUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUncheckedUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
   }
@@ -30284,6 +33775,7 @@ export namespace Prisma {
     trashedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     tracks?: TrackUpdateManyWithoutAlbumEntityNestedInput
     likedByUsers?: UserAlbumLikeUpdateManyWithoutAlbumNestedInput
+    collectionItems?: AudiobookCollectionAlbumUpdateManyWithoutAlbumNestedInput
   }
 
   export type AlbumUncheckedUpdateWithoutListenedByUsersInput = {
@@ -30297,11 +33789,13 @@ export namespace Prisma {
     trashedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     tracks?: TrackUncheckedUpdateManyWithoutAlbumEntityNestedInput
     likedByUsers?: UserAlbumLikeUncheckedUpdateManyWithoutAlbumNestedInput
+    collectionItems?: AudiobookCollectionAlbumUncheckedUpdateManyWithoutAlbumNestedInput
   }
 
   export type UserCreateWithoutLikedAudiobooksInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30311,6 +33805,7 @@ export namespace Prisma {
     listenedAlbums?: UserAlbumHistoryCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryCreateNestedManyWithoutUserInput
     playlists?: PlaylistCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
   }
@@ -30319,6 +33814,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30328,6 +33824,7 @@ export namespace Prisma {
     listenedAlbums?: UserAlbumHistoryUncheckedCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedCreateNestedManyWithoutUserInput
     playlists?: PlaylistUncheckedCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
   }
@@ -30407,6 +33904,7 @@ export namespace Prisma {
   export type UserUpdateWithoutLikedAudiobooksInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30416,6 +33914,7 @@ export namespace Prisma {
     listenedAlbums?: UserAlbumHistoryUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
   }
@@ -30424,6 +33923,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30433,6 +33933,7 @@ export namespace Prisma {
     listenedAlbums?: UserAlbumHistoryUncheckedUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUncheckedUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
   }
@@ -30502,6 +34003,7 @@ export namespace Prisma {
   export type UserCreateWithoutListenedAudiobooksInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30511,6 +34013,7 @@ export namespace Prisma {
     listenedAlbums?: UserAlbumHistoryCreateNestedManyWithoutUserInput
     likedAudiobooks?: UserAudiobookLikeCreateNestedManyWithoutUserInput
     playlists?: PlaylistCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
   }
@@ -30519,6 +34022,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -30528,6 +34032,7 @@ export namespace Prisma {
     listenedAlbums?: UserAlbumHistoryUncheckedCreateNestedManyWithoutUserInput
     likedAudiobooks?: UserAudiobookLikeUncheckedCreateNestedManyWithoutUserInput
     playlists?: PlaylistUncheckedCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
   }
@@ -30607,6 +34112,7 @@ export namespace Prisma {
   export type UserUpdateWithoutListenedAudiobooksInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30616,6 +34122,7 @@ export namespace Prisma {
     listenedAlbums?: UserAlbumHistoryUpdateManyWithoutUserNestedInput
     likedAudiobooks?: UserAudiobookLikeUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
   }
@@ -30624,6 +34131,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30633,6 +34141,7 @@ export namespace Prisma {
     listenedAlbums?: UserAlbumHistoryUncheckedUpdateManyWithoutUserNestedInput
     likedAudiobooks?: UserAudiobookLikeUncheckedUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUncheckedUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
   }
@@ -30855,6 +34364,34 @@ export namespace Prisma {
     data: PlaylistCreateManyUserInput | PlaylistCreateManyUserInput[]
   }
 
+  export type AudiobookCollectionCreateWithoutUserInput = {
+    name: string
+    cover?: string | null
+    type?: $Enums.TrackType
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    items?: AudiobookCollectionAlbumCreateNestedManyWithoutCollectionInput
+  }
+
+  export type AudiobookCollectionUncheckedCreateWithoutUserInput = {
+    id?: number
+    name: string
+    cover?: string | null
+    type?: $Enums.TrackType
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    items?: AudiobookCollectionAlbumUncheckedCreateNestedManyWithoutCollectionInput
+  }
+
+  export type AudiobookCollectionCreateOrConnectWithoutUserInput = {
+    where: AudiobookCollectionWhereUniqueInput
+    create: XOR<AudiobookCollectionCreateWithoutUserInput, AudiobookCollectionUncheckedCreateWithoutUserInput>
+  }
+
+  export type AudiobookCollectionCreateManyUserInputEnvelope = {
+    data: AudiobookCollectionCreateManyUserInput | AudiobookCollectionCreateManyUserInput[]
+  }
+
   export type DeviceCreateWithoutUserInput = {
     name: string
     isOnline?: boolean
@@ -31013,6 +34550,35 @@ export namespace Prisma {
     data: XOR<PlaylistUpdateManyMutationInput, PlaylistUncheckedUpdateManyWithoutUserInput>
   }
 
+  export type AudiobookCollectionUpsertWithWhereUniqueWithoutUserInput = {
+    where: AudiobookCollectionWhereUniqueInput
+    update: XOR<AudiobookCollectionUpdateWithoutUserInput, AudiobookCollectionUncheckedUpdateWithoutUserInput>
+    create: XOR<AudiobookCollectionCreateWithoutUserInput, AudiobookCollectionUncheckedCreateWithoutUserInput>
+  }
+
+  export type AudiobookCollectionUpdateWithWhereUniqueWithoutUserInput = {
+    where: AudiobookCollectionWhereUniqueInput
+    data: XOR<AudiobookCollectionUpdateWithoutUserInput, AudiobookCollectionUncheckedUpdateWithoutUserInput>
+  }
+
+  export type AudiobookCollectionUpdateManyWithWhereWithoutUserInput = {
+    where: AudiobookCollectionScalarWhereInput
+    data: XOR<AudiobookCollectionUpdateManyMutationInput, AudiobookCollectionUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type AudiobookCollectionScalarWhereInput = {
+    AND?: AudiobookCollectionScalarWhereInput | AudiobookCollectionScalarWhereInput[]
+    OR?: AudiobookCollectionScalarWhereInput[]
+    NOT?: AudiobookCollectionScalarWhereInput | AudiobookCollectionScalarWhereInput[]
+    id?: IntFilter<"AudiobookCollection"> | number
+    name?: StringFilter<"AudiobookCollection"> | string
+    cover?: StringNullableFilter<"AudiobookCollection"> | string | null
+    type?: EnumTrackTypeFilter<"AudiobookCollection"> | $Enums.TrackType
+    createdAt?: DateTimeFilter<"AudiobookCollection"> | Date | string
+    updatedAt?: DateTimeFilter<"AudiobookCollection"> | Date | string
+    userId?: IntFilter<"AudiobookCollection"> | number
+  }
+
   export type DeviceUpsertWithWhereUniqueWithoutUserInput = {
     where: DeviceWhereUniqueInput
     update: XOR<DeviceUpdateWithoutUserInput, DeviceUncheckedUpdateWithoutUserInput>
@@ -31070,6 +34636,7 @@ export namespace Prisma {
   export type UserCreateWithoutSearchRecordsInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -31080,6 +34647,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryCreateNestedManyWithoutUserInput
     playlists?: PlaylistCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
   }
 
@@ -31087,6 +34655,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -31097,6 +34666,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUncheckedCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedCreateNestedManyWithoutUserInput
     playlists?: PlaylistUncheckedCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -31119,6 +34689,7 @@ export namespace Prisma {
   export type UserUpdateWithoutSearchRecordsInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31129,6 +34700,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
   }
 
@@ -31136,6 +34708,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31146,12 +34719,14 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUncheckedUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUncheckedUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserCreateWithoutDevicesInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -31162,6 +34737,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryCreateNestedManyWithoutUserInput
     playlists?: PlaylistCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
   }
 
@@ -31169,6 +34745,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -31179,6 +34756,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUncheckedCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedCreateNestedManyWithoutUserInput
     playlists?: PlaylistUncheckedCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -31229,6 +34807,7 @@ export namespace Prisma {
   export type UserUpdateWithoutDevicesInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31239,6 +34818,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
   }
 
@@ -31246,6 +34826,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31256,6 +34837,7 @@ export namespace Prisma {
     likedAudiobooks?: UserAudiobookLikeUncheckedUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedUpdateManyWithoutUserNestedInput
     playlists?: PlaylistUncheckedUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -31278,6 +34860,7 @@ export namespace Prisma {
   export type UserCreateWithoutPlaylistsInput = {
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -31287,6 +34870,7 @@ export namespace Prisma {
     listenedAlbums?: UserAlbumHistoryCreateNestedManyWithoutUserInput
     likedAudiobooks?: UserAudiobookLikeCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
   }
@@ -31295,6 +34879,7 @@ export namespace Prisma {
     id?: number
     username: string
     password: string
+    avatar?: string | null
     is_admin?: boolean
     expiresAt?: Date | string | null
     createdAt?: Date | string
@@ -31304,6 +34889,7 @@ export namespace Prisma {
     listenedAlbums?: UserAlbumHistoryUncheckedCreateNestedManyWithoutUserInput
     likedAudiobooks?: UserAudiobookLikeUncheckedCreateNestedManyWithoutUserInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
   }
@@ -31383,6 +34969,7 @@ export namespace Prisma {
   export type UserUpdateWithoutPlaylistsInput = {
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31392,6 +34979,7 @@ export namespace Prisma {
     listenedAlbums?: UserAlbumHistoryUpdateManyWithoutUserNestedInput
     likedAudiobooks?: UserAudiobookLikeUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
   }
@@ -31400,6 +34988,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     username?: StringFieldUpdateOperationsInput | string
     password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31409,6 +34998,7 @@ export namespace Prisma {
     listenedAlbums?: UserAlbumHistoryUncheckedUpdateManyWithoutUserNestedInput
     likedAudiobooks?: UserAudiobookLikeUncheckedUpdateManyWithoutUserNestedInput
     listenedAudiobooks?: UserAudiobookHistoryUncheckedUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
   }
@@ -31898,6 +35488,13 @@ export namespace Prisma {
     listenedAt?: Date | string
   }
 
+  export type AudiobookCollectionAlbumCreateManyAlbumInput = {
+    id?: number
+    collectionId: number
+    order?: number
+    createdAt?: Date | string
+  }
+
   export type TrackUpdateWithoutAlbumEntityInput = {
     name?: StringFieldUpdateOperationsInput | string
     path?: StringFieldUpdateOperationsInput | string
@@ -32004,6 +35601,26 @@ export namespace Prisma {
     listenedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type AudiobookCollectionAlbumUpdateWithoutAlbumInput = {
+    order?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    collection?: AudiobookCollectionUpdateOneRequiredWithoutItemsNestedInput
+  }
+
+  export type AudiobookCollectionAlbumUncheckedUpdateWithoutAlbumInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    collectionId?: IntFieldUpdateOperationsInput | number
+    order?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AudiobookCollectionAlbumUncheckedUpdateManyWithoutAlbumInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    collectionId?: IntFieldUpdateOperationsInput | number
+    order?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type TrackCreateManyArtistEntityInput = {
     id?: number
     name: string
@@ -32097,6 +35714,33 @@ export namespace Prisma {
     folderId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
+  export type AudiobookCollectionAlbumCreateManyCollectionInput = {
+    id?: number
+    albumId: number
+    order?: number
+    createdAt?: Date | string
+  }
+
+  export type AudiobookCollectionAlbumUpdateWithoutCollectionInput = {
+    order?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    album?: AlbumUpdateOneRequiredWithoutCollectionItemsNestedInput
+  }
+
+  export type AudiobookCollectionAlbumUncheckedUpdateWithoutCollectionInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    albumId?: IntFieldUpdateOperationsInput | number
+    order?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AudiobookCollectionAlbumUncheckedUpdateManyWithoutCollectionInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    albumId?: IntFieldUpdateOperationsInput | number
+    order?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type UserTrackLikeCreateManyUserInput = {
     id?: number
     trackId: number
@@ -32141,6 +35785,15 @@ export namespace Prisma {
   export type PlaylistCreateManyUserInput = {
     id?: number
     name: string
+    type?: $Enums.TrackType
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type AudiobookCollectionCreateManyUserInput = {
+    id?: number
+    name: string
+    cover?: string | null
     type?: $Enums.TrackType
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -32297,6 +35950,34 @@ export namespace Prisma {
   export type PlaylistUncheckedUpdateManyWithoutUserInput = {
     id?: IntFieldUpdateOperationsInput | number
     name?: StringFieldUpdateOperationsInput | string
+    type?: EnumTrackTypeFieldUpdateOperationsInput | $Enums.TrackType
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AudiobookCollectionUpdateWithoutUserInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    cover?: NullableStringFieldUpdateOperationsInput | string | null
+    type?: EnumTrackTypeFieldUpdateOperationsInput | $Enums.TrackType
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    items?: AudiobookCollectionAlbumUpdateManyWithoutCollectionNestedInput
+  }
+
+  export type AudiobookCollectionUncheckedUpdateWithoutUserInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    cover?: NullableStringFieldUpdateOperationsInput | string | null
+    type?: EnumTrackTypeFieldUpdateOperationsInput | $Enums.TrackType
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    items?: AudiobookCollectionAlbumUncheckedUpdateManyWithoutCollectionNestedInput
+  }
+
+  export type AudiobookCollectionUncheckedUpdateManyWithoutUserInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    cover?: NullableStringFieldUpdateOperationsInput | string | null
     type?: EnumTrackTypeFieldUpdateOperationsInput | $Enums.TrackType
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string

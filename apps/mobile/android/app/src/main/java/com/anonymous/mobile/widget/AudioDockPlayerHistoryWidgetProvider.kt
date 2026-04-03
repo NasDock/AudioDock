@@ -6,11 +6,12 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.graphics.BitmapFactory
+import android.view.View
 import android.widget.RemoteViews
 import com.anonymous.mobile.R
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.math.roundToInt
 
 class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
   override fun onUpdate(
@@ -36,6 +37,8 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
     private const val ACTION_PAUSE = "com.soundx.widget.PAUSE"
     private const val ACTION_NEXT = "com.soundx.widget.NEXT"
     private const val ACTION_PREV = "com.soundx.widget.PREV"
+    private const val MAIN_COVER_SIZE_DP = 120
+    private const val ROW_COVER_SIZE_DP = 40
 
     fun updateAllWidgets(context: Context) {
       val manager = AppWidgetManager.getInstance(context)
@@ -59,7 +62,11 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
 
         val coverPath = state.coverPath
         if (!coverPath.isNullOrBlank()) {
-          val bitmap = BitmapFactory.decodeFile(coverPath)
+          val bitmap = WidgetImageUtils.decodeSampledBitmap(
+            coverPath,
+            dpToPx(context, MAIN_COVER_SIZE_DP),
+            dpToPx(context, MAIN_COVER_SIZE_DP)
+          )
           if (bitmap != null) {
             views.setImageViewBitmap(R.id.widget_cover, bitmap)
           } else {
@@ -70,15 +77,28 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
         }
 
         val (widthPx, heightPx) = resolveWidgetSize(context, appWidgetManager.getAppWidgetOptions(appWidgetId))
-        val bgBitmap = if (!coverPath.isNullOrBlank()) {
-          val bitmap = BitmapFactory.decodeFile(coverPath)
-          if (bitmap != null) blurredBackground(bitmap, widthPx, heightPx) else null
-        } else {
-          null
-        }
+        val bgBitmap = WidgetImageUtils.themedGradientBackground(
+          widthPx,
+          heightPx,
+          state.colorPrimary,
+          state.colorSecondary
+        )
         if (bgBitmap != null) {
           views.setImageViewBitmap(R.id.widget_bg, bgBitmap)
         }
+
+        val shouldShowProgress = state.duration > 0 && state.position >= 0
+        val progress = if (shouldShowProgress) {
+          ((state.position.toFloat() / state.duration.toFloat()) * 1000f).roundToInt()
+            .coerceIn(0, 1000)
+        } else {
+          0
+        }
+        views.setViewVisibility(
+          R.id.widget_progress,
+          if (shouldShowProgress) View.VISIBLE else View.GONE
+        )
+        views.setProgressBar(R.id.widget_progress, 1000, progress, false)
 
         val playIcon = if (state.isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
         views.setImageViewResource(R.id.widget_play_pause, playIcon)
@@ -113,6 +133,12 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
           R.id.widget_history_title_3,
           R.id.widget_history_artist_3,
           R.id.widget_history_play_3
+        )
+        bindHistoryRow(context, views, history, 3,
+          R.id.widget_history_cover_4,
+          R.id.widget_history_title_4,
+          R.id.widget_history_artist_4,
+          R.id.widget_history_play_4
         )
 
         views.setOnClickPendingIntent(
@@ -151,7 +177,11 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
 
       if (cover.isNotEmpty()) {
         val path = resolveCoverPath(context, cover)
-        val bitmap = BitmapFactory.decodeFile(path)
+        val bitmap = WidgetImageUtils.decodeSampledBitmap(
+          path,
+          dpToPx(context, ROW_COVER_SIZE_DP),
+          dpToPx(context, ROW_COVER_SIZE_DP)
+        )
         if (bitmap != null) {
           views.setImageViewBitmap(coverId, bitmap)
         } else {
@@ -194,14 +224,6 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
       return item.optString("coverPath", "")
     }
 
-    private fun blurredBackground(source: android.graphics.Bitmap, targetWidth: Int, targetHeight: Int): android.graphics.Bitmap? {
-      val scale = 0.12f
-      val downW = (targetWidth * scale).toInt().coerceAtLeast(1)
-      val downH = (targetHeight * scale).toInt().coerceAtLeast(1)
-      val down = android.graphics.Bitmap.createScaledBitmap(source, downW, downH, true)
-      return android.graphics.Bitmap.createScaledBitmap(down, targetWidth, targetHeight, true)
-    }
-
     private fun resolveWidgetSize(context: Context, options: android.os.Bundle?): Pair<Int, Int> {
       val density = context.resources.displayMetrics.density
       val widthDp = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH) ?: 250
@@ -209,6 +231,10 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
       val widthPx = (widthDp * density).toInt().coerceAtLeast(1)
       val heightPx = (heightDp * density).toInt().coerceAtLeast(1)
       return Pair(widthPx, heightPx)
+    }
+
+    private fun dpToPx(context: Context, valueDp: Int): Int {
+      return (valueDp * context.resources.displayMetrics.density).roundToInt().coerceAtLeast(1)
     }
 
     private fun broadcastPendingIntent(context: Context, action: String, widgetId: Int): PendingIntent {

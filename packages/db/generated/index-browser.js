@@ -159,6 +159,24 @@ exports.Prisma.ArtistScalarFieldEnum = {
   trashedAt: 'trashedAt'
 };
 
+exports.Prisma.AudiobookCollectionScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  cover: 'cover',
+  type: 'type',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  userId: 'userId'
+};
+
+exports.Prisma.AudiobookCollectionAlbumScalarFieldEnum = {
+  id: 'id',
+  collectionId: 'collectionId',
+  albumId: 'albumId',
+  order: 'order',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.UserTrackLikeScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -210,6 +228,7 @@ exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
   username: 'username',
   password: 'password',
+  avatar: 'avatar',
   is_admin: 'is_admin',
   expiresAt: 'expiresAt',
   createdAt: 'createdAt'
@@ -306,6 +325,8 @@ exports.Prisma.ModelName = {
   Track: 'Track',
   Album: 'Album',
   Artist: 'Artist',
+  AudiobookCollection: 'AudiobookCollection',
+  AudiobookCollectionAlbum: 'AudiobookCollectionAlbum',
   UserTrackLike: 'UserTrackLike',
   UserTrackHistory: 'UserTrackHistory',
   UserAlbumLike: 'UserAlbumLike',

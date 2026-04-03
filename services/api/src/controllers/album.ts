@@ -9,16 +9,21 @@ import {
     Put,
     Query,
     Req,
+    UploadedFile,
+    UseInterceptors,
 } from '@nestjs/common';
 import { Album, TrackType } from '@soundx/db';
 import { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
     IErrorResponse,
     ILoadMoreData,
+    IParamsErrorResponse,
     ISuccessResponse,
     ITableData,
 } from 'src/common/const';
 import { LogMethod } from '../common/log-method.decorator';
+import { createCoverUploadOptions, toCoverUrl } from '../common/cover-upload';
 import { AlbumService } from '../services/album';
 import { TrackService } from '../services/track';
 
@@ -247,6 +252,34 @@ export class AlbumController {
         parseInt(id),
         album,
       );
+      return {
+        code: 200,
+        message: 'success',
+        data: albumInfo,
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        message: error,
+      };
+    }
+  }
+
+  @Post('/album/:id/cover')
+  @UseInterceptors(FileInterceptor('file', createCoverUploadOptions('album')))
+  @LogMethod()
+  async uploadAlbumCover(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ISuccessResponse<Album> | IErrorResponse | IParamsErrorResponse> {
+    try {
+      if (!file) {
+        return { code: 400, message: 'No file uploaded' };
+      }
+      const coverUrl = toCoverUrl(file.filename);
+      const albumInfo = await this.albumService.updateAlbum(parseInt(id), {
+        cover: coverUrl,
+      });
       return {
         code: 200,
         message: 'success',

@@ -12,6 +12,10 @@ export default function Login() {
     Taro.navigateTo({ url: `/pages/login-form/index${query}` })
   }
 
+  const handleScanLogin = () => {
+    Taro.navigateTo({ url: '/pages/scan/index' })
+  }
+
   return (
     <View className='login-selection'>
       <View className='header'>
@@ -35,6 +39,12 @@ export default function Login() {
             </View>
           </View>
         ))}
+      </View>
+
+      <View className='scan-login'>
+        <Text className='scan-login-text' onClick={handleScanLogin}>
+          扫码登录
+        </Text>
       </View>
     </View>
   )

@@ -124,6 +124,33 @@
   }
 }
 
+.lyricButton {
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: all 0.2s;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid currentColor;
+  min-width: 24px;
+  height: 24px;
+
+  &:hover {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+.activeLyricButton {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
 // Drawer Styles
 .fullPlayerClose {
   position: absolute;

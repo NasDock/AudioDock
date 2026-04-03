@@ -5,6 +5,8 @@ export default defineAppConfig({
     'pages/personal/index',
     'pages/login/index',
     'pages/login-form/index',
+    'pages/scan/index',
+    'pages/scan-confirm/index',
     'pages/search/index',
     'pages/player/index',
     'pages/artist/index',
@@ -13,7 +15,13 @@ export default defineAppConfig({
     'pages/folder/index',
     'pages/settings/index',
     'pages/admin/index',
-    'pages/source-manage/index'
+    'pages/source-manage/index',
+    'pages/tts/tasks/index',
+    'pages/tts/create/index',
+    'pages/member/login/index',
+    'pages/member/detail/index',
+    'pages/member/benefits/index',
+    'pages/member/success/index'
   ],
   window: {
     backgroundTextStyle: 'light',

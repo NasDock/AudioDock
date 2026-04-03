@@ -80,4 +80,10 @@ export class NativeArtistAdapter implements IArtistAdapter {
   getLatestArtists(type: string, random?: boolean, pageSize?: number) {
     return request.get<any, ISuccessResponse<Artist[]>>("/artist/latest", { params: { type, random, pageSize } });
   }
+
+  uploadArtistAvatar(id: number | string, file: any) {
+    const formData = new FormData();
+    formData.append("file", file as any);
+    return request.post<any, ISuccessResponse<Artist>>(`/artist/${id}/avatar`, formData);
+  }
 }
