@@ -29,6 +29,7 @@ function RootLayoutNav() {
   const { mode: contentMode } = usePlayMode();
   const segments = useSegments();
   const router = useRouter();
+  const [isVip, setIsVip] = React.useState(false);
   const fuAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -223,30 +224,36 @@ function RootLayoutNav() {
     const syncVipState = async () => {
       try {
         if (!plusToken) {
+          setIsVip(false);
           await syncWidgetMembership(false);
           return;
         }
 
         const plusVipStatus = await AsyncStorage.getItem("plus_vip_status");
         const plusVipData = await AsyncStorage.getItem("plus_vip_data");
-        let isVip = plusVipStatus === "true";
+        let vip = plusVipStatus === "true";
 
-        if (!isVip && plusVipData) {
+        if (!vip && plusVipData) {
           try {
             const parsed = JSON.parse(plusVipData);
-            isVip = !!(parsed?.vipTier && parsed.vipTier !== "NONE");
+            vip = !!(parsed?.vipTier && parsed.vipTier !== "NONE");
           } catch {
-            isVip = false;
+            vip = false;
           }
         }
 
-        await syncWidgetMembership(isVip);
+        setIsVip(vip);
+        await syncWidgetMembership(vip);
       } catch (error) {
         console.warn("[WidgetBridge] sync membership failed", error);
       }
     };
 
     syncVipState();
+    
+    // 定期轮询会员状态（可选，也可以在页面进入时触发）
+    const timer = setInterval(syncVipState, 3000); 
+    return () => clearInterval(timer);
   }, [plusToken]);
 
   const stack = (
@@ -398,7 +405,7 @@ function RootLayoutNav() {
         )}
       </View>
       {(segments[0] as string) !== "player" && <PlaylistModal />}
-      {(segments[0] as string) !== "player" && voiceAssistantEnabled && <SquirrelAgent />}
+      {(segments[0] as string) !== "player" && voiceAssistantEnabled && isVip && <SquirrelAgent />}
       {theme === 'festive' && segments[0] !== 'player' && (
         <Animated.View 
           pointerEvents="none" 

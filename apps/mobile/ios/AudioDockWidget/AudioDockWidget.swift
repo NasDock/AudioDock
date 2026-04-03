@@ -16,6 +16,7 @@ struct AudioDockEntry: TimelineEntry {
   let cover: UIImage?
   let playMode: String
   let isLiked: Bool
+  let isVip: Bool
   let colorPrimary: Color
   let colorSecondary: Color
 }
@@ -30,6 +31,7 @@ struct AudioDockProvider: TimelineProvider {
       cover: nil,
       playMode: "",
       isLiked: false,
+      isVip: true, // Placeholder is usually Fine to show
       colorPrimary: Color.black,
       colorSecondary: Color.black
     )
@@ -52,6 +54,7 @@ struct AudioDockProvider: TimelineProvider {
     let isPlaying = defaults?.bool(forKey: "widget_is_playing") ?? false
     let playMode = resolvePlayMode(defaults: defaults) ?? ""
     let isLiked = defaults?.bool(forKey: "widget_is_liked") ?? false
+    let isVip = defaults?.bool(forKey: "widget_is_vip") ?? false
     let primaryHex = defaults?.string(forKey: "widget_color_primary") ?? "#000000"
     let secondaryHex = defaults?.string(forKey: "widget_color_secondary") ?? "#000000"
 
@@ -72,6 +75,7 @@ struct AudioDockProvider: TimelineProvider {
       cover: coverImage,
       playMode: playMode,
       isLiked: isLiked,
+      isVip: isVip,
       colorPrimary: Color(hex: primaryHex),
       colorSecondary: Color(hex: secondaryHex)
     )
@@ -93,18 +97,22 @@ struct AudioDockWidgetEntryView: View {
 
   var body: some View {
     Group {
-      switch family {
-      case .systemLarge:
-        largeView
-      case .systemMedium:
-        mediumView
-      default:
-        smallView
+      if entry.isVip {
+        switch family {
+        case .systemLarge:
+            largeView
+        case .systemMedium:
+            mediumView
+        default:
+            smallView
+        }
+      } else {
+        lockedView
       }
     }
     .foregroundColor(.white)
-    .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary, cover: entry.cover))
-    .widgetURL(URL(string: "audiodock://"))
+    .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary, cover: entry.isVip ? entry.cover : nil))
+    .widgetURL(URL(string: "audiodock://member-benefits"))
   }
 
   private var coverView: some View {
@@ -203,6 +211,21 @@ struct AudioDockWidgetEntryView: View {
       controlsView
     }
     .padding(10)
+  }
+
+  private var lockedView: some View {
+    VStack(spacing: 12) {
+      Image(systemName: "crown.fill")
+        .font(.system(size: 24))
+        .foregroundColor(.yellow)
+      Text("会员专属功能")
+        .font(.system(size: 14, weight: .bold))
+      Text("请在 App 中开启会员")
+        .font(.system(size: 11))
+        .opacity(0.7)
+    }
+    .padding()
+    .multilineTextAlignment(.center)
   }
 
   private var modeIconName: String {

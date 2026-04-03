@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Slider } from "@miblanchard/react-native-slider";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -42,6 +43,7 @@ export default function SettingsScreen() {
     experienceProgramEnabled,
     updateSetting,
   } = useSettings();
+  const [isVip, setIsVip] = React.useState(false);
   const [detailedSizes, setDetailedSizes] = React.useState<{
     covers: string;
     music: string;
@@ -75,7 +77,21 @@ export default function SettingsScreen() {
 
   React.useEffect(() => {
     fetchCacheSize();
+    checkVipStatus();
   }, []);
+
+  const checkVipStatus = async () => {
+    const status = await AsyncStorage.getItem("plus_vip_status");
+    const data = await AsyncStorage.getItem("plus_vip_data");
+    let vip = status === "true";
+    if (!vip && data) {
+      try {
+        const parsed = JSON.parse(data);
+        vip = !!(parsed?.vipTier && parsed.vipTier !== "NONE");
+      } catch {}
+    }
+    setIsVip(vip);
+  };
 
   const handleClearCache = async (
     category: "covers" | "music" | "audiobooks" | "apks",
@@ -156,6 +172,13 @@ export default function SettingsScreen() {
   };
 
   const handleToggleVoiceAssistant = async (val: boolean) => {
+    if (val && !isVip) {
+      Alert.alert("仅限会员使用", "语音助手是会员专属功能，请前往会员页面开启。", [
+        { text: "好的" },
+        { text: "前往会员页面", onPress: () => router.push("/member-benefits" as any) }
+      ]);
+      return;
+    }
     await updateSetting("voiceAssistantEnabled", val);
     if (val) {
       trackEvent({
