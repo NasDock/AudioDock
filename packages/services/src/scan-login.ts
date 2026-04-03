@@ -36,7 +36,7 @@ export interface ScanLoginSession {
 }
 
 export interface ScanLoginSessionStatus extends Omit<ScanLoginSession, "secret"> {
-  status: "waiting_scan" | "waiting_confirm" | "confirmed" | "consumed" | "expired";
+  status: "waiting_scan" | "waiting_confirm" | "confirmed" | "consumed" | "success" | "failed" | "expired";
   deviceName?: string;
   sourceBundles: ScanLoginSourceBundle[];
   hasNativeAuth: boolean;
@@ -102,6 +102,16 @@ export const consumeScanLoginSession = async (
 ) => {
   return scanLoginRequest.post<any, ISuccessResponse<ScanLoginConfirmResult>>(
     `/scan-login/session/${sessionId}/consume`,
+    data,
+  );
+};
+
+export const reportScanLoginResult = async (
+  sessionId: string,
+  data: { secret: string; success: boolean; error?: string },
+) => {
+  return scanLoginRequest.post<any, ISuccessResponse<ScanLoginSessionStatus>>(
+    `/scan-login/session/${sessionId}/report`,
     data,
   );
 };
