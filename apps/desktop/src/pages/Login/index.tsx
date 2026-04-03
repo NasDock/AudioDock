@@ -8,7 +8,7 @@ import {
 import {
   check,
   claimScanLoginSession,
-  confirmScanLoginSession,
+  consumeScanLoginSession,
   createScanLoginSession,
   getScanLoginSession,
   subscribeScanLoginSession,
@@ -169,6 +169,29 @@ const Login: React.FC = () => {
     });
     setSelectedConfigIds(nextSelected);
   }, [scanStatus?.sessionId, scanStatus?.status]);
+
+  useEffect(() => {
+    if (!scanSession || scanStatus?.status !== "confirmed") return;
+
+    const consumeConfirmedScan = async () => {
+      try {
+        setScanBusy(true);
+        const res = await consumeScanLoginSession(scanSession.sessionId, {
+          secret: scanSession.secret,
+        });
+        await applyDesktopScanLoginResult(res.data);
+        messageApi.success("扫码登录成功");
+        navigate("/");
+      } catch (error) {
+        console.error(error);
+        messageApi.error(error instanceof Error ? error.message : "扫码登录失败");
+      } finally {
+        setScanBusy(false);
+      }
+    };
+
+    consumeConfirmedScan();
+  }, [scanSession?.sessionId, scanStatus?.status]);
 
   useEffect(() => {
     if (!sourceType) {
@@ -466,7 +489,7 @@ const Login: React.FC = () => {
         type,
         configIds,
       }));
-      const res = await confirmScanLoginSession(scanSession.sessionId, {
+      const res = await consumeScanLoginSession(scanSession.sessionId, {
         secret: scanSession.secret,
         selections,
       });

@@ -105,6 +105,35 @@ export class ScanLoginController {
         ),
       };
     } catch (error: any) {
+      return { code: 500, message: error.message || '确认扫码内容失败' };
+    }
+  }
+
+  @Public()
+  @Post('/session/:id/consume')
+  consumeSession(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      secret?: string;
+      selections?: { type: string; configIds: string[] }[];
+    },
+  ): ISuccessResponse<any> | IParamsErrorResponse | IErrorResponse {
+    if (!body?.secret) {
+      return { code: 400, message: '缺少扫码会话密钥' };
+    }
+
+    try {
+      return {
+        code: 200,
+        message: 'success',
+        data: this.scanLoginService.consumeSession(
+          id,
+          body.secret,
+          body.selections,
+        ),
+      };
+    } catch (error: any) {
       return { code: 500, message: error.message || '确认扫码登录失败' };
     }
   }

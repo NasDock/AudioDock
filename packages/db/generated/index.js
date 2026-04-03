@@ -327,7 +327,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/Users/bytedance/Documents/soundX/packages/db/generated",
+      "value": "/Users/ctjj/Documents/projects/AudioDock/packages/db/generated",
       "fromEnvVar": null
     },
     "config": {
@@ -345,7 +345,7 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "/Users/bytedance/Documents/soundX/packages/db/prisma/schema.prisma",
+    "sourceFilePath": "/Users/ctjj/Documents/projects/AudioDock/packages/db/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
