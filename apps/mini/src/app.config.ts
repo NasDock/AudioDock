@@ -5,6 +5,8 @@ export default defineAppConfig({
     'pages/personal/index',
     'pages/login/index',
     'pages/login-form/index',
+    'pages/scan/index',
+    'pages/scan-confirm/index',
     'pages/search/index',
     'pages/player/index',
     'pages/artist/index',

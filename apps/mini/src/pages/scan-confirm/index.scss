@@ -1,0 +1,138 @@
+.scan-confirm-page {
+  min-height: 100vh;
+  background-color: #fff;
+  padding: 24px;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+  color: #666;
+}
+
+.header {
+  padding: 20px 0;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #333;
+}
+
+.content {
+  padding: 0 8px;
+}
+
+.desc {
+  font-size: 14px;
+  color: #666;
+  line-height: 22px;
+  margin-bottom: 24px;
+}
+
+.desc-empty {
+  font-size: 14px;
+  color: #999;
+  line-height: 22px;
+  margin-top: 24px;
+  text-align: center;
+}
+
+.list {
+  margin-bottom: 32px;
+}
+
+.bundle-card {
+  border: 1px solid #e5e5e5;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.bundle-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.bundle-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.bundle-item.disabled {
+  opacity: 0.6;
+}
+
+.checkbox {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #ccc;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+}
+
+.checkbox.checked {
+  border-color: #007aff;
+  background-color: #007aff;
+}
+
+.checkbox .checkmark {
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.bundle-item-info {
+  flex: 1;
+}
+
+.bundle-item-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  display: block;
+}
+
+.bundle-item-meta {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+  display: block;
+}
+
+.btn-wrap {
+  margin-top: 20px;
+}
+
+.confirm-btn {
+  height: 54px;
+  background-color: #007aff;
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.confirm-btn.disabled {
+  opacity: 0.7;
+}
+
+.confirm-btn.waiting {
+  background-color: #999;
+}
+
+.confirm-btn-text {
+  font-size: 16px;
+  font-weight: bold;
+  color: #fff;
+}
