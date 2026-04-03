@@ -8,7 +8,7 @@ import {
   plusLogin,
   plusSendCode,
   subscribeScanLoginSession,
-  reportScanLoginResult,
+  reportScanLoginResultViaSocket,
   type ScanLoginSession,
   type ScanLoginSessionStatus,
 } from "@soundx/services";
@@ -97,11 +97,11 @@ const MemberLogin: React.FC = () => {
         try {
           await applyDesktopScanLoginResult(res.data);
         } catch (applyErr: any) {
-          await reportScanLoginResult(scanSession.sessionId, { secret: scanSession.secret, success: false, error: applyErr.message });
+          reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, false, applyErr.message);
           throw applyErr;
         }
 
-        await reportScanLoginResult(scanSession.sessionId, { secret: scanSession.secret, success: true });
+        reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, true);
         messageApi.success("扫码登录成功");
         navigate("/", { replace: true });
       } catch (error) {
