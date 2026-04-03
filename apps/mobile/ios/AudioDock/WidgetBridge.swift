@@ -81,6 +81,24 @@ class WidgetBridge: NSObject {
     resolve(nil)
   }
 
+  @objc(updateWidgetMembership:resolver:rejecter:)
+  func updateWidgetMembership(
+    _ payload: NSDictionary,
+    resolver resolve: RCTPromiseResolveBlock,
+    rejecter reject: RCTPromiseRejectBlock
+  ) {
+    guard let defaults = UserDefaults(suiteName: Self.suiteName) else {
+      reject("WIDGET_STORE_UNAVAILABLE", "App group UserDefaults unavailable", nil)
+      return
+    }
+
+    let isVip = payload["isVip"] as? Bool ?? false
+    defaults.set(isVip, forKey: "widget_is_vip")
+
+    WidgetCenter.shared.reloadAllTimelines()
+    resolve(nil)
+  }
+
   @objc(updateWidgetCollections:resolver:rejecter:)
   func updateWidgetCollections(
     _ payload: NSDictionary,

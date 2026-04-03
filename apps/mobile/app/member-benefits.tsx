@@ -493,8 +493,10 @@ export default function MemberBenefitsScreen() {
     { feature: "同步控制", free: false, member: true },
     { feature: "TTS生成有声书", free: false, member: true },
     { feature: "桌面小部件", free: false, member: true },
-    { feature: "TV版", free: false, member: true },
-    { feature: "车机版", free: false, member: true },
+    { feature: "TV版 (待上线)", free: false, member: true },
+    { feature: "车机模式", free: false, member: true },
+    { feature: "扫码登录", free: false, member: true },
+    { feature: "语音助手", free: false, member: true },
   ];
 
   return (

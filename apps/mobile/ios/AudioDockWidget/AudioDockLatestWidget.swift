@@ -19,6 +19,7 @@ struct AudioDockLatestEntry: TimelineEntry {
   let colorPrimary: Color
   let colorSecondary: Color
   let backgroundCover: UIImage?
+  let isVip: Bool
 }
 
 struct AudioDockLatestProvider: TimelineProvider {
@@ -29,7 +30,8 @@ struct AudioDockLatestProvider: TimelineProvider {
       isPlaying: false,
       colorPrimary: .black,
       colorSecondary: .black,
-      backgroundCover: nil
+      backgroundCover: nil,
+      isVip: true
     )
   }
 
@@ -50,6 +52,7 @@ struct AudioDockLatestProvider: TimelineProvider {
     let isPlaying = defaults?.bool(forKey: "widget_is_playing") ?? false
     let items = loadLatest(defaults: defaults)
     let backgroundCover = items.first?.cover
+    let isVip = defaults?.bool(forKey: "widget_is_vip") ?? false
 
     return AudioDockLatestEntry(
       date: Date(),
@@ -57,7 +60,8 @@ struct AudioDockLatestProvider: TimelineProvider {
       isPlaying: isPlaying,
       colorPrimary: Color(hex: primaryHex),
       colorSecondary: Color(hex: secondaryHex),
-      backgroundCover: backgroundCover
+      backgroundCover: backgroundCover,
+      isVip: isVip
     )
   }
 
@@ -93,44 +97,66 @@ struct AudioDockLatestWidgetView: View {
   let entry: AudioDockLatestEntry
 
   var body: some View {
-    VStack(spacing: 10) {
-      HStack {
-        Text("上新单曲")
-          .font(.system(size: 15, weight: .bold))
-        Spacer()
-        headerPlayPause
-        headerRefresh
-      }
-
-      VStack(spacing: 8) {
-        ForEach(entry.items) { item in
-          HStack(spacing: 10) {
-            coverView(item.cover)
-              .frame(width: 40, height: 40)
-              .cornerRadius(8)
-            VStack(alignment: .leading, spacing: 2) {
-              Text(item.title)
-                .font(.system(size: 13, weight: .medium))
-                .lineLimit(1)
-              Text(item.artist)
-                .font(.system(size: 11))
-                .foregroundColor(.white.opacity(0.7))
-                .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            playButton(for: item.id)
+    Group {
+      if entry.isVip {
+        VStack(spacing: 10) {
+          HStack {
+            Text("上新单曲")
+              .font(.system(size: 15, weight: .bold))
+            Spacer()
+            headerPlayPause
+            headerRefresh
           }
-        }
-      }
-      .frame(maxWidth: .infinity, alignment: .top)
 
-      Spacer(minLength: 0)
+          VStack(spacing: 8) {
+            ForEach(entry.items) { item in
+              HStack(spacing: 10) {
+                coverView(item.cover)
+                  .frame(width: 40, height: 40)
+                  .cornerRadius(8)
+                VStack(alignment: .leading, spacing: 2) {
+                  Text(item.title)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(1)
+                  Text(item.artist)
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.7))
+                    .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                playButton(for: item.id)
+              }
+            }
+          }
+          .frame(maxWidth: .infinity, alignment: .top)
+
+          Spacer(minLength: 0)
+        }
+        .padding(14)
+      } else {
+        lockedView
+      }
     }
     .foregroundColor(.white)
-    .padding(14)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary, cover: entry.backgroundCover))
-    .widgetURL(URL(string: "audiodock://"))
+    .modifier(WidgetBackground(primary: entry.colorPrimary, secondary: entry.colorSecondary, cover: entry.isVip ? entry.backgroundCover : nil))
+    .widgetURL(URL(string: entry.isVip ? "audiodock://" : "audiodock://member-benefits"))
+  }
+
+  private var lockedView: some View {
+    VStack(spacing: 12) {
+      Image(systemName: "crown.fill")
+        .font(.system(size: 24))
+        .foregroundColor(.yellow)
+      Text("会员专属功能")
+        .font(.system(size: 14, weight: .bold))
+      Text("请在 App 中开启会员")
+        .font(.system(size: 11))
+        .opacity(0.7)
+    }
+    .padding()
+    .multilineTextAlignment(.center)
+    .frame(maxHeight: .infinity)
   }
 
   private func coverView(_ image: UIImage?) -> some View {

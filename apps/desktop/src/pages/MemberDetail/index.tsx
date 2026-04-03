@@ -75,8 +75,10 @@ const MemberDetail: React.FC = () => {
       { key: "3", feature: "同步控制", nonMember: false, member: true },
       { key: "4", feature: "TTS生成有声书", nonMember: false, member: true },
       { key: "5", feature: "桌面小部件", nonMember: false, member: true },
-      { key: "6", feature: "TV版", nonMember: false, member: true },
-      { key: "7", feature: "车机版", nonMember: false, member: true },
+      { key: "6", feature: "TV版 (待上线)", nonMember: false, member: true },
+      { key: "7", feature: "车机模式", nonMember: false, member: true },
+      { key: "8", feature: "扫码登录", nonMember: false, member: true },
+      { key: "9", feature: "语音助手", nonMember: false, member: true },
     ],
     []
   );
