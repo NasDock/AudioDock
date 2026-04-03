@@ -3,6 +3,7 @@ import {
   ArrowLeftOutlined,
   CheckOutlined,
   CloseOutlined,
+  LogoutOutlined,
   QuestionCircleOutlined,
   WechatFilled,
 } from "@ant-design/icons";
@@ -564,7 +565,15 @@ const MemberBenefits: React.FC = () => {
           <Divider style={{ margin: "28px 0 16px" }} />
 
           <Flex gap={12} className={styles.accountActions}>
-            <Button onClick={handleChangeMember}>切换会员账号</Button>
+            <Button
+              danger
+              type="primary"
+              icon={<LogoutOutlined />}
+              onClick={handleChangeMember}
+              style={{ width: "100%", borderRadius: 8 }}
+            >
+              退出会员账号
+            </Button>
           </Flex>
         </div>
       </Content>

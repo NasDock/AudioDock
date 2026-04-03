@@ -165,11 +165,11 @@ export default function MemberDetailScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.logoutButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[styles.logoutButton, { backgroundColor: "#FF3B30", borderColor: "#FF3B30" }]}
           onPress={handleLogout}
         >
-          <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
-          <Text style={styles.logoutText}>退出/切换会员账号</Text>
+          <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
+          <Text style={[styles.logoutText, { color: "#FFFFFF" }]}>退出/切换会员账号</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

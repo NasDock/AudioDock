@@ -216,7 +216,7 @@ const MemberDetail: React.FC = () => {
             )}
             <Button
               danger
-              size="large"
+              type="primary"
               icon={<LogoutOutlined />}
               className={styles.logoutButton}
               onClick={handleLogout}

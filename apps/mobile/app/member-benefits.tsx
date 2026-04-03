@@ -817,7 +817,7 @@ export default function MemberBenefitsScreen() {
         <TouchableOpacity
           style={[
             styles.logoutButton,
-            { backgroundColor: colors.card, borderColor: colors.border },
+            { backgroundColor: "#FF3B30", borderColor: "#FF3B30" },
           ]}
           onPress={() => {
             Alert.alert("退出会员账号", "确定要退出会员账号吗？", [
@@ -833,8 +833,8 @@ export default function MemberBenefitsScreen() {
             ]);
           }}
         >
-          <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
-          <Text style={styles.logoutText}>退出会员账号</Text>
+          <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
+          <Text style={[styles.logoutText, { color: "#FFFFFF" }]}>退出会员账号</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
