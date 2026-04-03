@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.hvigor/
+build/
+oh-uni-module/
+
+# IDE
+.idea/
+*.iml
+.hbuild/
+*.lock
+
+# Logs
+*.log

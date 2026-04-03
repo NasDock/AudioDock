@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "AudioDock - 音乐播放器鸿蒙桌面版"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "AudioDock 音乐播放器"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "AudioDock"
+    }
+  ]
+}

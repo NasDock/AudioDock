@@ -19,6 +19,8 @@
     "build:mac": "cross-env VITE_PLATFORM=mac tsc -b && vite build && electron-builder --mac",
     "build:linux": "cross-env VITE_PLATFORM=linux tsc -b && vite build && electron-builder --linux",
     "build:web": "cross-env VITE_PLATFORM=web tsc -b && vite build",
+    "build:harmony": "cross-env VITE_PLATFORM=harmony tsc -b && vite build --config vite.web.config.ts",
+    "copy:harmony": "node scripts/copy-harmony-assets.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -1,0 +1,17 @@
+{
+  "name": "audiodock-harmony-desktop",
+  "version": "1.0.84",
+  "description": "AudioDock HarmonyOS Desktop Client",
+  "main": "",
+  "author": "mmdctjj <mmdctjj@gmail.com>",
+  "license": "ISC",
+  "dependencies": {
+    "@ohos.hilog": "^4.0.0",
+    "@ohos.web.webview": "^4.0.0",
+    "@kit.BasicServicesKit": "^4.0.0",
+    "@kit.ArkWeb": "^4.0.0"
+  },
+  "devDependencies": {
+    "hvigor": "^4.0.0"
+  }
+}
