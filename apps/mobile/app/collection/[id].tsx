@@ -3,6 +3,7 @@ import SkeletonBlock from "@/src/components/SkeletonBlock";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Album, AudiobookCollection } from "@/src/models";
 import { getCollectionById, removeAlbumFromCollection, reorderCollection, updateCollection, uploadCollectionCover } from "@soundx/services";
+import { mockAlbum } from "@soundx/services/src/mockUtils";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -44,6 +45,7 @@ export default function CollectionDetailScreen() {
     }
   }, [id]);
 
+
   const loadData = async (collectionId: string) => {
     try {
       setLoading(true);
@@ -51,7 +53,7 @@ export default function CollectionDetailScreen() {
       if (res.code === 200 && res.data) {
         setCollection(res.data);
         const items = res.data.items || [];
-        setAlbums(items.map((item) => item.album).filter(Boolean) as Album[]);
+        setAlbums(items.map((item) => item.album).filter(Boolean).map((album) => mockAlbum(album)));
       }
     } catch (error) {
       console.error("Failed to load collection", error);

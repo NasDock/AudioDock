@@ -14,6 +14,8 @@ import {
   updateCollection,
   uploadCollectionCover,
 } from "@soundx/services";
+// mock 专辑数据
+import { mockAlbum } from "@soundx/services/src/mockUtils";
 import {
   Button,
   Col,
@@ -44,16 +46,19 @@ const CollectionDetail: React.FC = () => {
   const [nameInput, setNameInput] = useState("");
   const [uploadingCover, setUploadingCover] = useState(false);
 
+
   useEffect(() => {
     if (id) loadDetail(id);
   }, [id]);
+
 
   const loadDetail = async (collectionId: string) => {
     const res = await getCollectionById(collectionId);
     if (res.code === 200) {
       setCollection(res.data);
       const items = res.data.items || [];
-      setAlbums(items.map((item: any) => item.album).filter(Boolean));
+      // 对专辑进行 mock
+      setAlbums(items.map((item: any) => mockAlbum(item.album)).filter(Boolean));
     }
   };
 
