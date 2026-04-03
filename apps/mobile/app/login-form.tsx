@@ -11,7 +11,7 @@ import {
   SOURCEMAP,
   SOURCETIPSMAP,
 } from "@soundx/services";
-import { Camera, CameraView } from "expo-camera";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -72,24 +72,13 @@ export default function LoginFormScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [permission, setPermission] = useState<any>(null);
-  const [hasScanned, setHasScanned] = useState(false);
 
-  const requestPermission = async () => {
-    const nextPermission = await Camera.requestCameraPermissionsAsync();
-    setPermission(nextPermission);
-    return nextPermission;
-  };
 
   useEffect(() => {
     setPanelMode(isLandscape ? "manual" : "scan");
   }, [isLandscape]);
 
-  useEffect(() => {
-    Camera.getCameraPermissionsAsync()
-      .then(setPermission)
-      .catch((error) => console.error("Failed to load camera permission:", error));
-  }, []);
+
 
   useEffect(() => {
     loadSourceConfig(sourceType);
@@ -112,46 +101,16 @@ export default function LoginFormScreen() {
     const unsubscribe = subscribeScanLoginSession(
       scanSession.sessionId,
       scanSession.secret,
-      (status) => setScanStatus(status),
+      (status) => {
+        setScanStatus(status);
+        if (status.status === "waiting_confirm") {
+          router.push(`/scan-confirm?sessionId=${scanSession.sessionId}&secret=${scanSession.secret}` as any);
+        }
+      },
     );
 
     return () => unsubscribe();
   }, [scanSession, isLandscape]);
-
-  useEffect(() => {
-    if (scanStatus?.status !== "waiting_confirm") return;
-
-    const nextSelected: Record<string, string[]> = {};
-    scanStatus.sourceBundles.forEach((bundle) => {
-      nextSelected[bundle.type] = bundle.configs.map((config) => config.id);
-    });
-    setSelectedConfigIds(nextSelected);
-  }, [scanStatus?.sessionId, scanStatus?.status]);
-
-  useEffect(() => {
-    if (!scanSession || scanStatus?.status !== "confirmed") return;
-
-    const consumeConfirmedScan = async () => {
-      try {
-        setScanBusy(true);
-        const res = await consumeScanLoginSession(scanSession.sessionId, {
-          secret: scanSession.secret,
-        });
-        await applyMobileScanLoginResult(res.data, {
-          switchServer,
-          setPlusToken,
-        });
-        router.replace("/(tabs)" as any);
-      } catch (error: any) {
-        console.error(error);
-        Alert.alert("错误", error.message || "确认扫码登录失败");
-      } finally {
-        setScanBusy(false);
-      }
-    };
-
-    consumeConfirmedScan();
-  }, [scanSession?.sessionId, scanStatus?.status]);
 
   const qrValue = useMemo(() => {
     if (!scanSession) return "";
@@ -325,72 +284,7 @@ export default function LoginFormScreen() {
     }
   };
 
-  const handleBarcodeScanned = async ({ data }: { data: string }) => {
-    if (hasScanned) return;
-    setHasScanned(true);
 
-    try {
-      setScanBusy(true);
-      const parsed = JSON.parse(data);
-      if (parsed?.kind !== "soundx-scan-login") {
-        throw new Error("不是有效的扫码登录二维码");
-      }
-
-      const payload = await collectMobileScanLoginPayload();
-      if (!payload.nativeAuth && !payload.plusAuth) {
-        throw new Error("当前设备还没有可供迁移的登录态，请先在本机登录");
-      }
-
-      await claimScanLoginSession(parsed.sessionId, {
-        secret: parsed.secret,
-        payload,
-      });
-      Alert.alert("扫码成功", "请在被扫码设备上确认导入的数据源");
-    } catch (error: any) {
-      console.error(error);
-      Alert.alert("扫码失败", error.message || "请重试");
-      setHasScanned(false);
-    } finally {
-      setScanBusy(false);
-    }
-  };
-
-  const toggleConfigSelection = (type: string, configId: string) => {
-    setSelectedConfigIds((prev) => {
-      const current = new Set(prev[type] || []);
-      if (current.has(configId)) current.delete(configId);
-      else current.add(configId);
-      return {
-        ...prev,
-        [type]: Array.from(current),
-      };
-    });
-  };
-
-  const handleConfirmScan = async () => {
-    if (!scanSession) return;
-    try {
-      setScanBusy(true);
-      const selections = Object.entries(selectedConfigIds).map(([type, configIds]) => ({
-        type,
-        configIds,
-      }));
-      const res = await consumeScanLoginSession(scanSession.sessionId, {
-        secret: scanSession.secret,
-        selections,
-      });
-      await applyMobileScanLoginResult(res.data, {
-        switchServer,
-        setPlusToken,
-      });
-      router.replace("/(tabs)" as any);
-    } catch (error: any) {
-      console.error(error);
-      Alert.alert("错误", error.message || "确认扫码登录失败");
-    } finally {
-      setScanBusy(false);
-    }
-  };
 
   const LogoIcon = () => {
     if (sourceType === "AudioDock") return <Image source={logo} style={styles.logo} />;
@@ -401,60 +295,6 @@ export default function LoginFormScreen() {
 
   const renderScanPanel = () => {
     if (isLandscape) {
-      if (scanStatus?.status === "waiting_confirm") {
-        return (
-          <View style={[styles.scanCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.scanTitle, { color: colors.text }]}>确认同步内容</Text>
-            <Text style={[styles.scanDesc, { color: colors.secondary }]}>
-              {scanStatus.deviceName ? `${scanStatus.deviceName} 已扫码。` : "已有设备扫码。"}
-              确认后当前设备会自动登录，并保存所选数据源。
-            </Text>
-            <ScrollView style={styles.confirmList} contentContainerStyle={{ gap: 12 }}>
-              {scanStatus.sourceBundles.map((bundle) => (
-                <View key={bundle.type} style={[styles.bundleCard, { borderColor: colors.border }]}>
-                  <Text style={[styles.bundleTitle, { color: colors.text }]}>{bundle.type}</Text>
-                  {bundle.configs.map((config) => {
-                    const checked = (selectedConfigIds[bundle.type] || []).includes(config.id);
-                    return (
-                      <TouchableOpacity
-                        key={config.id}
-                        style={styles.bundleItem}
-                        onPress={() => toggleConfigSelection(bundle.type, config.id)}
-                      >
-                        <MaterialIcons
-                          name={checked ? "check-box" : "check-box-outline-blank"}
-                          size={20}
-                          color={checked ? colors.primary : colors.secondary}
-                        />
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.bundleItemTitle, { color: colors.text }]}>
-                            {config.name || "未命名数据源"}
-                          </Text>
-                          <Text style={[styles.bundleItemMeta, { color: colors.secondary }]}>
-                            {config.internal || "无内网地址"} / {config.external || "无外网地址"}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ))}
-            </ScrollView>
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: colors.primary }]}
-              onPress={handleConfirmScan}
-              disabled={scanBusy}
-            >
-              {scanBusy ? (
-                <ActivityIndicator color={colors.background} />
-              ) : (
-                <Text style={[styles.buttonText, { color: colors.background }]}>确认并登录</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        );
-      }
-
       return (
         <View style={[styles.scanCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {qrValue ? (
@@ -472,45 +312,17 @@ export default function LoginFormScreen() {
       );
     }
 
-    if (!permission) {
-      return <ActivityIndicator color={colors.primary} />;
-    }
-
-    if (!permission.granted) {
-      return (
-        <View style={[styles.scanCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.scanTitle, { color: colors.text }]}>主动扫码登录</Text>
-          <Text style={[styles.scanDesc, { color: colors.secondary }]}>
-            当前为竖屏模式，属于主动扫码设备。需要开启相机权限后才能扫描另一台设备的二维码。
-          </Text>
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: colors.primary }]}
-            onPress={requestPermission}
-          >
-            <Text style={[styles.buttonText, { color: colors.background }]}>开启相机权限</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
     return (
       <View style={[styles.scanCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.scanTitle, { color: colors.text }]}>主动扫码登录</Text>
         <Text style={[styles.scanDesc, { color: colors.secondary }]}>
-          请扫描 desktop 或 mobile 横屏登录页上的二维码，扫码后对方会展示待导入的数据源。
+          通过扫一扫，可以将本设备的登录状态及配置数据同步到其他设备。
         </Text>
-        <View style={styles.cameraFrame}>
-          <CameraView
-            style={styles.camera}
-            facing="back"
-            onBarcodeScanned={handleBarcodeScanned}
-          />
-        </View>
         <TouchableOpacity
-          style={[styles.secondaryButton, { borderColor: colors.border, backgroundColor: colors.background }]}
-          onPress={() => setHasScanned(false)}
+          style={[styles.button, { backgroundColor: colors.primary }]}
+          onPress={() => router.push("/scan" as any)}
         >
-          <Text style={[styles.secondaryButtonText, { color: colors.text }]}>重新扫码</Text>
+          <Text style={[styles.buttonText, { color: colors.background }]}>去扫描二维码</Text>
         </TouchableOpacity>
       </View>
     );

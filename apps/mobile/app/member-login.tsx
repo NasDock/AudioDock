@@ -19,10 +19,8 @@ import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Camera, CameraView } from "expo-camera";
+import { Camera } from "expo-camera";
 import {
-  claimScanLoginSession,
-  consumeScanLoginSession,
   createScanLoginSession,
   getScanLoginSession,
   plusLogin,
@@ -32,7 +30,6 @@ import {
   type ScanLoginSession,
 } from "@soundx/services";
 import QRCode from "react-native-qrcode-svg";
-import { applyMobileScanLoginResult, collectMobileScanLoginPayload } from "../src/utils/scanLogin";
 
 const logo = require("../assets/images/logo.png");
 type PanelMode = "sms" | "scan";
@@ -51,16 +48,8 @@ export default function MemberLoginScreen() {
   const [loading, setLoading] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [scanBusy, setScanBusy] = useState(false);
   const [scanSession, setScanSession] = useState<ScanLoginSession | null>(null);
-  const [hasScanned, setHasScanned] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode>("sms");
-
-  const requestPermission = async () => {
-    const nextPermission = await Camera.requestCameraPermissionsAsync();
-    setPermission(nextPermission);
-    return nextPermission;
-  };
 
   React.useEffect(() => {
     Camera.getCameraPermissionsAsync()
@@ -153,23 +142,8 @@ export default function MemberLoginScreen() {
       scanSession.sessionId,
       scanSession.secret,
       async (status) => {
-        if (status.status !== "waiting_confirm" && status.status !== "confirmed") return;
-        try {
-          setScanBusy(true);
-          const res = await consumeScanLoginSession(scanSession.sessionId, {
-            secret: scanSession.secret,
-          });
-          await applyMobileScanLoginResult(res.data, {
-            switchServer,
-            setPlusToken: setContextPlusToken,
-          });
-          router.replace("/(tabs)" as any);
-        } catch (error: any) {
-          console.error(error);
-          Alert.alert("错误", error.message || "扫码登录失败");
-          createTargetSession();
-        } finally {
-          setScanBusy(false);
+        if (status.status === "waiting_confirm") {
+          router.push(`/scan-confirm?sessionId=${scanSession.sessionId}&secret=${scanSession.secret}` as any);
         }
       },
     );
@@ -177,34 +151,7 @@ export default function MemberLoginScreen() {
     return () => unsubscribe();
   }, [scanSession]);
 
-  const handleBarcodeScanned = async ({ data }: { data: string }) => {
-    if (hasScanned) return;
-    setHasScanned(true);
-    try {
-      setScanBusy(true);
-      const parsed = JSON.parse(data);
-      if (parsed?.kind !== "soundx-scan-login") {
-        throw new Error("不是有效的扫码登录二维码");
-      }
 
-      const payload = await collectMobileScanLoginPayload();
-      if (!payload.nativeAuth && !payload.plusAuth) {
-        throw new Error("当前设备还没有可供迁移的登录态，请先在本机登录");
-      }
-
-      await claimScanLoginSession(parsed.sessionId, {
-        secret: parsed.secret,
-        payload,
-      });
-      Alert.alert("扫码成功", "请在另一台设备上确认导入");
-    } catch (error: any) {
-      console.error(error);
-      Alert.alert("扫码失败", error.message || "请重试");
-      setHasScanned(false);
-    } finally {
-      setScanBusy(false);
-    }
-  };
 
   const qrValue = scanSession
     ? JSON.stringify({
@@ -312,46 +259,33 @@ export default function MemberLoginScreen() {
               </View>
             ) : (
               <View style={styles.form}>
-                {!isLandscape && permission?.granted ? (
+                {!isLandscape ? (
                   <>
-                    <Text style={[styles.label, { color: colors.text }]}>扫描另一台设备上的二维码</Text>
-                    <View style={styles.cameraFrame}>
-                      <CameraView
-                        style={styles.camera}
-                        facing="back"
-                        onBarcodeScanned={handleBarcodeScanned}
-                      />
-                    </View>
+                    <Text style={[styles.label, { color: colors.text, textAlign: "center", marginTop: 24, marginBottom: 16 }]}>
+                      通过扫一扫，可以将本设备的登录状态及配置数据同步到其他设备。
+                    </Text>
                     <TouchableOpacity
                       style={[styles.button, { backgroundColor: colors.primary }]}
-                      onPress={() => setHasScanned(false)}
-                      disabled={scanBusy}
+                      onPress={() => router.push("/scan" as any)}
                     >
-                      <Text style={[styles.buttonText, { color: colors.background }]}>重新扫码</Text>
-                    </TouchableOpacity>
-                  </>
-                ) : isLandscape ? (
-                  <>
-                    {qrValue ? (
-                      <View style={styles.qrBox}>
-                        <QRCode value={qrValue} size={180} />
-                      </View>
-                    ) : null}
-                    <TouchableOpacity
-                      style={[styles.ghostButton, { borderColor: colors.border, backgroundColor: colors.card }]}
-                      onPress={createTargetSession}
-                    >
-                      <Text style={{ color: colors.text }}>刷新二维码</Text>
+                      <Text style={[styles.buttonText, { color: colors.background }]}>去扫面二维码</Text>
                     </TouchableOpacity>
                   </>
                 ) : (
                   <>
-                    <Text style={[styles.label, { color: colors.text }]}>当前为主动扫码模式，需要开启相机权限</Text>
+                    {qrValue ? (
+                      <View style={styles.qrBox}>
+                        <QRCode value={qrValue} size={180} />
+                        <Text style={{ color: colors.secondary, marginTop: 16, textAlign: "center" }}>
+                          请使用移动端扫码
+                        </Text>
+                      </View>
+                    ) : null}
                     <TouchableOpacity
-                      style={[styles.button, { backgroundColor: colors.primary }]}
-                      onPress={requestPermission}
+                      style={[styles.ghostButton, { borderColor: colors.border, backgroundColor: colors.card, marginTop: 12 }]}
+                      onPress={createTargetSession}
                     >
-                      <Text style={[styles.buttonText, { color: colors.background }]}>开启相机扫码</Text>
+                      <Text style={{ color: colors.text }}>刷新二维码</Text>
                     </TouchableOpacity>
                   </>
                 )}
