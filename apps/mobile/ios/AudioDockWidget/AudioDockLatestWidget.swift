@@ -150,7 +150,7 @@ struct AudioDockLatestWidgetView: View {
         .foregroundColor(.yellow)
       Text("会员专属功能")
         .font(.system(size: 14, weight: .bold))
-      Text("请在 App 中开启会员")
+      Text("请在 App 中开通会员")
         .font(.system(size: 11))
         .opacity(0.7)
     }
