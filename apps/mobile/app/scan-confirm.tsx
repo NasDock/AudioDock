@@ -3,17 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Scr
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "../src/context/ThemeContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { consumeScanLoginSession, getScanLoginSession, type ScanLoginSessionStatus } from "@soundx/services";
+import { confirmScanLoginSession, getScanLoginSession, subscribeScanLoginSession, type ScanLoginSessionStatus } from "@soundx/services";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useAuth } from "../src/context/AuthContext";
-import { applyMobileScanLoginResult } from "../src/utils/scanLogin";
 
 export default function ScanConfirmScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
-  const { switchServer, setPlusToken } = useAuth();
   
   const sessionId = params.sessionId as string;
   const secret = params.secret as string;
@@ -48,6 +45,23 @@ export default function ScanConfirmScreen() {
     };
 
     fetchSession();
+
+    const unsubscribe = subscribeScanLoginSession(sessionId, secret, (status) => {
+      setScanStatus(status);
+      if (status.status === "success") {
+        setConfirming(false);
+        Alert.alert("已登录", "目标设备登录成功！", [
+          { text: "好的", onPress: () => router.replace("/(tabs)" as any) }
+        ]);
+      } else if (status.status === "failed") {
+        setConfirming(false);
+        Alert.alert("登录失败", "目标设备在登录应用的过程中发生错误，请在目标设备查看详细错误。", [
+          { text: "返回", onPress: () => router.replace("/(tabs)" as any) }
+        ]);
+      }
+    });
+
+    return () => unsubscribe();
   }, [sessionId, secret]);
 
   const toggleConfigSelection = (type: string, configId: string) => {
@@ -69,19 +83,15 @@ export default function ScanConfirmScreen() {
         type,
         configIds,
       }));
-      const res = await consumeScanLoginSession(sessionId, {
+      await confirmScanLoginSession(sessionId, {
         secret,
         selections,
       });
-      await applyMobileScanLoginResult(res.data, {
-        switchServer,
-        setPlusToken,
-      });
-      router.replace("/(tabs)" as any);
+
+      // Keep confirming=true while waiting for the target device to return success/failed via socket
     } catch (error: any) {
       console.error(error);
-      Alert.alert("错误", error.message || "确认扫码失败");
-    } finally {
+      Alert.alert("错误", error.message || "确认发送失败");
       setConfirming(false);
     }
   };
@@ -106,8 +116,7 @@ export default function ScanConfirmScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={[styles.desc, { color: colors.secondary }]}>
-          {scanStatus.deviceName ? `${scanStatus.deviceName} 已扫码。` : "移动设备已扫码。"}
-          确认将下方选中的数据源导入当前设备，并完成自动登录。
+          请勾选要分享给该登录目标设备的数据源，确认登录后目标设备将自动登录。
         </Text>
 
         <View style={styles.list}>
@@ -155,7 +164,7 @@ export default function ScanConfirmScreen() {
           {confirming ? (
             <ActivityIndicator color={colors.background} />
           ) : (
-            <Text style={[styles.buttonText, { color: colors.background }]}>确认并登录</Text>
+            <Text style={[styles.buttonText, { color: colors.background }]}>确认登录</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

@@ -5,6 +5,7 @@ import {
   consumeScanLoginSession,
   createScanLoginSession,
   getScanLoginSession,
+  reportScanLoginResult,
   type ScanLoginSession,
   type ScanLoginSessionStatus,
   subscribeScanLoginSession,
@@ -101,16 +102,44 @@ export default function LoginFormScreen() {
     const unsubscribe = subscribeScanLoginSession(
       scanSession.sessionId,
       scanSession.secret,
-      (status) => {
-        setScanStatus(status);
-        if (status.status === "waiting_confirm") {
-          router.push(`/scan-confirm?sessionId=${scanSession.sessionId}&secret=${scanSession.secret}` as any);
-        }
-      },
+      (status) => setScanStatus(status),
     );
 
     return () => unsubscribe();
   }, [scanSession, isLandscape]);
+
+  useEffect(() => {
+    if (!scanSession || scanStatus?.status !== "confirmed") return;
+
+    const consumeConfirmedScan = async () => {
+      try {
+        setScanBusy(true);
+        const res = await consumeScanLoginSession(scanSession.sessionId, {
+          secret: scanSession.secret,
+        });
+
+        try {
+          await applyMobileScanLoginResult(res.data, {
+            switchServer,
+            setPlusToken,
+          });
+        } catch (applyErr: any) {
+           await reportScanLoginResult(scanSession.sessionId, { secret: scanSession.secret, success: false, error: applyErr.message });
+           throw applyErr;
+        }
+
+        await reportScanLoginResult(scanSession.sessionId, { secret: scanSession.secret, success: true });
+        router.replace("/(tabs)" as any);
+      } catch (error: any) {
+        console.error(error);
+        Alert.alert("错误", error.message || "确认扫码登录失败");
+      } finally {
+        setScanBusy(false);
+      }
+    };
+
+    consumeConfirmedScan();
+  }, [scanSession?.sessionId, scanStatus?.status]);
 
   const qrValue = useMemo(() => {
     if (!scanSession) return "";
@@ -295,6 +324,18 @@ export default function LoginFormScreen() {
 
   const renderScanPanel = () => {
     if (isLandscape) {
+      if (scanStatus?.status === "waiting_confirm") {
+        return (
+          <View style={[styles.scanCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.scanTitle, { color: colors.text }]}>等待手机端确认</Text>
+            <Text style={[styles.scanDesc, { color: colors.secondary }]}>
+              手机已扫码。请在手机屏幕上勾选要导入的数据源，并在手机上点击确认发送...
+            </Text>
+            <ActivityIndicator style={{ marginTop: 24, alignSelf: "center" }} size="large" color={colors.primary} />
+          </View>
+        );
+      }
+
       return (
         <View style={[styles.scanCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {qrValue ? (

@@ -46,9 +46,7 @@ export default function ScanScreen() {
         payload,
       });
 
-      Alert.alert("扫码成功", "请在被扫码设备上确认并完成登录", [
-        { text: "好的", onPress: () => router.back() }
-      ]);
+      router.replace(`/scan-confirm?sessionId=${parsed.sessionId}&secret=${parsed.secret}` as any);
     } catch (error: any) {
       console.error(error);
       Alert.alert("扫码失败", error.message || "请重试");
