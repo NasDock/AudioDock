@@ -1,0 +1,48 @@
+{
+  "float": [
+    {
+      "name": "flexible_left_item_height",
+      "value": "20vp"
+    },
+    {
+      "name": "flexible_left_item_width",
+      "value": "96vp"
+    },
+    {
+      "name": "flexible_right_item_height",
+      "value": "20vp"
+    },
+    {
+      "name": "flexible_right_item_width",
+      "value": "36vp"
+    },
+    {
+      "name": "flexible_item_height",
+      "value": "60vp"
+    },
+    {
+      "name": "flexible_left_item_border_radius",
+      "value": "2vp"
+    },
+    {
+      "name": "flexible_right_item_border_radius",
+      "value": "12vp"
+    },
+    {
+      "name": "flexible_item_border_radius",
+      "value": "24vp"
+    },
+    {
+      "name": "flexible_item_padding_left",
+      "value": "12vp"
+    },
+    {
+      "name": "flexible_item_padding_right",
+      "value": "12vp"
+    },
+    {
+      "name": "slider_width",
+      "value": "300vp"
+    }
+  ]
+}

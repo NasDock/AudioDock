@@ -1,0 +1,31 @@
+{
+	"app": {
+		"bundleName": "com.audiodock.app",
+		"debug": true,
+		"versionCode": 1000000,
+		"versionName": "1.0.0",
+		"minAPIVersion": 60002022,
+		"targetAPIVersion": 60002022,
+		"apiReleaseType": "Release",
+		"targetMinorAPIVersion": 0,
+		"targetPatchAPIVersion": 0,
+		"compileSdkVersion": "6.0.2.130",
+		"compileSdkType": "HarmonyOS",
+		"appEnvironments": [],
+		"bundleType": "app",
+		"buildMode": "debug"
+	},
+	"module": {
+		"name": "common",
+		"type": "har",
+		"deviceTypes": [
+			"phone",
+			"tablet",
+			"2in1",
+			"car",
+			"tv"
+		],
+		"packageName": "@ohos/common",
+		"installationFree": false
+	}
+}

@@ -1,0 +1,13 @@
+{
+  "name": "default",
+  "version": "1.0.0",
+  "description": "Please describe the basic information.",
+  "main": "",
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "@ohos/adaptivelayout": "file:../../features/adaptiveLayout",
+    "@ohos/responsivelayout": "file:../../features/responsiveLayout",
+    "@ohos/common": "file:../../common"
+  }
+}

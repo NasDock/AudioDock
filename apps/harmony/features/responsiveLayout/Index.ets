@@ -1,0 +1,1 @@
+export { responsiveLayout } from './src/main/ets/pages/ResponsiveLayout';

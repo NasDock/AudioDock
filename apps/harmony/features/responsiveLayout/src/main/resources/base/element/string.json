@@ -1,0 +1,24 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "ResponsiveLayoutItemAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "ResponsiveLayoutItemAbility_label",
+      "value": "label"
+    },
+    {
+      "name": "grid_title_label",
+      "value": "title"
+    },
+    {
+      "name": "tab_name",
+      "value": "tab"
+    }
+  ]
+}

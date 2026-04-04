@@ -1,0 +1,54 @@
+{
+  "module": {
+    "name": "default",
+    "type": "entry",
+    "description": "$string:module_desc",
+    "mainElement": "DefaultAbility",
+    "deviceTypes": [
+      "phone",
+      "tablet",
+      "2in1",
+      "car",
+      "tv"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false,
+    "pages": "$profile:main_pages",
+    "abilities": [
+      {
+        "name": "DefaultAbility",
+        "srcEntry": "./ets/defaultability/DefaultAbility.ets",
+        "description": "$string:ability_desc",
+        "icon": "$media:layered_image",
+        "label": "$string:ability_label",
+        "startWindowIcon": "$media:startIcon",
+        "startWindowBackground": "$color:start_window_background",
+        "exported": true,
+        "skills": [
+          {
+            "entities": [
+              "entity.system.home"
+            ],
+            "actions": [
+              "ohos.want.action.home"
+            ]
+          }
+        ]
+      }
+    ],
+    "extensionAbilities": [
+      {
+        "name": "DefaultBackupAbility",
+        "srcEntry": "./ets/defaultbackupability/DefaultBackupAbility.ets",
+        "type": "backup",
+        "exported": false,
+        "metadata": [
+          {
+            "name": "ohos.extension.backup",
+            "resource": "$profile:backup_config"
+          }
+        ],
+      }
+    ]
+  }
+}

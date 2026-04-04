@@ -1,0 +1,176 @@
+{
+  "float": [
+    {
+      "name": "catalogue_text_font_size",
+      "value": "16vp"
+    },
+    {
+      "name": "catalogue_list_item_height",
+      "value": "40vp"
+    },
+    {
+      "name": "catalogue_list_height",
+      "value": "168vp"
+    },
+    {
+      "name": "catalogue_list_item_margin_bottom",
+      "value": "24vp"
+    },
+    {
+      "name": "catalogue_list_item_border_radius",
+      "value": "20vp"
+    },
+    {
+      "name": "catalogue_list_margin_left",
+      "value": "24vp"
+    },
+    {
+      "name": "catalogue_list_margin_right",
+      "value": "24vp"
+    },
+    {
+      "name": "system_capabilities_text_font_size",
+      "value": "16vp"
+    },
+    {
+      "name": "tab_text_font_size",
+      "value": "10vp"
+    },
+    {
+      "name": "arrow_width",
+      "value": "24vp"
+    },
+    {
+      "name": "arrow_height",
+      "value": "24vp"
+    },
+    {
+      "name": "arrow_left_borderRadius",
+      "value": "24vp"
+    },
+    {
+      "name": "arrow_margin_left",
+      "value": "24vp"
+    },
+    {
+      "name": "arrow_item_height",
+      "value": "56vp"
+    },
+    {
+      "name": "grid_margin_left",
+      "value": "24vp"
+    },
+    {
+      "name": "grid_margin_right",
+      "value": "24vp"
+    },
+    {
+      "name": "grid_column_gap",
+      "value": "12vp"
+    },
+    {
+      "name": "grid_row_gap",
+      "value": "12vp"
+    },
+    {
+      "name": "grid_text_top",
+      "value": "8vp"
+    },
+    {
+      "name": "grid_text_font_size",
+      "value": "14vp"
+    },
+    {
+      "name": "grid_text_padding_left",
+      "value": "4vp"
+    },
+    {
+      "name": "grid_row_border_radius",
+      "value": "12vp"
+    },
+    {
+      "name": "tab_img_width",
+      "value": "24vp"
+    },
+    {
+      "name": "tab_img_height",
+      "value": "24vp"
+    },
+    {
+      "name": "system_capabilities_arrow_positionX",
+      "value": "24vp"
+    },
+    {
+      "name": "system_capabilities_img_sm_width",
+      "value": "72vp"
+    },
+    {
+      "name": "system_capabilities_img_md_width",
+      "value": "72vp"
+    },
+    {
+      "name": "system_capabilities_img_lg_width",
+      "value": "90vp"
+    },
+    {
+      "name": "system_capabilities_img_xl_width",
+      "value": "90vp"
+    },
+    {
+      "name": "system_capabilities_img_sm_height",
+      "value": "72vp"
+    },
+    {
+      "name": "system_capabilities_img_md_height",
+      "value": "72vp"
+    },
+    {
+      "name": "system_capabilities_img_lg_height",
+      "value": "90vp"
+    },
+    {
+      "name": "system_capabilities_img_xl_height",
+      "value": "90vp"
+    },
+    {
+      "name": "system_capabilities_margin_bottom",
+      "value": "8vp"
+    },
+    {
+      "name": "system_capabilities_text_margin",
+      "value": "12vp"
+    },
+    {
+      "name": "tab_text_sm_top",
+      "value": "4vp"
+    },
+    {
+      "name": "tab_text_sm_left",
+      "value": "0vp"
+    },
+    {
+      "name": "tab_text_md_top",
+      "value": "0vp"
+    },
+    {
+      "name": "tab_text_md_left",
+      "value": "10vp"
+    },
+    {
+      "name": "tab_text_lg_top",
+      "value": "4vp"
+    },
+    {
+      "name": "tab_text_lg_left",
+      "value": "0vp"
+    },
+    {
+      "name": "tab_text_xl_top",
+      "value": "4vp"
+    },
+    {
+      "name": "tab_text_xl_left",
+      "value": "0vp"
+    }
+  ]
+}

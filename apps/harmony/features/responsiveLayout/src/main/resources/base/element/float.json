@@ -1,0 +1,103 @@
+{
+  "float": [
+    {
+      "name": "tab_text_font_size",
+      "value": "10vp"
+    },
+    {
+      "name": "arrow_width",
+      "value": "24vp"
+    },
+    {
+      "name": "arrow_height",
+      "value": "24vp"
+    },
+    {
+      "name": "arrow_margin_left",
+      "value": "24vp"
+    },
+    {
+      "name": "arrow_left_borderRadius",
+      "value": "24vp"
+    },
+    {
+      "name": "arrow_item_height",
+      "value": "56vp"
+    },
+    {
+      "name": "grid_margin_left",
+      "value": "24vp"
+    },
+    {
+      "name": "grid_margin_right",
+      "value": "24vp"
+    },
+    {
+      "name": "grid_padding_bottom",
+      "value": "80vp"
+    },
+    {
+      "name": "grid_column_gap",
+      "value": "12vp"
+    },
+    {
+      "name": "grid_row_gap",
+      "value": "12vp"
+    },
+    {
+      "name": "grid_text_top",
+      "value": "8vp"
+    }, {
+      "name": "grid_text_font_size",
+      "value": "14vp"
+    },
+    {
+      "name": "grid_text_padding_left",
+      "value": "4vp"
+    },
+    {
+      "name": "grid_row_border_radius",
+      "value": "12vp"
+    },
+    {
+      "name": "tab_img_width",
+      "value": "24vp"
+    },
+    {
+      "name": "tab_img_height",
+      "value": "24vp"
+    },
+    {
+      "name": "tab_text_sm_top",
+      "value": "4vp"
+    },
+    {
+      "name": "tab_text_sm_left",
+      "value": "0vp"
+    },
+    {
+      "name": "tab_text_md_top",
+      "value": "0vp"
+    },
+    {
+      "name": "tab_text_md_left",
+      "value": "10vp"
+    },
+    {
+      "name": "tab_text_lg_top",
+      "value": "4vp"
+    },
+    {
+      "name": "tab_text_lg_left",
+      "value": "0vp"
+    },
+    {
+      "name": "tab_text_xl_top",
+      "value": "4vp"
+    },
+    {
+      "name": "tab_text_xl_left",
+      "value": "0vp"
+    }
+  ]
+}
