@@ -128,7 +128,9 @@ export default function MemberLogin() {
 
           <View className='footer-links'>
             <Text className='footer-text'>登录即代表同意 </Text>
-            <Text className='link-text'>《用户协议》</Text>
+            <Text className='link-text' onClick={() => window.location.href = 'https://www.audiodock.cn/docs/privacy-policy/'}>《隐私政策》</Text>
+            <Text className='footer-text'> 和 </Text>
+            <Text className='link-text' onClick={() => window.location.href = 'https://www.audiodock.cn/docs/user-agreement/'}>《用户协议》</Text>
           </View>
         </View>
       </View>
