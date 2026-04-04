@@ -9,7 +9,7 @@ import { commonConstants } from '../constants/CommonConstants';
 @Component
 struct SystemCapabilitiesIndex {
   @StorageLink('mainBreakpoint') currentBreakpoint: string = commonConstants.breakpointsInitializeName;
-  private readonly breakpointSystem: BreakpointSystem = new BreakpointSystem(commonConstants.breakpointSystemName);
+  private readonly breakpointSystem: BreakpointSystem = new BreakpointSystem();
   private locationCapability: boolean = false;
 
   aboutToAppear() {

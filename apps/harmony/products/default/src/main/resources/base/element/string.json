@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "module description"
+      "value": "AudioDock - Your personal music & audiobook hub"
     },
     {
       "name": "ability_desc",
-      "value": "description"
+      "value": "AudioDock main ability"
     },
     {
       "name": "ability_label",
-      "value": "label"
+      "value": "AudioDock"
     },
     {
       "name": "grid_title_label",
@@ -35,6 +35,26 @@
     {
       "name": "location_cap_valid",
       "value": "This device has the system capability of location service"
+    },
+    {
+      "name": "permission_internet_reason",
+      "value": "AudioDock needs internet access to stream music and sync your library."
+    },
+    {
+      "name": "permission_storage_reason",
+      "value": "AudioDock needs storage access to save downloaded music and cache."
+    },
+    {
+      "name": "permission_media_control_reason",
+      "value": "AudioDock needs media control to manage playback and show notifications."
+    },
+    {
+      "name": "permission_network_info_reason",
+      "value": "AudioDock needs network info to switch between WiFi and mobile data."
+    },
+    {
+      "name": "permission_nfc_reason",
+      "value": "AudioDock uses NFC to scan music sources quickly."
     }
   ]
 }

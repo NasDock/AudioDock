@@ -19,7 +19,7 @@ export struct TabIndex {
   @State currentIndex: number = 0;
   @State tabs: TabBarItem[] = TabsViewModel.getTabData();
   @StorageLink('mainBreakpoint') currentBreakpoint: string = commonConstants.breakpointsInitializeName;
-  private readonly breakpointSystem: BreakpointSystem = new BreakpointSystem(commonConstants.breakpointSystemName);
+  private readonly breakpointSystem: BreakpointSystem = new BreakpointSystem();
 
   @Builder tabBarBuilder(tabBar: TabBarItem) {
     Flex({

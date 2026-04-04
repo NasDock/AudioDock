@@ -14,6 +14,67 @@
     "deliveryWithInstall": true,
     "installationFree": false,
     "pages": "$profile:main_pages",
+   "requestPermissions": [
+      {
+        "name": "ohos.permission.INTERNET",
+        "reason": "$string:permission_internet_reason",
+        "usedScene": {
+          "abilities": ["DefaultAbility"],
+          "when": "always"
+        }
+      },
+      // 替换了原来的 WRITE_MEDIASTORAGE，改为读写图片视频
+      {
+        "name": "ohos.permission.READ_IMAGEVIDEO",
+        "reason": "$string:permission_storage_reason",
+        "usedScene": {
+          "abilities": ["DefaultAbility"],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.WRITE_IMAGEVIDEO",
+        "reason": "$string:permission_storage_reason",
+        "usedScene": {
+          "abilities": ["DefaultAbility"],
+          "when": "inuse"
+        }
+      },
+      // 如果你的应用是处理音乐/音频，建议加上下面的音频权限
+      {
+        "name": "ohos.permission.READ_AUDIO",
+        "reason": "$string:permission_storage_reason",
+        "usedScene": {
+          "abilities": ["DefaultAbility"],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.WRITE_AUDIO",
+        "reason": "$string:permission_storage_reason",
+        "usedScene": {
+          "abilities": ["DefaultAbility"],
+          "when": "inuse"
+        }
+      },
+
+      {
+        "name": "ohos.permission.GET_NETWORK_INFO",
+        "reason": "$string:permission_network_info_reason",
+        "usedScene": {
+          "abilities": ["DefaultAbility"],
+          "when": "always"
+        }
+      },
+      {
+        "name": "ohos.permission.NFC_TAG",
+        "reason": "$string:permission_nfc_reason",
+        "usedScene": {
+          "abilities": ["DefaultAbility"],
+          "when": "inuse"
+        }
+      }
+    ],
     "abilities": [
       {
         "name": "DefaultAbility",

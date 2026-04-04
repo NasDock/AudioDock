@@ -29,17 +29,12 @@ class Breakpoint {
 
 export class BreakpointSystem {
   private currentBreakpoint: string = commonConstants.breakpointsInitializeName;
-  private readonly breakpointId: string = commonConstants.breakpointIdInitializeName;
   private readonly breakpoints: Breakpoint[] = [
     { name: commonConstants.breakpointsSmName, size: commonConstants.breakpointsSmSize },
     { name: commonConstants.breakpointsMdName, size: commonConstants.breakpointsMdSize },
     { name: commonConstants.breakpointsLgName, size: commonConstants.breakpointsLgSize },
     { name: commonConstants.breakpointsXlName, size: commonConstants.breakpointsXlSize }
   ];
-
-  constructor(breakpointId: string) {
-    this.breakpointId = breakpointId;
-  }
 
   public register(uiContext: UIContext): void {
     this.breakpoints.forEach((breakpoint: Breakpoint, index: number) => {
@@ -65,10 +60,13 @@ export class BreakpointSystem {
     });
   }
 
+  public getCurrentBreakpoint(): string {
+    return this.currentBreakpoint;
+  }
+
   private updateCurrentBreakpoint(breakpoint: string): void {
     if (this.currentBreakpoint !== breakpoint) {
       this.currentBreakpoint = breakpoint;
-      AppStorage.set<string>(this.breakpointId, this.currentBreakpoint);
     }
   }
 }
