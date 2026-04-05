@@ -134,6 +134,18 @@ export interface VipCurrentLowestPriceData {
   lifetime: VipCurrentLowestPricePlan | null;
 }
 
+export interface RedeemInternalTestCodeDto {
+  userId: string;
+  code: string;
+}
+
+export interface RedeemInternalTestCodeResponse {
+  ok: boolean;
+  vipTier: VipTier;
+  vipStartsAt: string;
+  vipEndsAt: string;
+}
+
 // --- API Functions ---
 
 /**
@@ -218,4 +230,13 @@ export const plusGetVipCurrentLowestPrice = async () => {
  */
 export const plusGetVipStatus = async (userId: string) => {
   return plusRequest.get<ISuccessResponse<{ isVip: boolean; tier: VipTier; expiresAt: string | null }>>("/vip/status", { params: { userId } });
+};
+
+export const plusRedeemInternalTestCode = async (
+  data: RedeemInternalTestCodeDto,
+) => {
+  return plusRequest.post<ISuccessResponse<RedeemInternalTestCodeResponse>>(
+    "/users/internal-test-codes/redeem",
+    data,
+  );
 };

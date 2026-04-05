@@ -52,7 +52,7 @@ import { usePlayMode } from "../../src/utils/playMode";
 import { useCheckUpdate } from "@/hooks/useCheckUpdate";
 import { CachedImage } from "@/src/components/CachedImage";
 import { UpdateModal } from "@/src/components/UpdateModal";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { AntDesign, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 const logo = require("../../assets/images/logo.png");
 const subsonicLogo = require("../../assets/images/subsonic.png");
@@ -777,7 +777,7 @@ export default function PersonalScreen() {
             onPress={handleOpenScanEntry}
             style={[styles.iconBtn, { marginRight: 10 }]}
           >
-            <Ionicons name="scan-outline" size={22} color={colors.text} />
+            <AntDesign name="scan" size={22} color={colors.text} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push("/source-manage" as any)}
