@@ -1,14 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Slider } from "@miblanchard/react-native-slider";
+import { plusRedeemInternalTestCode } from "@soundx/services";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
   Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -16,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../src/context/AuthContext";
 import { useSettings } from "../src/context/SettingsContext";
 import { useTheme } from "../src/context/ThemeContext";
+import { syncWidgetMembership } from "../src/native/WidgetBridge";
 import {
   clearSpecificCache,
   getDetailedCacheSize,
@@ -44,6 +48,11 @@ export default function SettingsScreen() {
     updateSetting,
   } = useSettings();
   const [isVip, setIsVip] = React.useState(false);
+  const [internalTestModalVisible, setInternalTestModalVisible] =
+    React.useState(false);
+  const [internalTestCode, setInternalTestCode] = React.useState("");
+  const [redeemingInternalTestCode, setRedeemingInternalTestCode] =
+    React.useState(false);
   const [detailedSizes, setDetailedSizes] = React.useState<{
     covers: string;
     music: string;
@@ -187,6 +196,60 @@ export default function SettingsScreen() {
         userId: user?.id ? String(user.id) : undefined,
         deviceId: device?.id ? String(device.id) : undefined,
       });
+    }
+  };
+
+  const handleRedeemInternalTestCode = async () => {
+    const code = internalTestCode.trim();
+    const plusUserId = await AsyncStorage.getItem("plus_user_id");
+    if (!plusUserId) {
+      Alert.alert("无法提交", "请先登录会员账号后再兑换内测码。");
+      return;
+    }
+    if (!code) {
+      Alert.alert("请输入内测码", "内测码不能为空。");
+      return;
+    }
+
+    try {
+      let memberUserId = plusUserId;
+      try {
+        memberUserId = JSON.parse(plusUserId);
+      } catch {}
+
+      setRedeemingInternalTestCode(true);
+      const res = await plusRedeemInternalTestCode({
+        userId: String(memberUserId),
+        code,
+      });
+      const payload = res.data?.data;
+
+      if (res.data?.code !== 200 || !payload?.ok) {
+        throw new Error(res.data?.message || "内测码兑换失败");
+      }
+
+      await AsyncStorage.setItem("plus_vip_status", "true");
+      await AsyncStorage.setItem(
+        "plus_vip_data",
+        JSON.stringify({
+          ...payload,
+          vipExpiresAt: payload.vipEndsAt,
+        }),
+      );
+      await AsyncStorage.setItem("plus_vip_updated_at", Date.now().toString());
+      await syncWidgetMembership(true);
+      setIsVip(true);
+      setInternalTestCode("");
+      setInternalTestModalVisible(false);
+      Alert.alert("兑换成功", "内测码已生效，会员权益已更新。");
+    } catch (error) {
+      console.error("Failed to redeem internal test code:", error);
+      Alert.alert(
+        "兑换失败",
+        error instanceof Error ? error.message : "请稍后重试",
+      );
+    } finally {
+      setRedeemingInternalTestCode(false);
     }
   };
 
@@ -390,6 +453,27 @@ export default function SettingsScreen() {
             />
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={[styles.settingRow, { borderBottomColor: colors.border }]}
+            onPress={() => setInternalTestModalVisible(true)}
+          >
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                参与内测
+              </Text>
+              <Text
+                style={[styles.settingDescription, { color: colors.secondary }]}
+              >
+                输入内测码以开通对应权益
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={colors.secondary}
+            />
+          </TouchableOpacity>
+
           {renderSettingRow(
             "参与用户体验计划",
             "使用数据以改进产品",
@@ -419,6 +503,85 @@ export default function SettingsScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={internalTestModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!redeemingInternalTestCode) {
+            setInternalTestModalVisible(false);
+          }
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              参与内测
+            </Text>
+            <Text style={[styles.modalDescription, { color: colors.secondary }]}>
+              请输入内测码
+            </Text>
+            <TextInput
+              value={internalTestCode}
+              onChangeText={setInternalTestCode}
+              placeholder="请输入内测码"
+              placeholderTextColor={colors.secondary}
+              editable={!redeemingInternalTestCode}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={[
+                styles.modalInput,
+                {
+                  color: colors.text,
+                  borderColor: colors.border,
+                  backgroundColor: colors.background,
+                },
+              ]}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  styles.modalCancelButton,
+                  { borderColor: colors.border },
+                ]}
+                disabled={redeemingInternalTestCode}
+                onPress={() => setInternalTestModalVisible(false)}
+              >
+                <Text style={[styles.modalCancelText, { color: colors.text }]}>
+                  取消
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  styles.modalConfirmButton,
+                  {
+                    backgroundColor: redeemingInternalTestCode
+                      ? colors.border
+                      : colors.primary,
+                  },
+                ]}
+                disabled={redeemingInternalTestCode}
+                onPress={() => void handleRedeemInternalTestCode()}
+              >
+                <Text style={styles.modalConfirmText}>
+                  {redeemingInternalTestCode ? "提交中..." : "提交"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -496,6 +659,63 @@ const styles = StyleSheet.create({
     height: 28,
     marginTop: 8,
     marginBottom: -4,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+  },
+  modalContent: {
+    width: "100%",
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  modalDescription: {
+    fontSize: 14,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 18,
+    gap: 12,
+  },
+  modalButton: {
+    minWidth: 88,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCancelButton: {
+    borderWidth: 1,
+    backgroundColor: "transparent",
+  },
+  modalConfirmButton: {},
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  modalConfirmText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "600",
   },
   versionText: {
     fontSize: 12,

@@ -142,6 +142,12 @@ export default function MemberLoginScreen() {
   }, []);
 
   React.useEffect(() => {
+    if (isLandscape) {
+      setPanelMode("sms");
+    }
+  }, [isLandscape]);
+
+  React.useEffect(() => {
     if (!scanSession) return;
 
     refreshScanStatus(scanSession).catch((error) => console.error(error));
@@ -202,6 +208,177 @@ export default function MemberLoginScreen() {
       })
     : "";
 
+  const renderSmsForm = () => (
+    <View style={styles.form}>
+      <Text style={[styles.label, { color: colors.text }]}>手机号</Text>
+      <TextInput
+        style={[
+          styles.input,
+          {
+            color: colors.text,
+            borderColor: colors.border,
+            backgroundColor: colors.card,
+          },
+        ]}
+        placeholder="请输入手机号"
+        placeholderTextColor={colors.secondary}
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="phone-pad"
+        autoCapitalize="none"
+      />
+
+      <Text style={[styles.label, { color: colors.text }]}>验证码</Text>
+      <View style={styles.codeRow}>
+        <TextInput
+          style={[
+            styles.input,
+            {
+              flex: 1,
+              marginBottom: 0,
+              color: colors.text,
+              borderColor: colors.border,
+              backgroundColor: colors.card,
+            },
+          ]}
+          placeholder="请输入验证码"
+          placeholderTextColor={colors.secondary}
+          value={code}
+          onChangeText={setCode}
+          keyboardType="number-pad"
+          autoCapitalize="none"
+        />
+        <TouchableOpacity
+          style={[
+            styles.codeButton,
+            {
+              backgroundColor: colors.primary,
+              opacity: countdown > 0 || sendingCode ? 0.6 : 1,
+            },
+          ]}
+          onPress={handleSendCode}
+          disabled={countdown > 0 || sendingCode}
+        >
+          {sendingCode ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={[styles.codeButtonText, { color: colors.background }]}>
+              {countdown > 0 ? `${countdown}s` : "获取验证码"}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.button, { backgroundColor: colors.primary }]}
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color={colors.background} />
+        ) : (
+          <Text style={[styles.buttonText, { color: colors.background }]}>
+            登录
+          </Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderScanPanel = () => {
+    if (!isLandscape) {
+      return (
+        <View style={styles.form}>
+          <Text
+            style={[
+              styles.label,
+              {
+                color: colors.text,
+                textAlign: "center",
+                marginTop: 24,
+                marginBottom: 16,
+              },
+            ]}
+          >
+            通过扫一扫，可以将本设备的登录状态及配置数据同步到其他设备。
+          </Text>
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: colors.primary }]}
+            onPress={() => router.push("/scan" as any)}
+          >
+            <Text style={[styles.buttonText, { color: colors.background }]}>
+              去扫面二维码
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (scanStatus?.status === "waiting_confirm") {
+      return (
+        <View
+          style={[
+            styles.scanCard,
+            {
+              borderColor: colors.border,
+              backgroundColor: colors.card,
+            },
+          ]}
+        >
+          <Text style={[styles.scanTitle, { color: colors.text }]}>
+            等待手机端确认
+          </Text>
+          <Text style={[styles.scanDesc, { color: colors.secondary }]}>
+            手机已扫码。请在手机屏幕上勾选要导入的数据源，并在手机上点击确认发送...
+          </Text>
+          <ActivityIndicator
+            style={{ marginTop: 24 }}
+            size="large"
+            color={colors.primary}
+          />
+        </View>
+      );
+    }
+
+    return (
+      <View
+        style={[
+          styles.scanCard,
+          {
+            borderColor: colors.border,
+            backgroundColor: colors.card,
+          },
+        ]}
+      >
+        <Text style={[styles.scanTitle, { color: colors.text }]}>
+          扫码登录
+        </Text>
+        <Text style={[styles.scanDesc, { color: colors.secondary }]}>
+          使用另一台已登录设备扫码，快速同步会员登录状态。
+        </Text>
+        {qrValue ? (
+          <View style={styles.qrBox}>
+            <QRCode value={qrValue} size={180} />
+          </View>
+        ) : null}
+        <TouchableOpacity
+          style={[
+            styles.ghostButton,
+            {
+              borderColor: colors.border,
+              backgroundColor: colors.background,
+              marginTop: 12,
+            },
+          ]}
+          onPress={createTargetSession}
+          disabled={scanBusy}
+        >
+          <Text style={{ color: colors.text }}>刷新二维码</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <KeyboardAvoidingView
@@ -210,138 +387,85 @@ export default function MemberLoginScreen() {
       >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.content}>
-            <View style={styles.logoContainer}>
-               <Image source={logo} style={styles.logo} />
-               <Text style={[styles.title, { color: colors.text }]}>
-                 用户登录
-               </Text>
-               <Text style={[styles.subtitle, { color: colors.secondary }]}>
-                 AudioDock 听见你的声音
-               </Text>
-            </View>
+            <View style={[styles.mainContent, isLandscape && styles.contentLandscape]}>
+              {isLandscape ? renderScanPanel() : null}
 
-            <View style={[styles.modeTabs, { borderColor: colors.border, backgroundColor: colors.card }]}>
-              <TouchableOpacity
-                style={[styles.modeTab, panelMode === "sms" && { backgroundColor: colors.primary }]}
-                onPress={() => setPanelMode("sms")}
+              <View
+                style={[
+                  styles.formCard,
+                  isLandscape && styles.formCardLandscape,
+                  { backgroundColor: colors.background },
+                ]}
               >
-                <Text style={[styles.modeTabText, { color: panelMode === "sms" ? colors.background : colors.text }]}>
-                  验证码登录
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modeTab, panelMode === "scan" && { backgroundColor: colors.primary }]}
-                onPress={() => setPanelMode("scan")}
-              >
-                <Text style={[styles.modeTabText, { color: panelMode === "scan" ? colors.background : colors.text }]}>
-                  扫码登录
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {panelMode === "sms" ? (
-              <View style={styles.form}>
-                <Text style={[styles.label, { color: colors.text }]}>手机号</Text>
-                <TextInput
-                  style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]}
-                  placeholder="请输入手机号"
-                  placeholderTextColor={colors.secondary}
-                  value={phone}
-                  onChangeText={setPhone}
-                  keyboardType="phone-pad"
-                  autoCapitalize="none"
-                />
-
-                <Text style={[styles.label, { color: colors.text }]}>验证码</Text>
-                <View style={styles.codeRow}>
-                  <TextInput
-                      style={[styles.input, { flex: 1, marginBottom: 0, color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]}
-                      placeholder="请输入验证码"
-                      placeholderTextColor={colors.secondary}
-                      value={code}
-                      onChangeText={setCode}
-                      keyboardType="number-pad"
-                      autoCapitalize="none"
-                  />
-                  <TouchableOpacity 
-                      style={[
-                          styles.codeButton, 
-                          { backgroundColor: colors.primary, opacity: (countdown > 0 || sendingCode) ? 0.6 : 1 }
-                      ]}
-                      onPress={handleSendCode}
-                      disabled={countdown > 0 || sendingCode}
-                  >
-                      {sendingCode ? (
-                          <ActivityIndicator size="small" color="#fff" />
-                      ) : (
-                          <Text style={[styles.codeButtonText, { color: colors.background }]}>
-                              {countdown > 0 ? `${countdown}s` : "获取验证码"}
-                          </Text>
-                      )}
-                  </TouchableOpacity>
+                <View style={styles.logoContainer}>
+                  <Image source={logo} style={styles.logo} />
+                  <Text style={[styles.title, { color: colors.text }]}>
+                    用户登录
+                  </Text>
+                  <Text style={[styles.subtitle, { color: colors.secondary }]}>
+                    AudioDock 听见你的声音
+                  </Text>
                 </View>
 
-                <TouchableOpacity
-                  style={[styles.button, { backgroundColor: colors.primary  }]}
-                  onPress={handleLogin}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color={colors.background} />
-                  ) : (
-                    <Text style={[styles.buttonText, { color: colors.background }]}>
-                      登录
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.form}>
                 {!isLandscape ? (
-                  <>
-                    <Text style={[styles.label, { color: colors.text, textAlign: "center", marginTop: 24, marginBottom: 16 }]}>
-                      通过扫一扫，可以将本设备的登录状态及配置数据同步到其他设备。
-                    </Text>
+                  <View
+                    style={[
+                      styles.modeTabs,
+                      { borderColor: colors.border, backgroundColor: colors.card },
+                    ]}
+                  >
                     <TouchableOpacity
-                      style={[styles.button, { backgroundColor: colors.primary }]}
-                      onPress={() => router.push("/scan" as any)}
+                      style={[
+                        styles.modeTab,
+                        panelMode === "sms" && { backgroundColor: colors.primary },
+                      ]}
+                      onPress={() => setPanelMode("sms")}
                     >
-                      <Text style={[styles.buttonText, { color: colors.background }]}>去扫面二维码</Text>
+                      <Text
+                        style={[
+                          styles.modeTabText,
+                          {
+                            color:
+                              panelMode === "sms"
+                                ? colors.background
+                                : colors.text,
+                          },
+                        ]}
+                      >
+                        验证码登录
+                      </Text>
                     </TouchableOpacity>
-                  </>
-                ) : (
-                  <>
-                    {scanStatus?.status === "waiting_confirm" ? (
-                      <View style={[styles.qrBox, { borderColor: colors.border, borderWidth: 1, borderRadius: 16, padding: 24, marginVertical: 20 }]}>
-                        <Text style={[styles.title, { color: colors.text, fontSize: 18 }]}>等待手机端确认</Text>
-                        <Text style={[styles.subtitle, { color: colors.secondary, marginTop: 8 }]}>
-                           手机已扫码。请在手机屏幕上勾选要导入的数据源，并在手机上点击确认发送...
-                        </Text>
-                        <ActivityIndicator style={{ marginTop: 24 }} size="large" color={colors.primary} />
-                      </View>
-                    ) : (
-                      <>
-                        {qrValue ? (
-                          <View style={styles.qrBox}>
-                            <QRCode value={qrValue} size={180} />
-                            <Text style={{ color: colors.secondary, marginTop: 16, textAlign: "center" }}>
-                              请使用移动端扫码
-                            </Text>
-                          </View>
-                        ) : null}
-                        <TouchableOpacity
-                          style={[styles.ghostButton, { borderColor: colors.border, backgroundColor: colors.card, marginTop: 12 }]}
-                          onPress={createTargetSession}
-                          disabled={scanBusy}
-                        >
-                          <Text style={{ color: colors.text }}>刷新二维码</Text>
-                        </TouchableOpacity>
-                      </>
-                    )}
-                  </>
-                )}
+                    <TouchableOpacity
+                      style={[
+                        styles.modeTab,
+                        panelMode === "scan" && { backgroundColor: colors.primary },
+                      ]}
+                      onPress={() => setPanelMode("scan")}
+                    >
+                      <Text
+                        style={[
+                          styles.modeTabText,
+                          {
+                            color:
+                              panelMode === "scan"
+                                ? colors.background
+                                : colors.text,
+                          },
+                        ]}
+                      >
+                        扫码登录
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+
+                {isLandscape
+                  ? renderSmsForm()
+                  : panelMode === "sms"
+                    ? renderSmsForm()
+                    : renderScanPanel()}
               </View>
-            )}
+            </View>
 
             <View style={styles.footerLinks}>
               <Text style={{color: colors.secondary, fontSize: 12}}>登录即代表同意 </Text>
@@ -383,6 +507,20 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 30,
     paddingTop: 0,
+    justifyContent: "center",
+  },
+  mainContent: {
+    gap: 20,
+    justifyContent: "center",
+  },
+  contentLandscape: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  formCard: {
+    flex: 1,
+  },
+  formCardLandscape: {
     justifyContent: "center",
   },
   logoContainer: {
@@ -492,6 +630,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 16,
+  },
+  scanCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 360,
+  },
+  scanTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  scanDesc: {
+    marginTop: 10,
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: "center",
   },
   ghostButton: {
     height: 46,
