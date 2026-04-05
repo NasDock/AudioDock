@@ -287,6 +287,16 @@ const MemberLogin: React.FC = () => {
                     type="link"
                     size="small"
                     style={{ padding: "0 4px", fontSize: 12 }}
+                    onClick={() => window.open("https://www.audiodock.cn/docs/privacy-policy/", "_blank")}
+                  >
+                    《隐私政策》
+                  </Button>
+                  <Text type="secondary" style={{ fontSize: 12 }}> 和 </Text>
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ padding: "0 4px", fontSize: 12 }}
+                    onClick={() => window.open("https://www.audiodock.cn/docs/user-agreement/", "_blank")}
                   >
                     《用户协议》
                   </Button>

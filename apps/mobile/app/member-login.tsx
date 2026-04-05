@@ -5,6 +5,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -344,7 +345,11 @@ export default function MemberLoginScreen() {
 
             <View style={styles.footerLinks}>
               <Text style={{color: colors.secondary, fontSize: 12}}>登录即代表同意 </Text>
-              <TouchableOpacity onPress={() => Alert.alert("用户协议", "这里展示用户协议内容")}>
+              <TouchableOpacity onPress={() => Linking.openURL("https://www.audiodock.cn/docs/privacy-policy/")}>
+                  <Text style={{color: '#1677ff', fontSize: 12}}>《隐私政策》</Text>
+              </TouchableOpacity>
+              <Text style={{color: colors.secondary, fontSize: 12}}> 和 </Text>
+              <TouchableOpacity onPress={() => Linking.openURL("https://www.audiodock.cn/docs/user-agreement/")}>
                   <Text style={{color: '#1677ff', fontSize: 12}}>《用户协议》</Text>
               </TouchableOpacity>
             </View>
