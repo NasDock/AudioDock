@@ -2,7 +2,7 @@ import WidgetKit
 import SwiftUI
 
 private let latestWidgetKind = "AudioDockLatestWidget"
-private let widgetSuite = "group.com.soundx.mobile"
+private let widgetSuite = "group.com.audiodock.app"
 private let latestKey = "widget_latest_tracks"
 
 struct WidgetLatestItem: Identifiable {
@@ -53,6 +53,7 @@ struct AudioDockLatestProvider: TimelineProvider {
     let items = loadLatest(defaults: defaults)
     let backgroundCover = items.first?.cover
     let isVip = defaults?.bool(forKey: "widget_is_vip") ?? false
+    print("[AudioDockLatestWidget] loadEntry isVip=\(isVip) suiteAvailable=\(defaults != nil)")
 
     return AudioDockLatestEntry(
       date: Date(),
@@ -159,24 +160,6 @@ struct AudioDockLatestWidgetView: View {
     .frame(maxHeight: .infinity)
   }
 
-  private func coverView(_ image: UIImage?) -> some View {
-    Group {
-      if let image {
-        Image(uiImage: image)
-          .resizable()
-          .scaledToFill()
-      } else {
-        ZStack {
-          Color.white.opacity(0.12)
-          Image(systemName: "music.note")
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundColor(.white.opacity(0.85))
-        }
-      }
-    }
-    .clipped()
-  }
-
   private func playButton(for id: String) -> some View {
     if #available(iOS 17.0, *) {
       return AnyView(
@@ -237,6 +220,23 @@ struct AudioDockLatestWidgetView: View {
           .frame(width: 28, height: 28)
       }
     }
+  }
+  private func coverView(_ image: UIImage?) -> some View {
+    Group {
+      if let image {
+        Image(uiImage: image)
+          .resizable()
+          .scaledToFill()
+      } else {
+        ZStack {
+          Color.white.opacity(0.12)
+          Image(systemName: "music.note")
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundColor(.white.opacity(0.85))
+        }
+      }
+    }
+    .clipped()
   }
 }
 

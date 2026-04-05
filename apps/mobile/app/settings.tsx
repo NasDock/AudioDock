@@ -165,6 +165,13 @@ export default function SettingsScreen() {
   );
 
   const handleToggleCarMode = async (val: boolean) => {
+    if (val && !isVip) {
+      Alert.alert("仅限会员使用", "车机模式是会员专属功能，请前往会员页面开启。", [
+        { text: "好的" },
+        { text: "前往会员页面", onPress: () => router.push("/member-benefits" as any) }
+      ]);
+      return;
+    }
     await updateSetting("carModeEnabled", val);
     await updateSetting("carLayoutMode", val);
     if (val) {

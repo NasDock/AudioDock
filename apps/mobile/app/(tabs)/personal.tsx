@@ -128,8 +128,32 @@ export default function PersonalScreen() {
     setAvatarOverride((user as any)?.avatar || null);
   }, [user]);
 
-  const handleOpenScanEntry = () => {
-    router.push("/scan" as any);
+  const handleOpenScanEntry = async () => {
+    const plusToken = await AsyncStorage.getItem("plus_token");
+
+    if (!plusToken) {
+      Alert.alert("会员功能", "扫码登录仅限会员使用，请先登录会员账号。", [
+        { text: "取消", style: "cancel" },
+        {
+          text: "会员登录",
+          onPress: () => router.push("/member-login" as any),
+        },
+      ]);
+      return;
+    }
+
+    if (isPlusVip) {
+      router.push("/scan" as any);
+      return;
+    }
+
+    Alert.alert("会员功能", "开通会员才能使用扫码登录功能。", [
+      { text: "取消", style: "cancel" },
+      {
+        text: "去开通",
+        onPress: () => router.push("/member-benefits" as any),
+      },
+    ]);
   };
 
 

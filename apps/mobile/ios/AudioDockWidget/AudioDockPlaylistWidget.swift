@@ -2,7 +2,7 @@ import WidgetKit
 import SwiftUI
 
 private let playlistWidgetKind = "AudioDockPlaylistWidget"
-private let widgetSuite = "group.com.soundx.mobile"
+private let widgetSuite = "group.com.audiodock.app"
 private let playlistKey = "widget_playlists"
 
 struct WidgetPlaylistItem: Identifiable {
@@ -52,6 +52,7 @@ struct AudioDockPlaylistProvider: TimelineProvider {
     let backgroundCover = playlists.first?.cover
     let isPlaying = defaults?.bool(forKey: "widget_is_playing") ?? false
     let isVip = defaults?.bool(forKey: "widget_is_vip") ?? false
+    print("[AudioDockPlaylistWidget] loadEntry isVip=\(isVip) suiteAvailable=\(defaults != nil)")
 
     return AudioDockPlaylistEntry(
       date: Date(),

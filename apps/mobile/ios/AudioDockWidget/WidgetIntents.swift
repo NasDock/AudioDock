@@ -2,7 +2,7 @@ import AppIntents
 import Foundation
 import WidgetKit
 
-private let widgetSuite = "group.com.soundx.mobile"
+private let widgetSuite = "group.com.audiodock.app"
 private let widgetCommandKey = "widget_command"
 private let widgetCommandTimestampKey = "widget_command_ts"
 private let widgetCommandNotification = "com.soundx.widget.command"

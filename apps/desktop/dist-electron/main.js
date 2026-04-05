@@ -499,7 +499,7 @@ function createWindow() {
     // 初始宽度
     height: 700,
     // 初始高度
-    minWidth: 1020,
+    minWidth: 1025,
     // 🔧 设置窗口最小宽度
     minHeight: 700,
     // 🔧 设置窗口最小高度

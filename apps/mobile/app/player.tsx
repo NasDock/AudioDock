@@ -199,8 +199,26 @@ export function PlayerDetailView({
   const [isDownloading, setIsDownloading] = useState(false);
   const [syncCheckLoading, setSyncCheckLoading] = useState(false);
   const { user, device, setPlusToken } = useAuth();
+  const [isVip, setIsVip] = useState(false);
   const [lyricFontSize, setLyricFontSize] = useState(16);
   const lineLayouts = useRef<{ [key: number]: any }>({});
+
+  useEffect(() => {
+    const loadVipStatus = async () => {
+      const status = await AsyncStorage.getItem("plus_vip_status");
+      const data = await AsyncStorage.getItem("plus_vip_data");
+      let vip = status === "true";
+      if (!vip && data) {
+        try {
+          const parsed = JSON.parse(data);
+          vip = !!(parsed?.vipTier && parsed.vipTier !== "NONE");
+        } catch {}
+      }
+      setIsVip(vip);
+    };
+
+    loadVipStatus();
+  }, []);
 
   const handleSyncPress = async () => {
     if (syncCheckLoading) return;
@@ -784,7 +802,7 @@ export function PlayerDetailView({
     </View>
   );
 
-  if (isLandscape && !carModeEnabled) {
+  if (isLandscape && !(carModeEnabled && isVip)) {
     return (
       <View
         style={[

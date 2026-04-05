@@ -5,6 +5,7 @@ import {
   consumeScanLoginSession,
   createScanLoginSession,
   getScanLoginSession,
+  reportScanLoginResult,
   reportScanLoginResultViaSocket,
   type ScanLoginSession,
   type ScanLoginSessionStatus,
@@ -124,10 +125,19 @@ export default function LoginFormScreen() {
             setPlusToken,
           });
         } catch (applyErr: any) {
+           await reportScanLoginResult(scanSession.sessionId, {
+             secret: scanSession.secret,
+             success: false,
+             error: applyErr.message,
+           }).catch((reportErr) => console.error("Failed to report scan login result", reportErr));
            reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, false, applyErr.message);
            throw applyErr;
         }
 
+        await reportScanLoginResult(scanSession.sessionId, {
+          secret: scanSession.secret,
+          success: true,
+        }).catch((reportErr) => console.error("Failed to report scan login result", reportErr));
         reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, true);
         router.replace("/(tabs)" as any);
       } catch (error: any) {

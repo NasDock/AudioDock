@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.view.View
 import android.widget.RemoteViews
 import com.anonymous.mobile.R
@@ -58,6 +59,23 @@ class AudioDockRecommendationWidgetProvider : AppWidgetProvider() {
       val state = WidgetStore.load(context)
       val recommendations = parseList(state.recommendationsJson)
       for (appWidgetId in appWidgetIds) {
+        if (!state.isVip) {
+          val lockedViews = RemoteViews(context.packageName, R.layout.widget_locked_large)
+          val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+          val (widthPx, heightPx) = resolveWidgetSize(context, options)
+          val background = WidgetImageUtils.themedGradientBackground(
+            widthPx,
+            heightPx,
+            state.colorPrimary,
+            state.colorSecondary
+          )
+          if (background != null) {
+            lockedViews.setImageViewBitmap(R.id.widget_bg, background)
+          }
+          lockedViews.setOnClickPendingIntent(R.id.widget_locked_root, memberBenefitsPendingIntent(context))
+          appWidgetManager.updateAppWidget(appWidgetId, lockedViews)
+          continue
+        }
         val views = RemoteViews(context.packageName, R.layout.widget_recommend_large)
 
         views.setTextViewText(R.id.widget_title, state.title)
@@ -271,6 +289,15 @@ class AudioDockRecommendationWidgetProvider : AppWidgetProvider() {
       }
       val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
       return PendingIntent.getBroadcast(context, ACTION_REFRESH.hashCode(), intent, flags)
+    }
+
+    private fun memberBenefitsPendingIntent(context: Context): PendingIntent {
+      val intent = Intent(Intent.ACTION_VIEW, Uri.parse("audiodock://member-benefits")).apply {
+        setPackage(context.packageName)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+      }
+      val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+      return PendingIntent.getActivity(context, "member_benefits_recommend_widget".hashCode(), intent, flags)
     }
   }
 }
