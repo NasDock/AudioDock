@@ -8,7 +8,7 @@ class WidgetBridge: NSObject {
     false
   }
 
-  private static let suiteName = "group.com.soundx.mobile"
+  private static let suiteName = "group.com.audiodock.app"
   private static let coverFileKey = "widget_cover_file"
   private static let colorPrimaryKey = "widget_color_primary"
   private static let colorSecondaryKey = "widget_color_secondary"
@@ -19,6 +19,7 @@ class WidgetBridge: NSObject {
   private static let playlistsKey = "widget_playlists"
   private static let historyKey = "widget_history"
   private static let latestKey = "widget_latest_tracks"
+  private static let vipKey = "widget_is_vip"
 
   @objc(updateWidget:resolver:rejecter:)
   func updateWidget(
@@ -27,6 +28,7 @@ class WidgetBridge: NSObject {
     rejecter reject: RCTPromiseRejectBlock
   ) {
     guard let defaults = UserDefaults(suiteName: Self.suiteName) else {
+      print("[WidgetBridge][iOS] updateWidget failed: UserDefaults unavailable for suite \(Self.suiteName)")
       reject("WIDGET_STORE_UNAVAILABLE", "App group UserDefaults unavailable", nil)
       return
     }
@@ -36,7 +38,6 @@ class WidgetBridge: NSObject {
     let isPlaying = payload["isPlaying"] as? Bool ?? false
     let playMode = payload["playMode"] as? String ?? ""
     let isLiked = payload["isLiked"] as? Bool ?? false
-
     defaults.set(title, forKey: "widget_title")
     defaults.set(artist, forKey: "widget_artist")
     defaults.set(isPlaying, forKey: "widget_is_playing")
@@ -45,6 +46,11 @@ class WidgetBridge: NSObject {
       defaults.set(playMode, forKey: Self.playModeKey)
     }
     defaults.set(isLiked, forKey: Self.likedKey)
+    if payload.object(forKey: "isVip") != nil {
+      let isVip = (payload["isVip"] as? Bool) ?? ((payload["isVip"] as? NSNumber)?.boolValue ?? false)
+      defaults.set(isVip, forKey: Self.vipKey)
+      print("[WidgetBridge][iOS] updateWidget wrote isVip=\(isVip)")
+    }
 
     if let coverPath = payload["coverPath"] as? String, !coverPath.isEmpty {
       let normalizedPath = coverPath.hasPrefix("file://")
@@ -75,9 +81,12 @@ class WidgetBridge: NSObject {
       defaults.set("#000000", forKey: Self.colorSecondaryKey)
     }
 
+    defaults.synchronize()
+    print("[WidgetBridge][iOS] updateWidget synchronized. current isVip=\(defaults.bool(forKey: Self.vipKey))")
     WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockWidget")
     WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockPlaylistWidget")
     WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockPlayerHistoryWidget")
+    WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockLatestWidget")
     resolve(nil)
   }
 
@@ -88,13 +97,16 @@ class WidgetBridge: NSObject {
     rejecter reject: RCTPromiseRejectBlock
   ) {
     guard let defaults = UserDefaults(suiteName: Self.suiteName) else {
+      print("[WidgetBridge][iOS] updateWidgetMembership failed: UserDefaults unavailable for suite \(Self.suiteName)")
       reject("WIDGET_STORE_UNAVAILABLE", "App group UserDefaults unavailable", nil)
       return
     }
 
-    let isVip = payload["isVip"] as? Bool ?? false
-    defaults.set(isVip, forKey: "widget_is_vip")
+    let isVip = (payload["isVip"] as? Bool) ?? ((payload["isVip"] as? NSNumber)?.boolValue ?? false)
+    defaults.set(isVip, forKey: Self.vipKey)
 
+    defaults.synchronize()
+    print("[WidgetBridge][iOS] updateWidgetMembership wrote isVip=\(isVip), synchronized value=\(defaults.bool(forKey: Self.vipKey))")
     WidgetCenter.shared.reloadAllTimelines()
     resolve(nil)
   }
@@ -106,6 +118,7 @@ class WidgetBridge: NSObject {
     rejecter reject: RCTPromiseRejectBlock
   ) {
     guard let defaults = UserDefaults(suiteName: Self.suiteName) else {
+      print("[WidgetBridge][iOS] updateWidgetCollections failed: UserDefaults unavailable for suite \(Self.suiteName)")
       reject("WIDGET_STORE_UNAVAILABLE", "App group UserDefaults unavailable", nil)
       return
     }
@@ -113,7 +126,6 @@ class WidgetBridge: NSObject {
     let playlists = payload["playlists"] as? [NSDictionary] ?? []
     let history = payload["history"] as? [NSDictionary] ?? []
     let latest = payload["latest"] as? [NSDictionary] ?? []
-
     let storedPlaylists = playlists.compactMap { item -> [String: Any]? in
       guard let rawId = item["id"] else { return nil }
       let name = item["name"] as? String ?? "播放列表"
@@ -166,7 +178,14 @@ class WidgetBridge: NSObject {
     if let data = try? JSONSerialization.data(withJSONObject: storedLatest) {
       defaults.set(data, forKey: Self.latestKey)
     }
+    if payload.object(forKey: "isVip") != nil {
+      let isVip = (payload["isVip"] as? Bool) ?? ((payload["isVip"] as? NSNumber)?.boolValue ?? false)
+      defaults.set(isVip, forKey: Self.vipKey)
+      print("[WidgetBridge][iOS] updateWidgetCollections wrote isVip=\(isVip)")
+    }
 
+    defaults.synchronize()
+    print("[WidgetBridge][iOS] updateWidgetCollections synchronized. current isVip=\(defaults.bool(forKey: Self.vipKey))")
     WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockWidget")
     WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockPlaylistWidget")
     WidgetCenter.shared.reloadTimelines(ofKind: "AudioDockPlayerHistoryWidget")

@@ -3,7 +3,7 @@ import SwiftUI
 import AppIntents
 
 private let widgetKind = "AudioDockWidget"
-private let widgetSuite = "group.com.soundx.mobile"
+private let widgetSuite = "group.com.audiodock.app"
 private let coverFileKey = "widget_cover_file"
 private let playModeOverrideKey = "widget_play_mode_override"
 private let playModeOverrideUntilKey = "widget_play_mode_override_until"
@@ -55,6 +55,7 @@ struct AudioDockProvider: TimelineProvider {
     let playMode = resolvePlayMode(defaults: defaults) ?? ""
     let isLiked = defaults?.bool(forKey: "widget_is_liked") ?? false
     let isVip = defaults?.bool(forKey: "widget_is_vip") ?? false
+    print("[AudioDockWidget] loadEntry isVip=\(isVip) suiteAvailable=\(defaults != nil)")
     let primaryHex = defaults?.string(forKey: "widget_color_primary") ?? "#000000"
     let secondaryHex = defaults?.string(forKey: "widget_color_secondary") ?? "#000000"
 

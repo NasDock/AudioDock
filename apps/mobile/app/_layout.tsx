@@ -5,7 +5,7 @@ import React, { useEffect, useRef } from "react";
 import "react-native-reanimated";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { PlayerProvider, usePlayer } from "../src/context/PlayerContext";
-import { getAlbumHistory, getAlbumTracks, getLatestTracks, getPlaylistById, getTrackHistory, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
+import { getAlbumHistory, getAlbumTracks, getLatestTracks, getPlaylistById, getTrackHistory, plusGetMe, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
 import { ThemeProvider, useTheme } from "../src/context/ThemeContext";
 import { PlayModeProvider, usePlayMode } from "../src/utils/playMode";
 
@@ -223,25 +223,59 @@ function RootLayoutNav() {
   useEffect(() => {
     const syncVipState = async () => {
       try {
-        if (!plusToken) {
-          setIsVip(false);
-          await syncWidgetMembership(false);
+        // console.log("[WidgetBridge] Syncing VIP state with plusToken:", !!plusToken);
+        // if (!plusToken) {
+        //   setIsVip(false);
+        //   await syncWidgetMembership(false);
+        //   return;
+        // }
+
+        // const syncLocalVipState = async (): Promise<boolean> => {
+        //   const plusVipStatus = await AsyncStorage.getItem("plus_vip_status");
+        //   const plusVipData = await AsyncStorage.getItem("plus_vip_data");
+        //   console.log("[WidgetBridge] Local VIP status:", plusVipStatus, "VIP data:", plusVipData);
+        //   let vip = plusVipStatus === "true";
+
+        //   if (!vip && plusVipData) {
+        //     try {
+        //       const parsed = JSON.parse(plusVipData);
+        //       console.log("[WidgetBridge] Parsed VIP data:", parsed);
+        //       vip = !!(parsed?.vipTier && parsed.vipTier !== "NONE");
+        //     } catch {
+        //       vip = false;
+        //     }
+        //   }
+
+        //   setIsVip(vip);
+        //   await syncWidgetMembership(vip);
+        //   return vip;
+        // };
+
+        // await syncLocalVipState();
+
+        const plusUserId = await AsyncStorage.getItem("plus_user_id");
+        console.log("[WidgetBridge] Retrieved plusUserId from storage:", plusUserId);
+        if (!plusUserId) {
           return;
         }
 
-        const plusVipStatus = await AsyncStorage.getItem("plus_vip_status");
-        const plusVipData = await AsyncStorage.getItem("plus_vip_data");
-        let vip = plusVipStatus === "true";
+        let userId: any = plusUserId;
+        try {
+          userId = JSON.parse(plusUserId);
+        } catch {}
 
-        if (!vip && plusVipData) {
-          try {
-            const parsed = JSON.parse(plusVipData);
-            vip = !!(parsed?.vipTier && parsed.vipTier !== "NONE");
-          } catch {
-            vip = false;
-          }
-        }
+        const res = await plusGetMe(userId);
+        const vipTier = res?.data?.data?.vipTier;
+        console.log("[WidgetBridge] Fetched VIP tier from API:", vipTier);
+        const vip = !!vipTier && vipTier !== "NONE";
 
+        await AsyncStorage.setItem("plus_vip_status", vip ? "true" : "false");
+        await AsyncStorage.setItem(
+          "plus_vip_data",
+          JSON.stringify(res?.data?.data || {})
+        );
+        await AsyncStorage.setItem("plus_vip_updated_at", Date.now().toString());
+        console.log("[WidgetBridge] Updated local VIP status and data in storage");
         setIsVip(vip);
         await syncWidgetMembership(vip);
       } catch (error) {
@@ -251,8 +285,8 @@ function RootLayoutNav() {
 
     syncVipState();
     
-    // 定期轮询会员状态（可选，也可以在页面进入时触发）
-    const timer = setInterval(syncVipState, 3000); 
+    // 定期与服务端对齐会员状态，避免本地缓存过期把 Widget 误判为非会员
+    const timer = setInterval(syncVipState, 5 * 60 * 1000);
     return () => clearInterval(timer);
   }, [plusToken]);
 
