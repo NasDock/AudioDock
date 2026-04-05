@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.View
@@ -22,6 +23,7 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
       ACTION_WIDGET_PAUSE,
       ACTION_WIDGET_NEXT,
       ACTION_WIDGET_PREV -> {
+        if (!WidgetStore.load(context).isVip) return
         val serviceIntent = Intent(context, WidgetTransportService::class.java).apply {
           action = intent.action
         }
@@ -84,6 +86,32 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
           R.layout.widget_medium
         } else {
           resolveLayout(options)
+        }
+        if (!state.isVip) {
+          val lockedLayoutId = if (layoutId == R.layout.widget_large) {
+            R.layout.widget_locked_large
+          } else {
+            R.layout.widget_locked_compact
+          }
+          val lockedViews = RemoteViews(context.packageName, lockedLayoutId)
+          val (widthPx, heightPx) = resolveWidgetSize(context, options)
+          val bgBitmap = WidgetImageUtils.themedGradientBackground(
+            widthPx,
+            heightPx,
+            state.colorPrimary,
+            state.colorSecondary
+          )
+          if (bgBitmap != null) {
+            lockedViews.setImageViewBitmap(R.id.widget_bg, bgBitmap)
+          }
+          val rootId = if (lockedLayoutId == R.layout.widget_locked_large || lockedLayoutId == R.layout.widget_locked_compact) {
+            R.id.widget_locked_root
+          } else {
+            R.id.widget_root
+          }
+          lockedViews.setOnClickPendingIntent(rootId, memberBenefitsPendingIntent(context))
+          appWidgetManager.updateAppWidget(appWidgetId, lockedViews)
+          continue
         }
         val views = RemoteViews(context.packageName, layoutId)
 
@@ -225,6 +253,15 @@ open class AudioDockWidgetProvider : AppWidgetProvider() {
       }
       val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
       return PendingIntent.getBroadcast(context, action.hashCode(), intent, flags)
+    }
+
+    private fun memberBenefitsPendingIntent(context: Context): PendingIntent {
+      val intent = Intent(Intent.ACTION_VIEW, Uri.parse("audiodock://member-benefits")).apply {
+        setPackage(context.packageName)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+      }
+      val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+      return PendingIntent.getActivity(context, "member_benefits_widget".hashCode(), intent, flags)
     }
 
     private fun normalizePlayMode(raw: String): String {

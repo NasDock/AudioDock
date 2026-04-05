@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.view.View
 import android.widget.RemoteViews
 import com.anonymous.mobile.R
@@ -55,6 +56,22 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
       val state = WidgetStore.load(context)
       val history = parseList(state.historyJson)
       for (appWidgetId in appWidgetIds) {
+        if (!state.isVip) {
+          val lockedViews = RemoteViews(context.packageName, R.layout.widget_locked_large)
+          val (widthPx, heightPx) = resolveWidgetSize(context, appWidgetManager.getAppWidgetOptions(appWidgetId))
+          val bgBitmap = WidgetImageUtils.themedGradientBackground(
+            widthPx,
+            heightPx,
+            state.colorPrimary,
+            state.colorSecondary
+          )
+          if (bgBitmap != null) {
+            lockedViews.setImageViewBitmap(R.id.widget_bg, bgBitmap)
+          }
+          lockedViews.setOnClickPendingIntent(R.id.widget_locked_root, memberBenefitsPendingIntent(context))
+          appWidgetManager.updateAppWidget(appWidgetId, lockedViews)
+          continue
+        }
         val views = RemoteViews(context.packageName, R.layout.widget_player_history_large)
 
         views.setTextViewText(R.id.widget_title, state.title)
@@ -252,6 +269,15 @@ class AudioDockPlayerHistoryWidgetProvider : AppWidgetProvider() {
       intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
       val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
       return PendingIntent.getActivity(context, "open_history_widget".hashCode(), intent, flags)
+    }
+
+    private fun memberBenefitsPendingIntent(context: Context): PendingIntent {
+      val intent = Intent(Intent.ACTION_VIEW, Uri.parse("audiodock://member-benefits")).apply {
+        setPackage(context.packageName)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+      }
+      val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+      return PendingIntent.getActivity(context, "member_benefits_history_widget".hashCode(), intent, flags)
     }
   }
 }

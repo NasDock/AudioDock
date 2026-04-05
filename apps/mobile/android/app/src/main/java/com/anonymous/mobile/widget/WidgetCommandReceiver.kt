@@ -8,6 +8,7 @@ class WidgetCommandReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     val action = intent.action ?: return
     val state = WidgetStore.load(context)
+    if (!state.isVip) return
 
     when (action) {
       ACTION_WIDGET_MODE -> {
