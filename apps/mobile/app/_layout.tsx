@@ -395,7 +395,7 @@ function RootLayoutNav() {
     </Stack>
   );
 
-  const showCarLayout = carLayoutMode && (segments[0] as string) !== "player";
+  const showCarLayout = isVip && carLayoutMode && (segments[0] as string) !== "player";
   const rootSegment = segments[0] as string;
   const hideBottomBar =
     rootSegment === "login" ||

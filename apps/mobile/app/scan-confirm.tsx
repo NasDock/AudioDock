@@ -20,6 +20,24 @@ export default function ScanConfirmScreen() {
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
 
+  const handleTerminalStatus = (status: ScanLoginSessionStatus) => {
+    setScanStatus(status);
+    setConfirming(false);
+
+    if (status.status === "success") {
+      Alert.alert("已登录", "目标设备登录成功！", [
+        { text: "好的", onPress: () => router.replace("/(tabs)" as any) }
+      ]);
+      return;
+    }
+
+    if (status.status === "failed") {
+      Alert.alert("登录失败", "目标设备在登录应用的过程中发生错误，请在目标设备查看详细错误。", [
+        { text: "返回", onPress: () => router.replace("/(tabs)" as any) }
+      ]);
+    }
+  };
+
   useEffect(() => {
     if (!sessionId || !secret) {
       Alert.alert("错误", "缺少会话参数", [{ text: "返回", onPress: () => router.back() }]);
@@ -47,22 +65,16 @@ export default function ScanConfirmScreen() {
     fetchSession();
 
     const unsubscribe = subscribeScanLoginSession(sessionId, secret, (status) => {
+      console.log("[scan-confirm] received status", status);
       setScanStatus(status);
-      if (status.status === "success") {
+      if (status.status === "success" || status.status === "failed") {
+        handleTerminalStatus(status);
         setConfirming(false);
-        Alert.alert("已登录", "目标设备登录成功！", [
-          { text: "好的", onPress: () => router.replace("/(tabs)" as any) }
-        ]);
-      } else if (status.status === "failed") {
-        setConfirming(false);
-        Alert.alert("登录失败", "目标设备在登录应用的过程中发生错误，请在目标设备查看详细错误。", [
-          { text: "返回", onPress: () => router.replace("/(tabs)" as any) }
-        ]);
       }
     });
 
     return () => unsubscribe();
-  }, [sessionId, secret]);
+  }, [sessionId, secret, router]);
 
   const toggleConfigSelection = (type: string, configId: string) => {
     setSelectedConfigIds((prev) => {
@@ -93,6 +105,9 @@ export default function ScanConfirmScreen() {
       console.error(error);
       Alert.alert("错误", error.message || "确认发送失败");
       setConfirming(false);
+    } finally {
+      setConfirming(false);
+      router.replace("/(tabs)" as any);
     }
   };
 
@@ -140,9 +155,14 @@ export default function ScanConfirmScreen() {
                       <Text style={[styles.bundleItemTitle, { color: colors.text }]}>
                         {config.name || "未命名数据源"}
                       </Text>
-                      <Text style={[styles.bundleItemMeta, { color: colors.secondary }]}>
-                        {config.internal || "无内网地址"} / {config.external || "无外网地址"}
-                      </Text>
+                      <View style={styles.bundleItemMetaGroup}>
+                        <Text style={[styles.bundleItemMeta, { color: colors.secondary }]}>
+                          内网地址：{config.internal || "无内网地址"}
+                        </Text>
+                        <Text style={[styles.bundleItemMeta, { color: colors.secondary }]}>
+                          外网地址：{config.external || "无外网地址"}
+                        </Text>
+                      </View>
                     </View>
                   </TouchableOpacity>
                 );
@@ -221,6 +241,9 @@ const styles = StyleSheet.create({
   },
   bundleItemMeta: {
     fontSize: 12,
+    marginTop: 2,
+  },
+  bundleItemMetaGroup: {
     marginTop: 4,
   },
   button: {

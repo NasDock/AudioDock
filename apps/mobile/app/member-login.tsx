@@ -26,6 +26,7 @@ import {
   getScanLoginSession,
   plusLogin,
   plusSendCode,
+  reportScanLoginResult,
   setPlusToken,
   subscribeScanLoginSession,
   consumeScanLoginSession,
@@ -177,10 +178,19 @@ export default function MemberLoginScreen() {
             setPlusToken: setContextPlusToken,
           });
         } catch (applyErr: any) {
+          await reportScanLoginResult(scanSession.sessionId, {
+            secret: scanSession.secret,
+            success: false,
+            error: applyErr.message,
+          }).catch((reportErr) => console.error("Failed to report scan login result", reportErr));
           reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, false, applyErr.message);
           throw applyErr;
         }
 
+        await reportScanLoginResult(scanSession.sessionId, {
+          secret: scanSession.secret,
+          success: true,
+        }).catch((reportErr) => console.error("Failed to report scan login result", reportErr));
         reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, true);
         router.replace("/(tabs)" as any);
       } catch (error: any) {
