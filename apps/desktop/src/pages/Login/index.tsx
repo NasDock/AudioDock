@@ -11,6 +11,7 @@ import {
   consumeScanLoginSession,
   createScanLoginSession,
   getScanLoginSession,
+  reportScanLoginResult,
   reportScanLoginResultViaSocket,
   subscribeScanLoginSession,
   login,
@@ -173,10 +174,19 @@ const Login: React.FC = () => {
         try {
           await applyDesktopScanLoginResult(res.data);
         } catch (applyErr: any) {
+          await reportScanLoginResult(scanSession.sessionId, {
+            secret: scanSession.secret,
+            success: false,
+            error: applyErr.message,
+          }).catch((reportErr) => console.error("Failed to report scan login result", reportErr));
           reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, false, applyErr.message);
           throw applyErr;
         }
 
+        await reportScanLoginResult(scanSession.sessionId, {
+          secret: scanSession.secret,
+          success: true,
+        }).catch((reportErr) => console.error("Failed to report scan login result", reportErr));
         reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, true);
         messageApi.success("扫码登录成功");
         navigate("/");

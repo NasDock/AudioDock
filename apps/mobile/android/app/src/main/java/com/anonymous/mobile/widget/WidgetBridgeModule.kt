@@ -112,6 +112,11 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext) :
         false
       }
       WidgetStore.setVipStatus(reactContext, isVip)
+      AudioDockWidgetProvider.updateAllWidgets(reactContext)
+      AudioDockPlaylistWidgetProvider.updateAllWidgets(reactContext)
+      AudioDockPlayerHistoryWidgetProvider.updateAllWidgets(reactContext)
+      AudioDockLatestTracksWidgetProvider.updateAllWidgets(reactContext)
+      AudioDockRecommendationWidgetProvider.updateAllWidgets(reactContext)
       promise.resolve(null)
     } catch (e: Exception) {
       promise.reject("WIDGET_MEMBERSHIP_UPDATE_FAILED", e)

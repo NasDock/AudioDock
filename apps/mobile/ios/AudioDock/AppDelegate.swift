@@ -3,7 +3,7 @@ import React
 import ReactAppDependencyProvider
 import Foundation
 
-private let widgetSuiteName = "group.com.soundx.mobile"
+private let widgetSuiteName = "group.com.audiodock.app"
 private let widgetCommandKey = "widget_command"
 private let widgetCommandNotification = "com.soundx.widget.command" as CFString
 private let widgetCommandPayloadKey = "widget_command_payload"

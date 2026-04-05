@@ -52,7 +52,7 @@ import { usePlayMode } from "../../src/utils/playMode";
 import { useCheckUpdate } from "@/hooks/useCheckUpdate";
 import { CachedImage } from "@/src/components/CachedImage";
 import { UpdateModal } from "@/src/components/UpdateModal";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { AntDesign, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 const logo = require("../../assets/images/logo.png");
 const subsonicLogo = require("../../assets/images/subsonic.png");
@@ -128,8 +128,32 @@ export default function PersonalScreen() {
     setAvatarOverride((user as any)?.avatar || null);
   }, [user]);
 
-  const handleOpenScanEntry = () => {
-    router.push("/scan" as any);
+  const handleOpenScanEntry = async () => {
+    const plusToken = await AsyncStorage.getItem("plus_token");
+
+    if (!plusToken) {
+      Alert.alert("会员功能", "扫码登录仅限会员使用，请先登录会员账号。", [
+        { text: "取消", style: "cancel" },
+        {
+          text: "会员登录",
+          onPress: () => router.push("/member-login" as any),
+        },
+      ]);
+      return;
+    }
+
+    if (isPlusVip) {
+      router.push("/scan" as any);
+      return;
+    }
+
+    Alert.alert("会员功能", "开通会员才能使用扫码登录功能。", [
+      { text: "取消", style: "cancel" },
+      {
+        text: "去开通",
+        onPress: () => router.push("/member-benefits" as any),
+      },
+    ]);
   };
 
 
@@ -777,7 +801,7 @@ export default function PersonalScreen() {
             onPress={handleOpenScanEntry}
             style={[styles.iconBtn, { marginRight: 10 }]}
           >
-            <Ionicons name="scan-outline" size={22} color={colors.text} />
+            <AntDesign name="scan" size={22} color={colors.text} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push("/source-manage" as any)}

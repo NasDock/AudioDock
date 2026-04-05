@@ -1,7 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
     login as loginApi,
+    removePlusToken as removePlusServiceToken,
     register as registerApi,
+    setPlusToken as setPlusServiceToken,
     setServiceConfig,
     SOURCEMAP,
     useEmbyAdapter,
@@ -103,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const savedPlusToken = await AsyncStorage.getItem("plus_token");
       if (savedPlusToken) {
         setPlusTokenState(savedPlusToken);
+        setPlusServiceToken(savedPlusToken);
       }
 
       // Configure adapter on load
@@ -288,8 +291,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const setPlusToken = async (pToken: string | null) => {
     setPlusTokenState(pToken);
     if (pToken) {
+      setPlusServiceToken(pToken);
       await AsyncStorage.setItem("plus_token", pToken);
     } else {
+      removePlusServiceToken();
       await AsyncStorage.removeItem("plus_token");
       await AsyncStorage.removeItem("plus_vip_status");
       await AsyncStorage.removeItem("plus_vip_data");

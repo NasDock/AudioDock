@@ -2,7 +2,7 @@ import WidgetKit
 import SwiftUI
 
 private let playerHistoryWidgetKind = "AudioDockPlayerHistoryWidget"
-private let widgetSuite = "group.com.soundx.mobile"
+private let widgetSuite = "group.com.audiodock.app"
 private let historyKey = "widget_history"
 
 struct WidgetHistoryItem: Identifiable {
@@ -59,6 +59,7 @@ struct AudioDockPlayerHistoryProvider: TimelineProvider {
     let cover = loadCover(defaults: defaults)
     let history = loadHistory(defaults: defaults)
     let isVip = defaults?.bool(forKey: "widget_is_vip") ?? false
+    print("[AudioDockPlayerHistoryWidget] loadEntry isVip=\(isVip) suiteAvailable=\(defaults != nil)")
 
     return AudioDockPlayerHistoryEntry(
       date: Date(),

@@ -123,6 +123,7 @@ export const subscribeScanLoginSession = (
 ) => {
   const socket = getPlusSocket();
   const eventName = `scan_login_session_update:${sessionId}`;
+  const reportEventName = "scan_login_report_result";
 
   const handleUpdate = (payload: {
     sessionId: string;
@@ -131,22 +132,37 @@ export const subscribeScanLoginSession = (
   }) => {
     if (payload?.sessionId !== sessionId) return;
     if (payload?.secret && payload.secret !== secret) return;
+    console.log("[scan-login] received session update", {
+      sessionId: payload.sessionId,
+      status: payload.status?.status,
+    });
     listener(payload.status);
   };
 
-  const handleReport = (payload: { sessionId: string; success: boolean; error?: string }) => {
+  const handleReport = (payload: {
+    sessionId: string;
+    secret?: string;
+    success: boolean;
+    error?: string;
+  }) => {
     if (payload?.sessionId !== sessionId) return;
+    if (payload?.secret && payload.secret !== secret) return;
+    console.log("[scan-login] received report result", {
+      sessionId: payload.sessionId,
+      success: payload.success,
+      error: payload.error,
+    });
     listener({ status: payload.success ? "success" : "failed", sessionId } as any);
   };
 
   socket.on(eventName, handleUpdate);
-  socket.on("scan_login_report_result", handleReport);
+  socket.on(reportEventName, handleReport);
   socket.emit("scan_login_watch", { sessionId, secret });
 
   return () => {
-    socket.emit("scan_login_unwatch", { sessionId, secret });
+    // socket.emit("scan_login_unwatch", { sessionId, secret });
     socket.off(eventName, handleUpdate);
-    socket.off("scan_login_report_result", handleReport);
+    socket.off(reportEventName, handleReport);
   };
 };
 

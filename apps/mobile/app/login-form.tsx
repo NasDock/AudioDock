@@ -5,6 +5,7 @@ import {
   consumeScanLoginSession,
   createScanLoginSession,
   getScanLoginSession,
+  reportScanLoginResult,
   reportScanLoginResultViaSocket,
   type ScanLoginSession,
   type ScanLoginSessionStatus,
@@ -64,7 +65,7 @@ export default function LoginFormScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [scanBusy, setScanBusy] = useState(false);
-  const [panelMode, setPanelMode] = useState<PanelMode>(isLandscape ? "manual" : "scan");
+  const [panelMode, setPanelMode] = useState<PanelMode>("manual");
   const [scanSession, setScanSession] = useState<ScanLoginSession | null>(null);
   const [scanStatus, setScanStatus] = useState<ScanLoginSessionStatus | null>(null);
   const [selectedConfigIds, setSelectedConfigIds] = useState<Record<string, string[]>>({});
@@ -76,7 +77,7 @@ export default function LoginFormScreen() {
 
 
   useEffect(() => {
-    setPanelMode(isLandscape ? "manual" : "scan");
+    setPanelMode("manual");
   }, [isLandscape]);
 
 
@@ -124,10 +125,19 @@ export default function LoginFormScreen() {
             setPlusToken,
           });
         } catch (applyErr: any) {
+           await reportScanLoginResult(scanSession.sessionId, {
+             secret: scanSession.secret,
+             success: false,
+             error: applyErr.message,
+           }).catch((reportErr) => console.error("Failed to report scan login result", reportErr));
            reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, false, applyErr.message);
            throw applyErr;
         }
 
+        await reportScanLoginResult(scanSession.sessionId, {
+          secret: scanSession.secret,
+          success: true,
+        }).catch((reportErr) => console.error("Failed to report scan login result", reportErr));
         reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, true);
         router.replace("/(tabs)" as any);
       } catch (error: any) {
@@ -474,7 +484,13 @@ export default function LoginFormScreen() {
           >
             {isLandscape ? renderScanPanel() : null}
 
-            <View style={[styles.formCard, { backgroundColor: colors.background }]}>
+            <View
+              style={[
+                styles.formCard,
+                isLandscape && styles.formCardLandscape,
+                { backgroundColor: colors.background },
+              ]}
+            >
               <View style={styles.logoContainer}>
                 <LogoIcon />
                 <Text style={[styles.title, { color: colors.text }]}>
@@ -491,22 +507,6 @@ export default function LoginFormScreen() {
                   <TouchableOpacity
                     style={[
                       styles.modeTab,
-                      panelMode === "scan" && { backgroundColor: colors.primary },
-                    ]}
-                    onPress={() => setPanelMode("scan")}
-                  >
-                    <Text
-                      style={[
-                        styles.modeTabText,
-                        { color: panelMode === "scan" ? colors.background : colors.text },
-                      ]}
-                    >
-                      扫码登录
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.modeTab,
                       panelMode === "manual" && { backgroundColor: colors.primary },
                     ]}
                     onPress={() => setPanelMode("manual")}
@@ -518,6 +518,22 @@ export default function LoginFormScreen() {
                       ]}
                     >
                       账号登录
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.modeTab,
+                      panelMode === "scan" && { backgroundColor: colors.primary },
+                    ]}
+                    onPress={() => setPanelMode("scan")}
+                  >
+                    <Text
+                      style={[
+                        styles.modeTabText,
+                        { color: panelMode === "scan" ? colors.background : colors.text },
+                      ]}
+                    >
+                      扫码登录
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -559,11 +575,14 @@ const styles = StyleSheet.create({
   },
   contentLandscape: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
   },
   formCard: {
     flex: 1,
     minWidth: 0,
+  },
+  formCardLandscape: {
+    justifyContent: "center",
   },
   logoContainer: {
     alignItems: "center",
