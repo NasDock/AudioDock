@@ -46,7 +46,7 @@
           {
             "CFBundleURLSchemes": [
               "audiodock",
-              "wx_mock_appid",
+              "wx1234567890abcdef",
               "alipaymock"
             ]
           }

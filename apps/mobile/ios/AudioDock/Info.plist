@@ -28,7 +28,7 @@
         <key>CFBundleURLSchemes</key>
         <array>
           <string>audiodock</string>
-          <string>wx_mock_appid</string>
+          <string>wx1234567890abcdef</string>
           <string>alipaymock</string>
         </array>
       </dict>
