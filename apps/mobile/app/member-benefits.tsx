@@ -36,7 +36,7 @@ import {
   type PaymentPlan,
 } from "../src/services/payments";
 
-const WECHAT_APP_ID = "wx_mock_appid";
+const WECHAT_APP_ID = "wx1234567890abcdef";
 const WECHAT_UNIVERSAL_LINK = "https://mock.example.com/";
 const ALIPAY_SCHEME = "alipaymock";
 
