@@ -1,4 +1,4 @@
-name: Publish Docker Images
+name: Publish Docker Image
 
 on:
   push:
@@ -18,14 +18,6 @@ jobs:
       contents: read
       packages: write
       # content: write  # Needed if we were to upload assets to releases here
-
-    strategy:
-      matrix:
-        include:
-          - target: backend_runner
-            image-suffix: api
-          - target: frontend_runner
-            image-suffix: web
 
     steps:
       - name: Checkout repository
@@ -55,18 +47,19 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.image-suffix }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}-${{ matrix.image-suffix }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}
           tags: |
             type=semver,pattern={{version}}
             type=ref,event=branch
             type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          target: ${{ matrix.target }}
+          target: runner
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
