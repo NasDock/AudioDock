@@ -44,8 +44,6 @@ const logo = require("../assets/images/logo.png");
 const subsonicLogo = require("../assets/images/subsonic.png");
 const embyLogo = require("../assets/images/emby.png");
 
-type PanelMode = "scan" | "manual";
-
 export default function LoginFormScreen() {
   const { colors } = useTheme();
   const {
@@ -65,7 +63,6 @@ export default function LoginFormScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [scanBusy, setScanBusy] = useState(false);
-  const [panelMode, setPanelMode] = useState<PanelMode>("manual");
   const [scanSession, setScanSession] = useState<ScanLoginSession | null>(null);
   const [scanStatus, setScanStatus] = useState<ScanLoginSessionStatus | null>(null);
   const [selectedConfigIds, setSelectedConfigIds] = useState<Record<string, string[]>>({});
@@ -74,13 +71,6 @@ export default function LoginFormScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
-
-  useEffect(() => {
-    setPanelMode("manual");
-  }, [isLandscape]);
-
-
 
   useEffect(() => {
     loadSourceConfig(sourceType);
@@ -347,7 +337,8 @@ export default function LoginFormScreen() {
       }
 
       return (
-        <View style={[styles.scanCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.scanCard, styles.scanCardQr, { backgroundColor: "transparent", borderColor: "transparent" }]}>
+          <Text style={[styles.qrLabel, { color: colors.secondary }]}>扫码登录</Text>
           {qrValue ? (
             <View style={styles.qrBox}>
               <QRCode value={qrValue} size={180} />
@@ -502,44 +493,7 @@ export default function LoginFormScreen() {
                 {SOURCETIPSMAP[sourceType as keyof typeof SOURCETIPSMAP]}
               </Text>
 
-              {!isLandscape ? (
-                <View style={[styles.modeTabs, { borderColor: colors.border, backgroundColor: colors.card }]}>
-                  <TouchableOpacity
-                    style={[
-                      styles.modeTab,
-                      panelMode === "manual" && { backgroundColor: colors.primary },
-                    ]}
-                    onPress={() => setPanelMode("manual")}
-                  >
-                    <Text
-                      style={[
-                        styles.modeTabText,
-                        { color: panelMode === "manual" ? colors.background : colors.text },
-                      ]}
-                    >
-                      账号登录
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.modeTab,
-                      panelMode === "scan" && { backgroundColor: colors.primary },
-                    ]}
-                    onPress={() => setPanelMode("scan")}
-                  >
-                    <Text
-                      style={[
-                        styles.modeTabText,
-                        { color: panelMode === "scan" ? colors.background : colors.text },
-                      ]}
-                    >
-                      扫码登录
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ) : null}
-
-              {!isLandscape && panelMode === "scan" ? renderScanPanel() : renderManualForm()}
+              {renderManualForm()}
             </View>
           </View>
         </ScrollView>
@@ -572,14 +526,19 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 18,
     justifyContent: "center",
+    width: "100%",
+    maxWidth: 600,
+    alignSelf: "center",
   },
   contentLandscape: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 40,
   },
   formCard: {
     flex: 1,
     minWidth: 0,
+    width: "100%",
   },
   formCardLandscape: {
     justifyContent: "center",
@@ -606,23 +565,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 20,
   },
-  modeTabs: {
-    flexDirection: "row",
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 4,
-    marginBottom: 18,
-  },
-  modeTab: {
-    flex: 1,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  modeTabText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
   scanCard: {
     borderWidth: 1,
     borderRadius: 20,
@@ -630,6 +572,11 @@ const styles = StyleSheet.create({
     gap: 14,
     width: "100%",
     maxWidth: 380,
+  },
+  scanCardQr: {
+    width: 200,
+    maxWidth: 200,
+    padding: 0,
   },
   scanTitle: {
     fontSize: 20,
@@ -643,6 +590,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 16,
+  },
+  qrLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    textAlign: "center",
   },
   cameraFrame: {
     height: 280,
