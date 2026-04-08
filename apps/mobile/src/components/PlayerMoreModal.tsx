@@ -4,6 +4,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { Track, TrackType } from "@/src/models";
 import { trackEvent } from "@/src/services/tracking";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Slider } from "@miblanchard/react-native-slider";
 import { Router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -33,6 +34,8 @@ interface PlayerMoreModalProps {
   router: Router;
   lyricFontSize: number;
   setLyricFontSize: (size: number) => void;
+  controlsBottomOffset: number;
+  setControlsBottomOffset: (offset: number) => void;
 }
 
 export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
@@ -43,6 +46,8 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
   router,
   lyricFontSize,
   setLyricFontSize,
+  controlsBottomOffset,
+  setControlsBottomOffset,
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -67,6 +72,7 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [lyricsSizeVisible, setLyricsSizeVisible] = useState(false);
+  const [controlsPositionVisible, setControlsPositionVisible] = useState(false);
   const [eqVisible, setEqVisible] = useState(false);
   const [trackPathVisible, setTrackPathVisible] = useState(false);
 
@@ -284,6 +290,15 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
       onPress: () => {
         setVisible(false);
         setLyricsSizeVisible(true);
+      },
+      disabled: false,
+    },
+    {
+      icon: "swap-vertical-outline" as const,
+      label: "控制组位置调整",
+      onPress: () => {
+        setVisible(false);
+        setControlsPositionVisible(true);
       },
       disabled: false,
     },
@@ -684,6 +699,123 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
         setLyricFontSize={setLyricFontSize}
         previewLyrics={currentTrack?.lyrics || ""}
       />
+
+      <Modal
+        visible={controlsPositionVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setControlsPositionVisible(false)}
+      >
+        <Pressable
+          style={styles.backdrop}
+          onPress={() => setControlsPositionVisible(false)}
+        >
+          <Pressable
+            style={{ width: "100%", maxWidth: 450, alignSelf: "center" }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View
+              style={[
+                styles.modalContent,
+                {
+                  backgroundColor: colors.card,
+                  paddingBottom: insets.bottom + 20,
+                  paddingHorizontal: 20,
+                },
+              ]}
+            >
+              <View style={styles.handle} />
+              <Text style={[styles.title, { color: colors.text, textAlign: "center" }]}>
+                控制组位置调整
+              </Text>
+              <Text
+                style={{
+                  textAlign: "center",
+                  color: colors.secondary,
+                  fontSize: 12,
+                  marginTop: 4,
+                  marginBottom: 20,
+                }}
+              >
+                调整歌词或封面下方控制组距离底部的位置
+              </Text>
+
+              <View
+                style={{
+                  borderRadius: 18,
+                  paddingVertical: 18,
+                  paddingHorizontal: 16,
+                  backgroundColor: "rgba(150,150,150,0.08)",
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                  }}
+                >
+                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: "600" }}>
+                    底部间距
+                  </Text>
+                  <Text style={{ color: colors.primary, fontSize: 14, fontWeight: "700" }}>
+                    {Math.round(controlsBottomOffset)}
+                  </Text>
+                </View>
+                <Slider
+                  value={controlsBottomOffset}
+                  minimumValue={0}
+                  maximumValue={120}
+                  step={1}
+                  onValueChange={(value) =>
+                    setControlsBottomOffset(Array.isArray(value) ? value[0] : value)
+                  }
+                  minimumTrackTintColor={colors.primary}
+                  maximumTrackTintColor={colors.border}
+                  thumbTintColor={colors.primary}
+                />
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    marginTop: 4,
+                  }}
+                >
+                  <Text style={{ color: colors.secondary, fontSize: 12 }}>更靠下</Text>
+                  <Text style={{ color: colors.secondary, fontSize: 12 }}>更靠上</Text>
+                </View>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 12, marginTop: 20 }}>
+                <TouchableOpacity
+                  onPress={() => setControlsBottomOffset(0)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 14,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    backgroundColor: "rgba(150,150,150,0.12)",
+                  }}
+                >
+                  <Text style={{ color: colors.text, fontWeight: "600" }}>重置</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setControlsPositionVisible(false)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 14,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    backgroundColor: colors.primary,
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>完成</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <EqualizerModal
         visible={Platform.OS === 'android' && eqVisible}

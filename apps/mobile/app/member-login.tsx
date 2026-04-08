@@ -37,7 +37,6 @@ import {
 import QRCode from "react-native-qrcode-svg";
 
 const logo = require("../assets/images/logo.png");
-type PanelMode = "sms" | "scan";
 
 export default function MemberLoginScreen() {
   const { colors } = useTheme();
@@ -57,7 +56,6 @@ export default function MemberLoginScreen() {
   const [sendingCode, setSendingCode] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [scanSession, setScanSession] = useState<ScanLoginSession | null>(null);
-  const [panelMode, setPanelMode] = useState<PanelMode>("sms");
 
   React.useEffect(() => {
     Camera.getCameraPermissionsAsync()
@@ -139,17 +137,17 @@ export default function MemberLoginScreen() {
   };
 
   React.useEffect(() => {
-    createTargetSession();
-  }, []);
-
-  React.useEffect(() => {
-    if (isLandscape) {
-      setPanelMode("sms");
+    if (!isLandscape) {
+      setScanSession(null);
+      setScanStatus(null);
+      return;
     }
+
+    createTargetSession();
   }, [isLandscape]);
 
   React.useEffect(() => {
-    if (!scanSession) return;
+    if (!scanSession || !isLandscape) return;
 
     refreshScanStatus(scanSession).catch((error) => console.error(error));
     const unsubscribe = subscribeScanLoginSession(
@@ -354,13 +352,14 @@ export default function MemberLoginScreen() {
       <View
         style={[
           styles.scanCard,
+          styles.scanCardQr,
           {
-            borderColor: colors.border,
-            backgroundColor: colors.card,
+            borderColor: "transparent",
+            backgroundColor: "transparent",
           },
         ]}
       >
-        <Text style={[styles.scanTitle, { color: colors.text }]}>
+        <Text style={[styles.qrLabel, { color: colors.secondary }]}>
           扫码登录
         </Text>
         <Text style={[styles.scanDesc, { color: colors.secondary }]}>
@@ -417,63 +416,7 @@ export default function MemberLoginScreen() {
                   </Text>
                 </View>
 
-                {!isLandscape ? (
-                  <View
-                    style={[
-                      styles.modeTabs,
-                      { borderColor: colors.border, backgroundColor: colors.card },
-                    ]}
-                  >
-                    <TouchableOpacity
-                      style={[
-                        styles.modeTab,
-                        panelMode === "sms" && { backgroundColor: colors.primary },
-                      ]}
-                      onPress={() => setPanelMode("sms")}
-                    >
-                      <Text
-                        style={[
-                          styles.modeTabText,
-                          {
-                            color:
-                              panelMode === "sms"
-                                ? colors.background
-                                : colors.text,
-                          },
-                        ]}
-                      >
-                        验证码登录
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.modeTab,
-                        panelMode === "scan" && { backgroundColor: colors.primary },
-                      ]}
-                      onPress={() => setPanelMode("scan")}
-                    >
-                      <Text
-                        style={[
-                          styles.modeTabText,
-                          {
-                            color:
-                              panelMode === "scan"
-                                ? colors.background
-                                : colors.text,
-                          },
-                        ]}
-                      >
-                        扫码登录
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : null}
-
-                {isLandscape
-                  ? renderSmsForm()
-                  : panelMode === "sms"
-                    ? renderSmsForm()
-                    : renderScanPanel()}
+                {renderSmsForm()}
               </View>
             </View>
 
@@ -518,6 +461,9 @@ const styles = StyleSheet.create({
     padding: 30,
     paddingTop: 0,
     justifyContent: "center",
+    width: "100%",
+    maxWidth: 600,
+    alignSelf: "center",
   },
   mainContent: {
     gap: 20,
@@ -526,6 +472,7 @@ const styles = StyleSheet.create({
   contentLandscape: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 40,
   },
   formCard: {
     flex: 1,
@@ -556,23 +503,6 @@ const styles = StyleSheet.create({
   form: {
     width: "100%",
     gap: 15,
-  },
-  modeTabs: {
-    flexDirection: "row",
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 4,
-    marginBottom: 18,
-  },
-  modeTab: {
-    flex: 1,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  modeTabText: {
-    fontSize: 14,
-    fontWeight: "600",
   },
   label: {
     fontSize: 14,
@@ -641,6 +571,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 16,
   },
+  qrLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    textAlign: "center",
+  },
   scanCard: {
     flex: 1,
     borderWidth: 1,
@@ -650,6 +585,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minHeight: 360,
+  },
+  scanCardQr: {
+    flex: 0,
+    width: 200,
+    minHeight: undefined,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   scanTitle: {
     fontSize: 22,

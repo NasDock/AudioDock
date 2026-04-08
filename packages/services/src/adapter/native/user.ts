@@ -44,6 +44,10 @@ export class NativeUserAdapter implements IUserAdapter {
     return request.get<any, ISuccessResponse<any[]>>("/user/list");
   }
 
+  getCurrentUser() {
+    return request.get<any, ISuccessResponse<any>>("/auth/me");
+  }
+
   uploadUserAvatar(id: number | string, file: any) {
     const formData = new FormData();
     formData.append("file", file as any);

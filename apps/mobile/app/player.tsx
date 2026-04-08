@@ -201,6 +201,7 @@ export function PlayerDetailView({
   const { user, device, setPlusToken } = useAuth();
   const [isVip, setIsVip] = useState(false);
   const [lyricFontSize, setLyricFontSize] = useState(16);
+  const [controlsBottomOffset, setControlsBottomOffset] = useState(0);
   const lineLayouts = useRef<{ [key: number]: any }>({});
 
   useEffect(() => {
@@ -268,7 +269,24 @@ export function PlayerDetailView({
     AsyncStorage.getItem("lyric_font_size").then((val) => {
       if (val) setLyricFontSize(parseFloat(val));
     });
+    AsyncStorage.getItem("player_controls_bottom_offset").then((val) => {
+      if (val != null) {
+        const parsed = parseFloat(val);
+        if (!Number.isNaN(parsed)) {
+          setControlsBottomOffset(parsed);
+        }
+      }
+    });
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.setItem(
+      "player_controls_bottom_offset",
+      String(controlsBottomOffset),
+    ).catch((error) => {
+      console.warn("Failed to save controls bottom offset", error);
+    });
+  }, [controlsBottomOffset]);
 
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideTimerRef = useRef<any>(null);
@@ -678,6 +696,8 @@ export function PlayerDetailView({
           router={router}
           lyricFontSize={lyricFontSize}
           setLyricFontSize={setLyricFontSize}
+          controlsBottomOffset={controlsBottomOffset}
+          setControlsBottomOffset={setControlsBottomOffset}
         />
         {renderPlaylistModal && <PlaylistModal />}
         {currentTrack.type !== TrackType.AUDIOBOOK && (
@@ -1058,7 +1078,7 @@ export function PlayerDetailView({
           </View>
         </View>
 
-        <View>{renderControls()}</View>
+        <View style={{ marginBottom: controlsBottomOffset }}>{renderControls()}</View>
       </View>
     </View>
   );

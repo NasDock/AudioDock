@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+    getCurrentUser,
     login as loginApi,
     removePlusToken as removePlusServiceToken,
     register as registerApi,
@@ -77,6 +78,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return id && id !== "undefined" ? id : undefined;
   };
 
+  const refreshCurrentUser = async (savedAddress: string, currentToken?: string | null) => {
+    try {
+      const res = await getCurrentUser();
+      if (res.code !== 200 || !res.data) return;
+      const normalizedUser = normalizeUserPayload(res.data);
+      if (!normalizedUser) return;
+
+      setUser(normalizedUser);
+      await AsyncStorage.setItem(`user_${savedAddress}`, JSON.stringify(normalizedUser));
+      setServiceConfig({
+        token: currentToken || undefined,
+        userId: getUserId(normalizedUser),
+        baseUrl: savedAddress,
+        clientName: "SoundX Mobile",
+      });
+    } catch (error) {
+      console.warn("Failed to refresh current user:", error);
+    }
+  };
+
   useEffect(() => {
     loadAuthData();
   }, []);
@@ -134,6 +155,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         useEmbyAdapter();
       } else {
         useNativeAdapter();
+      }
+
+      if (savedToken) {
+        await refreshCurrentUser(savedAddress, savedToken);
       }
     } catch (error) {
       console.error("Failed to load auth data:", error);
@@ -281,6 +306,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         baseUrl: url,
         clientName: "SoundX Mobile",
       });
+      if (savedToken) {
+        await refreshCurrentUser(url, savedToken);
+      }
     } catch (error) {
       console.error("Failed to switch server:", error);
     } finally {

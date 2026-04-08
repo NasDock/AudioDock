@@ -6,24 +6,24 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import {
+  useEmbyAdapter as activateEmbyAdapter,
+  useNativeAdapter as activateNativeAdapter,
+  useSubsonicAdapter as activateSubsonicAdapter,
   check,
   claimScanLoginSession,
   consumeScanLoginSession,
   createScanLoginSession,
   getScanLoginSession,
-  reportScanLoginResult,
-  reportScanLoginResultViaSocket,
-  subscribeScanLoginSession,
   login,
   register,
+  reportScanLoginResult,
+  reportScanLoginResultViaSocket,
   type ScanLoginSession,
   type ScanLoginSessionStatus,
   setServiceConfig,
   SOURCEMAP,
   SOURCETIPSMAP,
-  useEmbyAdapter as activateEmbyAdapter,
-  useNativeAdapter as activateNativeAdapter,
-  useSubsonicAdapter as activateSubsonicAdapter,
+  subscribeScanLoginSession,
 } from "@soundx/services";
 import {
   AutoComplete,
@@ -32,8 +32,8 @@ import {
   Flex,
   Form,
   Input,
-  QRCode,
   message,
+  QRCode,
   Typography,
 } from "antd";
 import React, { useEffect, useState } from "react";
@@ -41,9 +41,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import emby from "../../assets/emby.png";
 import logo from "../../assets/logo.png";
 import subsonic from "../../assets/subsonic.png";
+import { useTheme } from "../../context/ThemeContext";
 import { useAuthStore } from "../../store/auth";
-import { collectDesktopScanLoginPayload, applyDesktopScanLoginResult } from "../../utils/scanLogin";
 import { isWeb } from "../../utils/platform";
+import { applyDesktopScanLoginResult, collectDesktopScanLoginPayload } from "../../utils/scanLogin";
 import styles from "./index.module.less";
 
 const { Title, Text } = Typography;
@@ -63,6 +64,7 @@ type LoginFormValues = {
 };
 
 const Login: React.FC = () => {
+  const { mode } = useTheme();
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
   const location = useLocation();
@@ -514,7 +516,10 @@ const Login: React.FC = () => {
       {contextHolder}
 
       <div className={styles.content}>
-        <div className={styles.scanPanel}>
+        <div 
+          className={styles.scanPanel}
+          style={mode === 'dark' ? { background: 'transparent', border: 'none', boxShadow: 'none' } : {}}
+        >
           {scanStatus?.status === "waiting_confirm" ? (
             <div className={styles.confirmPanel} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
               <Title level={5} style={{ marginBottom: 16 }}>
@@ -527,18 +532,15 @@ const Login: React.FC = () => {
           ) : (
             <div className={styles.qrPanel}>
               {qrValue ? <QRCode value={qrValue} size={180} bordered={false} /> : null}
-              <Text type="secondary" className={styles.qrText}>
-                手机竖屏模式下进入登录页后扫码即可。Desktop 与 mobile 横屏都属于被扫码设备。
-              </Text>
               <Button onClick={createTargetSession}>刷新二维码</Button>
-              <Button type="link" onClick={handleDesktopScan} loading={scanBusy}>
-                当前设备作为主动扫码端
-              </Button>
             </div>
           )}
         </div>
 
-        <div className={styles.formPanel}>
+        <div 
+          className={styles.formPanel}
+          style={mode === 'dark' ? { background: 'transparent', border: 'none', boxShadow: 'none' } : {}}
+        >
           <div className={styles.header} style={{ marginBottom: isWeb() ? 20 : 0 }}>
             <img src={getLogo(sourceType)} alt={sourceType} className={styles.logo} />
             <Title style={{ margin: 0 }} level={4}>
