@@ -33,6 +33,7 @@ import { FloatingActionButtons } from "../src/components/FloatingActionButtons";
 import SyncModal from "../src/components/SyncModal";
 import { isCached } from "../src/services/cache";
 import { useSettings } from "@/src/context/SettingsContext";
+import { getCachedVipStatus } from "@/src/utils/vipStatus";
 
 const { width } = Dimensions.get("window");
 
@@ -205,16 +206,8 @@ export function PlayerDetailView({
 
   useEffect(() => {
     const loadVipStatus = async () => {
-      const status = await AsyncStorage.getItem("plus_vip_status");
-      const data = await AsyncStorage.getItem("plus_vip_data");
-      let vip = status === "true";
-      if (!vip && data) {
-        try {
-          const parsed = JSON.parse(data);
-          vip = !!(parsed?.vipTier && parsed.vipTier !== "NONE");
-        } catch {}
-      }
-      setIsVip(vip);
+      const cached = await getCachedVipStatus();
+      setIsVip(cached.isVip);
     };
 
     loadVipStatus();

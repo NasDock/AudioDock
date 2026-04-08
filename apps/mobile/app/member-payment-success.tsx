@@ -1,5 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { plusGetMe } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
@@ -7,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../src/context/ThemeContext";
 import { useAuth } from "../src/context/AuthContext";
-import { syncWidgetMembership } from "../src/native/WidgetBridge";
+import { refreshVipStatus } from "../src/utils/vipStatus";
 
 export default function MemberPaymentSuccessScreen() {
   const { colors } = useTheme();
@@ -29,28 +27,12 @@ export default function MemberPaymentSuccessScreen() {
   }, [paidAtRaw]);
 
   useEffect(() => {
-    const refreshVipStatus = async () => {
+    const refreshStatus = async () => {
       try {
-        const plusToken = await AsyncStorage.getItem("plus_token");
-        const plusUserId = await AsyncStorage.getItem("plus_user_id");
-        if (!plusToken || !plusUserId) {
-          return;
-        }
-        await setPlusToken(plusToken);
-        let id: any = plusUserId;
-        try {
-          id = JSON.parse(plusUserId);
-        } catch {}
-
-        const res = await plusGetMe(id);
-        const vipTier = res?.data?.data?.vipTier;
-        const isVip = vipTier && vipTier !== "NONE";
-        if (isVip) {
-          await AsyncStorage.setItem("plus_vip_status", "true");
-          await AsyncStorage.setItem("plus_vip_data", JSON.stringify(res.data.data || {}));
-          await AsyncStorage.setItem("plus_vip_updated_at", Date.now().toString());
-        }
-        await syncWidgetMembership(!!isVip);
+        await refreshVipStatus({
+          setPlusToken,
+          syncWidget: true,
+        });
       } catch (error) {
         console.warn("Failed to refresh vip status", error);
       } finally {
@@ -58,7 +40,7 @@ export default function MemberPaymentSuccessScreen() {
       }
     };
 
-    refreshVipStatus();
+    refreshStatus();
   }, [setPlusToken]);
 
   return (
