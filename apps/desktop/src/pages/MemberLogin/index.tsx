@@ -18,6 +18,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import { useAuthStore } from "../../store/auth";
+import { useTheme } from "../../context/ThemeContext";
 import styles from "./index.module.less";
 
 const { Title, Text } = Typography;
@@ -28,6 +29,7 @@ type MemberLoginFormValues = {
 };
 
 const MemberLogin: React.FC = () => {
+  const { mode } = useTheme();
   const { token } = theme.useToken();
   const navigate = useNavigate();
   const [form] = Form.useForm();
@@ -203,7 +205,7 @@ const MemberLogin: React.FC = () => {
       <Content className={styles.container}>
         <div
           className={styles.card}
-          style={{ background: token.colorBgContainer }}
+          style={{ background: mode === 'dark' ? 'transparent' : token.colorBgContainer, border: mode === 'dark' ? 'none' : undefined, boxShadow: mode === 'dark' ? 'none' : undefined }}
         >
           <div className={styles.contentGrid}>
             <div className={styles.scanSection}>

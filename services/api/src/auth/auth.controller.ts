@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { Device, User } from '@soundx/db';
-import { IErrorResponse, IForbiddenResponse, IParamsErrorResponse, ISuccessResponse } from 'src/common/const';
+import { IAuthFaildResponse, IErrorResponse, IForbiddenResponse, INotFoundResponse, IParamsErrorResponse, ISuccessResponse } from 'src/common/const';
 import { Public } from '../common/public.decorator';
 import { AuthService } from './auth.service';
 
@@ -101,6 +102,38 @@ export class AuthController {
       message: 'success',
       data: true,
     };
+  }
+
+  @Get('/auth/me')
+  async me(@Req() req: Request): Promise<ISuccessResponse<User> | IAuthFaildResponse | INotFoundResponse | IErrorResponse> {
+    try {
+      const userId = Number((req.user as any)?.userId);
+      if (!userId) {
+        return {
+          code: 401,
+          message: '未登录',
+        };
+      }
+
+      const user = await this.userService.getUserById(userId);
+      if (!user) {
+        return {
+          code: 404,
+          message: '用户不存在',
+        };
+      }
+
+      return {
+        code: 200,
+        message: 'success',
+        data: user,
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        message: error.message || '获取当前用户失败',
+      };
+    }
   }
 
   @Public()

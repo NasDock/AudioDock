@@ -50,6 +50,32 @@ export class SubsonicUserAdapter implements IUserAdapter {
     return this.response(res.users?.user || []);
   }
 
+  async getCurrentUser(): Promise<ISuccessResponse<User>> {
+    const config = getServiceConfig();
+    const username = config.username;
+    if (!username) {
+      return this.response({
+        id: 1,
+        username: "Subsonic User",
+        is_admin: false,
+        avatar: null,
+      } as User);
+    }
+
+    const res = await this.client.get<{ user: { username: string; email?: string; adminRole?: boolean } }>(
+      "getUser",
+      { username },
+    );
+
+    return this.response({
+      id: 1,
+      username: res.user.username,
+      email: res.user.email,
+      is_admin: res.user.adminRole || false,
+      avatar: null,
+    } as User);
+  }
+
   async uploadUserAvatar(id: number | string, file: any): Promise<ISuccessResponse<any>> {
     return {
       code: 501,

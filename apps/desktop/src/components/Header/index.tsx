@@ -32,6 +32,7 @@ import {
   getImportTask,
   getRunningImportTask,
   getSearchHistory,
+  getCurrentUser,
   plusGetMe,
   plusRedeemInternalTestCode,
   searchAll,
@@ -64,6 +65,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
 import { useTheme } from "../../context/ThemeContext";
+import { getBaseURL } from "../../https";
 import { TrackType } from "../../models";
 import { trackEvent } from "../../services/tracking";
 import { useAuthStore } from "../../store/auth";
@@ -331,6 +333,24 @@ const ServerSwitcherModal: React.FC<{
   );
 };
 
+const getAvatarUrl = (path?: string | null, fallbackSeed?: string) => {
+  if (!path) {
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${fallbackSeed || "Felix"}`;
+  }
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  const baseURL = getBaseURL();
+  const cleanBaseURL = baseURL.endsWith("/")
+    ? baseURL.substring(0, baseURL.length - 1)
+    : baseURL;
+  const cleanPath = path.startsWith("/") ? path.substring(1) : path;
+  return `${cleanBaseURL}/${cleanPath
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/")}`;
+};
+
 const Header: React.FC = () => {
   const message = useMessage();
   const navigate = useNavigate();
@@ -367,6 +387,24 @@ const Header: React.FC = () => {
   const [internalTestCode, setInternalTestCode] = useState("");
   const [redeemingInternalTestCode, setRedeemingInternalTestCode] =
     useState(false);
+
+  useEffect(() => {
+    const refreshCurrentUser = async () => {
+      if (!user) return;
+      try {
+        const res = await getCurrentUser();
+        if (res.code !== 200 || !res.data) return;
+        const serverAddress =
+          localStorage.getItem("serverAddress") || "http://localhost:3000";
+        localStorage.setItem(`user_${serverAddress}`, JSON.stringify(res.data));
+        useAuthStore.setState({ user: res.data as any });
+      } catch (error) {
+        console.warn("Failed to refresh current user", error);
+      }
+    };
+
+    void refreshCurrentUser();
+  }, [user?.id]);
 
   const fetchSearchMeta = async () => {
     try {
@@ -937,9 +975,13 @@ const Header: React.FC = () => {
                           const url =
                             localStorage.getItem("serverAddress") ||
                             "http://localhost:3000";
+                          const nextAvatar =
+                            res.data?.avatar ||
+                            (res.data?.user as any)?.avatar ||
+                            user.avatar;
                           const updatedUser = {
                             ...user,
-                            avatar: res.data.avatar,
+                            avatar: nextAvatar,
                           };
                           localStorage.setItem(
                             `user_${url}`,
@@ -1058,11 +1100,7 @@ const Header: React.FC = () => {
           >
             <div className={styles.avatar}>
               <img
-                src={
-                  user?.avatar
-                    ? `${localStorage.getItem("serverAddress")}${user.avatar}`
-                    : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username || "Felix"}`
-                }
+                src={getAvatarUrl(user?.avatar, user?.username || "Felix")}
                 alt="avatar"
               />
             </div>

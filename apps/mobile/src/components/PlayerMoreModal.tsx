@@ -684,7 +684,6 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
         setLyricFontSize={setLyricFontSize}
         previewLyrics={currentTrack?.lyrics || ""}
       />
-
       <EqualizerModal
         visible={Platform.OS === 'android' && eqVisible}
         onClose={() => setEqVisible(false)}
