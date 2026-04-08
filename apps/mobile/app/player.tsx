@@ -161,7 +161,7 @@ export function PlayerDetailView({
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { carModeEnabled } = useSettings();
+  const { carModeEnabled, screenBottomInset } = useSettings();
   const top = insets.top;
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
@@ -201,7 +201,6 @@ export function PlayerDetailView({
   const { user, device, setPlusToken } = useAuth();
   const [isVip, setIsVip] = useState(false);
   const [lyricFontSize, setLyricFontSize] = useState(16);
-  const [controlsBottomOffset, setControlsBottomOffset] = useState(0);
   const lineLayouts = useRef<{ [key: number]: any }>({});
 
   useEffect(() => {
@@ -269,24 +268,7 @@ export function PlayerDetailView({
     AsyncStorage.getItem("lyric_font_size").then((val) => {
       if (val) setLyricFontSize(parseFloat(val));
     });
-    AsyncStorage.getItem("player_controls_bottom_offset").then((val) => {
-      if (val != null) {
-        const parsed = parseFloat(val);
-        if (!Number.isNaN(parsed)) {
-          setControlsBottomOffset(parsed);
-        }
-      }
-    });
   }, []);
-
-  useEffect(() => {
-    AsyncStorage.setItem(
-      "player_controls_bottom_offset",
-      String(controlsBottomOffset),
-    ).catch((error) => {
-      console.warn("Failed to save controls bottom offset", error);
-    });
-  }, [controlsBottomOffset]);
 
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideTimerRef = useRef<any>(null);
@@ -696,8 +678,6 @@ export function PlayerDetailView({
           router={router}
           lyricFontSize={lyricFontSize}
           setLyricFontSize={setLyricFontSize}
-          controlsBottomOffset={controlsBottomOffset}
-          setControlsBottomOffset={setControlsBottomOffset}
         />
         {renderPlaylistModal && <PlaylistModal />}
         {currentTrack.type !== TrackType.AUDIOBOOK && (
@@ -987,7 +967,7 @@ export function PlayerDetailView({
         </View>
       )}
 
-      <View style={styles.content}>
+      <View style={[styles.content, { paddingBottom: screenBottomInset }]}>
         <View style={{ flex: 1, width: "100%", justifyContent: "center" }}>
           <View
             style={[
@@ -1078,7 +1058,7 @@ export function PlayerDetailView({
           </View>
         </View>
 
-        <View style={{ marginBottom: controlsBottomOffset }}>{renderControls()}</View>
+        <View>{renderControls()}</View>
       </View>
     </View>
   );
