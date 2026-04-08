@@ -23,7 +23,8 @@ import { PlayerDetailView } from "./player";
 
 function RootLayoutNav() {
   const { token, isLoading, plusToken, user } = useAuth();
-  const { voiceAssistantEnabled, carLayoutMode } = useSettings();
+  const { voiceAssistantEnabled, carLayoutMode, screenBottomInset } =
+    useSettings();
   const { theme, colors } = useTheme();
   const { pause, resume, playNext, playPrevious, togglePlayMode, isPlaying, currentTrack, playTrackList } = usePlayer();
   const { mode: contentMode } = usePlayMode();
@@ -416,7 +417,7 @@ function RootLayoutNav() {
 
   return (
     <>
-      <View style={styles.pageRoot}>
+      <View style={[styles.pageRoot, { paddingBottom: screenBottomInset }]}>
         {showCarLayout ? (
           <View
             style={[styles.carModeContainer, { backgroundColor: colors.background }]}
