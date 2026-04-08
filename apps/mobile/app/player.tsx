@@ -161,7 +161,7 @@ export function PlayerDetailView({
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { carModeEnabled, screenBottomInset } = useSettings();
+  const { carModeEnabled } = useSettings();
   const top = insets.top;
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
@@ -967,7 +967,7 @@ export function PlayerDetailView({
         </View>
       )}
 
-      <View style={[styles.content, { paddingBottom: screenBottomInset }]}>
+      <View style={styles.content}>
         <View style={{ flex: 1, width: "100%", justifyContent: "center" }}>
           <View
             style={[
