@@ -10,7 +10,6 @@ import {
   useNativeAdapter as activateNativeAdapter,
   useSubsonicAdapter as activateSubsonicAdapter,
   check,
-  claimScanLoginSession,
   consumeScanLoginSession,
   createScanLoginSession,
   getScanLoginSession,
@@ -44,7 +43,7 @@ import subsonic from "../../assets/subsonic.png";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuthStore } from "../../store/auth";
 import { isWeb } from "../../utils/platform";
-import { applyDesktopScanLoginResult, collectDesktopScanLoginPayload } from "../../utils/scanLogin";
+import { applyDesktopScanLoginResult } from "../../utils/scanLogin";
 import styles from "./index.module.less";
 
 const { Title, Text } = Typography;
@@ -74,7 +73,6 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [scanSession, setScanSession] = useState<ScanLoginSession | null>(null);
   const [scanStatus, setScanStatus] = useState<ScanLoginSessionStatus | null>(null);
-  const [scanBusy, setScanBusy] = useState(false);
   const [loginForm] = Form.useForm();
 
   const queryParams = new URLSearchParams(location.search);
@@ -168,7 +166,6 @@ const Login: React.FC = () => {
 
     const consumeConfirmedScan = async () => {
       try {
-        setScanBusy(true);
         const res = await consumeScanLoginSession(scanSession.sessionId, {
           secret: scanSession.secret,
         });
@@ -196,8 +193,6 @@ const Login: React.FC = () => {
         console.error(error);
         messageApi.error(error instanceof Error ? error.message : "扫码登录失败");
         createTargetSession();
-      } finally {
-        setScanBusy(false);
       }
     };
 
@@ -459,36 +454,6 @@ const Login: React.FC = () => {
       messageApi.error(error instanceof Error ? error.message : "操作失败");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDesktopScan = async () => {
-    try {
-      setScanBusy(true);
-      const payload = await collectDesktopScanLoginPayload();
-      if (!payload.nativeAuth && !payload.plusAuth) {
-        messageApi.error("当前设备还没有可供迁移的登录态，请先在本机登录");
-        return;
-      }
-
-      const sessionId = window.prompt("请输入被扫码设备上的会话二维码内容");
-      if (!sessionId) return;
-
-      const parsed = JSON.parse(sessionId);
-      if (parsed?.kind !== "soundx-scan-login") {
-        throw new Error("不是有效的扫码登录二维码");
-      }
-
-      await claimScanLoginSession(parsed.sessionId, {
-        secret: parsed.secret,
-        payload,
-      });
-      messageApi.success("扫码成功，请在被扫码设备确认导入");
-    } catch (error) {
-      console.error(error);
-      messageApi.error(error instanceof Error ? error.message : "扫码登录失败");
-    } finally {
-      setScanBusy(false);
     }
   };
 
