@@ -12,7 +12,6 @@ import {
   getRunningImportTask,
   uploadUserAvatar,
   getTrackHistory,
-  plusGetMe,
   setPlusToken,
   TaskStatus,
   type ImportTask,
@@ -48,6 +47,7 @@ import {
 import { getBaseURL } from "../../src/https";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
+import { getCachedVipStatus, refreshVipStatus } from "../../src/utils/vipStatus";
 
 import { useCheckUpdate } from "@/hooks/useCheckUpdate";
 import { CachedImage } from "@/src/components/CachedImage";
@@ -297,29 +297,17 @@ export default function PersonalScreen() {
   // Fetch Plus VIP status
   React.useEffect(() => {
     const fetchVipStatus = async () => {
-        try {
-            const plusToken = await AsyncStorage.getItem("plus_token");
-            const plusUserId = await AsyncStorage.getItem("plus_user_id");
+      try {
+        const cached = await getCachedVipStatus();
+        setIsPlusVip(cached.isVip);
+        setPlusVipData(cached.vipData);
 
-            if (plusToken && plusUserId) {
-                setPlusToken(plusToken);
-                let id = plusUserId;
-                try {
-                    id = JSON.parse(plusUserId);
-                } catch (e) {
-                    // fallback
-                }
-
-                const res = await plusGetMe(id);
-                if (res.data.code === 200 && res.data.data) {
-                    const vipTier = res.data.data.vipTier;
-                    setIsPlusVip(vipTier && vipTier !== "NONE");
-                    setPlusVipData(res.data.data);
-                }
-            }
-        } catch (err) {
-            console.error("Failed to fetch plus profile mobile", err);
-        }
+        const latest = await refreshVipStatus({ setPlusToken });
+        setIsPlusVip(latest.isVip);
+        setPlusVipData(latest.vipData);
+      } catch (err) {
+        console.error("Failed to fetch plus profile mobile", err);
+      }
     };
 
     fetchVipStatus();

@@ -27,6 +27,7 @@ import {
 import { trackEvent } from "../src/services/tracking";
 import { usePlayMode } from "../src/utils/playMode";
 import { getLocalVersion } from "../src/utils/updateUtils";
+import { getCachedVipStatus } from "../src/utils/vipStatus";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -93,16 +94,8 @@ export default function SettingsScreen() {
   }, []);
 
   const checkVipStatus = async () => {
-    const status = await AsyncStorage.getItem("plus_vip_status");
-    const data = await AsyncStorage.getItem("plus_vip_data");
-    let vip = status === "true";
-    if (!vip && data) {
-      try {
-        const parsed = JSON.parse(data);
-        vip = !!(parsed?.vipTier && parsed.vipTier !== "NONE");
-      } catch {}
-    }
-    setIsVip(vip);
+    const cached = await getCachedVipStatus();
+    setIsVip(cached.isVip);
   };
 
   const handleClearCache = async (

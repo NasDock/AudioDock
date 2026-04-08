@@ -38,7 +38,7 @@ def resolve_txt_dirs():
 @router.get("/list-files")
 async def list_local_files(db: Session = Depends(get_session)):
     """
-    列出 TXT_BASE_DIR 目录下的所有 txt 文件，并标记是否已生成任务
+    递归列出 TXT_BASE_DIR 目录下的所有 txt 文件，并标记是否已生成任务
     """
     txt_dirs = resolve_txt_dirs()
     print(f"--- Scanning TXT Dir(s): {', '.join(txt_dirs)} ---")
@@ -51,9 +51,11 @@ async def list_local_files(db: Session = Depends(get_session)):
     for txt_dir in txt_dirs:
         if not os.path.exists(txt_dir):
             continue
-        for filename in os.listdir(txt_dir):
-            if filename.endswith(".txt"):
-                full_path = os.path.join(txt_dir, filename)
+        for root, _, filenames in os.walk(txt_dir):
+            for filename in filenames:
+                if not filename.lower().endswith(".txt"):
+                    continue
+                full_path = os.path.join(root, filename)
                 files.append({
                     "filename": filename,
                     "full_path": full_path,
