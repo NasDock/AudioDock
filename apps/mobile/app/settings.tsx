@@ -44,11 +44,14 @@ export default function SettingsScreen() {
     voiceAssistantEnabled,
     recommendationLikeRatio,
     carModeEnabled,
+    screenBottomInset,
     experienceProgramEnabled,
     updateSetting,
   } = useSettings();
   const [isVip, setIsVip] = React.useState(false);
   const [internalTestModalVisible, setInternalTestModalVisible] =
+    React.useState(false);
+  const [screenInsetModalVisible, setScreenInsetModalVisible] =
     React.useState(false);
   const [internalTestCode, setInternalTestCode] = React.useState("");
   const [redeemingInternalTestCode, setRedeemingInternalTestCode] =
@@ -164,6 +167,39 @@ export default function SettingsScreen() {
     </View>
   );
 
+  const renderActionRow = (
+    label: string,
+    description: string,
+    onPress: () => void,
+    valueText?: string,
+  ) => (
+    <TouchableOpacity
+      style={[styles.settingRow, { borderBottomColor: colors.border }]}
+      onPress={onPress}
+    >
+      <View style={styles.settingInfo}>
+        <Text style={[styles.settingLabel, { color: colors.text }]}>
+          {label}
+        </Text>
+        <Text style={[styles.settingDescription, { color: colors.secondary }]}>
+          {description}
+        </Text>
+      </View>
+      <View style={styles.settingAction}>
+        {valueText ? (
+          <Text style={[styles.settingValue, { color: colors.secondary }]}>
+            {valueText}
+          </Text>
+        ) : null}
+        <Ionicons
+          name="chevron-forward"
+          size={20}
+          color={colors.secondary}
+        />
+      </View>
+    </TouchableOpacity>
+  );
+
   const handleToggleCarMode = async (val: boolean) => {
     if (val && !isVip) {
       Alert.alert("仅限会员使用", "车机模式是会员专属功能，请前往会员页面开启。", [
@@ -205,6 +241,8 @@ export default function SettingsScreen() {
       });
     }
   };
+
+  const carModeActive = carLayoutMode || carModeEnabled;
 
   const handleRedeemInternalTestCode = async () => {
     const code = internalTestCode.trim();
@@ -317,9 +355,17 @@ export default function SettingsScreen() {
           {renderSettingRow(
             "车机模式",
             "左侧播放器，右侧内容区",
-            carLayoutMode || carModeEnabled,
+            carModeActive,
             handleToggleCarMode,
           )}
+
+          {carModeActive &&
+            renderActionRow(
+              "调整屏幕边距",
+              "调整播放详情页整体距离屏幕底部的位置",
+              () => setScreenInsetModalVisible(true),
+              `${Math.round(screenBottomInset)}`,
+            )}
 
           {renderSettingRow(
             "跟随系统主题",
@@ -512,6 +558,103 @@ export default function SettingsScreen() {
       </ScrollView>
 
       <Modal
+        visible={screenInsetModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setScreenInsetModalVisible(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          style={styles.modalOverlay}
+          onPress={() => setScreenInsetModalVisible(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              调整屏幕边距
+            </Text>
+            <Text style={[styles.modalDescription, { color: colors.secondary }]}>
+              调整播放详情页整体距离屏幕底部的位置
+            </Text>
+
+            <View
+              style={[
+                styles.sliderPanel,
+                { backgroundColor: "rgba(150, 150, 150, 0.08)" },
+              ]}
+            >
+              <View style={styles.sliderHeader}>
+                <Text style={[styles.sliderLabel, { color: colors.text }]}>
+                  底部边距
+                </Text>
+                <Text style={[styles.sliderNumber, { color: colors.primary }]}>
+                  {Math.round(screenBottomInset)}
+                </Text>
+              </View>
+              <Slider
+                minimumValue={0}
+                maximumValue={160}
+                step={1}
+                value={[screenBottomInset]}
+                onValueChange={(val) =>
+                  void updateSetting(
+                    "screenBottomInset",
+                    Math.round(val[0] || 0),
+                  )
+                }
+                minimumTrackTintColor={colors.primary}
+                maximumTrackTintColor={colors.border}
+                thumbTintColor={colors.primary}
+              />
+              <View style={styles.sliderHintRow}>
+                <Text style={[styles.sliderHint, { color: colors.secondary }]}>
+                  更贴近底部
+                </Text>
+                <Text style={[styles.sliderHint, { color: colors.secondary }]}>
+                  整页上移
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  styles.modalCancelButton,
+                  { borderColor: colors.border },
+                ]}
+                onPress={() => void updateSetting("screenBottomInset", 0)}
+              >
+                <Text style={[styles.modalCancelText, { color: colors.text }]}>
+                  重置
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  styles.modalConfirmButton,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={() => setScreenInsetModalVisible(false)}
+              >
+                <Text style={styles.modalConfirmText}>完成</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
         visible={internalTestModalVisible}
         transparent
         animationType="fade"
@@ -636,6 +779,11 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 20,
   },
+  settingAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   settingLabel: {
     fontSize: 17,
     fontWeight: "500",
@@ -644,6 +792,10 @@ const styles = StyleSheet.create({
   settingDescription: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  settingValue: {
+    fontSize: 14,
+    fontWeight: "600",
   },
   logoutButton: {
     marginTop: 20,
@@ -676,6 +828,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: "100%",
+    maxWidth: 420,
     borderRadius: 16,
     padding: 20,
     borderWidth: StyleSheet.hairlineWidth,
@@ -688,6 +841,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     marginBottom: 16,
+  },
+  sliderPanel: {
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    marginBottom: 18,
+  },
+  sliderHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  sliderLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  sliderNumber: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  sliderHintRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 2,
+  },
+  sliderHint: {
+    fontSize: 12,
   },
   modalInput: {
     borderWidth: 1,
