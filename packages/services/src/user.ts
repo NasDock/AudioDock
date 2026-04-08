@@ -24,6 +24,10 @@ import { getAdapter } from "./adapter/manager";
     return getAdapter().user.getUserList();
   };
 
+  export const getCurrentUser = () => {
+    return getAdapter().user.getCurrentUser();
+  };
+
   export const uploadUserAvatar = (id: number | string, file: any) => {
     return getAdapter().user.uploadUserAvatar(id, file);
   };
