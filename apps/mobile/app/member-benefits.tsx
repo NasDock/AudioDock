@@ -1,7 +1,6 @@
 import { AntDesign, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  plusGetMe,
   plusGetVipCurrentLowestPrice,
   type VipCurrentLowestPriceData,
   type VipCurrentLowestPricePlan,
@@ -21,7 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
-import { syncWidgetMembership } from "../src/native/WidgetBridge";
+import { refreshVipStatus as refreshCachedVipStatus } from "../src/utils/vipStatus";
 import {
   assertIosIapPolicy,
   createPlusPayment,
@@ -265,31 +264,14 @@ export default function MemberBenefitsScreen() {
 
   const refreshVipStatus = async (): Promise<boolean> => {
     try {
-      const plusToken = await AsyncStorage.getItem("plus_token");
-      const plusUserId = await AsyncStorage.getItem("plus_user_id");
-      if (!plusToken || !plusUserId) {
-        return false;
-      }
-      await setPlusToken(plusToken);
-      let id: any = plusUserId;
-      try {
-        id = JSON.parse(plusUserId);
-      } catch {}
-
-      const res = await plusGetMe(id);
-      const vipTier = res?.data?.data?.vipTier;
-      const isVip = !!vipTier && vipTier !== "NONE";
+      const result = await refreshCachedVipStatus({
+        setPlusToken,
+        syncWidget: true,
+      });
+      const isVip = result.isVip;
       if (!isVip) {
         return false;
       }
-
-      await AsyncStorage.setItem("plus_vip_status", "true");
-      await AsyncStorage.setItem(
-        "plus_vip_data",
-        JSON.stringify(res.data.data || {}),
-      );
-      await AsyncStorage.setItem("plus_vip_updated_at", Date.now().toString());
-      await syncWidgetMembership(true);
       return true;
     } catch (error) {
       console.warn("Failed to refresh vip status", error);
