@@ -19,6 +19,7 @@ import { useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import { useAuthStore } from "../../store/auth";
 import { useTheme } from "../../context/ThemeContext";
+import { trackEvent } from "../../services/tracking";
 import styles from "./index.module.less";
 
 const { Title, Text } = Typography;
@@ -33,7 +34,7 @@ const MemberLogin: React.FC = () => {
   const { token } = theme.useToken();
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const { setPlusToken } = useAuthStore();
+  const { setPlusToken, user, device } = useAuthStore();
   const [messageApi, contextHolder] = message.useMessage();
   const [scanSession, setScanSession] = useState<ScanLoginSession | null>(null);
   const [scanStatus, setScanStatus] = useState<ScanLoginSessionStatus | null>(null);
@@ -59,6 +60,12 @@ const MemberLogin: React.FC = () => {
 
   const createTargetSession = async () => {
     try {
+      trackEvent({
+        feature: "scan_login",
+        eventName: "member_login_qr_refresh",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
       const res = await createScanLoginSession({
         role: "target",
         deviceKind: "desktop",
@@ -114,10 +121,25 @@ const MemberLogin: React.FC = () => {
           success: true,
         }).catch((reportErr) => console.error("Failed to report scan login result", reportErr));
         reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, true);
+        trackEvent({
+          feature: "scan_login",
+          eventName: "scan_login_result_success",
+          userId: user?.id ? String(user.id) : undefined,
+          deviceId: device?.id ? String(device.id) : undefined,
+        });
         messageApi.success("扫码登录成功");
         navigate("/", { replace: true });
       } catch (error) {
         console.error(error);
+        trackEvent({
+          feature: "scan_login",
+          eventName: "scan_login_result_failed",
+          userId: user?.id ? String(user.id) : undefined,
+          deviceId: device?.id ? String(device.id) : undefined,
+          metadata: {
+            message: error instanceof Error ? error.message : "unknown_error",
+          },
+        });
         messageApi.error(error instanceof Error ? error.message : "扫码登录失败");
         createTargetSession();
       } finally {
@@ -130,6 +152,12 @@ const MemberLogin: React.FC = () => {
 
   const handleSendCode = async () => {
     try {
+      trackEvent({
+        feature: "scan_login",
+        eventName: "member_login_send_code",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
       const values = await form.validateFields(["phone"]);
 
       const hide = messageApi.loading("正在发送验证码...");
@@ -158,6 +186,12 @@ const MemberLogin: React.FC = () => {
 
   const onFinish = async (values: MemberLoginFormValues) => {
     setLoading(true);
+    trackEvent({
+      feature: "scan_login",
+      eventName: "member_login_submit",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+    });
     try {
       const res = await plusLogin({ phone: values.phone, code: values.code });
       setLoading(false);
@@ -168,6 +202,12 @@ const MemberLogin: React.FC = () => {
         localStorage.setItem("plus_token", plusToken);
         localStorage.setItem("plus_user_id", JSON.stringify(userId));
         setPlusToken(plusToken);
+        trackEvent({
+          feature: "scan_login",
+          eventName: "member_login_success",
+          userId: String(userId),
+          deviceId: device?.id ? String(device.id) : undefined,
+        });
 
         messageApi.success("会员登录成功");
         setTimeout(() => {
@@ -185,6 +225,15 @@ const MemberLogin: React.FC = () => {
         typeof (e as { response?: { data?: { message?: string } } }).response?.data?.message === "string"
           ? (e as { response?: { data?: { message?: string } } }).response?.data?.message
           : "登录失败，请检查验证码";
+      trackEvent({
+        feature: "scan_login",
+        eventName: "member_login_failed",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+        metadata: {
+          message: messageText,
+        },
+      });
       messageApi.error(messageText);
     }
   };

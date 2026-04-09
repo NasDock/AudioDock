@@ -18,6 +18,7 @@ import {
 } from "antd";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { trackEvent } from "../../../services/tracking";
 
 const { Title, Text } = Typography;
 
@@ -44,10 +45,25 @@ const TaskList: React.FC = () => {
   const handleAction = async (action: string, id: string) => {
     try {
       if (action === "delete") {
+        trackEvent({
+          feature: "tts",
+          eventName: "tts_task_delete",
+          metadata: { taskId: id },
+        });
         await deleteTtsTask(id);
       } else if (action === "pause") {
+        trackEvent({
+          feature: "tts",
+          eventName: "tts_task_pause",
+          metadata: { taskId: id },
+        });
         await pauseTtsTask(id);
       } else if (action === "resume") {
+        trackEvent({
+          feature: "tts",
+          eventName: "tts_task_resume",
+          metadata: { taskId: id },
+        });
         await resumeTtsTask(id);
       }
       fetchTasks(false);
@@ -232,18 +248,40 @@ const TaskList: React.FC = () => {
               { label: "失败", value: "failed" },
             ]}
             value={filterStatus}
-            onChange={(value) => setFilterStatus(value as string)}
+            onChange={(value) => {
+              trackEvent({
+                feature: "tts",
+                eventName: "tts_task_filter_change",
+                metadata: { filterStatus: String(value) },
+              });
+              setFilterStatus(value as string);
+            }}
           />
         </div>
 
         <Flex gap={8}>
-          <Button onClick={() => fetchTasks(true)} loading={loading}>
+          <Button
+            onClick={() => {
+              trackEvent({
+                feature: "tts",
+                eventName: "tts_task_refresh",
+              });
+              fetchTasks(true);
+            }}
+            loading={loading}
+          >
             手动刷新
           </Button>
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            onClick={() => navigate("/tts/create")}
+            onClick={() => {
+              trackEvent({
+                feature: "tts",
+                eventName: "tts_create_entry_click",
+              });
+              navigate("/tts/create");
+            }}
           >
             创建任务
           </Button>

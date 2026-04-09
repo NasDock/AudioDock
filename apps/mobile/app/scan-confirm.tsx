@@ -5,6 +5,7 @@ import { useTheme } from "../src/context/ThemeContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { confirmScanLoginSession, getScanLoginSession, subscribeScanLoginSession, type ScanLoginSessionStatus } from "@soundx/services";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { trackEvent } from "../src/services/tracking";
 
 export default function ScanConfirmScreen() {
   const { colors } = useTheme();
@@ -25,6 +26,10 @@ export default function ScanConfirmScreen() {
     setConfirming(false);
 
     if (status.status === "success") {
+      trackEvent({
+        feature: "scan_login",
+        eventName: "scan_login_result_success",
+      });
       Alert.alert("已登录", "目标设备登录成功！", [
         { text: "好的", onPress: () => router.replace("/(tabs)" as any) }
       ]);
@@ -32,6 +37,10 @@ export default function ScanConfirmScreen() {
     }
 
     if (status.status === "failed") {
+      trackEvent({
+        feature: "scan_login",
+        eventName: "scan_login_result_failed",
+      });
       Alert.alert("登录失败", "目标设备在登录应用的过程中发生错误，请在目标设备查看详细错误。", [
         { text: "返回", onPress: () => router.replace("/(tabs)" as any) }
       ]);
@@ -91,6 +100,13 @@ export default function ScanConfirmScreen() {
   const handleConfirmScan = async () => {
     try {
       setConfirming(true);
+      trackEvent({
+        feature: "scan_login",
+        eventName: "scan_login_confirm_submit",
+        metadata: {
+          bundleCount: scanStatus?.sourceBundles.length || 0,
+        },
+      });
       const selections = Object.entries(selectedConfigIds).map(([type, configIds]) => ({
         type,
         configIds,
@@ -103,6 +119,13 @@ export default function ScanConfirmScreen() {
       // Keep confirming=true while waiting for the target device to return success/failed via socket
     } catch (error: any) {
       console.error(error);
+      trackEvent({
+        feature: "scan_login",
+        eventName: "scan_login_confirm_failed",
+        metadata: {
+          message: error?.message || "unknown_error",
+        },
+      });
       Alert.alert("错误", error.message || "确认发送失败");
       setConfirming(false);
     } finally {

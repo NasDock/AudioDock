@@ -32,6 +32,7 @@ import {
 } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { trackEvent } from "../../../services/tracking";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -92,6 +93,11 @@ const CreateTask: React.FC = () => {
   const handlePreview = async (voice: string) => {
     if (previewLoading) return;
     setPreviewLoading(voice);
+    trackEvent({
+      feature: "tts",
+      eventName: "tts_voice_preview",
+      metadata: { voice },
+    });
     try {
       const previewUrl = getTtsPreviewUrl(voice);
       if (audioRef.current) {
@@ -132,6 +138,13 @@ const CreateTask: React.FC = () => {
   const handleUpload = async (options: any) => {
     const { file, onSuccess, onError } = options;
     setLoading(true);
+    trackEvent({
+      feature: "tts",
+      eventName: "tts_upload_single_file",
+      metadata: {
+        fileName: file?.name || "",
+      },
+    });
     try {
       const res = await uploadTtsFile(file);
       if (res.success) {
@@ -164,6 +177,11 @@ const CreateTask: React.FC = () => {
     }
 
     setLoading(true);
+    trackEvent({
+      feature: "tts",
+      eventName: "tts_batch_identify",
+      metadata: { selectedCount: selectedRowKeys.length },
+    });
     try {
       const res = await identifyTtsBatch(selectedRowKeys as string[]);
 
@@ -188,6 +206,11 @@ const CreateTask: React.FC = () => {
 
   const handleProcessAll = async () => {
     setLoading(true);
+    trackEvent({
+      feature: "tts",
+      eventName: "tts_task_submit",
+      metadata: { taskCount: reviewData.length },
+    });
     try {
       const res = await createTtsBatchTasks(
         reviewData.map((item) => ({
@@ -358,7 +381,16 @@ const CreateTask: React.FC = () => {
             }}
           >
             <Flex gap={8} align="center">
-              <Button type="text" onClick={() => navigate("/tts/tasks")}>
+              <Button
+                type="text"
+                onClick={() => {
+                  trackEvent({
+                    feature: "tts",
+                    eventName: "tts_task_list_open",
+                  });
+                  navigate("/tts/tasks");
+                }}
+              >
                 <ArrowLeftOutlined />
                 返回任务列表
               </Button>

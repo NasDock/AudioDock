@@ -203,14 +203,12 @@ export default function SettingsScreen() {
     }
     await updateSetting("carModeEnabled", val);
     await updateSetting("carLayoutMode", val);
-    if (val) {
-      trackEvent({
-        feature: "settings",
-        eventName: "car_mode_enable",
-        userId: user?.id ? String(user.id) : undefined,
-        deviceId: device?.id ? String(device.id) : undefined,
-      });
-    }
+    trackEvent({
+      feature: "settings",
+      eventName: val ? "car_mode_enable" : "car_mode_disable",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+    });
     if (val) {
       router.replace("/(tabs)");
     }
@@ -225,14 +223,12 @@ export default function SettingsScreen() {
       return;
     }
     await updateSetting("voiceAssistantEnabled", val);
-    if (val) {
-      trackEvent({
-        feature: "voice",
-        eventName: "voice_assistant_enable",
-        userId: user?.id ? String(user.id) : undefined,
-        deviceId: device?.id ? String(device.id) : undefined,
-      });
-    }
+    trackEvent({
+      feature: "voice",
+      eventName: val ? "voice_assistant_enable" : "voice_assistant_disable",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+    });
   };
 
   const carModeActive = carLayoutMode || carModeEnabled;
@@ -396,7 +392,15 @@ export default function SettingsScreen() {
             renderActionRow(
               "调整屏幕边距",
               "调整播放详情页整体距离屏幕底部的位置",
-              () => setScreenInsetModalVisible(true),
+              () => {
+                trackEvent({
+                  feature: "settings",
+                  eventName: "car_mode_screen_inset_open",
+                  userId: user?.id ? String(user.id) : undefined,
+                  deviceId: device?.id ? String(device.id) : undefined,
+                });
+                setScreenInsetModalVisible(true);
+              },
               `${Math.round(screenBottomInset)}`,
             )}
 

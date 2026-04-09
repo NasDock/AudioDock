@@ -35,6 +35,7 @@ import {
   type ScanLoginSessionStatus,
 } from "@soundx/services";
 import QRCode from "react-native-qrcode-svg";
+import { trackEvent } from "../src/services/tracking";
 
 const logo = require("../assets/images/logo.png");
 
@@ -42,7 +43,7 @@ export default function MemberLoginScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { setPlusToken: setContextPlusToken, token, switchServer } = useAuth();
+  const { setPlusToken: setContextPlusToken, token, switchServer, user, device } = useAuth();
   const [permission, setPermission] = useState<any>(null);
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
@@ -69,6 +70,12 @@ export default function MemberLoginScreen() {
         return;
     }
     setSendingCode(true);
+    trackEvent({
+      feature: "scan_login",
+      eventName: "member_login_send_code",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+    });
     try {
         const res = await plusSendCode({ phone });
         if (res.data.code === 201 || res.data.code === 200) {
@@ -98,6 +105,12 @@ export default function MemberLoginScreen() {
         return;
     }
     setLoading(true);
+    trackEvent({
+      feature: "scan_login",
+      eventName: "member_login_submit",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+    });
     try {
         const res = await plusLogin({ phone, code });
         if (res.data.code === 201 || res.data.code === 200) {
@@ -108,11 +121,32 @@ export default function MemberLoginScreen() {
             await AsyncStorage.setItem("plus_user_id", JSON.stringify(userId));
             setPlusToken(plusToken);
             await setContextPlusToken(plusToken);
+            trackEvent({
+              feature: "scan_login",
+              eventName: "member_login_success",
+              userId: String(userId),
+              deviceId: device?.id ? String(device.id) : undefined,
+            });
             router.replace(token ? "/(tabs)" : "/login");
         } else {
+            trackEvent({
+              feature: "scan_login",
+              eventName: "member_login_failed",
+              userId: user?.id ? String(user.id) : undefined,
+              deviceId: device?.id ? String(device.id) : undefined,
+            });
             Alert.alert("登录失败", res.data.message || "手机号或验证码错误");
         }
     } catch (e: any) {
+        trackEvent({
+          feature: "scan_login",
+          eventName: "member_login_failed",
+          userId: user?.id ? String(user.id) : undefined,
+          deviceId: device?.id ? String(device.id) : undefined,
+          metadata: {
+            message: e?.response?.data?.message || e?.message || "unknown_error",
+          },
+        });
         Alert.alert("错误", e.response?.data?.message || "登录失败，请重试");
     } finally {
         setLoading(false);
@@ -125,6 +159,12 @@ export default function MemberLoginScreen() {
 
   const createTargetSession = async () => {
     try {
+      trackEvent({
+        feature: "scan_login",
+        eventName: "member_login_qr_refresh",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
       const res = await createScanLoginSession({
         role: "target",
         deviceKind: "mobile",
@@ -190,9 +230,24 @@ export default function MemberLoginScreen() {
           success: true,
         }).catch((reportErr) => console.error("Failed to report scan login result", reportErr));
         reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, true);
+        trackEvent({
+          feature: "scan_login",
+          eventName: "scan_login_result_success",
+          userId: user?.id ? String(user.id) : undefined,
+          deviceId: device?.id ? String(device.id) : undefined,
+        });
         router.replace("/(tabs)" as any);
       } catch (error: any) {
         console.error(error);
+        trackEvent({
+          feature: "scan_login",
+          eventName: "scan_login_result_failed",
+          userId: user?.id ? String(user.id) : undefined,
+          deviceId: device?.id ? String(device.id) : undefined,
+          metadata: {
+            message: error?.message || "unknown_error",
+          },
+        });
         Alert.alert("错误", error.message || "扫码登录失败");
         createTargetSession();
       } finally {
@@ -312,7 +367,15 @@ export default function MemberLoginScreen() {
           </Text>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: colors.primary }]}
-            onPress={() => router.push("/scan" as any)}
+            onPress={() => {
+              trackEvent({
+                feature: "scan_login",
+                eventName: "scan_login_page_open",
+                userId: user?.id ? String(user.id) : undefined,
+                deviceId: device?.id ? String(device.id) : undefined,
+              });
+              router.push("/scan" as any);
+            }}
           >
             <Text style={[styles.buttonText, { color: colors.background }]}>
               去扫面二维码
