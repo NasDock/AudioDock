@@ -42,6 +42,7 @@ import logo from "../../assets/logo.png";
 import subsonic from "../../assets/subsonic.png";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuthStore } from "../../store/auth";
+import { trackEvent } from "../../services/tracking";
 import { isWeb } from "../../utils/platform";
 import { applyDesktopScanLoginResult } from "../../utils/scanLogin";
 import styles from "./index.module.less";
@@ -67,7 +68,7 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
   const location = useLocation();
-  const { login: setLogin } = useAuthStore();
+  const { login: setLogin, user, device } = useAuthStore();
 
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -121,6 +122,12 @@ const Login: React.FC = () => {
 
   const createTargetSession = async () => {
     try {
+      trackEvent({
+        feature: "scan_login",
+        eventName: "scan_login_qr_refresh",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
       const res = await createScanLoginSession({
         role: "target",
         deviceKind: "desktop",
@@ -187,10 +194,25 @@ const Login: React.FC = () => {
           success: true,
         }).catch((reportErr) => console.error("Failed to report scan login result", reportErr));
         reportScanLoginResultViaSocket(scanSession.sessionId, scanSession.secret, true);
+        trackEvent({
+          feature: "scan_login",
+          eventName: "scan_login_result_success",
+          userId: user?.id ? String(user.id) : undefined,
+          deviceId: device?.id ? String(device.id) : undefined,
+        });
         messageApi.success("扫码登录成功");
         navigate("/");
       } catch (error) {
         console.error(error);
+        trackEvent({
+          feature: "scan_login",
+          eventName: "scan_login_result_failed",
+          userId: user?.id ? String(user.id) : undefined,
+          deviceId: device?.id ? String(device.id) : undefined,
+          metadata: {
+            message: error instanceof Error ? error.message : "unknown_error",
+          },
+        });
         messageApi.error(error instanceof Error ? error.message : "扫码登录失败");
         createTargetSession();
       }
@@ -381,6 +403,15 @@ const Login: React.FC = () => {
 
   const handleFinish = async (values: LoginFormValues) => {
     setLoading(true);
+    trackEvent({
+      feature: "scan_login",
+      eventName: isLogin ? "source_login_submit" : "source_register_submit",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+      metadata: {
+        sourceType,
+      },
+    });
     const type = sourceType;
     let internalAddress = values.internalAddress || "";
     const externalAddress = values.externalAddress || "";
@@ -433,6 +464,15 @@ const Login: React.FC = () => {
           localStorage.setItem(userKey, JSON.stringify(userData));
           if (device) localStorage.setItem(deviceKey, JSON.stringify(device));
           setLogin(newToken, userData as never, device);
+          trackEvent({
+            feature: "scan_login",
+            eventName: "source_login_success",
+            userId: userData?.id ? String(userData.id) : undefined,
+            deviceId: device?.id ? String(device.id) : undefined,
+            metadata: {
+              sourceType,
+            },
+          });
           messageApi.success("登录成功");
           navigate("/");
         }
@@ -445,12 +485,31 @@ const Login: React.FC = () => {
           localStorage.setItem(userKey, JSON.stringify(userData));
           if (device) localStorage.setItem(deviceKey, JSON.stringify(device));
           setLogin(newToken, userData as never, device);
+          trackEvent({
+            feature: "scan_login",
+            eventName: "source_register_success",
+            userId: userData?.id ? String(userData.id) : undefined,
+            deviceId: device?.id ? String(device.id) : undefined,
+            metadata: {
+              sourceType,
+            },
+          });
           messageApi.success("注册成功");
           navigate("/");
         }
       }
     } catch (error) {
       console.error(error);
+      trackEvent({
+        feature: "scan_login",
+        eventName: isLogin ? "source_login_failed" : "source_register_failed",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+        metadata: {
+          sourceType,
+          message: error instanceof Error ? error.message : "unknown_error",
+        },
+      });
       messageApi.error(error instanceof Error ? error.message : "操作失败");
     } finally {
       setLoading(false);

@@ -25,6 +25,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../src/context/ThemeContext";
 import { getBaseURL } from "../../src/https";
+import { trackEvent } from "../../src/services/tracking";
 
 export default function TtsCreateTaskScreen() {
   const { colors, theme } = useTheme();
@@ -88,6 +89,11 @@ export default function TtsCreateTaskScreen() {
   const handlePreview = async (voice: string) => {
     if (previewLoading) return;
     setPreviewLoading(voice);
+    trackEvent({
+      feature: "tts",
+      eventName: "tts_voice_preview",
+      metadata: { voice },
+    });
     try {
       if (soundRef.current) {
         await soundRef.current.unloadAsync();
@@ -115,6 +121,11 @@ export default function TtsCreateTaskScreen() {
   };
 
   const toggleFileSelection = (path: string) => {
+    trackEvent({
+      feature: "tts",
+      eventName: "tts_file_select",
+      metadata: { path },
+    });
     setSelectedPaths((prev) =>
       prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path]
     );
@@ -127,6 +138,11 @@ export default function TtsCreateTaskScreen() {
     }
 
     setLoading(true);
+    trackEvent({
+      feature: "tts",
+      eventName: "tts_batch_identify",
+      metadata: { selectedCount: selectedPaths.length },
+    });
     try {
       const res = await identifyTtsBatch(selectedPaths);
       if (res.success) {
@@ -150,6 +166,11 @@ export default function TtsCreateTaskScreen() {
 
   const handleProcessAll = async () => {
     setLoading(true);
+    trackEvent({
+      feature: "tts",
+      eventName: "tts_task_submit",
+      metadata: { taskCount: reviewData.length },
+    });
     try {
       const res = await createTtsBatchTasks(
         reviewData.map((item) => ({
@@ -231,7 +252,16 @@ export default function TtsCreateTaskScreen() {
           <Text style={[styles.listLabel, { color: colors.secondary }]}>
             待转换文件 ({localFiles.length})
           </Text>
-          <TouchableOpacity onPress={fetchLocalFiles} disabled={loading}>
+          <TouchableOpacity
+            onPress={() => {
+              trackEvent({
+                feature: "tts",
+                eventName: "tts_local_files_refresh",
+              });
+              fetchLocalFiles();
+            }}
+            disabled={loading}
+          >
             <Ionicons name="refresh" size={20} color={colors.primary} />
           </TouchableOpacity>
         </View>

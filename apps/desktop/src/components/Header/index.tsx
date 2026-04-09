@@ -809,7 +809,15 @@ const Header: React.FC = () => {
             <div
               className={styles.actionIcon}
               style={actionIconStyle}
-              onClick={() => navigate("/tts/tasks")}
+              onClick={() => {
+                trackEvent({
+                  feature: "tts",
+                  eventName: "tts_task_list_open",
+                  userId: user?.id ? String(user.id) : undefined,
+                  deviceId: device?.id ? String(device.id) : undefined,
+                });
+                navigate("/tts/tasks");
+              }}
             >
               <AppstoreOutlined />
             </div>

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { claimScanLoginSession } from "@soundx/services";
 import { collectMobileScanLoginPayload } from "../src/utils/scanLogin";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { trackEvent } from "../src/services/tracking";
 
 export default function ScanScreen() {
   const { colors } = useTheme();
@@ -21,6 +22,10 @@ export default function ScanScreen() {
   }, []);
 
   const requestPermission = async () => {
+    trackEvent({
+      feature: "scan_login",
+      eventName: "scan_login_permission_request",
+    });
     const nextPermission = await Camera.requestCameraPermissionsAsync();
     setPermission(nextPermission);
   };
@@ -45,10 +50,21 @@ export default function ScanScreen() {
         secret: parsed.secret,
         payload,
       });
+      trackEvent({
+        feature: "scan_login",
+        eventName: "scan_login_qr_scanned",
+      });
 
       router.replace(`/scan-confirm?sessionId=${parsed.sessionId}&secret=${parsed.secret}` as any);
     } catch (error: any) {
       console.error(error);
+      trackEvent({
+        feature: "scan_login",
+        eventName: "scan_login_scan_failed",
+        metadata: {
+          message: error?.message || "unknown_error",
+        },
+      });
       Alert.alert("扫码失败", error.message || "请重试");
       setHasScanned(false);
     } finally {
