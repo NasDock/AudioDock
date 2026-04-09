@@ -24,6 +24,12 @@ const MemberDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [vipData, setVipData] = useState<any>(null);
 
+  const maskPhone = (value?: string | null) => {
+    const normalized = String(value || "").replace(/\D/g, "");
+    if (normalized.length < 7) return "";
+    return `${normalized.slice(0, 3)}****${normalized.slice(-4)}`;
+  };
+
   useEffect(() => {
     const fetchVipStatus = async () => {
       try {
@@ -40,12 +46,15 @@ const MemberDetail: React.FC = () => {
         } catch {}
 
         const res = await plusGetMe(id);
+        console.log("Fetched member profile", res);
         if (res.data.code === 200 && res.data.data) {
           setVipData(res.data.data);
           localStorage.setItem("plus_vip_data", JSON.stringify(res.data.data));
           localStorage.setItem(
             "plus_vip_status",
-            String(!!(res.data.data.vipTier && res.data.data.vipTier !== "NONE"))
+            String(
+              !!(res.data.data.vipTier && res.data.data.vipTier !== "NONE"),
+            ),
           );
           localStorage.setItem("plus_vip_updated_at", Date.now().toString());
         }
@@ -61,12 +70,14 @@ const MemberDetail: React.FC = () => {
   }, [message]);
 
   const isVip = !!vipData?.vipTier && vipData.vipTier !== "NONE";
+  const maskedPhone = maskPhone(vipData?.phone || vipData?.mobile);
   const tierName = vipData?.vipTier === "LIFETIME" ? "永久会员" : "年度会员";
-  const expiryDate = vipData?.vipTier === "LIFETIME"
-    ? "永久有效"
-    : vipData?.vipExpiresAt
-      ? new Date(vipData.vipExpiresAt).toLocaleDateString()
-      : "未知";
+  const expiryDate =
+    vipData?.vipTier === "LIFETIME"
+      ? "永久有效"
+      : vipData?.vipExpiresAt
+        ? new Date(vipData.vipExpiresAt).toLocaleDateString()
+        : "未知";
 
   const comparisonData = useMemo(
     () => [
@@ -80,7 +91,7 @@ const MemberDetail: React.FC = () => {
       { key: "8", feature: "扫码登录", nonMember: false, member: true },
       { key: "9", feature: "语音助手", nonMember: false, member: true },
     ],
-    []
+    [],
   );
 
   const columns = [
@@ -107,7 +118,9 @@ const MemberDetail: React.FC = () => {
       dataIndex: "member",
       key: "member",
       align: "center" as const,
-      render: () => <CheckOutlined style={{ color: "#FFD700", fontSize: 18 }} />,
+      render: () => (
+        <CheckOutlined style={{ color: "#FFD700", fontSize: 18 }} />
+      ),
     },
   ];
 
@@ -150,6 +163,12 @@ const MemberDetail: React.FC = () => {
             <Title level={4} style={{ margin: 0 }}>
               会员详情
             </Title>
+            <Text
+              type="secondary"
+              style={{ fontSize: 12, minWidth: 72, textAlign: "right" }}
+            >
+              {maskedPhone || ""}
+            </Text>
           </div>
 
           <div className={styles.statusBlock}>
@@ -159,7 +178,10 @@ const MemberDetail: React.FC = () => {
                 color: isVip ? "#FFD700" : token.colorTextTertiary,
               }}
             />
-            <Text className={styles.statusTitle} style={{ color: token.colorText }}>
+            <Text
+              className={styles.statusTitle}
+              style={{ color: token.colorText }}
+            >
               {isVip ? "您的会员状态：已激活" : "您的会员状态：未激活"}
             </Text>
             <Text className={styles.statusSubtitle} type="secondary">
@@ -172,7 +194,10 @@ const MemberDetail: React.FC = () => {
               <Text className={styles.detailLabel} type="secondary">
                 会员等级
               </Text>
-              <Text className={styles.detailValue} style={{ color: isVip ? "#FFD700" : token.colorText }}>
+              <Text
+                className={styles.detailValue}
+                style={{ color: isVip ? "#FFD700" : token.colorText }}
+              >
                 {isVip ? tierName : "未开通"}
               </Text>
             </div>
@@ -180,7 +205,10 @@ const MemberDetail: React.FC = () => {
               <Text className={styles.detailLabel} type="secondary">
                 到期时间
               </Text>
-              <Text className={styles.detailValue} style={{ color: token.colorText }}>
+              <Text
+                className={styles.detailValue}
+                style={{ color: token.colorText }}
+              >
                 {isVip ? expiryDate : "-"}
               </Text>
             </div>
@@ -212,7 +240,11 @@ const MemberDetail: React.FC = () => {
         >
           <Flex vertical gap={12} className={styles.actionArea}>
             {!isVip && (
-              <Button type="primary" size="large" onClick={() => navigate("/member-benefits")}>
+              <Button
+                type="primary"
+                size="large"
+                onClick={() => navigate("/member-benefits")}
+              >
                 了解会员权益
               </Button>
             )}

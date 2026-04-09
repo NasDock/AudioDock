@@ -1,6 +1,7 @@
 import { AntDesign, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  plusGetMe,
   plusGetVipCurrentLowestPrice,
   type VipCurrentLowestPriceData,
   type VipCurrentLowestPricePlan,
@@ -51,6 +52,13 @@ export default function MemberBenefitsScreen() {
     null,
   );
   const [pricingLoading, setPricingLoading] = useState(true);
+  const [memberPhone, setMemberPhone] = useState("");
+
+  const maskPhone = (value?: string | null) => {
+    const normalized = String(value || "").replace(/\D/g, "");
+    if (normalized.length < 7) return "";
+    return `${normalized.slice(0, 3)}****${normalized.slice(-4)}`;
+  };
 
   const formatPrice = (price: number | null | undefined) => {
     if (typeof price !== "number" || Number.isNaN(price)) return "--";
@@ -154,6 +162,34 @@ export default function MemberBenefitsScreen() {
     return () => {
       cleanup?.();
       endIapConnection();
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadMemberPhone = async () => {
+      try {
+        const plusUserId = await AsyncStorage.getItem("plus_user_id");
+        if (!plusUserId) return;
+        let id: any = plusUserId;
+        try {
+          id = JSON.parse(plusUserId);
+        } catch {}
+        const res = await plusGetMe(id);
+        const phone = res.data?.data?.phone || res.data?.data?.mobile || "";
+        if (mounted) {
+          setMemberPhone(maskPhone(phone));
+        }
+      } catch (error) {
+        console.warn("Failed to fetch member phone", error);
+      }
+    };
+
+    void loadMemberPhone();
+
+    return () => {
+      mounted = false;
     };
   }, []);
 
@@ -498,6 +534,13 @@ export default function MemberBenefitsScreen() {
         <Text style={[styles.headerTitle, { color: colors.text }]}>
           会员权益
         </Text>
+        <View style={styles.headerRight}>
+          {memberPhone ? (
+            <Text style={[styles.headerPhone, { color: colors.secondary }]}>
+              {memberPhone}
+            </Text>
+          ) : null}
+        </View>
       </View>
 
       <ScrollView
@@ -842,6 +885,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
+  },
+  headerRight: {
+    marginLeft: "auto",
+    minWidth: 72,
+    alignItems: "flex-end",
+  },
+  headerPhone: {
+    fontSize: 12,
   },
   scrollContent: {
     padding: 20,

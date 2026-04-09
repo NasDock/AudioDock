@@ -49,10 +49,17 @@ const MemberBenefits: React.FC = () => {
   const [pricing, setPricing] = useState<VipCurrentLowestPriceData | null>(
     null,
   );
+  const [memberPhone, setMemberPhone] = useState("");
   const isElectronRuntime =
     typeof window !== "undefined" && !!(window as any).ipcRenderer;
   const paymentWindowRef = useRef<Window | null>(null);
   const stopPollingRef = useRef(false);
+
+  const maskPhone = (value?: string | null) => {
+    const normalized = String(value || "").replace(/\D/g, "");
+    if (normalized.length < 7) return "";
+    return `${normalized.slice(0, 3)}****${normalized.slice(-4)}`;
+  };
 
   const formatPrice = (price: number | null | undefined) => {
     if (typeof price !== "number" || Number.isNaN(price)) return "--";
@@ -114,6 +121,35 @@ const MemberBenefits: React.FC = () => {
     };
 
     void loadPricing();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadMemberPhone = async () => {
+      try {
+        const plusUserId = localStorage.getItem("plus_user_id");
+        if (!plusUserId) return;
+        let id: any = plusUserId;
+        try {
+          id = JSON.parse(plusUserId);
+        } catch {}
+        const res = await plusGetMe(id);
+        console.log("Fetched member profile", res);
+        const phone = res.data?.data?.phone || res.data?.data?.mobile || "";
+        if (mounted) {
+          setMemberPhone(maskPhone(phone));
+        }
+      } catch (error) {
+        console.warn("Failed to fetch member phone", error);
+      }
+    };
+
+    void loadMemberPhone();
 
     return () => {
       mounted = false;
@@ -403,6 +439,12 @@ const MemberBenefits: React.FC = () => {
             <Title level={4} style={{ margin: 0 }}>
               会员权益
             </Title>
+            <Text
+              type="secondary"
+              style={{ fontSize: 12, minWidth: 72, textAlign: "right" }}
+            >
+              {memberPhone || ""}
+            </Text>
           </div>
 
           <Divider style={{ margin: "12px 0" }} />
