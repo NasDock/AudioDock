@@ -8,6 +8,7 @@ import {
   UnorderedListOutlined,
 } from "@ant-design/icons";
 import {
+  deleteCollection,
   getCollectionById,
   removeAlbumFromCollection,
   reorderCollection,
@@ -27,7 +28,7 @@ import {
   Typography,
 } from "antd";
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Cover from "../../components/Cover";
 import type { Album } from "../../models";
 import { resolveArtworkUri } from "../../services/trackResolver";
@@ -35,7 +36,9 @@ import styles from "./index.module.less";
 
 const CollectionDetail: React.FC = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { token } = theme.useToken();
+  const [modal, contextHolder] = Modal.useModal();
   const [collection, setCollection] = useState<any>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -131,6 +134,21 @@ const CollectionDetail: React.FC = () => {
     }
   };
 
+  const handleDeleteCollection = async () => {
+    if (!collection) return;
+    try {
+      const res = await deleteCollection(collection.id);
+      if (res.code === 200) {
+        message.success("合集已解散");
+        navigate("/collections");
+      } else {
+        message.error(res.message || "删除合集失败");
+      }
+    } catch (error) {
+      message.error("删除合集失败");
+    }
+  };
+
   if (!collection) {
     return (
       <div className={styles.empty} style={{ color: token.colorTextSecondary }}>
@@ -166,10 +184,26 @@ const CollectionDetail: React.FC = () => {
       icon: <UnorderedListOutlined />,
       onClick: () => setManageOpen(true),
     },
+    {
+      key: "delete",
+      label: "解散合集",
+      icon: <DeleteOutlined />,
+      onClick: () =>
+        modal.confirm({
+          title: "确认解散该合集？",
+          content: "删除后无法恢复。",
+          okText: "解散",
+          cancelText: "取消",
+          okButtonProps: { danger: true },
+          onOk: handleDeleteCollection,
+        }),
+      danger: true,
+    },
   ];
 
   return (
     <div className={styles.container}>
+      {contextHolder}
       <div className={styles.header}>
         <div className={styles.coverWrap}>
           <img className={styles.cover} src={resolveArtworkUri(cover)} />

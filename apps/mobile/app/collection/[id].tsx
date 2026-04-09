@@ -2,7 +2,14 @@ import { CachedImage } from "@/src/components/CachedImage";
 import SkeletonBlock from "@/src/components/SkeletonBlock";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Album, AudiobookCollection } from "@/src/models";
-import { getCollectionById, removeAlbumFromCollection, reorderCollection, updateCollection, uploadCollectionCover } from "@soundx/services";
+import {
+  deleteCollection,
+  getCollectionById,
+  removeAlbumFromCollection,
+  reorderCollection,
+  updateCollection,
+  uploadCollectionCover,
+} from "@soundx/services";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -151,6 +158,35 @@ export default function CollectionDetailScreen() {
           },
         },
       ]
+    );
+  };
+
+  const handleDeleteCollection = () => {
+    if (!collection) return;
+    Alert.alert(
+      "解散合集",
+      `确定删除合集《${collection.name}》吗？此操作不可恢复。`,
+      [
+        { text: "取消", style: "cancel" },
+        {
+          text: "解散",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const res = await deleteCollection(collection.id);
+              if (res.code === 200) {
+                setMoreVisible(false);
+                router.replace("/(tabs)/library" as any);
+              } else {
+                Alert.alert("提示", res.message || "删除合集失败");
+              }
+            } catch (error) {
+              console.error("Delete collection failed", error);
+              Alert.alert("提示", "删除合集失败");
+            }
+          },
+        },
+      ],
     );
   };
 
@@ -318,6 +354,13 @@ export default function CollectionDetailScreen() {
             >
               <Ionicons name="image-outline" size={22} color={colors.text} />
               <Text style={[styles.sheetText, { color: colors.text }]}>选定封面</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.sheetItem}
+              onPress={handleDeleteCollection}
+            >
+              <Ionicons name="trash-outline" size={22} color="#ff4d4f" />
+              <Text style={[styles.sheetText, { color: "#ff4d4f" }]}>解散合集</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
