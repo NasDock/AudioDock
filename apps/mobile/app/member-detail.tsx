@@ -25,6 +25,12 @@ export default function MemberDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [vipData, setVipData] = useState<any>(null);
 
+  const maskPhone = (value?: string | null) => {
+    const normalized = String(value || "").replace(/\D/g, "");
+    if (normalized.length < 7) return "";
+    return `${normalized.slice(0, 3)}****${normalized.slice(-4)}`;
+  };
+
   useEffect(() => {
     fetchVipStatus();
   }, []);
@@ -76,6 +82,7 @@ export default function MemberDetailScreen() {
   }
 
   const isVip = vipData?.vipTier && vipData?.vipTier !== "NONE";
+  const maskedPhone = maskPhone(vipData?.phone || vipData?.mobile);
   const comparisonData = [
     { feature: "基础功能", free: true, member: true },
     { feature: "设备接力", free: true, member: true },
@@ -97,7 +104,15 @@ export default function MemberDetailScreen() {
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>会员详情</Text>
-        <View style={{ width: 40 }} />
+        <View style={styles.headerRight}>
+          {maskedPhone ? (
+            <Text style={[styles.headerPhone, { color: colors.secondary }]}>
+              {maskedPhone}
+            </Text>
+          ) : (
+            <View style={{ width: 40 }} />
+          )}
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -192,6 +207,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: "bold",
+  },
+  headerRight: {
+    minWidth: 72,
+    alignItems: "flex-end",
+  },
+  headerPhone: {
+    fontSize: 12,
   },
   backButton: {
     padding: 5,
