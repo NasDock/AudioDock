@@ -34,8 +34,10 @@
             }
           }
         },
-        "NSPhotoLibraryAddUsageDescription": "Allow AudioDock to save photos to your library so you can save the donation QR code.",
-        "NSPhotoLibraryUsageDescription": "Allow AudioDock to access your photo library.",
+        "NSCameraUsageDescription": "我们仅将相机用于实现扫码快捷登录，无需手动填写多个服务器地址信息",
+        "NSMicrophoneUsageDescription": "我们仅将用于语音输入关键字，无需手动输入即可快速输入",
+        "NSPhotoLibraryAddUsageDescription": "我们将用来保存您喜欢的曲目或艺术家封面到您的相册中",
+        "NSPhotoLibraryUsageDescription": "我们仅将用来展示您的个性化头像",
         "LSApplicationQueriesSchemes": [
           "weixin",
           "wechat",

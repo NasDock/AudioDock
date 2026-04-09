@@ -33,7 +33,6 @@ import { FloatingActionButtons } from "../src/components/FloatingActionButtons";
 import SyncModal from "../src/components/SyncModal";
 import { isCached } from "../src/services/cache";
 import { useSettings } from "@/src/context/SettingsContext";
-import { getCachedVipStatus } from "@/src/utils/vipStatus";
 
 const { width } = Dimensions.get("window");
 
@@ -202,12 +201,21 @@ export function PlayerDetailView({
   const { user, device, setPlusToken } = useAuth();
   const [isVip, setIsVip] = useState(false);
   const [lyricFontSize, setLyricFontSize] = useState(16);
+  const [controlsBottomOffset, setControlsBottomOffset] = useState(0);
   const lineLayouts = useRef<{ [key: number]: any }>({});
 
   useEffect(() => {
     const loadVipStatus = async () => {
-      const cached = await getCachedVipStatus();
-      setIsVip(cached.isVip);
+      const status = await AsyncStorage.getItem("plus_vip_status");
+      const data = await AsyncStorage.getItem("plus_vip_data");
+      let vip = status === "true";
+      if (!vip && data) {
+        try {
+          const parsed = JSON.parse(data);
+          vip = !!(parsed?.vipTier && parsed.vipTier !== "NONE");
+        } catch {}
+      }
+      setIsVip(vip);
     };
 
     loadVipStatus();
@@ -261,7 +269,24 @@ export function PlayerDetailView({
     AsyncStorage.getItem("lyric_font_size").then((val) => {
       if (val) setLyricFontSize(parseFloat(val));
     });
+    AsyncStorage.getItem("player_controls_bottom_offset").then((val) => {
+      if (val != null) {
+        const parsed = parseFloat(val);
+        if (!Number.isNaN(parsed)) {
+          setControlsBottomOffset(parsed);
+        }
+      }
+    });
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.setItem(
+      "player_controls_bottom_offset",
+      String(controlsBottomOffset),
+    ).catch((error) => {
+      console.warn("Failed to save controls bottom offset", error);
+    });
+  }, [controlsBottomOffset]);
 
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideTimerRef = useRef<any>(null);
@@ -671,6 +696,8 @@ export function PlayerDetailView({
           router={router}
           lyricFontSize={lyricFontSize}
           setLyricFontSize={setLyricFontSize}
+          controlsBottomOffset={controlsBottomOffset}
+          setControlsBottomOffset={setControlsBottomOffset}
         />
         {renderPlaylistModal && <PlaylistModal />}
         {currentTrack.type !== TrackType.AUDIOBOOK && (
@@ -1051,7 +1078,7 @@ export function PlayerDetailView({
           </View>
         </View>
 
-        <View>{renderControls()}</View>
+        <View style={{ marginBottom: controlsBottomOffset }}>{renderControls()}</View>
       </View>
     </View>
   );

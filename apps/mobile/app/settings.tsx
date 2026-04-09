@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Slider } from "@miblanchard/react-native-slider";
-import { plusRedeemInternalTestCode } from "@soundx/services";
+import { plusDeleteMe, plusRedeemInternalTestCode } from "@soundx/services";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -34,7 +34,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, theme, toggleTheme, setTheme } = useTheme();
   const { mode, setMode } = usePlayMode();
-  const { logout, user, sourceType, device } = useAuth();
+  const { logout, user, sourceType, device, plusToken, setPlusToken } = useAuth();
   const {
     acceptRelay,
     acceptSync,
@@ -291,6 +291,46 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleDeleteMemberAccount = () => {
+    if (!plusToken) {
+      Alert.alert("提示", "请先登录会员账号。");
+      router.replace("/member-login");
+      return;
+    }
+
+    Alert.alert(
+      "注销会员账号",
+      "确认注销吗？注销之后您的所有数据将会被清空！",
+      [
+        { text: "取消", style: "cancel" },
+        {
+          text: "确认",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const res = await plusDeleteMe();
+              if (res.data?.code !== 200 || !res.data?.data?.ok) {
+                throw new Error(res.data?.message || "注销会员账号失败");
+              }
+
+              await setPlusToken(null);
+              await syncWidgetMembership(false);
+              setIsVip(false);
+              Alert.alert("已注销", "会员账号已注销。");
+              router.replace("/member-login");
+            } catch (error) {
+              console.error("Failed to delete plus member account:", error);
+              Alert.alert(
+                "注销失败",
+                error instanceof Error ? error.message : "请稍后重试",
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
@@ -540,6 +580,13 @@ export default function SettingsScreen() {
             }}
           >
             <Text style={styles.logoutText}>退出登录</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.deleteMemberButton}
+            onPress={handleDeleteMemberAccount}
+          >
+            <Text style={styles.deleteMemberText}>注销会员账号</Text>
           </TouchableOpacity>
         </View>
 
@@ -799,6 +846,20 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "600",
+  },
+  deleteMemberButton: {
+    marginTop: 12,
+    backgroundColor: "#FFF1F0",
+    borderWidth: 1,
+    borderColor: "#FFCCC7",
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  deleteMemberText: {
+    color: "#CF1322",
     fontSize: 17,
     fontWeight: "600",
   },

@@ -20,6 +20,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
     Image,
     Keyboard,
@@ -111,7 +112,10 @@ export default function SearchScreen() {
 
       const permission = await Audio.requestPermissionsAsync();
       if (permission.status !== "granted") {
-        alert("需要麦克风权限来使用语音搜索");
+        Alert.alert(
+          "需要麦克风权限",
+          "我们将用于语音输入关键字，无需手动输入即可快速输入"
+        );
         return;
       }
 
