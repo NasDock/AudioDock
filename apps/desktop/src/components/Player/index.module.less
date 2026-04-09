@@ -233,15 +233,42 @@
 .lyricsContainer {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 10px;
   height: 100%;
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.lyricsContainer::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.manualScrolling {
+  scrollbar-width: thin;
+}
+
+.manualScrolling::-webkit-scrollbar {
+  width: 8px;
+  height: 0;
+}
+
+.manualScrolling::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+}
+
+.manualScrolling::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .lyricsContent {
   width: 100%;
+  min-width: 0;
   text-align: center;
   padding: 50% 0; // Add padding to allow scrolling to top/bottom
 }
@@ -250,6 +277,9 @@
   margin: 20px 0;
   transition: all 0.3s ease;
   cursor: default;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .activeLyric {

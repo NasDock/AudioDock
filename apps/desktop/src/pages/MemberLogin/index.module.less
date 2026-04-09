@@ -3,8 +3,14 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  height: 100vh;
   min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
   padding: 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   -webkit-app-region: drag;
 }
 
@@ -70,11 +76,28 @@
 }
 
 @media (max-width: 780px) {
+  .container {
+    height: 100vh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 24px 16px;
+  }
+
   .card {
     max-width: 460px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 28px 20px;
   }
 
   .contentGrid {
     grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .formSection {
+    width: 100%;
   }
 }

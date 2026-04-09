@@ -111,6 +111,7 @@ function PersonalListSkeleton({
   mode: string;
   selectedDownloadAlbumName: string | null;
 }) {
+  const { colors } = useTheme();
   const isPlaylist = activeTab === "playlists";
   const isDownloadAlbum =
     activeTab === "downloads" && mode === "AUDIOBOOK" && !selectedDownloadAlbumName;
@@ -118,7 +119,10 @@ function PersonalListSkeleton({
   return (
     <View style={{ paddingBottom: 20 }}>
       {Array.from({ length: 8 }).map((_, index) => (
-        <View key={`personal-list-skeleton-${index}`} style={styles.item}>
+        <View
+          key={`personal-list-skeleton-${index}`}
+          style={[styles.item, { borderBottomColor: colors.card }]}
+        >
           {isPlaylist ? (
             <View style={styles.stackedCoverContainer}>
               <SkeletonBlock width={50} height={50} borderRadius={8} style={{ position: "absolute", left: 12, top: 6, opacity: 0.7 }} />
