@@ -40,6 +40,7 @@ import { useAuth } from "../../src/context/AuthContext";
 import { usePlayer } from "../../src/context/PlayerContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { Playlist, Track } from "../../src/models";
+import SkeletonBlock from "../../src/components/SkeletonBlock";
 import {
   getDownloadedTracks,
   removeDownloadedTrack,
@@ -100,6 +101,107 @@ const StackedCover = ({ tracks }: { tracks: any[] }) => {
     </View>
   );
 };
+
+function PersonalListSkeleton({
+  activeTab,
+  mode,
+  selectedDownloadAlbumName,
+}: {
+  activeTab: TabType;
+  mode: string;
+  selectedDownloadAlbumName: string | null;
+}) {
+  const { colors } = useTheme();
+  const isPlaylist = activeTab === "playlists";
+  const isDownloadAlbum =
+    activeTab === "downloads" && mode === "AUDIOBOOK" && !selectedDownloadAlbumName;
+
+  return (
+    <View style={{ paddingBottom: 20 }}>
+      {Array.from({ length: 8 }).map((_, index) => (
+        <View
+          key={`personal-list-skeleton-${index}`}
+          style={[styles.item, { borderBottomColor: colors.card }]}
+        >
+          {isPlaylist ? (
+            <View style={styles.stackedCoverContainer}>
+              <SkeletonBlock width={50} height={50} borderRadius={8} style={{ position: "absolute", left: 12, top: 6, opacity: 0.7 }} />
+              <SkeletonBlock width={50} height={50} borderRadius={8} style={{ position: "absolute", left: 6, top: 3, opacity: 0.82 }} />
+              <SkeletonBlock width={50} height={50} borderRadius={8} />
+            </View>
+          ) : (
+            <SkeletonBlock width={50} height={50} borderRadius={8} style={{ marginRight: 15 }} />
+          )}
+          <View style={styles.itemInfo}>
+            <SkeletonBlock width={150} height={16} borderRadius={8} style={{ marginBottom: 8 }} />
+            <SkeletonBlock width={92} height={13} borderRadius={6 } />
+          </View>
+          {activeTab === "downloads" && !isDownloadAlbum ? (
+            <SkeletonBlock width={20} height={20} borderRadius={10} style={{ marginLeft: 10 }} />
+          ) : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function PersonalPageSkeleton({
+  insets,
+  activeTab,
+  mode,
+}: {
+  insets: { top: number };
+  activeTab: TabType;
+  mode: string;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: colors.background, paddingTop: insets.top },
+      ]}
+    >
+      <View style={styles.header}>
+        <SkeletonBlock width={28} height={28} borderRadius={14} />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 15 }}>
+          <SkeletonBlock width={26} height={26} borderRadius={13} />
+          <SkeletonBlock width={26} height={26} borderRadius={13} />
+          <SkeletonBlock width={26} height={26} borderRadius={13} />
+        </View>
+      </View>
+
+      <View style={styles.userInfo}>
+        <SkeletonBlock width={80} height={80} borderRadius={40} style={{ marginBottom: 15 }} />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <SkeletonBlock width={120} height={24} borderRadius={12} />
+          <SkeletonBlock width={24} height={24} borderRadius={12} />
+        </View>
+      </View>
+
+      <View style={styles.tabBar}>
+        {Array.from({ length: 4 }).map((_, index) => (
+          <View key={`personal-tab-skeleton-${index}`} style={styles.tabItem}>
+            <SkeletonBlock width={54} height={16} borderRadius={8} />
+          </View>
+        ))}
+      </View>
+
+      {mode === "MUSIC" && (activeTab === "favorites" || activeTab === "history") ? (
+        <View style={styles.subTabContainer}>
+          <SkeletonBlock width={58} height={28} borderRadius={14} />
+          <SkeletonBlock width={58} height={28} borderRadius={14} />
+        </View>
+      ) : null}
+
+      <PersonalListSkeleton
+        activeTab={activeTab}
+        mode={mode}
+        selectedDownloadAlbumName={null}
+      />
+    </View>
+  );
+}
 
 export default function PersonalScreen() {
   const { theme, toggleTheme, colors } = useTheme();
@@ -691,6 +793,24 @@ export default function PersonalScreen() {
     return [];
   };
 
+  const shouldShowFullSkeleton =
+    loading &&
+    playlists.length === 0 &&
+    favorites.length === 0 &&
+    history.length === 0 &&
+    downloads.length === 0 &&
+    downloadedAlbums.length === 0;
+
+  if (shouldShowFullSkeleton) {
+    return (
+      <PersonalPageSkeleton
+        insets={insets}
+        activeTab={activeTab}
+        mode={mode}
+      />
+    );
+  }
+
   return (
     <View
       style={[
@@ -947,9 +1067,11 @@ export default function PersonalScreen() {
 
       {/* List Content */}
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <PersonalListSkeleton
+          activeTab={activeTab}
+          mode={mode}
+          selectedDownloadAlbumName={selectedDownloadAlbumName}
+        />
       ) : (
         <FlatList
           data={getListData()}

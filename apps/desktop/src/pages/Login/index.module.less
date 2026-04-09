@@ -1,11 +1,16 @@
 .container {
   display: flex;
   flex-direction: column;
+  height: 100vh;
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100vw;
   position: relative;
   justify-content: center;
   align-items: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   -webkit-app-region: drag;
 }
 
@@ -16,22 +21,31 @@
   -webkit-app-region: no-drag;
 }
 
-.content {
+.card {
   width: min(1040px, calc(100vw - 64px));
-  display: grid;
-  grid-template-columns: minmax(320px, 380px) minmax(360px, 1fr);
-  gap: 24px;
-  align-items: center;
-  -webkit-app-region: no-drag;
-}
-
-.scanPanel,
-.formPanel {
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 24px;
   padding: 28px;
   box-shadow: 0 18px 60px rgba(15, 23, 42, 0.08);
+  -webkit-app-region: no-drag;
+}
+
+.contentGrid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(320px, 380px) minmax(360px, 1fr);
+  gap: 24px;
+  align-items: center;
+}
+
+.scanSection {
+  padding-right: 8px;
+  border-right: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.formSection {
+  min-width: 0;
 }
 
 .header {
@@ -103,11 +117,33 @@
 }
 
 @media (max-width: 900px) {
-  .content {
-    grid-template-columns: 1fr;
+  .container {
+    height: 100vh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 76px 0 24px;
+  }
+
+  .card {
     width: min(640px, calc(100vw - 32px));
-    margin-top: 88px;
-    margin-bottom: 24px;
+    margin-top: 0;
+    margin-bottom: 0;
+    align-self: center;
+    padding: 22px 18px;
+  }
+
+  .contentGrid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .scanSection {
+    padding-right: 0;
+    padding-bottom: 20px;
+    border-right: none;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   }
 
   .backButton {

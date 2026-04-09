@@ -480,32 +480,43 @@ const Login: React.FC = () => {
       </Button>
       {contextHolder}
 
-      <div className={styles.content}>
-        <div 
-          className={styles.scanPanel}
-          style={mode === 'dark' ? { background: 'transparent', border: 'none', boxShadow: 'none' } : {}}
-        >
-          {scanStatus?.status === "waiting_confirm" ? (
-            <div className={styles.confirmPanel} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
-              <Title level={5} style={{ marginBottom: 16 }}>
-                等待手机端确认
-              </Title>
-              <Text type="secondary" style={{ textAlign: "center" }}>
-                手机已扫码。请在手机屏幕上勾选要导入的数据源，并在手机上点击确认发送...
-              </Text>
-            </div>
-          ) : (
-            <div className={styles.qrPanel}>
-              {qrValue ? <QRCode value={qrValue} size={180} bordered={false} /> : null}
-              <Button onClick={createTargetSession}>刷新二维码</Button>
-            </div>
-          )}
-        </div>
+      <div
+        className={styles.card}
+        style={
+          mode === "dark"
+            ? { background: "transparent", border: "none", boxShadow: "none" }
+            : {}
+        }
+      >
+        <div className={styles.contentGrid}>
+          <div className={styles.scanSection}>
+            {scanStatus?.status === "waiting_confirm" ? (
+              <div
+                className={styles.confirmPanel}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 200,
+                }}
+              >
+                <Title level={5} style={{ marginBottom: 16 }}>
+                  等待手机端确认
+                </Title>
+                <Text type="secondary" style={{ textAlign: "center" }}>
+                  手机已扫码。请在手机屏幕上勾选要导入的数据源，并在手机上点击确认发送...
+                </Text>
+              </div>
+            ) : (
+              <div className={styles.qrPanel}>
+                {qrValue ? <QRCode value={qrValue} size={180} bordered={false} /> : null}
+                <Button onClick={createTargetSession}>刷新二维码</Button>
+              </div>
+            )}
+          </div>
 
-        <div 
-          className={styles.formPanel}
-          style={mode === 'dark' ? { background: 'transparent', border: 'none', boxShadow: 'none' } : {}}
-        >
+          <div className={styles.formSection}>
           <div className={styles.header} style={{ marginBottom: isWeb() ? 20 : 0 }}>
             <img src={getLogo(sourceType)} alt={sourceType} className={styles.logo} />
             <Title style={{ margin: 0 }} level={4}>
@@ -637,6 +648,7 @@ const Login: React.FC = () => {
               {isLogin ? "没有账号？去注册" : "已有账号？去登录"}
             </Button>
           </Form>
+          </div>
         </div>
       </div>
     </div>
