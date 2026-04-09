@@ -5,6 +5,7 @@ import {
     removePlusToken as removePlusServiceToken,
     register as registerApi,
     setPlusToken as setPlusServiceToken,
+    setPlusUnauthorizedHandler,
     setServiceConfig,
     SOURCEMAP,
     useEmbyAdapter,
@@ -100,6 +101,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     loadAuthData();
+  }, []);
+
+  useEffect(() => {
+    setPlusUnauthorizedHandler(() => {
+      void setPlusToken(null);
+    });
+
+    return () => {
+      setPlusUnauthorizedHandler(null);
+    };
   }, []);
 
   const loadAuthData = async () => {

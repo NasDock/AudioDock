@@ -77,13 +77,13 @@ export default function ScanScreen() {
       {!permission.granted ? (
         <View style={styles.content}>
           <Text style={[styles.desc, { color: colors.secondary }]}>
-            需要开启相机权限后才能扫描二维码。
+            需要开启相机权限，用于扫码快捷登录，无需手动填写多个服务器地址信息。
           </Text>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: colors.primary }]}
             onPress={requestPermission}
           >
-            <Text style={[styles.buttonText, { color: colors.background }]}>开启相机权限</Text>
+            <Text style={[styles.buttonText, { color: colors.background }]}>去扫码</Text>
           </TouchableOpacity>
         </View>
       ) : (

@@ -1,5 +1,8 @@
 import {
+  removePlusToken as removePlusServiceToken,
   setServiceConfig,
+  setPlusToken as setPlusServiceToken,
+  setPlusUnauthorizedHandler,
   SOURCEMAP,
   useEmbyAdapter,
   useNativeAdapter,
@@ -111,11 +114,20 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   setPlusToken: (token: string | null) => {
     if (token) {
+      setPlusServiceToken(token);
       localStorage.setItem("plus_token", token);
     } else {
+      removePlusServiceToken();
       localStorage.removeItem("plus_token");
       localStorage.removeItem("plus_user_id");
+      localStorage.removeItem("plus_vip_status");
+      localStorage.removeItem("plus_vip_data");
+      localStorage.removeItem("plus_vip_updated_at");
     }
     set({ plusToken: token });
   },
 }));
+
+setPlusUnauthorizedHandler(() => {
+  useAuthStore.getState().setPlusToken(null);
+});

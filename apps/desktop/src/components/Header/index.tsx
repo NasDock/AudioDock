@@ -33,10 +33,11 @@ import {
   getRunningImportTask,
   getSearchHistory,
   getCurrentUser,
+  plusDeleteMe,
   plusGetMe,
   plusRedeemInternalTestCode,
   searchAll,
-  setPlusToken,
+  setPlusToken as setPlusServiceToken,
   setServiceConfig,
   SOURCEMAP,
   TaskStatus,
@@ -376,7 +377,7 @@ const Header: React.FC = () => {
   // Mode state: 'music' | 'audiobook'
   const { mode: playMode, setMode: setPlayMode } = usePlayMode();
   const isRadioMode = usePlayerStore((state) => state.isRadioMode);
-  const { logout, user, device } = useAuthStore();
+  const { logout, user, device, setPlusToken: setMemberToken } = useAuthStore();
 
   // Import task state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -451,6 +452,40 @@ const Header: React.FC = () => {
     message.success("已退出/切换服务端账号");
     // Optionally reload to reset app state
     window.location.reload();
+  };
+
+  const handleDeleteMemberAccount = () => {
+    const plusToken = localStorage.getItem("plus_token");
+    if (!plusToken) {
+      message.warning("请先登录会员账号");
+      navigate("/member-login");
+      return;
+    }
+
+    modal.confirm({
+      title: "注销会员账号",
+      content: "确认注销吗？注销之后您的所有数据将会被清空！",
+      okText: "确认",
+      cancelText: "取消",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          const res = await plusDeleteMe();
+          if (res.data?.code !== 200 || !res.data?.data?.ok) {
+            throw new Error(res.data?.message || "注销会员账号失败");
+          }
+
+          setMemberToken(null);
+          message.success("会员账号已注销");
+          navigate("/member-login", { replace: true });
+        } catch (error) {
+          console.error("Failed to delete plus member account:", error);
+          message.error(
+            error instanceof Error ? error.message : "注销会员账号失败，请稍后重试",
+          );
+        }
+      },
+    });
   };
 
   // ... inside component
@@ -617,7 +652,7 @@ const Header: React.FC = () => {
     const plusUserId = localStorage.getItem("plus_user_id");
 
     if (plusToken && plusUserId) {
-      setPlusToken(plusToken);
+      setPlusServiceToken(plusToken);
       // Remove quotes from JSON.stringify if present (though it's better to use JSON.parse)
       let id = plusUserId;
       try {
@@ -1089,6 +1124,14 @@ const Header: React.FC = () => {
               <div className={styles.userMenuItem} onClick={handleLogout}>
                 <LogoutOutlined />
                 退出/切换服务端账号
+              </div>
+              <div
+                className={styles.userMenuItem}
+                onClick={handleDeleteMemberAccount}
+                style={{ color: "#ff4d4f" }}
+              >
+                <DeleteOutlined />
+                注销会员账号
               </div>
             </div>
           }

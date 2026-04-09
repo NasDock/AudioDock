@@ -19,7 +19,7 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.84</string>
+    <string>1.1.2</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleURLTypes</key>
@@ -62,13 +62,13 @@
       </dict>
     </dict>
     <key>NSCameraUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your camera</string>
+    <string>我们仅将相机用于实现扫码快捷登录，无需手动填写多个服务器地址信息</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
+    <string>我们仅将用于语音输入关键字，无需手动输入即可快速输入</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>Allow AudioDock to save photos to your library so you can save the donation QR code.</string>
+    <string>我们将用来保存您喜欢的曲目或艺术家封面到您的相册中</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>Allow AudioDock to access your photo library.</string>
+    <string>我们仅将用来展示您的个性化头像</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

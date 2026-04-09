@@ -10,6 +10,8 @@ const plusRequest = axios.create({
 });
 
 let plusSocket: Socket | null = null;
+let plusUnauthorizedHandler: (() => void | Promise<void>) | null = null;
+let isHandlingPlusUnauthorized = false;
 
 export const getPlusSocket = (): Socket => {
   if (!plusSocket) {
@@ -34,6 +36,65 @@ export const setPlusToken = (token: string) => {
 export const removePlusToken = () => {
   delete plusRequest.defaults.headers.common["Authorization"];
 };
+
+export const setPlusUnauthorizedHandler = (
+  handler: (() => void | Promise<void>) | null,
+) => {
+  plusUnauthorizedHandler = handler;
+};
+
+const hasPlusAuthHeader = (headers: any) => {
+  if (!headers) return false;
+  const authHeader =
+    headers.Authorization ||
+    headers.authorization ||
+    headers.common?.Authorization ||
+    headers.common?.authorization;
+  return Boolean(authHeader);
+};
+
+const isPlusUnauthorizedPayload = (payload: any) => {
+  if (!payload || typeof payload !== "object") return false;
+  if (payload.code !== 401) return false;
+  const message = String(payload.message || "").toLowerCase();
+  return message === "invalid token" || message === "missing token";
+};
+
+const handlePlusUnauthorized = async () => {
+  if (isHandlingPlusUnauthorized) return;
+  isHandlingPlusUnauthorized = true;
+
+  try {
+    removePlusToken();
+    await plusUnauthorizedHandler?.();
+  } finally {
+    setTimeout(() => {
+      isHandlingPlusUnauthorized = false;
+    }, 0);
+  }
+};
+
+plusRequest.interceptors.response.use(
+  async (response) => {
+    if (
+      hasPlusAuthHeader(response.config?.headers) &&
+      isPlusUnauthorizedPayload(response.data)
+    ) {
+      await handlePlusUnauthorized();
+    }
+    return response;
+  },
+  async (error) => {
+    const status = error?.response?.status;
+    if (
+      status === 401 &&
+      hasPlusAuthHeader(error?.config?.headers)
+    ) {
+      await handlePlusUnauthorized();
+    }
+    return Promise.reject(error);
+  },
+);
 
 // --- DTO Types ---
 
@@ -146,6 +207,12 @@ export interface RedeemInternalTestCodeResponse {
   vipEndsAt: string;
 }
 
+export interface DeletePlusMeResponse {
+  ok: boolean;
+  userId: string;
+  deletedAt: string;
+}
+
 // --- API Functions ---
 
 /**
@@ -167,6 +234,13 @@ export const plusLogin = async (data: LoginDto) => {
  */
 export const plusGetMe = async (userId: string) => {
   return plusRequest.get<ISuccessResponse<any>>("/users/me", { params: { userId } });
+};
+
+/**
+ * UserController_removeMe: Delete current plus user
+ */
+export const plusDeleteMe = async () => {
+  return plusRequest.delete<ISuccessResponse<DeletePlusMeResponse>>("/users/me");
 };
 
 /**
