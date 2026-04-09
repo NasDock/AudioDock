@@ -37,6 +37,7 @@ interface Result {
   list: Track[];
   hasMore: boolean;
   nextId?: number;
+  total?: number;
 }
 
 const Songs: React.FC = () => {
@@ -86,6 +87,7 @@ const Songs: React.FC = () => {
             list: [...previousList, ...list],
             hasMore: list.length === pageSize,
             nextId: currentLoadCount + 1,
+            total: res.data.total,
         };
       }
     } catch (error) {
@@ -302,7 +304,7 @@ const Songs: React.FC = () => {
 
       {data && data.list.length > 0 && (
         <div className={styles.noMore}>
-          共 {data.list.length} 首歌曲{!data.hasMore && '，没有更多了'}
+          共 {data.total || data.list.length} 首歌曲，已加载 {data.list.length} 首
         </div>
       )}
 

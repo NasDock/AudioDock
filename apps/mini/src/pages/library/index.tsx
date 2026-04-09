@@ -312,10 +312,8 @@ export default function Library() {
          {sections.length > 0 && (
            <View className='library-footer'>
              <Text className='library-footer-text'>
-               {`共 ${total > 0 ? total : sortedItems.length} ${activeTab === 'songs' ? '首' : activeTab === 'artists' ? '位艺术家' : '张专辑'}`}
-               {!hasMore && `，没有更多了`}
+               {`共加载 ${sortedItems.length} ${activeTab === 'songs' ? '首' : activeTab === 'artists' ? '位艺术家' : '张专辑'}`}
              </Text>
-             {loadingMore && <Text className='library-footer-text'>加载中...</Text>}
            </View>
          )}
          <View id='bottom-anchor' />

@@ -284,6 +284,13 @@ const SongList = ({
               </View>
             </TouchableOpacity>
           )}
+          ListFooterComponent={
+            <View style={styles.listFooter}>
+              <Text style={[styles.listFooterText, { color: colors.secondary }]}>
+                共加载 {tracks.length} 首
+              </Text>
+            </View>
+          }
           initialNumToRender={20}
           maxToRenderPerBatch={20}
           windowSize={10}
@@ -459,6 +466,13 @@ const ArtistList = ({
         initialNumToRender={20}
         maxToRenderPerBatch={20}
         windowSize={10}
+        ListFooterComponent={
+          <View style={styles.listFooter}>
+            <Text style={[styles.listFooterText, { color: colors.secondary }]}>
+              共加载 {artists.length} 位艺术家
+            </Text>
+          </View>
+        }
       />
       <FloatingActionButtons
         flatListRef={flatListRef}
@@ -653,6 +667,13 @@ const AlbumList = ({
         initialNumToRender={20}
         maxToRenderPerBatch={20}
         windowSize={10}
+        ListFooterComponent={
+          <View style={styles.listFooter}>
+            <Text style={[styles.listFooterText, { color: colors.secondary }]}>
+              共加载 {albums.length} 张专辑
+            </Text>
+          </View>
+        }
       />
       <FloatingActionButtons
         locateDisabled={
@@ -772,6 +793,13 @@ const CollectionList = () => {
             </TouchableOpacity>
           );
         }}
+        ListFooterComponent={
+          <View style={styles.listFooter}>
+            <Text style={[styles.listFooterText, { color: colors.secondary }]}>
+              共加载 {collections.length} 个合集
+            </Text>
+          </View>
+        }
       />
     </View>
   );
@@ -1399,6 +1427,13 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   songArtist: {
+    fontSize: 13,
+  },
+  listFooter: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  listFooterText: {
     fontSize: 13,
   },
   selectionHeader: {
