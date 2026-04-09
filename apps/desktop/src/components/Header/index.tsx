@@ -35,7 +35,7 @@ import {
   getCurrentUser,
   plusDeleteMe,
   plusGetMe,
-  plusRedeemInternalTestCode,
+  plusParticipateInternalTest,
   searchAll,
   setPlusToken as setPlusServiceToken,
   setServiceConfig,
@@ -384,8 +384,6 @@ const Header: React.FC = () => {
   const [importTask, setImportTask] = useState<ImportTask | null>(null);
   const [isPlusVip, setIsPlusVip] = useState(false);
   const [, setPlusVipData] = useState<any>(null);
-  const [isInternalTestModalOpen, setIsInternalTestModalOpen] = useState(false);
-  const [internalTestCode, setInternalTestCode] = useState("");
   const [redeemingInternalTestCode, setRedeemingInternalTestCode] =
     useState(false);
 
@@ -676,32 +674,36 @@ const Header: React.FC = () => {
   }, []);
 
   const handleRedeemInternalTestCode = async () => {
-    const code = internalTestCode.trim();
-    const plusUserId = localStorage.getItem("plus_user_id");
-    if (!plusUserId) {
-      message.error("请先登录会员账号后再兑换内测码");
+    if (isPlusVip) {
+      message.info("已拥有内测权益，无需重复申请");
       return;
     }
-    if (!code) {
-      message.warning("请输入内测码");
+
+    const plusUserId = localStorage.getItem("plus_user_id");
+    if (!plusUserId) {
+      message.error("请先登录会员账号后再参与内测");
       return;
     }
 
     try {
-      let memberUserId = plusUserId;
-      try {
-        memberUserId = JSON.parse(plusUserId);
-      } catch {}
-
       setRedeemingInternalTestCode(true);
-      const res = await plusRedeemInternalTestCode({
-        userId: String(memberUserId),
-        code,
+      trackEvent({
+        feature: "member",
+        eventName: "internal_test_participate_submit",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
+      const vipStartsAt = new Date();
+      const vipEndsAt = new Date(vipStartsAt);
+      vipEndsAt.setMonth(vipEndsAt.getMonth() + 1);
+      const res = await plusParticipateInternalTest({
+        vipStartsAt: vipStartsAt.toISOString(),
+        vipEndsAt: vipEndsAt.toISOString(),
       });
       const payload = res.data?.data;
 
       if (res.data?.code !== 200 || !payload?.ok) {
-        throw new Error(res.data?.message || "内测码兑换失败");
+        throw new Error(res.data?.message || "参与内测失败");
       }
 
       localStorage.setItem("plus_vip_status", "true");
@@ -715,12 +717,25 @@ const Header: React.FC = () => {
       localStorage.setItem("plus_vip_updated_at", Date.now().toString());
       setIsPlusVip(true);
       setPlusVipData(payload);
-      setInternalTestCode("");
-      setIsInternalTestModalOpen(false);
-      message.success("内测码兑换成功，会员权益已更新");
+      trackEvent({
+        feature: "member",
+        eventName: "internal_test_participate_success",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
+      message.success("已为当前账号开通内测权益");
     } catch (error) {
       console.error("Failed to redeem internal test code:", error);
-      message.error(error instanceof Error ? error.message : "兑换失败，请稍后重试");
+      trackEvent({
+        feature: "member",
+        eventName: "internal_test_participate_failed",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+        metadata: {
+          message: error instanceof Error ? error.message : "unknown_error",
+        },
+      });
+      message.error(error instanceof Error ? error.message : "申请失败，请稍后重试");
     } finally {
       setRedeemingInternalTestCode(false);
     }
@@ -809,7 +824,15 @@ const Header: React.FC = () => {
             <div
               className={styles.actionIcon}
               style={actionIconStyle}
-              onClick={() => navigate("/tts/tasks")}
+              onClick={() => {
+                trackEvent({
+                  feature: "tts",
+                  eventName: "tts_task_list_open",
+                  userId: user?.id ? String(user.id) : undefined,
+                  deviceId: device?.id ? String(device.id) : undefined,
+                });
+                navigate("/tts/tasks");
+              }}
             >
               <AppstoreOutlined />
             </div>
@@ -986,10 +1009,18 @@ const Header: React.FC = () => {
               </div>
               <div
                 className={styles.userMenuItem}
-                onClick={() => setIsInternalTestModalOpen(true)}
+                onClick={() => {
+                  if (!redeemingInternalTestCode) {
+                    void handleRedeemInternalTestCode();
+                  }
+                }}
               >
                 <CrownOutlined />
-                参与内测
+                {isPlusVip
+                  ? "参与内测（已开通）"
+                  : redeemingInternalTestCode
+                    ? "参与内测（申请中）"
+                    : "参与内测"}
               </div>
               <div
                 className={styles.userMenuItem}
@@ -1151,32 +1182,6 @@ const Header: React.FC = () => {
         </Popover>
       </div>
       {contextHolder}
-      <Modal
-        title="参与内测"
-        open={isInternalTestModalOpen}
-        onCancel={() => {
-          if (!redeemingInternalTestCode) {
-            setIsInternalTestModalOpen(false);
-          }
-        }}
-        onOk={() => void handleRedeemInternalTestCode()}
-        okText={redeemingInternalTestCode ? "提交中..." : "提交"}
-        cancelText="取消"
-        okButtonProps={{ loading: redeemingInternalTestCode }}
-        cancelButtonProps={{ disabled: redeemingInternalTestCode }}
-        destroyOnClose
-      >
-        <Flex vertical gap={12}>
-          <Text type="secondary">请输入内测码</Text>
-          <Input
-            value={internalTestCode}
-            onChange={(e) => setInternalTestCode(e.target.value)}
-            placeholder="请输入内测码"
-            disabled={redeemingInternalTestCode}
-            onPressEnter={() => void handleRedeemInternalTestCode()}
-          />
-        </Flex>
-      </Modal>
       <Modal
         title={importTask?.mode === "compact" ? "精简数据进度" : "数据入库进度"}
         open={isImportModalOpen}

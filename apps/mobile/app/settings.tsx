@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Slider } from "@miblanchard/react-native-slider";
-import { plusDeleteMe, plusRedeemInternalTestCode } from "@soundx/services";
+import { plusDeleteMe, plusParticipateInternalTest } from "@soundx/services";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -11,7 +11,6 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -50,11 +49,8 @@ export default function SettingsScreen() {
     updateSetting,
   } = useSettings();
   const [isVip, setIsVip] = React.useState(false);
-  const [internalTestModalVisible, setInternalTestModalVisible] =
-    React.useState(false);
   const [screenInsetModalVisible, setScreenInsetModalVisible] =
     React.useState(false);
-  const [internalTestCode, setInternalTestCode] = React.useState("");
   const [redeemingInternalTestCode, setRedeemingInternalTestCode] =
     React.useState(false);
   const [detailedSizes, setDetailedSizes] = React.useState<{
@@ -203,14 +199,12 @@ export default function SettingsScreen() {
     }
     await updateSetting("carModeEnabled", val);
     await updateSetting("carLayoutMode", val);
-    if (val) {
-      trackEvent({
-        feature: "settings",
-        eventName: "car_mode_enable",
-        userId: user?.id ? String(user.id) : undefined,
-        deviceId: device?.id ? String(device.id) : undefined,
-      });
-    }
+    trackEvent({
+      feature: "settings",
+      eventName: val ? "car_mode_enable" : "car_mode_disable",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+    });
     if (val) {
       router.replace("/(tabs)");
     }
@@ -225,45 +219,47 @@ export default function SettingsScreen() {
       return;
     }
     await updateSetting("voiceAssistantEnabled", val);
-    if (val) {
-      trackEvent({
-        feature: "voice",
-        eventName: "voice_assistant_enable",
-        userId: user?.id ? String(user.id) : undefined,
-        deviceId: device?.id ? String(device.id) : undefined,
-      });
-    }
+    trackEvent({
+      feature: "voice",
+      eventName: val ? "voice_assistant_enable" : "voice_assistant_disable",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+    });
   };
 
   const carModeActive = carLayoutMode || carModeEnabled;
 
   const handleRedeemInternalTestCode = async () => {
-    const code = internalTestCode.trim();
-    const plusUserId = await AsyncStorage.getItem("plus_user_id");
-    if (!plusUserId) {
-      Alert.alert("无法提交", "请先登录会员账号后再兑换内测码。");
+    if (isVip) {
+      Alert.alert("已拥有内测权益", "当前账号已拥有内测权益，无需重复申请。");
       return;
     }
-    if (!code) {
-      Alert.alert("请输入内测码", "内测码不能为空。");
+
+    const plusUserId = await AsyncStorage.getItem("plus_user_id");
+    if (!plusUserId) {
+      Alert.alert("无法提交", "请先登录会员账号后再参与内测。");
       return;
     }
 
     try {
-      let memberUserId = plusUserId;
-      try {
-        memberUserId = JSON.parse(plusUserId);
-      } catch {}
-
       setRedeemingInternalTestCode(true);
-      const res = await plusRedeemInternalTestCode({
-        userId: String(memberUserId),
-        code,
+      trackEvent({
+        feature: "member",
+        eventName: "internal_test_participate_submit",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
+      const vipStartsAt = new Date();
+      const vipEndsAt = new Date(vipStartsAt);
+      vipEndsAt.setMonth(vipEndsAt.getMonth() + 1);
+      const res = await plusParticipateInternalTest({
+        vipStartsAt: vipStartsAt.toISOString(),
+        vipEndsAt: vipEndsAt.toISOString(),
       });
       const payload = res.data?.data;
 
       if (res.data?.code !== 200 || !payload?.ok) {
-        throw new Error(res.data?.message || "内测码兑换失败");
+        throw new Error(res.data?.message || "参与内测失败");
       }
 
       await AsyncStorage.setItem("plus_vip_status", "true");
@@ -277,13 +273,26 @@ export default function SettingsScreen() {
       await AsyncStorage.setItem("plus_vip_updated_at", Date.now().toString());
       await syncWidgetMembership(true);
       setIsVip(true);
-      setInternalTestCode("");
-      setInternalTestModalVisible(false);
-      Alert.alert("兑换成功", "内测码已生效，会员权益已更新。");
+      trackEvent({
+        feature: "member",
+        eventName: "internal_test_participate_success",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
+      Alert.alert("申请成功", "已为当前账号开通内测权益。");
     } catch (error) {
       console.error("Failed to redeem internal test code:", error);
+      trackEvent({
+        feature: "member",
+        eventName: "internal_test_participate_failed",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+        metadata: {
+          message: error instanceof Error ? error.message : "unknown_error",
+        },
+      });
       Alert.alert(
-        "兑换失败",
+        "申请失败",
         error instanceof Error ? error.message : "请稍后重试",
       );
     } finally {
@@ -396,7 +405,15 @@ export default function SettingsScreen() {
             renderActionRow(
               "调整屏幕边距",
               "调整播放详情页整体距离屏幕底部的位置",
-              () => setScreenInsetModalVisible(true),
+              () => {
+                trackEvent({
+                  feature: "settings",
+                  eventName: "car_mode_screen_inset_open",
+                  userId: user?.id ? String(user.id) : undefined,
+                  deviceId: device?.id ? String(device.id) : undefined,
+                });
+                setScreenInsetModalVisible(true);
+              },
               `${Math.round(screenBottomInset)}`,
             )}
 
@@ -541,7 +558,8 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={[styles.settingRow, { borderBottomColor: colors.border }]}
-            onPress={() => setInternalTestModalVisible(true)}
+            disabled={redeemingInternalTestCode}
+            onPress={() => void handleRedeemInternalTestCode()}
           >
             <View style={styles.settingInfo}>
               <Text style={[styles.settingLabel, { color: colors.text }]}>
@@ -550,7 +568,11 @@ export default function SettingsScreen() {
               <Text
                 style={[styles.settingDescription, { color: colors.secondary }]}
               >
-                输入内测码以开通对应权益
+                {isVip
+                  ? "已拥有内测权益，无需重复申请"
+                  : redeemingInternalTestCode
+                    ? "正在为当前账号申请内测权益"
+                    : "一键申请并自动开通当前账号内测权益"}
               </Text>
             </View>
             <Ionicons
@@ -694,84 +716,6 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </Modal>
 
-      <Modal
-        visible={internalTestModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          if (!redeemingInternalTestCode) {
-            setInternalTestModalVisible(false);
-          }
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalContent,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              参与内测
-            </Text>
-            <Text style={[styles.modalDescription, { color: colors.secondary }]}>
-              请输入内测码
-            </Text>
-            <TextInput
-              value={internalTestCode}
-              onChangeText={setInternalTestCode}
-              placeholder="请输入内测码"
-              placeholderTextColor={colors.secondary}
-              editable={!redeemingInternalTestCode}
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={[
-                styles.modalInput,
-                {
-                  color: colors.text,
-                  borderColor: colors.border,
-                  backgroundColor: colors.background,
-                },
-              ]}
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[
-                  styles.modalButton,
-                  styles.modalCancelButton,
-                  { borderColor: colors.border },
-                ]}
-                disabled={redeemingInternalTestCode}
-                onPress={() => setInternalTestModalVisible(false)}
-              >
-                <Text style={[styles.modalCancelText, { color: colors.text }]}>
-                  取消
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modalButton,
-                  styles.modalConfirmButton,
-                  {
-                    backgroundColor: redeemingInternalTestCode
-                      ? colors.border
-                      : colors.primary,
-                  },
-                ]}
-                disabled={redeemingInternalTestCode}
-                onPress={() => void handleRedeemInternalTestCode()}
-              >
-                <Text style={styles.modalConfirmText}>
-                  {redeemingInternalTestCode ? "提交中..." : "提交"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }

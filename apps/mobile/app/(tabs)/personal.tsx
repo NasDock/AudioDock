@@ -46,6 +46,7 @@ import {
   removeDownloadedTrack,
 } from "../../src/services/cache";
 import { getBaseURL } from "../../src/https";
+import { trackEvent } from "../../src/services/tracking";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
 import { getCachedVipStatus, refreshVipStatus } from "../../src/utils/vipStatus";
@@ -206,7 +207,7 @@ function PersonalPageSkeleton({
 export default function PersonalScreen() {
   const { theme, toggleTheme, colors } = useTheme();
   const { mode, setMode } = usePlayMode();
-  const { logout, user, switchServer, sourceType, setSourceType } = useAuth();
+  const { logout, user, switchServer, sourceType, setSourceType, device } = useAuth();
   const { playTrackList } = usePlayer();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -231,6 +232,12 @@ export default function PersonalScreen() {
   }, [user]);
 
   const handleOpenScanEntry = async () => {
+    trackEvent({
+      feature: "scan_login",
+      eventName: "scan_login_entry_click",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+    });
     const plusToken = await AsyncStorage.getItem("plus_token");
 
     if (!plusToken) {
@@ -238,13 +245,27 @@ export default function PersonalScreen() {
         { text: "取消", style: "cancel" },
         {
           text: "会员登录",
-          onPress: () => router.push("/member-login" as any),
+          onPress: () => {
+            trackEvent({
+              feature: "scan_login",
+              eventName: "scan_login_member_login_redirect",
+              userId: user?.id ? String(user.id) : undefined,
+              deviceId: device?.id ? String(device.id) : undefined,
+            });
+            router.push("/member-login" as any);
+          },
         },
       ]);
       return;
     }
 
     if (isPlusVip) {
+      trackEvent({
+        feature: "scan_login",
+        eventName: "scan_login_page_open",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
       router.push("/scan" as any);
       return;
     }
@@ -253,7 +274,15 @@ export default function PersonalScreen() {
       { text: "取消", style: "cancel" },
       {
         text: "去开通",
-        onPress: () => router.push("/member-benefits" as any),
+        onPress: () => {
+          trackEvent({
+            feature: "scan_login",
+            eventName: "scan_login_member_benefits_redirect",
+            userId: user?.id ? String(user.id) : undefined,
+            deviceId: device?.id ? String(device.id) : undefined,
+          });
+          router.push("/member-benefits" as any);
+        },
       },
     ]);
   };
@@ -476,8 +505,20 @@ export default function PersonalScreen() {
 
   const handleOpenTtsTasks = () => {
     setMenuVisible(false);
+    trackEvent({
+      feature: "tts",
+      eventName: "tts_entry_click",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+    });
 
     if (isPlusVip) {
+      trackEvent({
+        feature: "tts",
+        eventName: "tts_task_list_open",
+        userId: user?.id ? String(user.id) : undefined,
+        deviceId: device?.id ? String(device.id) : undefined,
+      });
       router.push("/tts/tasks" as any);
       return;
     }
@@ -486,7 +527,15 @@ export default function PersonalScreen() {
       { text: "取消", style: "cancel" },
       {
         text: "去开通",
-        onPress: () => router.push("/member-benefits" as any),
+        onPress: () => {
+          trackEvent({
+            feature: "tts",
+            eventName: "tts_member_benefits_redirect",
+            userId: user?.id ? String(user.id) : undefined,
+            deviceId: device?.id ? String(device.id) : undefined,
+          });
+          router.push("/member-benefits" as any);
+        },
       },
     ]);
   };

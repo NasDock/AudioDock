@@ -20,6 +20,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../src/context/ThemeContext";
+import { trackEvent } from "../../src/services/tracking";
 
 type FilterStatus = "all" | "pending" | "processing" | "completed" | "paused" | "failed";
 
@@ -53,6 +54,10 @@ export default function TtsTaskListScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    trackEvent({
+      feature: "tts",
+      eventName: "tts_task_refresh",
+    });
     fetchTasks(false);
   }, [fetchTasks]);
 
@@ -65,15 +70,30 @@ export default function TtsTaskListScreen() {
             text: "删除",
             style: "destructive",
             onPress: async () => {
+              trackEvent({
+                feature: "tts",
+                eventName: "tts_task_delete",
+                metadata: { taskId: id },
+              });
               await deleteTtsTask(id);
               fetchTasks(false);
             },
           },
         ]);
       } else if (action === "pause") {
+        trackEvent({
+          feature: "tts",
+          eventName: "tts_task_pause",
+          metadata: { taskId: id },
+        });
         await pauseTtsTask(id);
         fetchTasks(false);
       } else if (action === "resume") {
+        trackEvent({
+          feature: "tts",
+          eventName: "tts_task_resume",
+          metadata: { taskId: id },
+        });
         await resumeTtsTask(id);
         fetchTasks(false);
       }
@@ -217,7 +237,13 @@ export default function TtsTaskListScreen() {
         <Text style={[styles.headerTitle, { color: colors.text }]}>TTS 任务列表</Text>
         <TouchableOpacity
           style={styles.createButton}
-          onPress={() => router.push("/tts/create")}
+          onPress={() => {
+            trackEvent({
+              feature: "tts",
+              eventName: "tts_create_entry_click",
+            });
+            router.push("/tts/create");
+          }}
         >
           <Ionicons name="add" size={28} color={colors.primary} />
         </TouchableOpacity>
@@ -243,7 +269,14 @@ export default function TtsTaskListScreen() {
                 styles.filterItem,
                 filterStatus === item.value && { backgroundColor: colors.primary },
               ]}
-              onPress={() => setFilterStatus(item.value as FilterStatus)}
+              onPress={() => {
+                trackEvent({
+                  feature: "tts",
+                  eventName: "tts_task_filter_change",
+                  metadata: { filterStatus: item.value },
+                });
+                setFilterStatus(item.value as FilterStatus);
+              }}
             >
               <Text
                 style={[
@@ -277,7 +310,13 @@ export default function TtsTaskListScreen() {
               <Text style={[styles.emptyText, { color: colors.secondary }]}>暂无转换任务</Text>
               <TouchableOpacity
                 style={[styles.emptyButton, { backgroundColor: colors.primary }]}
-                onPress={() => router.push("/tts/create")}
+                onPress={() => {
+                  trackEvent({
+                    feature: "tts",
+                    eventName: "tts_create_entry_click",
+                  });
+                  router.push("/tts/create");
+                }}
               >
                 <Text style={[styles.emptyButtonText, { color: colors.background }]}>立即创建</Text>
               </TouchableOpacity>

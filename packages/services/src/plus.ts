@@ -207,6 +207,24 @@ export interface RedeemInternalTestCodeResponse {
   vipEndsAt: string;
 }
 
+export interface ParticipateInternalTestDto {
+  vipStartsAt: string;
+  vipEndsAt: string;
+}
+
+export interface ParticipateInternalTestResponse {
+  ok: true;
+  id: string;
+  batchId: string;
+  code: string;
+  vipTier: VipTier;
+  vipStartsAt: string;
+  vipEndsAt: string;
+  usedAt: string | null;
+  usedByUserId: string | null;
+  createdAt: string;
+}
+
 export interface DeletePlusMeResponse {
   ok: boolean;
   userId: string;
@@ -311,6 +329,15 @@ export const plusRedeemInternalTestCode = async (
 ) => {
   return plusRequest.post<ISuccessResponse<RedeemInternalTestCodeResponse>>(
     "/users/internal-test-codes/redeem",
+    data,
+  );
+};
+
+export const plusParticipateInternalTest = async (
+  data: ParticipateInternalTestDto,
+) => {
+  return plusRequest.post<ISuccessResponse<ParticipateInternalTestResponse>>(
+    "/users/internal-test-codes/participate",
     data,
   );
 };
