@@ -1,4 +1,4 @@
-import { Album, Artist, Track, getArtistList, loadMoreAlbum, loadMoreTrack } from '@soundx/services';
+import { Album, Artist, Track, loadMoreAlbum, loadMoreArtist, loadMoreTrack } from '@soundx/services';
 import { Image, ScrollView, Text, View } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { useEffect, useMemo, useState } from 'react';
@@ -20,20 +20,32 @@ export default function Library() {
   const [sections, setSections] = useState<SectionData<ListItem>[]>([]);
   const [sortedItems, setSortedItems] = useState<ListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [loadCount, setLoadCount] = useState(0);
   const [scrollIntoView, setScrollIntoView] = useState('');
   const [showTrackMoreMenu, setShowTrackMoreMenu] = useState(false);
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [heartbeatModeActive, setHeartbeatModeActive] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
-    setSections([]);
-    setSortedItems([]);
+  const loadData = async (isLoadMore = false) => {
+    if (!isLoadMore) {
+      setLoading(true);
+      setSections([]);
+      setSortedItems([]);
+      setLoadCount(0);
+      setHasMore(true);
+      setTotal(0);
+    } else {
+      if (!hasMore || loadingMore) return;
+      setLoadingMore(true);
+    }
     try {
       if (activeTab === 'songs') {
         const res = await loadMoreTrack({
-          pageSize: 2000,
-          loadCount: 0,
+          pageSize: 50,
+          loadCount: isLoadMore ? loadCount : 0,
           type: mode,
           sortBy:
             mode === 'MUSIC' && heartbeatModeActive ? 'heartbeat' : undefined,
@@ -44,45 +56,66 @@ export default function Library() {
             mode === 'MUSIC' && heartbeatModeActive
               ? [...list]
               : [...list].sort((a, b) => a.name.localeCompare(b.name));
-          setSortedItems(sorted);
-          setSections(groupAndSort(sorted, (item) => item.name));
+          const newItems = isLoadMore ? [...sortedItems, ...sorted] : sorted;
+          setSortedItems(newItems);
+          setSections(groupAndSort(newItems, (item) => item.name));
+          setTotal(res.data.total || newItems.length);
+          setHasMore(res.data.hasMore ?? newItems.length < (res.data.total || 0));
+          setLoadCount((isLoadMore ? loadCount : 0) + 1);
         }
       } else if (activeTab === 'artists') {
-         const res = await getArtistList(
-           1000,
-           0,
-           mode,
-           mode === 'MUSIC' && heartbeatModeActive ? 'heartbeat' : undefined,
-         );
-         if (res.code === 200 && res.data) {
-             const sorted =
-               mode === 'MUSIC' && heartbeatModeActive
-                 ? [...(res.data.list as Artist[])]
-                 : [...(res.data.list as Artist[])].sort((a, b) => a.name.localeCompare(b.name));
-             setSortedItems(sorted);
-             setSections(groupAndSort(sorted, (item) => item.name));
-         }
+        const res = await loadMoreArtist({
+          pageSize: 50,
+          loadCount: isLoadMore ? loadCount : 0,
+          type: mode,
+          sortBy: mode === 'MUSIC' && heartbeatModeActive ? 'heartbeat' : undefined,
+        });
+        if (res.code === 200 && res.data) {
+          const list = res.data.list as Artist[];
+          const sorted =
+            mode === 'MUSIC' && heartbeatModeActive
+              ? [...list]
+              : [...list].sort((a, b) => a.name.localeCompare(b.name));
+          const newItems = isLoadMore ? [...sortedItems, ...sorted] : sorted;
+          setSortedItems(newItems);
+          setSections(groupAndSort(newItems, (item) => item.name));
+          setTotal(res.data.total || newItems.length);
+          setHasMore(res.data.hasMore ?? newItems.length < (res.data.total || 0));
+          setLoadCount((isLoadMore ? loadCount : 0) + 1);
+        }
       } else {
-          const res = await loadMoreAlbum({
-            pageSize: 1000,
-            loadCount: 0,
-            type: mode,
-            sortBy:
-              mode === 'MUSIC' && heartbeatModeActive ? 'heartbeat' : undefined,
-          });
-          if (res.code === 200 && res.data) {
-             const sorted =
-               mode === 'MUSIC' && heartbeatModeActive
-                 ? [...(res.data.list as Album[])]
-                 : [...(res.data.list as Album[])].sort((a, b) => a.name.localeCompare(b.name));
-             setSortedItems(sorted);
-             setSections(groupAndSort(sorted, (item) => item.name));
-          }
+        const res = await loadMoreAlbum({
+          pageSize: 50,
+          loadCount: isLoadMore ? loadCount : 0,
+          type: mode,
+          sortBy:
+            mode === 'MUSIC' && heartbeatModeActive ? 'heartbeat' : undefined,
+        });
+        if (res.code === 200 && res.data) {
+          const list = res.data.list as Album[];
+          const sorted =
+            mode === 'MUSIC' && heartbeatModeActive
+              ? [...list]
+              : [...list].sort((a, b) => a.name.localeCompare(b.name));
+          const newItems = isLoadMore ? [...sortedItems, ...sorted] : sorted;
+          setSortedItems(newItems);
+          setSections(groupAndSort(newItems, (item) => item.name));
+          setTotal(res.data.total || newItems.length);
+          setHasMore(res.data.hasMore ?? newItems.length < (res.data.total || 0));
+          setLoadCount((isLoadMore ? loadCount : 0) + 1);
+        }
       }
     } catch (error) {
       console.error('Failed to load library data:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const onScrollToLower = () => {
+    if (hasMore && !loadingMore && !loading) {
+      loadData(true);
     }
   };
 
@@ -209,6 +242,7 @@ export default function Library() {
         refresherEnabled
         onRefresherRefresh={loadData}
         refresherTriggered={loading}
+        onScrollToLower={(e: any) => { onScrollToLower(); }}
       >
          <View id='top-anchor' />
          {sections.map((section, index) => (
@@ -274,6 +308,15 @@ export default function Library() {
              <View className='empty-state'>
                  <Text className='empty-text'>暂无数据</Text>
              </View>
+         )}
+         {sections.length > 0 && (
+           <View className='library-footer'>
+             <Text className='library-footer-text'>
+               {`共 ${total > 0 ? total : sortedItems.length} ${activeTab === 'songs' ? '首' : activeTab === 'artists' ? '位艺术家' : '张专辑'}`}
+               {!hasMore && `，没有更多了`}
+             </Text>
+             {loadingMore && <Text className='library-footer-text'>加载中...</Text>}
+           </View>
          )}
          <View id='bottom-anchor' />
       </ScrollView>

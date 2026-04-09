@@ -300,8 +300,10 @@ const Songs: React.FC = () => {
         </div>
       )}
 
-      {data && !data.hasMore && data.list.length > 0 && (
-        <div className={styles.noMore}>没有更多了</div>
+      {data && data.list.length > 0 && (
+        <div className={styles.noMore}>
+          共 {data.list.length} 首歌曲{!data.hasMore && '，没有更多了'}
+        </div>
       )}
 
       {data?.list.length === 0 && !loading && (

@@ -156,12 +156,13 @@ const Category: React.FC = () => {
             </>
           )}
         </Row>
-        {data && !data.hasMore && data.list.length > 0 && (
+        {data && data.list.length > 0 && (
           <div
             className={styles.noMore}
             style={{ color: token.colorTextSecondary }}
           >
-            没有更多了
+            {data.total > 0 ? `共 ${data.total} 张专辑` : `共 ${data.list.length} 张专辑`}
+            {!data.hasMore && '，没有更多了'}
           </div>
         )}
       </div>

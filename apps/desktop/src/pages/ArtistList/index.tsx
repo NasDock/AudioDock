@@ -1,4 +1,4 @@
-import { getArtistList } from "@soundx/services";
+import { loadMoreArtist } from "@soundx/services";
 import { useInfiniteScroll } from "ahooks";
 import { HeartFilled, HeartOutlined } from "@ant-design/icons";
 import {
@@ -42,26 +42,22 @@ const ArtistList: React.FC = () => {
   const key = `${CACHE_KEY}_${mode}_${heartbeatModeActive ? "heartbeat" : "default"}`;
 
   const loadMoreArtists = async (d: Result | undefined): Promise<Result> => {
-    const current = d?.loadCount || d?.loadCount === 0 ? d?.loadCount + 1 : 0; // 当前已经加载的页数
+    const current = d?.loadCount || d?.loadCount === 0 ? d?.loadCount + 1 : 0;
     const pageSize = 20;
 
     try {
-      // TODO: Update getArtistList to support pagination and type filtering
-      // For now, we might need to fetch all or use existing API
-      // Assuming we will update the service to support these params
-      const res = await getArtistList(
+      const res = await loadMoreArtist({
         pageSize,
-        current,
-        mode,
-        mode === "MUSIC" && heartbeatModeActive ? "heartbeat" : undefined,
-      );
-      const { list } = res.data;
-      const newList = d?.list ? [...d.list, ...list] : list;
-      setList(key, newList);
-      setLoadCount(key, res?.data?.loadCount);
+        loadCount: current,
+        type: mode,
+        sortBy: mode === "MUSIC" && heartbeatModeActive ? "heartbeat" : undefined,
+      });
 
       if (res.code === 200 && res.data) {
         const { list, total } = res.data;
+        const newList = d?.list ? [...d.list, ...list] : list;
+        setList(key, newList);
+        setLoadCount(key, res?.data?.loadCount);
         return {
           list,
           hasMore: (d?.list?.length || 0) < Number(total),
@@ -209,12 +205,13 @@ const ArtistList: React.FC = () => {
             ))}
         </Row>
 
-        {data && !data.hasMore && data.list.length > 0 && (
+        {data && data.list.length > 0 && (
           <div
             className={styles.noMore}
             style={{ color: token.colorTextSecondary }}
           >
-            没有更多了
+            {data.total > 0 ? `共 ${data.total} 位艺术家` : `共 ${data.list.length} 位艺术家`}
+            {!data.hasMore && '，没有更多了'}
           </div>
         )}
 
