@@ -4,11 +4,15 @@ import Taro, { useDidShow } from '@tarojs/taro';
 import { useEffect, useMemo, useState } from 'react';
 import MiniPlayer from '../../components/MiniPlayer';
 import QuickLocate from '../../components/QuickLocate';
+import SkeletonBlock from '../../components/SkeletonBlock';
 import { usePlayer } from '../../context/PlayerContext';
 import { groupAndSort, SectionData } from '../../utils/pinyin';
 import { usePlayMode } from '../../utils/playMode';
 import { getBaseURL } from '../../utils/request';
 import './index.scss';
+
+const SONG_SKELETON_COUNT = 9;
+const GRID_SKELETON_COUNT = 12;
 
 type LibraryTab = 'songs' | 'artists' | 'albums';
 type ListItem = Artist | Album | Track;
@@ -312,7 +316,57 @@ export default function Library() {
         onScrollToLower={(e: any) => { onScrollToLower(); }}
       >
          <View id='top-anchor' />
-         {sections.map((section, index) => (
+         {loading ? (
+           <View className='skeleton-content'>
+             {activeTab === 'songs' ? (
+               <View className='track-list'>
+                 {Array.from({ length: SONG_SKELETON_COUNT }).map((_, index) => (
+                   <View key={index} className='track-item'>
+                     <SkeletonBlock width={78} height={78} borderRadius={10} />
+                     <View className='track-info'>
+                       <SkeletonBlock
+                         width={index % 3 === 0 ? '58%' : index % 3 === 1 ? '72%' : '66%'}
+                         height={28}
+                         borderRadius={8}
+                         className='skeleton-mb'
+                       />
+                       <SkeletonBlock
+                         width={index % 2 === 0 ? '42%' : '55%'}
+                         height={24}
+                         borderRadius={6}
+                       />
+                     </View>
+                   </View>
+                 ))}
+               </View>
+             ) : (
+               <View className='grid-container'>
+                 {Array.from({ length: GRID_SKELETON_COUNT }).map((_, index) => (
+                   <View key={index} className='grid-item'>
+                     <SkeletonBlock
+                       width='100%'
+                       height={220}
+                       borderRadius={activeTab === 'artists' ? 110 : 12}
+                     />
+                     <SkeletonBlock
+                       width='72%'
+                       height={14}
+                       borderRadius={7}
+                       className='skeleton-mt'
+                     />
+                     <SkeletonBlock
+                       width='52%'
+                       height={12}
+                       borderRadius={6}
+                       className='skeleton-mt'
+                     />
+                   </View>
+                 ))}
+               </View>
+             )}
+           </View>
+         ) : (
+           sections.map((section, index) => (
              <View key={section.title + index} className='section'>
                  <View className='section-header'>
                      <Text className='section-header-text'>{section.title}</Text>
@@ -370,7 +424,7 @@ export default function Library() {
                    </View>
                  )}
              </View>
-         ))}
+         )))}
          {sections.length === 0 && !loading && (
              <View className='empty-state'>
                  <Text className='empty-text'>暂无数据</Text>
