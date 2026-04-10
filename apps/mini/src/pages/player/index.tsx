@@ -55,6 +55,8 @@ export default function Player() {
   const [showAddToPlaylist, setShowAddToPlaylist] = useState(false);
   const [showTimerMenu, setShowTimerMenu] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+  const [controlsBottomOffset, setControlsBottomOffset] = useState(0);
+  const [showControlsOffsetModal, setShowControlsOffsetModal] = useState(false);
 
   useEffect(() => {
     if (currentTrack && currentTrack.lyrics) {
@@ -78,6 +80,21 @@ export default function Player() {
       }
     }
   }, [currentTime, lyrics, currentLyricIndex]);
+
+  // Load controlsBottomOffset from storage
+  useEffect(() => {
+    Taro.getStorage({ key: 'player_controls_bottom_offset' }).then((res) => {
+      const val = parseFloat(res.data);
+      if (!Number.isNaN(val)) {
+        setControlsBottomOffset(val);
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Save controlsBottomOffset to storage when changed
+  useEffect(() => {
+    Taro.setStorage({ key: 'player_controls_bottom_offset', data: String(controlsBottomOffset) }).catch(() => {});
+  }, [controlsBottomOffset]);
 
   // Check if current track is liked
   useEffect(() => {
@@ -221,7 +238,7 @@ export default function Player() {
                 )}
             </View>
 
-            <View className='bottom-controls'>
+            <View className='bottom-controls' style={{ marginBottom: controlsBottomOffset }}>
                 <View className='info-row'>
                     <View className='track-info'>
                         <Text className='track-title' numberOfLines={1}>{currentTrack.name}</Text>
@@ -323,6 +340,9 @@ export default function Player() {
               <View className='menu-item' onClick={handleShowTrackProperty}>
                 <Text className='menu-item-text'>属性</Text>
               </View>
+              <View className='menu-item' onClick={() => { setShowMoreMenu(false); setShowControlsOffsetModal(true); }}>
+                <Text className='menu-item-text'>控制组位置调整</Text>
+              </View>
               {mode === 'AUDIOBOOK' && (
                 <View className='menu-section'>
                   <View className='menu-section-title'>
@@ -350,6 +370,51 @@ export default function Player() {
 
         <AddToPlaylistModal visible={showAddToPlaylist} onClose={() => setShowAddToPlaylist(false)} />
         <PlaylistModal />
+
+        {/* Controls Offset Modal */}
+        {showControlsOffsetModal && (
+          <View className='more-menu-mask' onClick={() => setShowControlsOffsetModal(false)}>
+            <View className='more-menu-content' onClick={(e) => e.stopPropagation()}>
+              <View className='controls-offset-modal'>
+                <View className='modal-title-row'>
+                  <Text className='modal-title'>控制组位置调整</Text>
+                </View>
+                <View className='modal-description-row'>
+                  <Text className='modal-description'>调整播放控制按钮距离屏幕底部的位置</Text>
+                </View>
+                <View className='slider-panel'>
+                  <View className='slider-header'>
+                    <Text className='slider-label'>底部偏移</Text>
+                    <Text className='slider-number'>{Math.round(controlsBottomOffset)}</Text>
+                  </View>
+                  <Slider
+                    className='offset-slider'
+                    min={0}
+                    max={120}
+                    step={1}
+                    value={controlsBottomOffset}
+                    onChange={(e) => setControlsBottomOffset(e.detail.value)}
+                    activeColor='#007aff'
+                    backgroundColor='#eee'
+                    blockSize={16}
+                  />
+                  <View className='slider-hint-row'>
+                    <Text className='slider-hint'>贴近底部</Text>
+                    <Text className='slider-hint'>上移</Text>
+                  </View>
+                </View>
+                <View className='modal-actions'>
+                  <View className='modal-btn modal-cancel-btn' onClick={() => { setControlsBottomOffset(0); setShowControlsOffsetModal(false); }}>
+                    <Text className='modal-cancel-text'>重置</Text>
+                  </View>
+                  <View className='modal-btn modal-confirm-btn' onClick={() => setShowControlsOffsetModal(false)}>
+                    <Text className='modal-confirm-text'>完成</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
     </View>
   );
 }

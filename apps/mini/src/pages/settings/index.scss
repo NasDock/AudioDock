@@ -67,6 +67,141 @@
   margin-right: 40rpx;
 }
 
+.setting-action {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.setting-value {
+  font-size: 28rpx;
+  color: #666;
+  font-weight: 600;
+}
+
+// Modal
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 48rpx;
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 600rpx;
+  background-color: #fff;
+  border-radius: 32rpx;
+  padding: 40rpx;
+}
+
+.modal-title-row {
+  margin-bottom: 16rpx;
+}
+
+.modal-title {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.modal-description-row {
+  margin-bottom: 32rpx;
+}
+
+.modal-description {
+  font-size: 28rpx;
+  color: #999;
+}
+
+.slider-panel {
+  background-color: rgba(150, 150, 150, 0.08);
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-bottom: 36rpx;
+}
+
+.slider-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.slider-label {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.slider-number {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #007aff;
+}
+
+.inset-slider {
+  width: 100%;
+  margin: 0;
+}
+
+.slider-hint-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  margin-top: 4rpx;
+}
+
+.slider-hint {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.modal-actions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: 24rpx;
+}
+
+.modal-btn {
+  min-width: 176rpx;
+  padding: 24rpx 36rpx;
+  border-radius: 24rpx;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-cancel-btn {
+  border: 1rpx solid rgba(150, 150, 150, 0.3);
+  background-color: transparent;
+}
+
+.modal-confirm-btn {
+  background-color: #007aff;
+}
+
+.modal-cancel-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.modal-confirm-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #fff;
+}
+
 .setting-label {
   font-size: 34rpx;
   font-weight: 500;
