@@ -40,6 +40,8 @@ export class NativeArtistAdapter implements IArtistAdapter {
   loadMoreArtist(params: {
     pageSize: number;
     loadCount: number;
+    type?: string;
+    sortBy?: string;
   }) {
     return request.get<any, ISuccessResponse<ILoadMoreData<Artist>>>(
       "/artist/load-more",
