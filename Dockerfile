@@ -108,7 +108,7 @@ mkdir -p /app/packages/db/prisma\n\
 \n\
 # 2. 确保数据库存在并更新 schema\n\
 echo "Running prisma db push..."\n\
-cd /app/packages/db && npx prisma@6 db push --accept-data-loss\n\
+cd /app/packages/db && npx prisma@6 db push --accept-data-loss --skip-generate\n\
 \n\
 # 3. 启动 Nginx (后台运行)\n\
 echo "Starting Nginx..."\n\
