@@ -327,6 +327,25 @@ export class ImportService implements OnModuleInit {
       return null;
     };
 
+    const safeUnwatch = (targetPath?: string) => {
+      if (!targetPath || !this.watcher) return;
+
+      Promise.resolve(this.watcher.unwatch(targetPath)).catch((unwatchError) => {
+        this.logger.warn(`Failed to stop watching inaccessible path ${targetPath}: ${String(unwatchError)}`);
+      });
+    };
+
+    const isRecoverableWatchError = (error: unknown): error is NodeJS.ErrnoException => {
+      if (!error || typeof error !== 'object') return false;
+
+      const code = (error as NodeJS.ErrnoException).code;
+      return code === 'ENOTCONN'
+        || code === 'ESTALE'
+        || code === 'ENOENT'
+        || code === 'EACCES'
+        || code === 'EPERM';
+    };
+
     this.watcher
       .on('add', async (filePath) => {
         const info = getBasePathAndType(filePath);
@@ -377,6 +396,17 @@ export class ImportService implements OnModuleInit {
         } else if (/\.(lrc|txt)$/i.test(filePath)) {
           await this.handleLyricUnlink(filePath);
         }
+      })
+      .on('error', (error: NodeJS.ErrnoException) => {
+        const targetPath = typeof error?.path === 'string' ? error.path : undefined;
+
+        if (isRecoverableWatchError(error)) {
+          this.logger.warn(`Watcher hit a recoverable filesystem error${targetPath ? ` on ${targetPath}` : ''}: ${error.code}`);
+          safeUnwatch(targetPath);
+          return;
+        }
+
+        this.logger.error('Watcher encountered a fatal error', error);
       });
   }
 
