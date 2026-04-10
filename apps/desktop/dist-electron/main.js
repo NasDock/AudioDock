@@ -80,6 +80,45 @@ ipcMain.handle("open-directory", async (event, folderPath) => {
 });
 const CACHE_DIR = path.join(app.getPath("userData"), "audio_cache");
 if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+const DEFAULT_DOWNLOAD_DIR = path.join(os.homedir(), "Music/Downloads");
+const resolveDownloadPath = (downloadPath) => {
+  const normalized = (currentDownloadPath || DEFAULT_DOWNLOAD_DIR).trim();
+  return normalized.replace(/^~/, os.homedir());
+};
+const getFileSizeSafe = (targetPath) => {
+  try {
+    return fs.statSync(targetPath).size;
+  } catch {
+    return 0;
+  }
+};
+const removeEmptyParentDirs = (targetPath, stopPath) => {
+  let current = path.dirname(targetPath);
+  const normalizedStop = path.resolve(stopPath);
+  while (current.startsWith(normalizedStop) && current !== normalizedStop) {
+    try {
+      if (fs.readdirSync(current).length > 0) break;
+      fs.rmdirSync(current);
+      current = path.dirname(current);
+    } catch {
+      break;
+    }
+  }
+};
+const listCacheMetadata = () => {
+  if (!fs.existsSync(CACHE_DIR)) return [];
+  const items = [];
+  for (const file of fs.readdirSync(CACHE_DIR)) {
+    if (!file.endsWith(".json")) continue;
+    try {
+      const parsed = JSON.parse(fs.readFileSync(path.join(CACHE_DIR, file), "utf8"));
+      items.push(parsed);
+    } catch (error) {
+      console.warn(`[Main] Failed to parse cache metadata ${file}`, error);
+    }
+  }
+  return items;
+};
 const getTrackAudioLocalPath = (basePath, type, albumName, originalPath) => {
   const decodedPath = decodeURIComponent(originalPath);
   const fileName = path.basename(decodedPath);
@@ -193,6 +232,54 @@ ipcMain.handle("cache:list", async (event, downloadPath, type) => {
   } catch (error) {
     console.error("[Main] cache:list failed", error);
     return [];
+  }
+});
+ipcMain.handle("cache:get-size", async () => {
+  try {
+    const resolvedDownloadPath = resolveDownloadPath();
+    let totalSize = 0;
+    if (fs.existsSync(CACHE_DIR)) {
+      for (const file of fs.readdirSync(CACHE_DIR)) {
+        totalSize += getFileSizeSafe(path.join(CACHE_DIR, file));
+      }
+    }
+    for (const metadata of listCacheMetadata()) {
+      if (!metadata.localPath) continue;
+      totalSize += getFileSizeSafe(path.join(resolvedDownloadPath, metadata.localPath));
+    }
+    return totalSize;
+  } catch (error) {
+    console.error("[Main] cache:get-size failed", error);
+    return 0;
+  }
+});
+ipcMain.handle("cache:clear", async () => {
+  try {
+    const resolvedDownloadPath = resolveDownloadPath();
+    for (const metadata of listCacheMetadata()) {
+      if (!metadata.localPath) continue;
+      const audioPath = path.join(resolvedDownloadPath, metadata.localPath);
+      if (!fs.existsSync(audioPath)) continue;
+      try {
+        fs.unlinkSync(audioPath);
+        removeEmptyParentDirs(audioPath, resolvedDownloadPath);
+      } catch (error) {
+        console.warn(`[Main] Failed to remove cached audio ${audioPath}`, error);
+      }
+    }
+    if (fs.existsSync(CACHE_DIR)) {
+      for (const file of fs.readdirSync(CACHE_DIR)) {
+        try {
+          fs.unlinkSync(path.join(CACHE_DIR, file));
+        } catch (error) {
+          console.warn(`[Main] Failed to remove cache file ${file}`, error);
+        }
+      }
+    }
+    return true;
+  } catch (error) {
+    console.error("[Main] cache:clear failed", error);
+    return false;
   }
 });
 let currentDownloadPath = "";
