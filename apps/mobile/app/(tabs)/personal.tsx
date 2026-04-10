@@ -146,64 +146,6 @@ function PersonalListSkeleton({
   );
 }
 
-function PersonalPageSkeleton({
-  insets,
-  activeTab,
-  mode,
-}: {
-  insets: { top: number };
-  activeTab: TabType;
-  mode: string;
-}) {
-  const { colors } = useTheme();
-  return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: colors.background, paddingTop: insets.top },
-      ]}
-    >
-      <View style={styles.header}>
-        <SkeletonBlock width={28} height={28} borderRadius={14} />
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 15 }}>
-          <SkeletonBlock width={26} height={26} borderRadius={13} />
-          <SkeletonBlock width={26} height={26} borderRadius={13} />
-          <SkeletonBlock width={26} height={26} borderRadius={13} />
-        </View>
-      </View>
-
-      <View style={styles.userInfo}>
-        <SkeletonBlock width={80} height={80} borderRadius={40} style={{ marginBottom: 15 }} />
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <SkeletonBlock width={120} height={24} borderRadius={12} />
-          <SkeletonBlock width={24} height={24} borderRadius={12} />
-        </View>
-      </View>
-
-      <View style={styles.tabBar}>
-        {Array.from({ length: 4 }).map((_, index) => (
-          <View key={`personal-tab-skeleton-${index}`} style={styles.tabItem}>
-            <SkeletonBlock width={54} height={16} borderRadius={8} />
-          </View>
-        ))}
-      </View>
-
-      {mode === "MUSIC" && (activeTab === "favorites" || activeTab === "history") ? (
-        <View style={styles.subTabContainer}>
-          <SkeletonBlock width={58} height={28} borderRadius={14} />
-          <SkeletonBlock width={58} height={28} borderRadius={14} />
-        </View>
-      ) : null}
-
-      <PersonalListSkeleton
-        activeTab={activeTab}
-        mode={mode}
-        selectedDownloadAlbumName={null}
-      />
-    </View>
-  );
-}
-
 export default function PersonalScreen() {
   const { theme, toggleTheme, colors } = useTheme();
   const { mode, setMode } = usePlayMode();
@@ -841,24 +783,6 @@ export default function PersonalScreen() {
     }
     return [];
   };
-
-  const shouldShowFullSkeleton =
-    loading &&
-    playlists.length === 0 &&
-    favorites.length === 0 &&
-    history.length === 0 &&
-    downloads.length === 0 &&
-    downloadedAlbums.length === 0;
-
-  if (shouldShowFullSkeleton) {
-    return (
-      <PersonalPageSkeleton
-        insets={insets}
-        activeTab={activeTab}
-        mode={mode}
-      />
-    );
-  }
 
   return (
     <View
