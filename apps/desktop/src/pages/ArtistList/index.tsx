@@ -43,7 +43,7 @@ const ArtistList: React.FC = () => {
 
   const loadMoreArtists = async (d: Result | undefined): Promise<Result> => {
     const current = d?.loadCount || d?.loadCount === 0 ? d?.loadCount + 1 : 0;
-    const pageSize = 20;
+    const pageSize = 50;
 
     try {
       const res = await loadMoreArtist({
@@ -210,8 +210,9 @@ const ArtistList: React.FC = () => {
             className={styles.noMore}
             style={{ color: token.colorTextSecondary }}
           >
-            {data.total > 0 ? `共 ${data.total} 位艺术家` : `共 ${data.list.length} 位艺术家`}
-            {!data.hasMore && '，没有更多了'}
+            {data.hasMore
+              ? `${data.total > 0 ? `共 ${data.total} 位艺术家` : `共 ${data.list.length} 位艺术家`}，已加载 ${data.list.length} 位艺术家`
+              : `${data.total > 0 ? `共 ${data.total} 位艺术家` : `共 ${data.list.length} 位艺术家`}，没有更多了`}
           </div>
         )}
 

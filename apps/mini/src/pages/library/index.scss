@@ -77,6 +77,17 @@
     color: #fff;
 }
 
+.tab-count {
+    font-size: 22rpx;
+    font-weight: 600;
+    opacity: 0.82;
+}
+
+.tab-count.active {
+    color: #fff;
+    opacity: 0.88;
+}
+
 .content-scroll {
     flex: 1;
     height: 1px; /* Force scroll view to take remaining height */

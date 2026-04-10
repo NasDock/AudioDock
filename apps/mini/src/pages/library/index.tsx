@@ -17,6 +17,11 @@ export default function Library() {
   const { mode, setMode } = usePlayMode();
   const { playTrackList, currentTrack, isPlaying } = usePlayer();
   const [activeTab, setActiveTab] = useState<LibraryTab>('songs');
+  const [tabCounts, setTabCounts] = useState<Record<LibraryTab, number | null>>({
+    songs: null,
+    artists: null,
+    albums: null,
+  });
   const [sections, setSections] = useState<SectionData<ListItem>[]>([]);
   const [sortedItems, setSortedItems] = useState<ListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,6 +139,59 @@ export default function Library() {
     }
   }, [mode, heartbeatModeActive]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTabCounts = async () => {
+      try {
+        const [trackRes, artistRes, albumRes] = await Promise.all([
+          loadMoreTrack({
+            pageSize: 1,
+            loadCount: 0,
+            type: mode,
+          }),
+          loadMoreArtist({
+            pageSize: 1,
+            loadCount: 0,
+            type: mode,
+          }),
+          loadMoreAlbum({
+            pageSize: 1,
+            loadCount: 0,
+            type: mode,
+          }),
+        ]);
+
+        if (cancelled) return;
+
+        setTabCounts({
+          songs:
+            trackRes.code === 200
+              ? trackRes.data?.total || trackRes.data?.list?.length || 0
+              : 0,
+          artists:
+            artistRes.code === 200
+              ? artistRes.data?.total || artistRes.data?.list?.length || 0
+              : 0,
+          albums:
+            albumRes.code === 200
+              ? albumRes.data?.total || albumRes.data?.list?.length || 0
+              : 0,
+        });
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to load library tab counts:', error);
+        }
+      }
+    };
+
+    loadTabCounts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
+
   useDidShow(() => {
       // noop
   });
@@ -194,6 +252,15 @@ export default function Library() {
     });
   };
 
+  const renderTabLabel = (label: string, count: number | null, active: boolean) => (
+    <Text className={`tab-text ${active ? 'active-text' : ''}`}>
+      {label}
+      {typeof count === 'number' ? (
+        <Text className={`tab-count ${active ? 'active' : ''}`}> {count}</Text>
+      ) : null}
+    </Text>
+  );
+
   return (
     <View className='library-container'>
       <View className='header'>
@@ -217,19 +284,19 @@ export default function Library() {
                 className={`tab-item ${activeTab === 'songs' ? 'active' : ''}`}
                 onClick={() => setActiveTab('songs')}
             >
-                <Text className={`tab-text ${activeTab === 'songs' ? 'active-text' : ''}`}>单曲</Text>
+                {renderTabLabel('单曲', tabCounts.songs, activeTab === 'songs')}
             </View>
             <View 
                 className={`tab-item ${activeTab === 'artists' ? 'active' : ''}`} 
                 onClick={() => setActiveTab('artists')}
             >
-                <Text className={`tab-text ${activeTab === 'artists' ? 'active-text' : ''}`}>艺术家</Text>
+                {renderTabLabel('艺术家', tabCounts.artists, activeTab === 'artists')}
             </View>
             <View 
                 className={`tab-item ${activeTab === 'albums' ? 'active' : ''}`} 
                 onClick={() => setActiveTab('albums')}
             >
-                <Text className={`tab-text ${activeTab === 'albums' ? 'active-text' : ''}`}>专辑</Text>
+                {renderTabLabel('专辑', tabCounts.albums, activeTab === 'albums')}
             </View>
          </View>
       </View>
