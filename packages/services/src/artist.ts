@@ -22,6 +22,8 @@ export const getArtistList = (
   export const loadMoreArtist = (params: {
     pageSize: number;
     loadCount: number;
+    type?: string;
+    sortBy?: string;
   }) => {
     return getAdapter().artist.loadMoreArtist(params);
   };

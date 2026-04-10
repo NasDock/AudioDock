@@ -29,7 +29,7 @@ const Category: React.FC = () => {
   const key = `${CACHE_KEY}_${mode}_${heartbeatModeActive ? "heartbeat" : "default"}`;
 
   const loadMoreAlbums = async (d: Result | undefined): Promise<Result> => {
-    const pageSize = 12;
+    const pageSize = 50;
     const loadCount = d?.loadCount || d?.loadCount === 0 ? d?.loadCount + 1 : 0; // 当前已经加载的页数
     setLoadCount(key, loadCount);
     try {
@@ -156,12 +156,14 @@ const Category: React.FC = () => {
             </>
           )}
         </Row>
-        {data && !data.hasMore && data.list.length > 0 && (
+        {data && data.list.length > 0 && (
           <div
             className={styles.noMore}
             style={{ color: token.colorTextSecondary }}
           >
-            没有更多了
+            {data.hasMore
+              ? `${data.total > 0 ? `共 ${data.total} 张专辑` : `共 ${data.list.length} 张专辑`}，已加载 ${data.list.length} 张专辑`
+              : `${data.total > 0 ? `共 ${data.total} 张专辑` : `共 ${data.list.length} 张专辑`}，没有更多了`}
           </div>
         )}
       </div>

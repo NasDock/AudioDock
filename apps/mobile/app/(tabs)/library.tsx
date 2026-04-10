@@ -284,6 +284,13 @@ const SongList = ({
               </View>
             </TouchableOpacity>
           )}
+          ListFooterComponent={
+            <View style={styles.listFooter}>
+              <Text style={[styles.listFooterText, { color: colors.secondary }]}>
+                共加载 {tracks.length} 首
+              </Text>
+            </View>
+          }
           initialNumToRender={20}
           maxToRenderPerBatch={20}
           windowSize={10}
@@ -459,6 +466,13 @@ const ArtistList = ({
         initialNumToRender={20}
         maxToRenderPerBatch={20}
         windowSize={10}
+        ListFooterComponent={
+          <View style={styles.listFooter}>
+            <Text style={[styles.listFooterText, { color: colors.secondary }]}>
+              共加载 {artists.length} 位艺术家
+            </Text>
+          </View>
+        }
       />
       <FloatingActionButtons
         flatListRef={flatListRef}
@@ -653,6 +667,13 @@ const AlbumList = ({
         initialNumToRender={20}
         maxToRenderPerBatch={20}
         windowSize={10}
+        ListFooterComponent={
+          <View style={styles.listFooter}>
+            <Text style={[styles.listFooterText, { color: colors.secondary }]}>
+              共加载 {albums.length} 张专辑
+            </Text>
+          </View>
+        }
       />
       <FloatingActionButtons
         locateDisabled={
@@ -772,6 +793,13 @@ const CollectionList = () => {
             </TouchableOpacity>
           );
         }}
+        ListFooterComponent={
+          <View style={styles.listFooter}>
+            <Text style={[styles.listFooterText, { color: colors.secondary }]}>
+              共加载 {collections.length} 个合集
+            </Text>
+          </View>
+        }
       />
     </View>
   );
@@ -784,6 +812,17 @@ export default function LibraryScreen() {
   const { sourceType, user, device } = useAuth();
   const { playTrackList } = usePlayer();
   const insets = useSafeAreaInsets();
+  const [tabCounts, setTabCounts] = useState<{
+    songs: number | null;
+    artists: number | null;
+    albums: number | null;
+    collections: number | null;
+  }>({
+    songs: null,
+    artists: null,
+    albums: null,
+    collections: null,
+  });
   const [activeTab, setActiveTab] = useState<"songs" | "artists" | "albums" | "collections">(
     "songs",
   );
@@ -836,6 +875,96 @@ export default function LibraryScreen() {
       setHeartbeatModeActive(false);
     }
   }, [mode, heartbeatModeActive]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTabCounts = async () => {
+      try {
+        const [trackRes, artistRes, albumRes, collectionRes] = await Promise.all([
+          mode === "MUSIC"
+            ? loadMoreTrack({
+                pageSize: 1,
+                loadCount: 0,
+                type: mode,
+              })
+            : Promise.resolve(null),
+          getArtistList(1, 0, mode),
+          loadMoreAlbum({
+            pageSize: 1,
+            loadCount: 0,
+            type: mode,
+          }),
+          mode === "AUDIOBOOK" && user
+            ? getCollections(user.id)
+            : Promise.resolve(null),
+        ]);
+
+        if (cancelled) return;
+
+        setTabCounts({
+          songs:
+            mode === "MUSIC"
+              ? (trackRes?.code === 200
+                  ? trackRes.data?.total ?? trackRes.data?.list?.length ?? 0
+                  : 0)
+              : null,
+          artists:
+            artistRes?.code === 200
+              ? artistRes.data?.total ?? artistRes.data?.list?.length ?? 0
+              : 0,
+          albums:
+            albumRes?.code === 200
+              ? albumRes.data?.total ?? albumRes.data?.list?.length ?? 0
+              : 0,
+          collections:
+            mode === "AUDIOBOOK"
+              ? (collectionRes?.code === 200 ? collectionRes.data?.length ?? 0 : 0)
+              : null,
+        });
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load library tab counts:", error);
+        }
+      }
+    };
+
+    loadTabCounts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, user]);
+
+  const renderTabLabel = (
+    label: string,
+    count: number | null,
+    active: boolean,
+  ) => (
+    <Text
+      style={[
+        styles.segmentText,
+        {
+          color: active ? colors.background : colors.secondary,
+        },
+      ]}
+    >
+      {label}
+      {typeof count === "number" && (
+        <Text
+          style={[
+            styles.segmentCountText,
+            {
+              color: active ? colors.background : colors.secondary,
+            },
+          ]}
+        >
+          {" "}
+          {count}
+        </Text>
+      )}
+    </Text>
+  );
 
   return (
     <View
@@ -983,19 +1112,7 @@ export default function LibraryScreen() {
               ]}
               onPress={() => setActiveTab("songs")}
             >
-              <Text
-                style={[
-                  styles.segmentText,
-                  {
-                    color:
-                      activeTab === "songs"
-                        ? colors.background
-                        : colors.secondary,
-                  },
-                ]}
-              >
-                单曲
-              </Text>
+              {renderTabLabel("单曲", tabCounts.songs, activeTab === "songs")}
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -1005,19 +1122,7 @@ export default function LibraryScreen() {
             ]}
             onPress={() => setActiveTab("artists")}
           >
-            <Text
-              style={[
-                styles.segmentText,
-                {
-                  color:
-                    activeTab === "artists"
-                      ? colors.background
-                      : colors.secondary,
-                },
-              ]}
-            >
-              艺术家
-            </Text>
+            {renderTabLabel("艺术家", tabCounts.artists, activeTab === "artists")}
           </TouchableOpacity>
           <TouchableOpacity
             style={[
@@ -1026,19 +1131,7 @@ export default function LibraryScreen() {
             ]}
             onPress={() => setActiveTab("albums")}
           >
-            <Text
-              style={[
-                styles.segmentText,
-                {
-                  color:
-                    activeTab === "albums"
-                      ? colors.background
-                      : colors.secondary,
-                },
-              ]}
-            >
-              专辑
-            </Text>
+            {renderTabLabel("专辑", tabCounts.albums, activeTab === "albums")}
           </TouchableOpacity>
           {mode === "AUDIOBOOK" && (
             <TouchableOpacity
@@ -1048,19 +1141,7 @@ export default function LibraryScreen() {
               ]}
               onPress={() => setActiveTab("collections")}
             >
-              <Text
-                style={[
-                  styles.segmentText,
-                  {
-                    color:
-                      activeTab === "collections"
-                        ? colors.background
-                        : colors.secondary,
-                  },
-                ]}
-              >
-                合集
-              </Text>
+              {renderTabLabel("合集", tabCounts.collections, activeTab === "collections")}
             </TouchableOpacity>
           )}
         </View>
@@ -1309,6 +1390,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "bold",
   },
+  segmentCountText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 40,
@@ -1399,6 +1484,13 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   songArtist: {
+    fontSize: 13,
+  },
+  listFooter: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  listFooterText: {
     fontSize: 13,
   },
   selectionHeader: {

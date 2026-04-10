@@ -36,7 +36,8 @@ const { Title } = Typography;
 interface Result {
   list: Track[];
   hasMore: boolean;
-  nextId?: number;
+  nextLoadCount: number;
+  total?: number;
 }
 
 const Songs: React.FC = () => {
@@ -57,7 +58,7 @@ const Songs: React.FC = () => {
   const { heartbeatModeActive, toggleHeartbeatMode } = useLibraryStore();
 
   const loadMore = async (d: Result | undefined): Promise<Result> => {
-    const currentLoadCount = d?.nextId || 0;
+    const currentLoadCount = d?.nextLoadCount ?? 0;
     const pageSize = 50;
 
     try {
@@ -68,24 +69,19 @@ const Songs: React.FC = () => {
         sortBy:
           mode === "MUSIC" && heartbeatModeActive ? "heartbeat" : undefined,
       });
-      console.log(res, 'res');
       if (res.code === 200 && res.data) {
-        // Handle different return shapes if necessary, but Adapter returns ILoadMoreData<Track>
-        // Native returns Track[], Subsonic returns Track[] in data.list usually. 
-        // Wait, NativeTrackAdapter.loadMoreTrack returns ISuccessResponse<ILoadMoreData<Track>>
-        // which has list: Track[], hasMore: boolean etc?
-        // Let's check NativeTrackAdapter implementation again from previous turns.
-        // It returns { list: Track[], total: number, hasMore: boolean } usually in ILoadMoreData.
-        // BUT NativeTrackAdapter code showed it returning Request.get<... ILoadMoreData<Track>>
-        // Let's assume standard ILoadMoreData structure.
-        
-        const list = res.data.list;
-        const previousList = d?.list || [];
+        const list = res.data.list || [];
+        const total = res.data.total ?? list.length;
+        const hasMore =
+          typeof res.data.hasMore === "boolean"
+            ? res.data.hasMore
+            : list.length === pageSize;
 
         return {
-            list: [...previousList, ...list],
-            hasMore: list.length === pageSize,
-            nextId: currentLoadCount + 1,
+          list,
+          hasMore,
+          nextLoadCount: currentLoadCount + 1,
+          total,
         };
       }
     } catch (error) {
@@ -95,6 +91,8 @@ const Songs: React.FC = () => {
     return {
       list: d?.list || [],
       hasMore: false,
+      nextLoadCount: d?.nextLoadCount ?? d?.list.length ?? 0,
+      total: d?.total,
     };
   };
 
@@ -300,8 +298,10 @@ const Songs: React.FC = () => {
         </div>
       )}
 
-      {data && !data.hasMore && data.list.length > 0 && (
-        <div className={styles.noMore}>没有更多了</div>
+      {data && data.list.length > 0 && (
+        <div className={styles.noMore}>
+          共 {data.total || data.list.length} 首歌曲，已加载 {data.list.length} 首
+        </div>
       )}
 
       {data?.list.length === 0 && !loading && (
