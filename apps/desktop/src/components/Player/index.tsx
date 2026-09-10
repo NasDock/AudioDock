@@ -60,7 +60,6 @@ import SinglecycleOutlined from "../../assets/singlecycle.svg?react";
 import XiaoAiOutlined from "../../assets/xiaoai.svg?react";
 import { useMessage } from "../../context/MessageContext";
 import { useMediaSession } from "../../hooks/useMediaSession";
-import { getBaseURL } from "../../https";
 import { type Track, TrackType } from "../../models";
 import { socketService } from "../../services/socket";
 import { trackEvent } from "../../services/tracking";
