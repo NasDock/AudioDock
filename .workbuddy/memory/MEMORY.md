@@ -62,18 +62,22 @@
 - **⚠️ 卡片封面三级兜底**（WidgetCoverResolver）：data:base64 内联（WidgetBridge 预取后塞进 FormBindingData，最稳定）→ file:// 本地缓存（同 UID 可读）→ 绝对 URL（相对路径用模块级 baseUrl 补全，**卡片进程不能 import features_network**，会拉起整张网络栈）。WidgetBridge.prefetchCover 用 http.createHttp 拉 ARRAY_BUFFER → 写 filesDir/widget_covers → 生成 data:image/webp;base64（≤80KB，300px webp 基本 <20KB）。
 - **⚠️ 列表封面（歌单/历史/上新）必须统一下载转 file:// 本地文件路径**：FormExtensionAbility 渲染进程对 Image 加载网络 URL 不可靠（官方文档原话"对于网络图片的加载存在较大性能开销，部分场景可能存在加载失败"），dataImage 走 FormBindingData 有截断风险。resolveCoverToFile(cover) 用 getImageUrl(cover, 96) → http.createHttp 拉 ARRAY_BUFFER → 写 filesDir/widget_covers/ → 返回 file:// 路径，卡片零网络请求直接读本地文件。外链封面（Subsonic/Emby 等 http(s)）也统一下载转本地。EntryFormAbility.restoreNowPlayingFromPersistedState 的封面优先读 widget_now_playing_cover_cache（dataImage → 转 file://），缓存没有才手动拼 URL 兜底。
 - **⚠️ service 类拿 context**：getContext() 只在 @Component 内可靠；service（WidgetBridge 等）从 AppStorage 取（EntryAbility.initialize 里 `AppStorage.setOrCreate('abilityContext', ctx)`）。
-- ArkTS 严格模式追加：postCardAction 的 params 不能写字面量 `{a:1}`，必须先 `const params: Record<string,string> = {}` 再逐项赋值；Promise.race 分支必须同类型；Uint8Array.buffer 可能带 byteOffset，写文件前必须 slice。
 
-- **⚠️⚠️ `fs.mkdirSync(dir, true)` 在目录已存在时照样抛 `File exists`（EEXIST）**，不是「存在即返回」。这曾让小部件封面第二次起全部落盘失败（卡片全是占位音符，"偶尔能显示一次"就是首次安装目录还不存在那次）。正确写法：先 `fs.accessSync(dir)` 判断，mkdir 失败后再 accessSync 校验一次；写文件前 `unlinkSync`、写后 `statSync().size` 校验非空。见 `WidgetBridge.ensureDir`。
-- **⚠️ 抓 harmony 日志用 hdc**（App 日志 domain = `com.audiodock.app/AudioDock`，Logger 输出 `[TAG] msg`）：`hdc shell "aa start -b com.audiodock.app -a EntryAbility"` 然后 `hdc shell "hilog > /data/local/tmp/hl.txt & sleep 14; kill %1; grep ... hl.txt"`——**`hilog | grep` 会流式挂死，必须先落文件再 grep**。hilog 里直接看 `[WidgetBridge]` 能秒定位封面问题。
-- `COVER_PREFETCH_TIMEOUT_MS = 8000`（4000 在外网 300px 图上经常 timeout）。
+## STRM 播放链路（内网/外网）
 
-## 封面/头像分级加载（四端统一）
-
-- 后端 `GET /image/optimize?src=&w=&q=&fmt=`（services/api，只放行 `/covers/`）。
-- 档位 [96,128,300,600,900,1200]，width=目标设备像素宽（显示尺寸×2），q=72 fmt=webp；**≤300 恒压缩不分内外网**（防解码 OOM），>300 才分内外网。
-- `getImageUrl` 必须保持同步纯函数；网络判定走模块级变量 + 服务器切换钩子异步 refresh。
-- 坑：① 视频地址不要走 getImageUrl；② 会落盘缓存的路径必须限 ≤300 档；③ 小程序 iOS<14 需 `<Image webp>`。
+- **STRM 文件内容**：`.strm` 文件里存的是 Alist 的相对路径（如 `/音乐/xxx.mp3`），不是完整 URL。
+- **STRM_ADDRESS 环境变量**：`docker-compose.yml` / `docker-compose-nas.yaml` 里配了 `STRM_ADDRESS=http://192.168.1.12:5244`（Alist 内网地址）。
+- **扫描入库**：`packages/utils/src/index.ts` 的 `LocalMusicScanner.parseFile` 遇到 `.strm` 时，若内容不是 http 开头，就用 `STRM_ADDRESS + 相对路径` 拼成完整 URL，**直接写入数据库 track.path**。
+- **播放链路**：
+  - `services/api/src/controllers/track.ts` 的 `/track/stream/:id`：如果 `track.path.startsWith('http')`，直接 `proxyStream(track.path, req, res)` —— 后端作为代理去拉取 `track.path` 指向的地址。
+  - 如果 track.path 是相对路径（旧数据或 fallback），会走 `getFilePath` 解析成本地文件，然后读 `.strm` 文件内容再 proxy。
+- **鸿蒙端播放**：`apps/harmony` 的 `resolveTrackUrl` 如果 `path` 是 http(s) 直链，**直接返回该 URL 给 AVPlayer**，不走 `/track/stream` 代理。
+- **mobile 端播放**：`buildTrackPlaybackUrl` 同样，如果 `track.path.startsWith('http')` 直接返回原地址。
+- **⚠️ 核心问题**：STRM_ADDRESS 配的是内网地址 `http://192.168.1.12:5244`，导致：
+  1. 数据库里 track.path 存的是内网 URL（如 `http://192.168.1.12:5244/音乐/xxx.mp3`）
+  2. 外网环境下，客户端（鸿蒙 App / 手机浏览器）拿到这个内网地址直接播放 → **无法访问**
+  3. 网页端内网能播是因为网页端走 `/track/stream/:id` 代理，后端（部署在内网）去拉 Alist → 返回给客户端
+  4. 但鸿蒙端和外网手机网页端**直接播放 track.path 里的内网地址**，不走代理 → 失败
 
 ## @soundx/services workspace 包
 

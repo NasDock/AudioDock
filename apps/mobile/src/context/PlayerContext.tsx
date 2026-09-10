@@ -1419,15 +1419,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       // re-buffer and defeat the purpose of this fix.
       const initialQuality: AudioQuality = preferredQuality ?? "lossless";
 
-      const remoteUri =
-        track.type === TrackType.AUDIOBOOK
-          ? (track.path.startsWith("http")
-              ? track.path
-              : `${getBaseURL()}${track.path
-                  .split("/")
-                  .map(encodeURIComponent)
-                  .join("/")}`)
-          : buildTrackPlaybackUrl(track, initialQuality);
+      const remoteUri = buildTrackPlaybackUrl(track, initialQuality);
 
       // Artwork: use the remote URL immediately. A cached / downloaded
       // copy is wired up in the background and just swaps the metadata.

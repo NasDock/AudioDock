@@ -315,16 +315,8 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
     // 1. Determine initial URI synchronously so audio starts streaming on the
     //    very next render — never block playback on async cache or profile work.
     let initialUri = "";
-    if (currentTrack.type !== TrackType.AUDIOBOOK) {
+    if (currentTrack.path) {
       initialUri = buildTrackPlaybackUrl(currentTrack, currentAudioQuality);
-    } else if (currentTrack.path) {
-      initialUri = currentTrack.path.startsWith("http")
-        ? currentTrack.path
-        : `${getBaseURL()}${currentTrack.path.split("/").map(encodeURIComponent).join("/")}`;
-
-      if (!initialUri.startsWith("http")) {
-        initialUri = `${window.location.origin}${initialUri}`;
-      }
     } else if ((currentTrack as any).localPath) {
       // Offline audiobook track with no remote URL: resolveTrackUri() below will
       // serve the cached copy as a playable blob URL. Don't set a `media://`

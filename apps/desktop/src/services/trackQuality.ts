@@ -76,8 +76,20 @@ export const buildTrackPlaybackUrl = (
   track: { id: number | string; path: string },
   quality?: AudioQuality,
 ): string => {
+  // 只有当 path 的 host 就是当前 baseURL 的 host（即本来就是服务器自己的地址）时才直返；
+  // 否则（如 strm 曲目指向 Alist 内网地址）改走 /track/stream 服务端代理，避免外网/跨网段不可达。
   if (track.path.startsWith("http")) {
-    return track.path;
+    try {
+      const pathUrl = new URL(track.path);
+      const baseUrl = new URL(getBaseURL().replace(/\/$/, ""));
+      if (pathUrl.host === baseUrl.host) {
+        return track.path;
+      }
+    } catch {
+      // URL parse failed, fall through to proxy
+    }
+    const qualityQuery = quality ? `?quality=${quality}` : "";
+    return `${getBaseURL().replace(/\/$/, "")}/track/stream/${track.id}${qualityQuery}`;
   }
 
   const baseURL = getBaseURL().replace(/\/$/, "");
