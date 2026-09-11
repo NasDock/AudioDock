@@ -1,4 +1,3 @@
-```dockerfile
 # ==========================================
 # Stage 1: Builder
 # Node 22 + Debian 12 Bookworm
@@ -427,4 +426,3 @@ RUN chmod +x /app/start.sh
 # 10. Start
 # ==========================================
 CMD ["/app/start.sh"]
-```
