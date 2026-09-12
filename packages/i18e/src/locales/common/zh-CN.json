@@ -1669,6 +1669,8 @@
     "openStoreFailedTitle": "无法打开应用商店",
     "openStoreFailedBody": "请检查网络或稍后再试",
     "openStore": "前往应用商店",
+    "downloadApkFailedTitle": "更新下载失败",
+    "downloadApkFailedBody": "请检查网络或稍后再试",
     "later": "稍后再说",
     "checking": "检查更新中...",
     "checkUpdate": "检查更新",

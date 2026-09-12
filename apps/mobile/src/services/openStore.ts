@@ -6,6 +6,10 @@ import { openExternalURL } from '../utils/openURL';
 /**
  * Android 国内分发渠道
  *
+ * ⚠️ 自 2026-09 起 mobile 端版本更新统一走 APK 直装（SystemDownloadManager），
+ * 本文件中的 getCurrentStoreUrl / openStoreByPlatform 已不再被 useCheckUpdate 调用。
+ * 保留它们仅作兜底/调试用途（openStoreDebug 仍可用，且依赖本文件内的常量）。
+ *
  * 按设备品牌路由到对应应用商店（各品牌跳自家的市场）：
  *   荣耀 → 荣耀应用市场
  *   OPPO（含 realme/一加）→ OPPO 软件商店
@@ -14,8 +18,6 @@ import { openExternalURL } from '../utils/openURL';
  *   其他品牌 → 兜底按 ANDROID_STORE_ORDER 顺序取第一家（当前为华为）
  *
  * 注意：
- *   - 小米 / 红米不走商店路由（isXiaomiDevice → APK 直装），
- *     由 useCheckUpdate 在更上层分流，本文件不处理小米。
  *   - 上架哪家就填哪家的真实 URL；未上架的渠道保持 PLACEHOLDER。
  */
 export const ANDROID_STORE_ORDER = ['huawei', 'oppo', 'vivo', 'honor'] as const;

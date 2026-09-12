@@ -4,13 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from 'react-native';
 import { getLatestVersion } from '../src/services/update';
 import type { DownloadFileInfo } from '../src/services/update';
-import { getCurrentStoreUrl, openStoreByPlatform } from '../src/services/openStore';
 import {
   compareVersions,
   downloadAndInstallApk,
   getLocalVersion,
 } from '../src/utils/updateUtils';
-import { isNative, isXiaomiDevice } from '../src/utils/platform';
+import { isNative } from '../src/utils/platform';
 
 /** 配置常量：GitHub 仓库（用于拉取 release changelog） */
 const GITHUB_USER = 'mmdctjj';
@@ -20,43 +19,40 @@ const IGNORED_VERSION_KEY = 'ignored_version';
 
 /**
  * 版本更新信息（弹窗 / 手动检查返回值）
+ *
+ * v3：mobile 端不再按设备品牌分流，全部走「国内仓库 APK 直装」
+ * （即原来仅小米/红米走的那条路径）。后端 files 中只要下发
+ * platform='android' 的 APK URL，无论用户设备品牌是什么品牌都直装。
+ * iOS 暂不走更新流程（iOS 上架滞后，本地 build 无可用版本），
+ * checkUpdate 在 iOS 上拿到 APK URL 后仍交给 SystemDownloadManager，
+ * 由 updateUtils 内部做平台判断（iOS 上 noop，弹窗关闭）。
  */
 export interface UpdateInfo {
   /** 远端版本号（如 "1.3.0"） */
   version: string;
   /** 更新说明（GitHub Release body markdown） */
   body: string;
-  /**
-   * 更新方式：
-   * - xiaomi：小米设备，走「国内仓库 APK 直装」（downloadUrl 非空）
-   * - store：其他平台（iOS / OPPO / vivo / 荣耀…），跳应用商店（storeUrl 非空）
-   */
-  mode: 'xiaomi' | 'store';
-  /** 商店 URL（mode=store 时使用） */
-  storeUrl?: string;
-  /** APK 直装 URL（mode=xiaomi 时使用，来自后端 /download/latest files） */
-  downloadUrl?: string;
+  /** APK 直装 URL（来自后端 /download/latest files[platform=android]） */
+  downloadUrl: string;
 }
 
 /** Hook 内部状态 */
 interface UseCheckUpdateState {
   /** 是否正在检查中（用于按钮 loading 态） */
   checking: boolean;
-  /** 是否正在跳转商店 / 创建下载任务 */
+  /** 是否正在创建下载任务 */
   opening: boolean;
-  /** APK 下载进度（0~1，仅 mode=xiaomi 且下载中时有意义） */
+  /** APK 下载进度（0~1；当前实现下弹窗提交任务后即关闭，进度回调实际不展示） */
   progress: number;
-  /** 发现的更新信息（null = 当前已是最新 / 已忽略 / 接口异常） */
+  /** 发现的更新信息（null = 当前已是最新 / 已忽略 / 接口异常 / 后端未下发 APK URL） */
   updateInfo: UpdateInfo | null;
 }
 
 /**
  * 版本检查 Hook
  *
- * 更新方式按设备品牌分流：
- *   - 小米 / 红米（isXiaomiDevice）→ 国内仓库 APK 直装
- *     （从后端 /download/latest files 中取 platform=android 的 url）
- *   - 其他平台（iOS / OPPO / vivo / 荣耀…）→ 跳转应用商店
+ * 更新方式：统一走「国内仓库 APK 直装」（系统下载器）；
+ * 不再区分小米/其他 Android 品牌，也不再跳应用商店。
  *
  * 用法：
  *   const { checking, updateInfo, checkUpdate, startUpdate, ignoreUpdate } =
@@ -108,7 +104,11 @@ export const useCheckUpdate = () => {
   };
 
   /**
-   * 从后端下发的 files 中取 Android APK 直装地址（小米用）
+   * 从后端下发的 files 中取 Android APK 直装地址
+   *
+   * 统一走 APK 直装后不再区分品牌，只要后端 files 里有 platform=android
+   * 的条目就拿它的 url。iOS 上虽然也会拿到这个 URL，下面的 startUpdate
+   * 仍会调 downloadAndInstallApk，由 updateUtils 内部做平台判断（iOS 上 noop）。
    */
   const pickAndroidApkUrl = (files: DownloadFileInfo[] | null): string | null => {
     const apk = files?.find((f) => f.platform === 'android');
@@ -118,10 +118,10 @@ export const useCheckUpdate = () => {
   /**
    * 执行一次版本检查
    *
-   * @returns 发现的 UpdateInfo，若无需更新/已忽略/接口异常则返回 null
+   * @returns 发现的 UpdateInfo，若无需更新/已忽略/接口异常/后端未下发 APK URL 则返回 null
    */
   const checkUpdate = useCallback(async (): Promise<UpdateInfo | null> => {
-    // Web 端不支持跳转商店 / APK 直装，直接跳过
+    // Web 端不支持 APK 直装，直接跳过
     if (!isNative()) return null;
 
     setState((s) => ({ ...s, checking: true }));
@@ -147,28 +147,14 @@ export const useCheckUpdate = () => {
       // 4. 拉 changelog
       const body = await fetchReleaseBody(remoteVersion);
 
-      // 5. 按设备品牌分流更新方式
-      const info: UpdateInfo = { version: remoteVersion, body, mode: 'store' };
-
-      if (isXiaomiDevice()) {
-        // 小米 / 红米：走国内仓库 APK 直装
-        const downloadUrl = pickAndroidApkUrl(files);
-        if (!downloadUrl) {
-          console.warn('[useCheckUpdate] 小米设备但未下发 APK 下载地址');
-          return null;
-        }
-        info.mode = 'xiaomi';
-        info.downloadUrl = downloadUrl;
-      } else {
-        // 其他平台（iOS / OPPO / vivo / 荣耀…）：跳应用商店
-        const storeUrl = getCurrentStoreUrl();
-        if (!storeUrl) {
-          console.warn('[useCheckUpdate] no store url for current platform');
-          return null;
-        }
-        info.storeUrl = storeUrl;
+      // 5. 统一从后端取 platform=android 的 APK URL（不再按设备品牌分流）
+      const downloadUrl = pickAndroidApkUrl(files);
+      if (!downloadUrl) {
+        console.warn('[useCheckUpdate] 后端未下发 Android APK 下载地址');
+        return null;
       }
 
+      const info: UpdateInfo = { version: remoteVersion, body, downloadUrl };
       setState((s) => ({ ...s, updateInfo: info }));
       return info;
     } catch (e) {
@@ -182,25 +168,32 @@ export const useCheckUpdate = () => {
   /**
    * 执行更新（用户点击「立即更新」时调用）
    *
-   * - 小米：调原生系统下载器下载 APK，下载完成后自动拉起安装
-   * - 其他：打开应用商店
+   * 统一走系统下载器下载 APK（SystemDownloadManager）；
+   * iOS 上由 updateUtils 内部 noop，弹窗关闭即视为「暂无 iOS 版本」。
+   *
+   * 行为要点：进入函数立即关闭弹窗（updateInfo=null）；
+   * 只有创建下载任务失败时，才把弹窗恢复回来，让用户重试或忽略。
    */
   const startUpdate = useCallback(async () => {
-    setState((s) => ({ ...s, opening: true }));
+    const info = state.updateInfo;
+    // 立即关闭弹窗（保留 opening=true，保持 state 一致性便于失败时恢复；
+    // 弹窗已关，按钮不会渲染）
+    setState((s) => ({ ...s, opening: true, updateInfo: null, progress: 0 }));
     try {
-      if (state.updateInfo?.mode === 'xiaomi' && state.updateInfo.downloadUrl) {
-        await downloadAndInstallApk(state.updateInfo.downloadUrl, (p) => {
+      if (info?.downloadUrl) {
+        await downloadAndInstallApk(info.downloadUrl, (p) => {
+          // 弹窗已关，进度回调不影响 UI；保留调用以满足 updateUtils 接口
           setState((s) => ({ ...s, progress: p }));
         });
       } else {
-        const ok = await openStoreByPlatform();
-        if (!ok) {
-          Alert.alert(t('update.openStoreFailedTitle'), t('update.openStoreFailedBody'));
-        }
+        // 防御：理论上 checkUpdate 已经保证了 downloadUrl 非空才返回 updateInfo
+        console.warn('[useCheckUpdate] startUpdate but no downloadUrl');
       }
     } catch (e) {
       console.warn('[useCheckUpdate] startUpdate error:', e);
-      Alert.alert(t('update.openStoreFailedTitle'), t('update.openStoreFailedBody'));
+      // 创建下载任务失败 → 恢复弹窗让用户重试或忽略
+      setState((s) => ({ ...s, updateInfo: info }));
+      Alert.alert(t('update.downloadApkFailedTitle'), t('update.downloadApkFailedBody'));
     } finally {
       setState((s) => ({ ...s, opening: false }));
     }
