@@ -59,6 +59,27 @@ async function bootstrap() {
     }
   });
 
+  // Serve audiobook files directly (supports Range for seek).
+  // Audiobook playback on mobile resolves track.path (/audio/...) to a bare URL
+  // instead of the /track/stream/:id endpoint, so a static mount is required.
+  // Multiple audiobook dirs are mounted in order; Express falls through on miss.
+  for (const dir of audiobookDirs) {
+    console.log(`Serving audiobook files from: ${dir}`);
+    app.useStaticAssets(dir, {
+      prefix: '/audio/',
+      setHeaders: (res, filePath) => {
+        res.set('Accept-Ranges', 'bytes');
+        const ext = filePath.toLowerCase();
+        if (ext.endsWith('.mp3')) res.set('Content-Type', 'audio/mpeg');
+        else if (ext.endsWith('.flac')) res.set('Content-Type', 'audio/flac');
+        else if (ext.endsWith('.wav')) res.set('Content-Type', 'audio/wav');
+        else if (ext.endsWith('.m4a')) res.set('Content-Type', 'audio/mp4');
+        else if (ext.endsWith('.aac')) res.set('Content-Type', 'audio/aac');
+        else if (ext.endsWith('.ogg')) res.set('Content-Type', 'audio/ogg');
+      },
+    });
+  }
+
   // TTS Service Proxy
   const ttsServiceUrl = process.env.TTS_SERVICE_URL || 'http://localhost:8000';
   console.log(`Proxying /tts requests to: ${ttsServiceUrl}`);
