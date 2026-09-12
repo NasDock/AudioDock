@@ -27,6 +27,8 @@ import { PlayerDetailView } from "./player";
 import { Ionicons } from "@expo/vector-icons";
 import { UpdateModal } from "../src/components/UpdateModal";
 import { useCheckUpdate } from "../hooks/useCheckUpdate";
+import { PromotionDialog } from "../src/components/PromotionDialog";
+import { useCheckPromotion } from "../hooks/useCheckPromotion";
 
 function RootLayoutNav() {
   const { token, isLoading, plusToken, user } = useAuth();
@@ -332,6 +334,23 @@ function RootLayoutNav() {
     return () => clearTimeout(timer);
   }, [checkUpdate]);
 
+  // ─── 优惠活动检查（启动 2s 后静默触发，仅一次） ──────────────────────
+  const {
+    promotion,
+    checkPromotion,
+    ignorePromotion,
+    dismissPromotion,
+  } = useCheckPromotion();
+  const hasAutoCheckedPromotionRef = useRef(false);
+  useEffect(() => {
+    if (hasAutoCheckedPromotionRef.current) return;
+    hasAutoCheckedPromotionRef.current = true;
+    const timer = setTimeout(() => {
+      void checkPromotion();
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [checkPromotion]);
+
   const stack = (
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -573,6 +592,12 @@ function RootLayoutNav() {
         onUpdate={startUpdate}
         onIgnore={ignoreUpdate}
         onClose={cancelUpdate}
+      />
+      <PromotionDialog
+        visible={!!promotion}
+        promotion={promotion}
+        onClose={dismissPromotion}
+        onIgnore={ignorePromotion}
       />
     </>
   );

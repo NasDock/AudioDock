@@ -2014,6 +2014,16 @@
     "noTasksYet": "No tasks yet",
     "title": "Task Title"
   },
+  "promotion": {
+    "title": "Promotion",
+    "activityInProgress": "{{name}} promotion is now live",
+    "goView": "View Details",
+    "nextTime": "Maybe Later",
+    "ignoreActivity": "Don't show for this promotion",
+    "annualPrice": "Annual ¥{{price}}",
+    "lifetimePrice": "Lifetime ¥{{price}}",
+    "dateRange": "{{start}} - {{end}}"
+  },
   "taskCenter": {
     "title": "Task Center",
     "empty": "No tasks",

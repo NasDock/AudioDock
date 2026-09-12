@@ -30,6 +30,8 @@ export interface VipPlanPrice {
 }
 
 export interface VipCurrentLowestPriceData {
+  /** 活动 ID，无活动时为 null */
+  activityId?: string | null;
   name?: string;
   description?: string;
   startsAt?: string | null;

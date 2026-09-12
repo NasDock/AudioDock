@@ -1,6 +1,11 @@
+import router from '@ohos.router';
 import { buildTheme } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
+import { kvStore } from 'features_storage';
+import { plusApi } from 'features_network';
+import type { VipCurrentLowestPriceData } from 'features_network';
 import { GlobalBottomBar } from '../components/GlobalBottomBar';
+import { PromotionDialog } from '../components/PromotionDialog';
 import { MainPageContent } from './MainPage';
 import { ArtistDetailContent } from './ArtistDetailPage';
 import { AlbumDetailContent } from './AlbumDetailPage';
@@ -15,6 +20,9 @@ interface PendingNavDest {
 }
 
 const PENDING_NAV_DEST_KEY = 'pendingNavDest';
+
+/** kvStore key：用户主动忽略的活动 ID（同一活动不再弹窗） */
+const IGNORED_PROMOTION_KEY = 'ignored_promotion_activity_id';
 
 /** NavDestination 详情页 param：ArkTS 严格模式不允许内联对象字面量，必须显式类/接口。 */
 interface DetailNavParam {
@@ -55,6 +63,8 @@ struct RootShellPage {
   // GlobalBottomBar 再渲染会把 tab 横跨整屏底部，挤占播放器面板内容区。
   @StorageLink('carModeEnabled') carModeEnabled: boolean = false;
   @State theme: Theme = buildTheme('light');
+  @State promotion: VipCurrentLowestPriceData | null = null;
+  @State showPromotion: boolean = false;
 
   onThemeModeChange(): void {
     this.theme = buildTheme(this.themeMode);
@@ -66,6 +76,48 @@ struct RootShellPage {
     if (this.pathStack.size() === 0) {
       this.pathStack.pushPath({ name: 'MainTabs' });
     }
+    // 延迟检测优惠活动（等页面渲染完成后触发，仅一次）
+    setTimeout(() => {
+      this.checkPromotion();
+    }, 2000);
+  }
+
+  /** 启动时检测优惠活动：有活动且未被忽略则弹窗 */
+  private async checkPromotion(): Promise<void> {
+    try {
+      const pricing = await plusApi.getVipCurrentLowestPrice();
+      // 无活动（activityId 为 null）→ 不弹
+      if (!pricing?.activityId) return;
+
+      // 已被用户忽略 → 不弹
+      const ignored = await kvStore.get(IGNORED_PROMOTION_KEY);
+      if (pricing.activityId === ignored) return;
+
+      this.promotion = pricing;
+      this.showPromotion = true;
+    } catch (e) {
+      // 接口异常静默失败，不弹窗
+    }
+  }
+
+  /** 忽略当前活动（勾选「忽略此活动」后关闭时调用，写入 kvStore） */
+  private ignorePromotion(): void {
+    if (this.promotion?.activityId) {
+      kvStore.set(IGNORED_PROMOTION_KEY, this.promotion.activityId).catch(() => {});
+    }
+    this.showPromotion = false;
+    this.promotion = null;
+  }
+
+  /** 关闭弹窗（「下次再说」，不忽略，下次启动仍会再询问） */
+  private dismissPromotion(): void {
+    this.showPromotion = false;
+    this.promotion = null;
+  }
+
+  /** 「去查看」→ 跳会员权益页 */
+  private goToMemberBenefits(): void {
+    router.pushUrl({ url: 'pages/MemberBenefitsPage' }).catch(() => {});
   }
 
   /** 从 PlayerPage 等独立 Page 返回时，检查是否有待跳转的 NavDestination */
@@ -153,6 +205,11 @@ struct RootShellPage {
     }
   }
 
+  /** 弹窗展示期间拦截返回键：用户必须通过按钮做出明确选择 */
+  onBackPress(): boolean {
+    return this.showPromotion;
+  }
+
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
       Navigation(this.pathStack) {
@@ -170,6 +227,28 @@ struct RootShellPage {
 
       if (!this.hideBottomBar && !this.carModeEnabled) {
         GlobalBottomBar({ pathStack: this.pathStack })
+      }
+
+      // 全局优惠活动弹窗（照抄 Index.ets 的 Stack 遮罩模式）
+      if (this.showPromotion) {
+        Column() {
+          PromotionDialog({
+            theme: this.theme,
+            promotion: this.promotion,
+            onClose: (): void => this.dismissPromotion(),
+            onIgnore: (): void => this.ignorePromotion(),
+            onGoView: (): void => this.goToMemberBenefits(),
+          })
+        }
+        .width('100%')
+        .height('100%')
+        .padding({ left: 32, right: 32 })
+        .backgroundColor('rgba(0,0,0,0.5)')
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .onClick(() => {
+          // 拦截点击穿透：用户必须通过按钮做出明确选择
+        })
       }
     }
     .width('100%').height('100%')

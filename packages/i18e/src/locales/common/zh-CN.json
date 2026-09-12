@@ -2021,6 +2021,16 @@
     "noTasksYet": "暂无任务",
     "title": "任务标题"
   },
+  "promotion": {
+    "title": "优惠活动",
+    "activityInProgress": "{{name}} 活动正在进行中",
+    "goView": "去查看",
+    "nextTime": "下次再说",
+    "ignoreActivity": "忽略此活动",
+    "annualPrice": "年卡 ¥{{price}}",
+    "lifetimePrice": "永久卡 ¥{{price}}",
+    "dateRange": "{{start}} 至 {{end}}"
+  },
   "taskCenter": {
     "title": "任务中心",
     "empty": "暂无任务",

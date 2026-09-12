@@ -1,0 +1,142 @@
+.promotion-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 60rpx;
+}
+
+.promotion-content {
+  width: 100%;
+  max-height: 70vh;
+  background-color: #fff;
+  border-radius: 24rpx;
+  display: flex;
+  flex-direction: column;
+  padding: 48rpx 40rpx 40rpx;
+}
+
+.promotion-header {
+  text-align: center;
+  margin-bottom: 24rpx;
+}
+
+.promotion-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #333;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.promotion-date-range {
+  font-size: 26rpx;
+  color: #999;
+  display: block;
+}
+
+.promotion-desc-scroll {
+  max-height: 200rpx;
+  margin-bottom: 24rpx;
+}
+
+.promotion-desc {
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.6;
+  text-align: center;
+  display: block;
+}
+
+.promotion-price-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 32rpx;
+  margin-bottom: 32rpx;
+}
+
+.promotion-price {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #faad14;
+}
+
+.promotion-checkbox-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  margin-bottom: 40rpx;
+}
+
+.promotion-checkbox {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 8rpx;
+  border: 2rpx solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.checked {
+    border-color: #faad14;
+    background-color: #faad14;
+  }
+}
+
+.promotion-checkmark {
+  font-size: 24rpx;
+  color: #fff;
+  font-weight: 700;
+}
+
+.promotion-checkbox-label {
+  font-size: 26rpx;
+  color: #999;
+}
+
+.promotion-btn-row {
+  display: flex;
+  flex-direction: row;
+  gap: 24rpx;
+}
+
+.promotion-btn-secondary {
+  flex: 1;
+  height: 92rpx;
+  border-radius: 46rpx;
+  border: 1rpx solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.promotion-btn-secondary-text {
+  font-size: 32rpx;
+  color: #333;
+  font-weight: 600;
+}
+
+.promotion-btn-primary {
+  flex: 1;
+  height: 92rpx;
+  border-radius: 46rpx;
+  background-color: #faad14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.promotion-btn-primary-text {
+  font-size: 32rpx;
+  color: #fff;
+  font-weight: 600;
+}
