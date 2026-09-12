@@ -418,7 +418,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const uri =
         track.type === 'AUDIOBOOK'
-          ? (track.path.startsWith('http') ? track.path : `${baseUrl}${track.path}`)
+          ? buildTrackPlaybackUrl(track, initialQuality)
           : buildTrackPlaybackUrl(track, initialQuality);
       if (requestId !== playRequestIdRef.current) return;
       // 通知栏/后台播控封面，走小图档（128 恒压缩）——避免加载 5MB 原图

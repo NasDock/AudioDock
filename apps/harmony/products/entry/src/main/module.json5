@@ -49,8 +49,28 @@
               {
                 "scheme": "wx42a4102d85be55a1",
                 "host": "platformId=wechat"
+              },
+              {
+                // 桌面小部件点击拉起主 App 到指定页面（VIP 锁定页 / 播放器页 / 主页）
+                "scheme": "audiodock",
+                "host": "widget"
               }
             ]
+          }
+        ]
+      }
+    ],
+    "extensionAbilities": [
+      {
+        "name": "EntryFormAbility",
+        "srcEntry": "./ets/formability/EntryFormAbility.ets",
+        "type": "form",
+        "exported": true,
+        "description": "AudioDock 桌面小部件（正在播放 / 播放列表 / 播放与听过 / 上新单曲）",
+        "metadata": [
+          {
+            "name": "ohos.extension.form",
+            "resource": "$profile:form_config"
           }
         ]
       }

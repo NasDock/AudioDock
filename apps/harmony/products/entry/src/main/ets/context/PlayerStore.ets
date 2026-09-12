@@ -293,8 +293,18 @@ export class PlayerStore {
       await this.loadCurrent(this.currentMs);
       return;
     }
-    if (this.state === 'playing') { await audioBackend.pause(); this.isPlaying = false; }
-    else { await audioBackend.play(); this.isPlaying = true; }
+    // 用 isPlaying 判断而不是 state —— state 由 AVPlayer 异步回调设置，
+    // 在 await audioBackend.play/pause 返回时可能还没同步；isPlaying 才是用户感知的真实状态。
+    // 同时显式同步 state，避免下次 togglePlay 判断时 state 与 isPlaying 不一致
+    if (this.isPlaying) {
+      await audioBackend.pause();
+      this.isPlaying = false;
+      this.state = 'paused';
+    } else {
+      await audioBackend.play();
+      this.isPlaying = true;
+      this.state = 'playing';
+    }
     this.notify();
     this.broadcastSync(this.isPlaying ? 'play' : 'pause');
   }
@@ -752,7 +762,28 @@ export class PlayerStore {
     syncStore.leaveSession();
   }
 
-  private notify(): void { for (const l of this.listeners) l(); }
+  private notify(): void {
+    for (const l of this.listeners) l();
+    // 状态变化时主动推卡片（不依赖 widgetBridge.install 的订阅时机，
+    // 对齐 iOS 的 commit() 三连：写 Preferences → 批量 updateForm）
+    // 注意：loadPersistedState 恢复状态时也会调 notify()，但此时 isPlaying=false，
+    // 推空状态会覆盖 restoreNowPlayingFromPersistedState 恢复的卡片数据。
+    // 所以只在「真正播放状态变化」时才推（isPlaying 或 queue 有值）。
+    if (this.isPlaying || this.queue.length > 0) {
+      // 走 WidgetBridge.scheduleSyncNowPlaying 的 300ms 节流，避免进度 tick（~50ms 一次）
+      // 高频 notify() 把 formProvider.updateForm 打爆（系统 hilog: isReportOverSize,checkFail）。
+      this.schedulePushToWidget();
+    }
+  }
+
+  private schedulePushToWidget(): void {
+    // 动态 import 避免循环依赖（PlayerStore → WidgetBridge → PlayerStore）
+    import('../services/WidgetBridge').then((mod): void => {
+      mod.widgetBridge.scheduleSyncNowPlaying();
+    }).catch((e: Error): void => {
+      Logger.w('PlayerStore', `schedulePushToWidget import: ${e.message}`);
+    });
+  }
 }
 
 export const playerStore: PlayerStore = new PlayerStore();

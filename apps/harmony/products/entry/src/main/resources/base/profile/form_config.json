@@ -1,0 +1,82 @@
+{
+  "forms": [
+    {
+      "name": "widget_player",
+      "description": "正在播放控制",
+      "src": "./ets/widgets/AudioDockPlayerCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 720,
+        "autoDesignWidth": true
+      },
+      "colorMode": "dark",
+      "isDefault": true,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "00:00",
+      "updateDuration": 60,
+      "defaultDimension": "2*2",
+      "supportDimensions": [
+        "2*2",
+        "2*4",
+        "4*4"
+      ]
+    },
+    {
+      "name": "widget_playlist",
+      "description": "播放列表",
+      "src": "./ets/widgets/PlaylistCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 720,
+        "autoDesignWidth": true
+      },
+      "colorMode": "dark",
+      "isDefault": false,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "01:00",
+      "updateDuration": 120,
+      "defaultDimension": "4*4",
+      "supportDimensions": [
+        "4*4"
+      ]
+    },
+    {
+      "name": "widget_history",
+      "description": "播放与听过",
+      "src": "./ets/widgets/PlayerHistoryCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 720,
+        "autoDesignWidth": true
+      },
+      "colorMode": "dark",
+      "isDefault": false,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "02:00",
+      "updateDuration": 120,
+      "defaultDimension": "4*4",
+      "supportDimensions": [
+        "4*4"
+      ]
+    },
+    {
+      "name": "widget_latest",
+      "description": "上新单曲",
+      "src": "./ets/widgets/LatestCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 720,
+        "autoDesignWidth": true
+      },
+      "colorMode": "dark",
+      "isDefault": false,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "03:00",
+      "updateDuration": 120,
+      "defaultDimension": "4*4",
+      "supportDimensions": [
+        "4*4"
+      ]
+    }
+  ]
+}

@@ -4,11 +4,20 @@ import type { TrackDto } from './track';
 /**
  * 后端控制器前缀是 @Controller('playlists')（services/api/src/controllers/playlist.ts），
  * 不是 /playlist。字段名对齐 Prisma model Playlist: id / name / type / createdAt。
- * cover / description / trackCount 由前端按需自构（后端 list/find 不返回）；
- * CoverImage 在 path 为空时会自动显示占位图，所以保留可选字段即可。
+ * list 接口（PlaylistService.findAll）额外返回：
+ *   - tracks: 前 4 首曲目的 { id, cover }（用于前端自构堆叠封面，对齐 mobile StackedCover）
+ *   - _count: { tracks } 曲目总数
+ * detail 接口（findOne）返回完整 tracks: TrackDto[]。
+ * 顶层 cover / description / trackCount 后端不返回，保留可选兼容旧代码。
  */
+export interface PlaylistCount { tracks?: number }
+
 export interface PlaylistDto {
   id: string; name: string; type?: string; createdAt?: string; description?: string; trackCount?: number; cover?: string;
+  /** list：前 4 首 { id, cover }（部分字段）；detail：完整曲目列表 */
+  tracks?: TrackDto[];
+  /** list 接口的曲目总数 */
+  _count?: PlaylistCount;
 }
 
 export interface PlaylistDetailResp extends PlaylistDto { tracks?: TrackDto[] }

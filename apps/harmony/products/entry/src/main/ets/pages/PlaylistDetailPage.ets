@@ -9,6 +9,7 @@ import { resolveTrackToPlayer } from '../services/trackResolver';
 import { playerStore } from '../context/PlayerStore';
 import type { Track } from '../context/PlayerStore';
 import { CoverImage } from '../components/CoverImage';
+import { getImageUrl } from '../utils/image';
 import { miniPlayerHasContent } from '../components/MiniPlayer';
 import { AppIcon } from '../components/AppIcon';
 import { Logger } from 'audiodock_common';
@@ -110,18 +111,23 @@ export struct PlaylistDetailContent {
 
       // GlobalBottomBar 已由 RootShellPage 在 Navigation 容器外统一挂载，跨页面常驻。
       // 这里不再手动挂载，避免每次进详情页重建一份。
+
+      // ArkUI 每个组件只能绑定一个 bindSheet，用不可见锚点分散绑定（对齐 PlayerPage/AlbumDetailPage 的做法）。
+      // 之前两个 bindSheet 都挂在根 Column 上，导致「⋮」更多弹窗点了不显示。
+      Column().width(0).height(0)
+        .bindSheet($$this.showMore, this.MoreSheet(), {
+          height: 320,
+          dragBar: true,
+          backgroundColor: this.theme.colors.surface,
+        })
+      Column().width(0).height(0)
+        .bindSheet($$this.showRename, this.RenameSheet(), {
+          height: 220,
+          dragBar: true,
+          backgroundColor: this.theme.colors.surface,
+        })
     }
     .width('100%').height('100%').backgroundColor(this.theme.colors.background)
-    .bindSheet($$this.showMore, this.MoreSheet(), {
-      height: 320,
-      dragBar: true,
-      backgroundColor: this.theme.colors.surface,
-    })
-    .bindSheet($$this.showRename, this.RenameSheet(), {
-      height: 220,
-      dragBar: true,
-      backgroundColor: this.theme.colors.surface,
-    })
   }
 
   @Builder
@@ -195,22 +201,32 @@ export struct PlaylistDetailContent {
     .scrollBar(BarState.Off)
   }
 
+  // 封面墙：1:1 对齐 mobile app/playlist/[id].tsx 的 photoWall——
+  // flex wrap 三行「小-大-大-小 / 大-大-大 / 小-大-大-小」，
+  // 索引 [0,3,7,10] 是小格（宽 16.66%、宽高比 0.5），其余大格（宽 33.33%、1:1），
+  // 每格 padding 2 做间距、图片填满、无圆角、灰底占位、整墙 100% 宽无外边距。
   @Builder
   CoverWall() {
     Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
-      ForEach(this.getCoverUrls(), (url: string, idx: number) => {
-        CoverImage({
-          path: url,
-          imgWidth: idx % 3 === 0 ? 80 : 60,
-          imgHeight: idx % 3 === 0 ? 80 : 60,
-          radius: 4,
-          fallbackText: '♪',
-        })
-          .margin(2)
+      ForEach(this.getWallCovers(), (url: string, idx: number) => {
+        Image(getImageUrl(url, 400))
+          .width(this.wallCellWidth(idx))
+          .aspectRatio(this.wallCellRatio(idx))
+          .padding(2)
+          .objectFit(ImageFit.Cover)
+          .backgroundColor('#DDDDDD')
       }, (url: string, idx: number) => `cw-${idx}`)
     }
     .width('100%')
-    .padding({ left: 14, right: 14, top: 12 })
+  }
+
+  // 索引 [0,3,7,10] 为小格（对齐 mobile 的 isSmall）
+  private wallCellWidth(idx: number): string {
+    return [0, 3, 7, 10].indexOf(idx) >= 0 ? '16.66%' : '33.33%';
+  }
+
+  private wallCellRatio(idx: number): number {
+    return [0, 3, 7, 10].indexOf(idx) >= 0 ? 0.5 : 1;
   }
 
   @Builder
@@ -290,17 +306,17 @@ export struct PlaylistDetailContent {
     .width('100%').padding({ left: 20, right: 20 })
   }
 
-  private getCoverUrls(): string[] {
+  // 按专辑去重（album 为空时用曲名兜底），最多 11 张——对齐 mobile uniqueAlbums
+  private getWallCovers(): string[] {
     if (!this.data || !this.data.tracks) return [];
     const urls: string[] = [];
     const seen: Set<string> = new Set();
     for (const tr of this.data.tracks) {
-      const c = tr.cover ?? '';
-      if (c && !seen.has(c)) {
-        seen.add(c);
-        urls.push(c);
-        if (urls.length >= 9) break;
-      }
+      const albumKey = tr.album ?? tr.name ?? '';
+      if (seen.has(albumKey)) continue;
+      seen.add(albumKey);
+      urls.push(tr.cover ?? '');
+      if (urls.length >= 11) break;
     }
     return urls;
   }

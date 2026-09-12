@@ -77,8 +77,23 @@ class ListRow {
   cover(): string {
     if (this.kind === 'track' && this.track) return this.track.cover ?? '';
     if (this.kind === 'album' && this.album) return this.album.cover ?? '';
-    if (this.kind === 'playlist' && this.playlist) return this.playlist.cover ?? '';
+    if (this.kind === 'playlist' && this.playlist) return this.coverAt(0);
     return '';
+  }
+
+  /**
+   * 歌单封面：后端 list 不返回顶层 cover，返回前 4 首曲目的 { id, cover }。
+   * 取第 i 首的封面（对齐 mobile StackedCover 叠放不同封面）；
+   * 不足 i+1 首时回退到第一首，保证堆叠层不为空。
+   */
+  coverAt(i: number): string {
+    if (this.kind !== 'playlist' || !this.playlist) return '';
+    const direct = this.playlist.cover ?? '';
+    const ts = this.playlist.tracks ?? [];
+    if (ts.length === 0) return direct;
+    const idx = i < ts.length ? i : 0;
+    const c = ts[idx].cover ?? '';
+    return c !== '' ? c : direct;
   }
 
   subtitle(): string {
@@ -87,6 +102,11 @@ class ListRow {
     }
     if (this.kind === 'album' && this.album) {
       return this.album.artist ?? '';
+    }
+    if (this.kind === 'playlist' && this.playlist) {
+      // 对齐 mobile：_count.tracks 优先，兜底 tracks.length
+      const n = this.playlist._count?.tracks ?? (this.playlist.tracks ?? []).length;
+      return `${n} 首`;
     }
     return '';
   }
@@ -111,8 +131,10 @@ class TabInfo {
 export struct PersonalTab {
   // 路由栈由 RootShellPage 注入；进 NavDestination 内的页面用它，独立 Page 仍走 router.pushUrl
   pathStack: NavPathStack = new NavPathStack();
-  // 车机模式详情页跳转回调：非空时优先走右栏局部渲染，不进入全局路由
+  // 车机模式详情页跳转回调：仅 carModeEnabled 时使用（右栏局部渲染），不进入全局路由
   carNavCallback?: (name: string, id: string) => void;
+  // 与 MainPage 同源：车机模式开关，决定 onRowClick 走 carNavCallback 还是 pathStack
+  @StorageLink('carModeEnabled') carModeEnabled: boolean = false;
   // 内容模式由 AppStorage 全局同步（对齐 mobile usePlayMode）：设置页/首页/声仓
   // 任一处切换有声书模式，本页经 @Watch 实时重载列表与菜单（TTS 入口等）。
   @StorageLink('playMode') @Watch('onModeChange') mode: string = 'MUSIC';
@@ -539,7 +561,9 @@ export struct PersonalTab {
   private onRowClick(row: ListRow): void {
     if (row.kind === 'playlist' && row.playlist) {
       const id = String(row.playlist.id);
-      if (this.carNavCallback) {
+      // 车机模式才走右栏局部渲染；普通模式必须 pushPath 进全局路由。
+      // carNavCallback 由 MainPage 无条件注入，不能用它本身当开关（否则手机端点击无反应）。
+      if (this.carModeEnabled && this.carNavCallback) {
         this.carNavCallback('PlaylistDetail', id);
       } else {
         const param: DetailNavParam = { id: id };
@@ -547,7 +571,7 @@ export struct PersonalTab {
       }
     } else if (row.kind === 'album' && row.album) {
       const id = String(row.album.id);
-      if (this.carNavCallback) {
+      if (this.carModeEnabled && this.carNavCallback) {
         this.carNavCallback('AlbumDetail', id);
       } else {
         const param: DetailNavParam = { id: id };
@@ -884,10 +908,10 @@ export struct PersonalTab {
   ListRowBuilder(row: ListRow) {
     Row() {
       if (row.kind === 'playlist') {
-        // 堆叠封面：对齐 mobile StackedCover 视觉
+        // 堆叠封面：对齐 mobile StackedCover 视觉（每层用不同曲目封面，不足时回退第一张）
         Stack({ alignContent: Alignment.TopStart }) {
           CoverImage({
-            path: row.cover(),
+            path: row.coverAt(2),
             imgWidth: 50, imgHeight: 50, radius: 8,
             fallbackText: row.name(),
           })
@@ -895,7 +919,7 @@ export struct PersonalTab {
             .opacity(0.7)
             .scale({ x: 0.92, y: 0.92 })
           CoverImage({
-            path: row.cover(),
+            path: row.coverAt(1),
             imgWidth: 50, imgHeight: 50, radius: 8,
             fallbackText: row.name(),
           })
@@ -903,7 +927,7 @@ export struct PersonalTab {
             .opacity(0.85)
             .scale({ x: 0.96, y: 0.96 })
           CoverImage({
-            path: row.cover(),
+            path: row.coverAt(0),
             imgWidth: 50, imgHeight: 50, radius: 8,
             fallbackText: row.name(),
           })
@@ -923,11 +947,9 @@ export struct PersonalTab {
           .fontSize(16).fontWeight(FontWeight.Medium).fontColor(this.theme.colors.text)
           .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
 
-        if (row.kind !== 'playlist') {
-          Text(row.subtitle())
-            .fontSize(13).fontColor(this.theme.colors.textSecondary).margin({ top: 4 })
-            .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
+        Text(row.subtitle())
+          .fontSize(13).fontColor(this.theme.colors.textSecondary).margin({ top: 4 })
+          .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
       }
       .layoutWeight(1).alignItems(HorizontalAlign.Start)
     }
