@@ -97,14 +97,21 @@ const AppContent = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  const settings = useSettingsStore((state: SettingsState) => state);
+  const { autoLaunch, language, activityNotifyEnabled } = settings.general;
+  const carModeEnabled = settings.carMode?.enabled ?? false;
+  const carModeSeekBridgeRef = useRef<CarModeSeekBridge>({ current: null });
+
   useEffect(() => {
     // Check promotion on startup (delayed, once)
+    // 设置页「活动通知」关闭时不弹
+    if (!activityNotifyEnabled) return;
     const timer = setTimeout(() => {
       checkPromotion();
     }, 6000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activityNotifyEnabled]);
 
   useEffect(() => {
     if (token && user) {
@@ -113,12 +120,6 @@ const AppContent = () => {
       socketService.disconnect();
     }
   }, [token, user]);
-
-  // Sync settings on startup
-  const settings = useSettingsStore((state: SettingsState) => state);
-  const { autoLaunch, language } = settings.general;
-  const carModeEnabled = settings.carMode?.enabled ?? false;
-  const carModeSeekBridgeRef = useRef<CarModeSeekBridge>({ current: null });
 
   useEffect(() => {
     if (language === "system") {

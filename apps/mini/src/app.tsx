@@ -6,7 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import './utils/request'; // Initialize request instance
 
 import { PlayerProvider } from './context/PlayerContext';
-import { SettingsProvider } from './context/SettingsContext';
+import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { ThemeProvider } from './context/ThemeContext';
 import PromotionModal from './components/PromotionModal';
 import { useCheckPromotion } from './utils/useCheckPromotion';
@@ -30,6 +30,7 @@ function App(props: PropsWithChildren) {
 // Simple Guard Component to handle redirection
 const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const { token, isLoading } = require('./context/AuthContext').useAuth()
+  const { activityNotifyEnabled } = useSettings();
   const { promotion, checkPromotion, ignorePromotion, dismissPromotion } =
     useCheckPromotion();
   const hasCheckedRef = React.useRef(false);
@@ -46,15 +47,16 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   }, [token, isLoading])
 
   // Check promotion once token is ready (delayed, once per session)
+  // 设置页「活动通知」关闭时不弹
   React.useEffect(() => {
-    if (isLoading || !token || hasCheckedRef.current) return;
+    if (isLoading || !token || !activityNotifyEnabled || hasCheckedRef.current) return;
     hasCheckedRef.current = true;
     const timer = setTimeout(() => {
       void checkPromotion();
     }, 2000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, isLoading]);
+  }, [token, isLoading, activityNotifyEnabled]);
 
   return (
     <>

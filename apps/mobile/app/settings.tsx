@@ -69,6 +69,7 @@ export default function SettingsScreen() {
     autoTheme,
     carLayoutMode,
     voiceAssistantEnabled,
+    activityNotifyEnabled,
     recommendationLikeRatio,
     carModeEnabled,
     screenBottomInset,
@@ -681,6 +682,13 @@ export default function SettingsScreen() {
             t("settings.voiceAssistantDescription"),
             voiceAssistantEnabled,
             (val) => handleToggleVoiceAssistant(val),
+          )}
+
+          {renderSettingRow(
+            t("settings.activityNotify"),
+            t("settings.activityNotifyDescription"),
+            activityNotifyEnabled,
+            (val) => updateSetting("activityNotifyEnabled", val),
           )}
 
           <View

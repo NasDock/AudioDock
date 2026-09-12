@@ -119,6 +119,8 @@
     "relayPlayDescription": "是否接受多设备之间播放接力",
     "syncControl": "同步控制",
     "syncControlDescription": "是否接受同数据源下其他用户的同步控制请求",
+    "activityNotify": "活动通知",
+    "activityNotifyDescription": "有新的优惠活动时弹窗提醒",
     "recommendationPreference": "推荐偏好（喜欢/新鲜）",
     "like": "喜欢",
     "fresh": "新鲜",

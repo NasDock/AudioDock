@@ -85,6 +85,10 @@ struct RootShellPage {
   /** 启动时检测优惠活动：有活动且未被忽略则弹窗 */
   private async checkPromotion(): Promise<void> {
     try {
+      // 设置页「活动通知」关闭时不弹
+      const notifyEnabled = await kvStore.get('activityNotifyEnabled');
+      if (notifyEnabled === 'false') return;
+
       const pricing = await plusApi.getVipCurrentLowestPrice();
       // 无活动（activityId 为 null）→ 不弹
       if (!pricing?.activityId) return;

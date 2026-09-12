@@ -107,6 +107,7 @@ struct SettingsPage {
   // 并立即调用 setPreferredOrientation 切换主窗口方向（不依赖 MainPage 在栈顶）。
   @StorageLink('autoOrientation') autoOrientation: boolean = false;
   @State voiceAssistantEnabled: boolean = false;
+  @State activityNotifyEnabled: boolean = true;
   // 车机模式三个字段全部用 @StorageLink：SettingsPage 写入后立即触发 MainPage /
   // GlobalBottomBar / SquirrelAgent / EmbeddedPlayerPanel 等消费者重建（对齐 mobile
   // 的 SettingsContext 订阅模式）。AppStorage 由 EntryAbility.initialize() 从
@@ -161,6 +162,7 @@ struct SettingsPage {
       // 由 EntryAbility 从 kvStore 读出后写入 AppStorage，本页直接走 @StorageLink，
       // 不再重复读 kvStore（避免 loadSettings 异步回填覆盖真实值）。
       this.voiceAssistantEnabled = await this.readBool('voiceAssistantEnabled', false);
+      this.activityNotifyEnabled = await this.readBool('activityNotifyEnabled', true);
       // carModeEnabled / carPanelsSwapped / screenBottomInset 由 EntryAbility 从
       // kvStore 读出后写入 AppStorage，本页直接走 @StorageLink，不再重复读 kvStore。
       this.acceptRelay = await this.readBool('acceptRelay', true);
@@ -773,6 +775,19 @@ struct SettingsPage {
             description: t('settings.voiceAssistantDescription'),
             value: this.voiceAssistantEnabled,
             onChange: (val: boolean): void => this.handleVoiceAssistantChange(val),
+          })
+
+          // 活动通知
+          SettingSwitchRow({
+            label: t('settings.activityNotify'),
+            description: t('settings.activityNotifyDescription'),
+            value: this.activityNotifyEnabled,
+            onChange: (val: boolean): void => {
+              this.activityNotifyEnabled = val;
+              this.updateBoolSetting('activityNotifyEnabled', val).catch((e: Error): void => {
+                Logger.w('SettingsPage', `updateBoolSetting activityNotifyEnabled rejected: ${String(e)}`);
+              });
+            },
           })
 
           // 推荐偏好

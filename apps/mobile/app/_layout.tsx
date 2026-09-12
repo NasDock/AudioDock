@@ -34,6 +34,7 @@ function RootLayoutNav() {
   const { token, isLoading, plusToken, user } = useAuth();
   const {
     voiceAssistantEnabled,
+    activityNotifyEnabled,
     carLayoutMode,
     carPanelsSwapped,
     screenBottomInset,
@@ -346,10 +347,12 @@ function RootLayoutNav() {
     if (hasAutoCheckedPromotionRef.current) return;
     hasAutoCheckedPromotionRef.current = true;
     const timer = setTimeout(() => {
+      // 设置页「活动通知」关闭时不弹
+      if (!activityNotifyEnabled) return;
       void checkPromotion();
     }, 2000);
     return () => clearTimeout(timer);
-  }, [checkPromotion]);
+  }, [checkPromotion, activityNotifyEnabled]);
 
   const stack = (
     <Stack>
