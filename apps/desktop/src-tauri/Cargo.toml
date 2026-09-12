@@ -1,6 +1,6 @@
 [package]
 name = "sound-x"
-version = "1.2.3"
+version = "1.2.4"
 description = "AudioDock - A modern audio player"
 authors = ["mmdctjj <mmdctjj@gmail.com>"]
 license = "MIT"
