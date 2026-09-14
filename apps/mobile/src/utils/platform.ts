@@ -49,5 +49,29 @@ export const isXiaomiDevice = (): boolean => {
   );
 };
 
+/**
+ * 设备平台（用于在线设备列表 / 播放流转）。
+ * phone=手机，tablet=平板（含 iPad / Android 平板）
+ */
+export const getDevicePlatform = (): 'phone' | 'tablet' => {
+  // expo-device 的 deviceType: PHONE=1, TABLET=2
+  return Device.deviceType === Device.DeviceType.TABLET ? 'tablet' : 'phone';
+};
+
+const DEVICE_ID_KEY = '@audiodock_device_id';
+
+/**
+ * 获取稳定唯一设备标识。首次调用生成 UUID 并持久化到 AsyncStorage。
+ * 延迟 import 避免循环依赖。
+ */
+export const getOrCreateDeviceId = async (): Promise<string> => {
+  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+  const existing = await AsyncStorage.getItem(DEVICE_ID_KEY);
+  if (existing) return existing;
+  const id = `mobile_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+  await AsyncStorage.setItem(DEVICE_ID_KEY, id);
+  return id;
+};
+
 // 预留：未来如果支持 HarmonyOS React Native 包，可启用
 // export const isHarmony = (): boolean => Platform.OS === 'harmony' || Platform.OS === 'openharmony';

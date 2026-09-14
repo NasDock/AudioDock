@@ -12,6 +12,7 @@ export { miApi } from './mi';
 export { ttsApi } from './tts';
 export { ttsConfigApi } from './ttsConfig';
 export { taskApi } from './task';
+export { deviceApi } from './device';
 export { scanLoginApi, subscribeScanLoginSession, reportScanLoginResultViaSocket } from './scanLogin';
 
 export type { LoginDto, RegisterDto, AuthMe, LoginResponse, CheckResponse, AuthApi } from './auth';
@@ -65,6 +66,7 @@ export type {
 export {
   toUnifiedFromImport, isTaskActive, TASK_STATUS_I18N_KEY,
 } from './task';
+export type { OnlineDevice, DevicePlatform, DeviceApi } from './device';
 export type {
   ScanLoginSourceConfig, ScanLoginSourceBundle,
   ScanLoginAuthBundle, ScanLoginPlusBundle, ScanLoginUser,

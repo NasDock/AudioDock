@@ -44,7 +44,7 @@ import subsonic from "../../assets/subsonic.png";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuthStore } from "../../store/auth";
 import { trackEvent } from "../../services/tracking";
-import { isWeb } from "../../utils/platform";
+import { isWeb, tauriGetDeviceName, getDevicePlatform, getOrCreateDeviceId } from "../../utils/platform";
 import { applyDesktopScanLoginResult } from "../../utils/scanLogin";
 import styles from "./index.module.less";
 
@@ -470,7 +470,14 @@ const Login: React.FC = () => {
       if (externalAddress) saveCreds(externalAddress);
 
       if (isLogin) {
-        const res = await login({ username, password });
+        const deviceName = await tauriGetDeviceName();
+        const res = await login({
+          username,
+          password,
+          deviceName,
+          deviceId: getOrCreateDeviceId(),
+          platform: getDevicePlatform(),
+        });
         ensureSuccess(res);
         if (res.data) {
           const { token: newToken, device } = res.data;
@@ -492,7 +499,14 @@ const Login: React.FC = () => {
           navigate("/");
         }
       } else {
-        const res = await register({ username, password });
+        const deviceName = await tauriGetDeviceName();
+        const res = await register({
+          username,
+          password,
+          deviceName,
+          deviceId: getOrCreateDeviceId(),
+          platform: getDevicePlatform(),
+        });
         ensureSuccess(res);
         if (res.data) {
           const { token: newToken, device } = res.data;

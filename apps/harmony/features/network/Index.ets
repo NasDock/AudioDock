@@ -1,7 +1,7 @@
 export { HarmonyHttpClient, httpClient } from './src/main/ets/HarmonyHttpClient';
 export { HttpError } from './src/main/ets/HttpError';
 export { authApi, userApi, trackApi, albumApi, artistApi, playlistApi, collectionApi, mvApi, userDataApi,
-  plusApi, setPlusAuthToken, getPlusAuthToken, miApi, ttsApi, ttsConfigApi, taskApi,
+  plusApi, setPlusAuthToken, getPlusAuthToken, miApi, ttsApi, ttsConfigApi, taskApi, deviceApi,
   scanLoginApi, subscribeScanLoginSession, reportScanLoginResultViaSocket }
   from './src/main/ets/api';
 export type {
@@ -73,3 +73,4 @@ export type {
   ScanLoginClaimPayload, ScanLoginConfirmResult, ScanLoginSelection,
   ScanLoginApi, ScanLoginSubscribeOptions, ScanLoginUnsubscribe,
 } from './src/main/ets/api';
+export type { OnlineDevice, DevicePlatform, DeviceApi } from './src/main/ets/api';

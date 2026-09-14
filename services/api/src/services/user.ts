@@ -69,47 +69,85 @@ export class UserService {
     });
   }
 
-  async saveDevice(userId: number, deviceName: string): Promise<Device> {
-    // 查找当前用户的该设备是否存在
-    const device = await this.prisma.device.findFirst({
-      where: {
-        userId,
-        name: deviceName,
-      },
-    });
+  async saveDevice(
+    userId: number,
+    deviceName: string,
+    deviceId?: string,
+    platform?: string,
+  ): Promise<Device> {
+    const now = new Date();
+    // 优先按 deviceId 查找（稳定唯一标识），兜底按 name 查找（兼容旧端）
+    let device: Device | null = null;
+    if (deviceId) {
+      device = await this.prisma.device.findFirst({
+        where: { userId, deviceId },
+      });
+    }
+    if (!device) {
+      device = await this.prisma.device.findFirst({
+        where: { userId, name: deviceName },
+      });
+    }
 
     if (device) {
-      // 如果存在，更新在线状态
+      // 存在则更新在线状态 + 补录 deviceId/platform + 刷新 lastSeen
       return await this.prisma.device.update({
         where: { id: device.id },
-        data: { isOnline: true },
+        data: {
+          isOnline: true,
+          lastSeen: now,
+          ...(deviceId ? { deviceId } : {}),
+          ...(platform ? { platform } : {}),
+        },
       });
     } else {
-      // 如果不存在，创建新设备
+      // 不存在则创建新设备
       return await this.prisma.device.create({
         data: {
           userId,
           name: deviceName,
+          deviceId: deviceId ?? null,
+          platform: platform ?? null,
           isOnline: true,
+          lastSeen: now,
         },
       });
     }
   }
 
-  async setDeviceOffline(userId: number, deviceName: string): Promise<void> {
-    const device = await this.prisma.device.findFirst({
-      where: {
-        userId,
-        name: deviceName,
-      },
-    });
+  async setDeviceOffline(userId: number, deviceName: string, deviceId?: string): Promise<void> {
+    let device: Device | null = null;
+    if (deviceId) {
+      device = await this.prisma.device.findFirst({
+        where: { userId, deviceId },
+      });
+    }
+    if (!device) {
+      device = await this.prisma.device.findFirst({
+        where: { userId, name: deviceName },
+      });
+    }
 
     if (device) {
       await this.prisma.device.update({
         where: { id: device.id },
-        data: { isOnline: false },
+        data: { isOnline: false, lastSeen: new Date() },
       });
     }
+  }
+
+  async touchDevice(userId: number, deviceId: string): Promise<void> {
+    await this.prisma.device.updateMany({
+      where: { userId, deviceId },
+      data: { lastSeen: new Date() },
+    });
+  }
+
+  async getUserDevices(userId: number): Promise<Device[]> {
+    return await this.prisma.device.findMany({
+      where: { userId },
+      orderBy: [{ isOnline: 'desc' }, { lastSeen: 'desc' }],
+    });
   }
 
   async getDevice(userId: number, deviceName: string): Promise<Device | null> {

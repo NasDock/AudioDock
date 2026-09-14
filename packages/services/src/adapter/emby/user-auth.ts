@@ -1,5 +1,5 @@
 import { setServiceConfig } from "../../config";
-import { ILoadMoreData, ISuccessResponse, User } from "../../models";
+import { Device, ILoadMoreData, ISuccessResponse, User } from "../../models";
 import { IAuthAdapter, IUserAdapter } from "../interface-user-auth";
 import { EmbyClient } from "./client";
 import { preloadEmbyLibraryParents } from "./media";
@@ -164,6 +164,16 @@ export class EmbyUserAdapter implements IUserAdapter {
              is_admin: false
          }
      }
+  }
+
+  /** Emby 源不支持设备列表，返回空数组 */
+  async getUserDevices(): Promise<ISuccessResponse<Device[]>> {
+    return { code: 200, message: "success", data: [] };
+  }
+
+  /** Emby 源不支持播放流转 */
+  async transferSession(): Promise<ISuccessResponse<{ delivered: boolean }>> {
+    return { code: 500, message: "not supported", data: { delivered: false } };
   }
 
   async getUserById(id: number | string): Promise<ISuccessResponse<User>> {

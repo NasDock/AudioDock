@@ -1,6 +1,6 @@
 import { SharedSocketService } from "@soundx/ws";
 import { useAuthStore } from "../store/auth";
-import { tauriGetDeviceName, isWeb } from "../utils/platform";
+import { tauriGetDeviceName, isWeb, getDevicePlatform, getOrCreateDeviceId } from "../utils/platform";
 
 class SocketService extends SharedSocketService {
   async connect() {
@@ -42,7 +42,9 @@ class SocketService extends SharedSocketService {
         url,
         token,
         userId: user.id as number,
-        deviceName
+        deviceName,
+        deviceId: getOrCreateDeviceId(),
+        platform: getDevicePlatform(),
     });
   }
 }

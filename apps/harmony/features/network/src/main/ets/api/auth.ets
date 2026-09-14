@@ -1,8 +1,12 @@
 import { httpClient } from '../HarmonyHttpClient';
 
-export interface LoginDto { username: string; password: string }
+export interface LoginDto {
+  username: string; password: string;
+  deviceName?: string; deviceId?: string; platform?: string;
+}
 export interface RegisterDto {
-  username: string; password: string; nickname?: string; deviceName?: string;
+  username: string; password: string; nickname?: string;
+  deviceName?: string; deviceId?: string; platform?: string;
 }
 export interface AuthMe { id: string; username: string; nickname?: string; avatar?: string }
 export interface DeviceInfo { id: number }

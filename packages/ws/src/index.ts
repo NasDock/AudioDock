@@ -9,6 +9,10 @@ export interface SocketConnectOptions {
     userId: number;
     /** Device Name for identification */
     deviceName: string;
+    /** 稳定唯一设备标识（各端首次启动生成 UUID 并持久化） */
+    deviceId?: string;
+    /** 设备平台：desktop / web / tablet / phone / mini / tv / watch */
+    platform?: string;
     /** Extra query params */
     query?: Record<string, any>;
 }
@@ -28,12 +32,14 @@ export class SharedSocketService {
         return;
     }
 
-    const { url, token, userId, deviceName, query } = options;
+    const { url, token, userId, deviceName, deviceId, platform, query } = options;
 
     this.socket = io(url, {
       query: {
         userId,
         deviceName,
+        ...(deviceId ? { deviceId } : {}),
+        ...(platform ? { platform } : {}),
         ...query
       },
       transports: ["websocket"],

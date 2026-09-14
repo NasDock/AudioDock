@@ -1,9 +1,11 @@
 import Icon, {
   AimOutlined,
   DeliveredProcedureOutlined,
+  DesktopOutlined,
   DownOutlined,
   HeartFilled,
   HeartOutlined,
+  MobileOutlined,
   OrderedListOutlined,
   PauseCircleFilled,
   PlayCircleFilled,
@@ -25,6 +27,8 @@ import {
   getMiQRCodeStatus,
   getMvByTrackId,
   getPlaylists,
+  getUserDevices,
+  type Device as OnlineDevice,
   type MiDevice,
   type MiQRCodeResponse,
   type Playlist,
@@ -406,6 +410,10 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
   const [miQRCode, setMiQRCode] = useState<MiQRCodeResponse | null>(null);
   const [isCastingToMi, setIsCastingToMi] = useState(false);
   const miPollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 在线设备（播放流转）State
+  const [onlineDevices, setOnlineDevices] = useState<OnlineDevice[]>([]);
+  const [transferring, setTransferring] = useState<string | null>(null);
 
   // Playback Rate
   const [playbackRate, setPlaybackRate] = useState(() => {
@@ -1524,6 +1532,62 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
               <Text strong style={{ marginBottom: 8 }}>
                 {t("player.miSpeakerTitle")}
               </Text>
+
+              {/* 我的在线设备（播放流转） */}
+              {onlineDevices.filter(
+                (d) => d.isOnline && d.deviceId && d.deviceId !== (device?.deviceId ?? ""),
+              ).length > 0 && (
+                <>
+                  <Text type="secondary" style={{ fontSize: 12, marginBottom: 4 }}>
+                    {t("player.onlineDevices")}
+                  </Text>
+                  <List
+                    size="small"
+                    dataSource={onlineDevices.filter(
+                      (d) => d.isOnline && d.deviceId && d.deviceId !== (device?.deviceId ?? ""),
+                    )}
+                    renderItem={(d) => (
+                      <List.Item
+                        style={{
+                          cursor: currentTrack && !transferring ? "pointer" : "not-allowed",
+                        }}
+                        onClick={() => {
+                          if (!currentTrack || transferring) return;
+                          handleTransferToDevice(d);
+                        }}
+                      >
+                        <List.Item.Meta
+                          avatar={
+                            <Avatar
+                              size={32}
+                              style={{ backgroundColor: "#52c41a" }}
+                              icon={
+                                d.platform === "desktop" ? (
+                                  <DesktopOutlined style={{ color: token.colorTextLightSolid }} />
+                                ) : d.platform === "tv" ? (
+                                  <DesktopOutlined style={{ color: token.colorTextLightSolid }} />
+                                ) : (
+                                  <MobileOutlined style={{ color: token.colorTextLightSolid }} />
+                                )
+                              }
+                            />
+                          }
+                          title={d.name}
+                          description={
+                            transferring === d.deviceId
+                              ? t("common.loading")
+                              : t(`player.platform_${d.platform || "phone"}`)
+                          }
+                        />
+                      </List.Item>
+                    )}
+                  />
+                  <Text type="secondary" style={{ fontSize: 12, margin: "8px 0 4px" }}>
+                    {t("player.miSpeakerSection")}
+                  </Text>
+                </>
+              )}
+
               {isMiDevicesLoading ? (
                 <Text type="secondary">{t("common.loading")}</Text>
               ) : miAuthStatus?.logged_in ? (
@@ -1853,6 +1917,87 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
       setIsCastingToMi(false);
     }
   };
+
+  // 加载当前账号的在线设备列表
+  const loadOnlineDevices = async () => {
+    try {
+      const res = await getUserDevices();
+      if (res.code === 200 && res.data) {
+        setOnlineDevices(res.data);
+      }
+    } catch (e) {
+      console.error("Failed to load online devices:", e);
+    }
+  };
+
+  // 弹窗打开时加载 + 订阅 WS 设备上下线事件实时刷新
+  useEffect(() => {
+    if (!isMiDevicesPopoverOpen) return;
+    loadOnlineDevices();
+    const refresh = () => loadOnlineDevices();
+    socketService.on("device_online", refresh);
+    socketService.on("device_offline", refresh);
+    return () => {
+      socketService.off("device_online", refresh);
+      socketService.off("device_offline", refresh);
+    };
+  }, [isMiDevicesPopoverOpen]);
+
+  // 播放流转：把当前播放推给同账号下的目标在线设备
+  const handleTransferToDevice = async (targetDevice: OnlineDevice) => {
+    if (!currentTrack) {
+      message.warning(t("player.miCastNoTrack"));
+      return;
+    }
+    const targetDeviceId = targetDevice.deviceId;
+    if (!targetDeviceId) {
+      message.error(t("player.transferFailed"));
+      return;
+    }
+    setTransferring(targetDeviceId);
+    try {
+      const currentIndex = playlist.findIndex((t) => t.id === currentTrack.id);
+      socketService.emit("transfer_session", {
+        targetDeviceId,
+        currentTrack,
+        playlist: { list: playlist, index: currentIndex },
+        progress: Math.floor(currentTime || 0),
+      });
+      if (isPlaying) pause();
+      message.success(t("player.transferSuccess", { device: targetDevice.name }));
+      setIsMiDevicesPopoverOpen(false);
+    } catch (e) {
+      console.error("Failed to transfer session:", e);
+      message.error(t("player.transferFailed"));
+    } finally {
+      setTransferring(null);
+    }
+  };
+
+  // 接收端：监听其他设备发来的流转请求，接管播放
+  useEffect(() => {
+    const onTransferReceived = async (payload: any) => {
+      try {
+        const list: Track[] | undefined = payload?.playlist?.list;
+        const index: number = payload?.playlist?.index ?? 0;
+        const track: Track | undefined = payload?.currentTrack;
+        const progressSec: number = payload?.progress ?? 0;
+        const store = usePlayerStore.getState();
+        if (list && Array.isArray(list) && list.length > 0) {
+          store.setPlaylist(list);
+          const target = list[Math.max(0, index)] || list[0];
+          await store.play(target, undefined, progressSec);
+        } else if (track) {
+          await store.play(track, undefined, progressSec);
+        }
+        message.info(t("player.transferReceived", { device: payload?.fromDeviceName || "" }));
+      } catch (e) {
+        console.error("Failed to handle transfer_received:", e);
+      }
+    };
+    socketService.on("transfer_received", onTransferReceived);
+    return () => socketService.off("transfer_received", onTransferReceived);
+  }, []);
 
   const startMiQRPolling = (lpUrl: string) => {
     // 清除之前的轮询

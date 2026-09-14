@@ -127,3 +127,29 @@ export const tauriGetDeviceName = async (): Promise<string> => {
     return window.navigator.userAgent;
   }
 };
+
+/**
+ * 设备平台标识（用于在线设备列表 / 播放流转）。
+ * desktop=Tauri 桌面端，web=浏览器端
+ */
+export const getDevicePlatform = (): "desktop" | "web" => {
+  return isTauri() ? "desktop" : "web";
+};
+
+const DEVICE_ID_KEY = "audiodock_device_id";
+
+/**
+ * 获取稳定唯一设备标识。首次调用生成 UUID 并持久化到 localStorage。
+ */
+export const getOrCreateDeviceId = (): string => {
+  try {
+    const existing = localStorage.getItem(DEVICE_ID_KEY);
+    if (existing) return existing;
+    const id = `desktop_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+    localStorage.setItem(DEVICE_ID_KEY, id);
+    return id;
+  } catch (e) {
+    // localStorage 不可用（隐私模式等）时退化为内存态
+    return `desktop_ephemeral_${Math.random().toString(36).slice(2, 12)}`;
+  }
+};

@@ -1,11 +1,12 @@
 import { getAdapter } from "./adapter/manager";
+import type { DeviceLoginInfo } from "./adapter/interface-user-auth";
 import type { User } from "./models";
-  
-  export const login = async (user: Partial<User> & { deviceName?: string }) => {
+
+  export const login = async (user: Partial<User> & DeviceLoginInfo) => {
     return getAdapter().auth.login(user);
   };
-  
-  export const register = (user: Partial<User> & { deviceName?: string }) => {
+
+  export const register = (user: Partial<User> & DeviceLoginInfo) => {
     return getAdapter().auth.register(user);
   };
   

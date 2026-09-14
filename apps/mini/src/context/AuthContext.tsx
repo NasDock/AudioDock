@@ -6,6 +6,27 @@ import { User } from '../models'
 import { setBaseURL, getBaseURL } from '../utils/request'
 import { selectBestServer } from '../utils/sourceUtils'
 
+// ── 设备信息（在线设备列表 / 播放流转） ──
+const DEVICE_ID_KEY = 'audiodock_device_id';
+const getMiniDeviceId = (): string => {
+  try {
+    const existing = Taro.getStorageSync(DEVICE_ID_KEY);
+    if (existing) return existing;
+    const id = `mini_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+    Taro.setStorageSync(DEVICE_ID_KEY, id);
+    return id;
+  } catch {
+    return `mini_ephemeral_${Math.random().toString(36).slice(2, 12)}`;
+  }
+};
+const getMiniDeviceName = (): string => {
+  try {
+    return Taro.getSystemInfoSync().model || 'Mini Program';
+  } catch {
+    return 'Mini Program';
+  }
+};
+
 interface AuthContextType {
   user: User | null
   token: string | null
@@ -133,7 +154,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const login = async (credentials: Partial<User>) => {
     try {
-      const res = await loginApi({ ...credentials })
+      const res = await loginApi({
+        ...credentials,
+        deviceName: getMiniDeviceName(),
+        deviceId: getMiniDeviceId(),
+        platform: 'mini',
+      })
       if (res.code === 200 && res.data) {
         console.log(res, 'res')
         const { token: newToken, device: newDevice } = res.data
@@ -156,7 +182,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const register = async (credentials: Partial<User>) => {
     try {
-      const res = await registerApi({ ...credentials })
+      const res = await registerApi({
+        ...credentials,
+        deviceName: getMiniDeviceName(),
+        deviceId: getMiniDeviceId(),
+        platform: 'mini',
+      })
       if (res.code === 200 && res.data) {
         const { token: newToken, device: newDevice } = res.data
         const userData = res.data

@@ -1,4 +1,4 @@
-import { getFavoriteTracks, getMvByTrackId, toggleTrackLike, toggleTrackUnLike, type MiDevice, playMiDeviceByUrl } from '@soundx/services';
+import { getFavoriteTracks, getMvByTrackId, toggleTrackLike, toggleTrackUnLike, transferSession, type Device as OnlineDevice, type MiDevice, playMiDeviceByUrl } from '@soundx/services';
 import { Image, ScrollView, Slider, Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useEffect, useState } from 'react';
@@ -60,6 +60,7 @@ export default function Player() {
     duration,
     currentTime,
     seek,
+    trackList,
     setShowPlaylist,
     playMode,
     togglePlayMode,
@@ -358,6 +359,36 @@ const handleOpenMore = () => {
     }
   };
 
+  // 播放流转：mini 端无常驻 WS，走 HTTP 由后端代为转发到目标设备
+  const handleTransferToDevice = async (targetDevice: OnlineDevice) => {
+    if (!currentTrack) {
+      Taro.showToast({ title: t('playerPage.miCastNoTrack'), icon: 'none' });
+      return;
+    }
+    if (!targetDevice.deviceId) {
+      Taro.showToast({ title: t('playerPage.transferFailed'), icon: 'none' });
+      return;
+    }
+    try {
+      const currentIndex = trackList.findIndex((tk) => tk.id === currentTrack.id);
+      await transferSession({
+        targetDeviceId: targetDevice.deviceId,
+        currentTrack,
+        playlist: { list: trackList, index: Math.max(0, currentIndex) },
+        progress: Math.floor(currentTime || 0),
+      });
+      if (isPlaying) pause();
+      Taro.showToast({
+        title: t('playerPage.transferSuccess', { device: targetDevice.name }),
+        icon: 'success',
+      });
+      setIsMiDeviceSelectorVisible(false);
+    } catch (e) {
+      console.error('Failed to transfer session:', e);
+      Taro.showToast({ title: t('playerPage.transferFailed'), icon: 'none' });
+    }
+  };
+
   if (!currentTrack) return (
     <View className='player-page'>
       <View className='player-container empty'>
@@ -561,6 +592,7 @@ const handleOpenMore = () => {
           visible={isMiDeviceSelectorVisible}
           onClose={() => setIsMiDeviceSelectorVisible(false)}
           onSelectDevice={handleCastToMi}
+          onTransferToDevice={handleTransferToDevice}
           loading={isCastingToMi}
         />
         <PlaylistModal />

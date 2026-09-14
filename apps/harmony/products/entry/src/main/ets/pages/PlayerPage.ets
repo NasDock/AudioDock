@@ -5,8 +5,8 @@ import { buildTheme } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { formatDuration, Logger } from 'audiodock_common';
-import { trackApi, playlistApi, artistApi, albumApi, miApi, plusApi, setPlusAuthToken } from 'features_network';
-import type { PlaylistDto, ArtistDto, AlbumDto, MiDevice, TrackDto } from 'features_network';
+import { trackApi, playlistApi, artistApi, albumApi, miApi, plusApi, setPlusAuthToken, deviceApi } from 'features_network';
+import type { PlaylistDto, ArtistDto, AlbumDto, MiDevice, TrackDto, OnlineDevice } from 'features_network';
 import { kvStore } from 'features_storage';
 import type { LyricLine } from 'features_player';
 import { playerStore } from '../context/PlayerStore';
@@ -15,6 +15,8 @@ import { syncStore } from '../context/SyncStore';
 import type { SyncStateView } from '../context/SyncStore';
 import { resolveTrackToPlayer } from '../services/trackResolver';
 import { getInternalQuality } from '../services/trackQuality';
+import { getOrCreateDeviceId } from '../utils/device';
+import { socketService } from 'features_socket';
 import { likesHistory } from '../services/LikesHistoryService';
 import { downloadTrack, isTrackDownloaded } from '../services/downloadService';
 import type { EventPayload, EventPayloadId } from '../services/LikesHistoryService';
@@ -34,6 +36,20 @@ class MoreOption {
     this.key = key;
     this.label = label;
   }
+}
+
+/** 播放流转的播放列表载体 */
+class TransferPlaylist {
+  list: Track[] = [];
+  index: number = 0;
+}
+
+/** 播放流转 payload（ArkTS 严格模式要求显式 class，禁用未声明接口的对象字面量） */
+class TransferSessionPayload {
+  targetDeviceId: string = '';
+  currentTrack: Track | null = null;
+  playlist: TransferPlaylist = new TransferPlaylist();
+  progress: number = 0;
 }
 
 /**
@@ -75,6 +91,10 @@ struct PlayerPage {
   @State private miQRCodeUrl: string = '';
   @State private miLoading: boolean = false;
   @State private miCasting: boolean = false;
+  // 在线设备（播放流转）
+  @State private onlineDevices: OnlineDevice[] = [];
+  @State private transferringId: string = '';
+  @State private selfDeviceId: string = '';
   private miPollingId: number = -1;
   // 同步播放相关状态（对齐 mobile player.tsx 的 sync* 状态）
   @State private syncView: SyncStateView = syncStore.view();
@@ -174,6 +194,11 @@ struct PlayerPage {
     this.refreshLike();
     this.refreshDownloadStatus();
     this.loadVipStatus();
+    // 播放流转：注册接收端监听 + 初始化本机 deviceId
+    socketService.on('transfer_received', this.onTransferReceived);
+    getOrCreateDeviceId().then((id: string): void => {
+      this.selfDeviceId = id;
+    }).catch(() => undefined);
     const params = router.getParams() as Record<string, string> | undefined;
     const trackId = params?.['trackId'];
     if (trackId) this.loadSingle(trackId);
@@ -199,6 +224,7 @@ struct PlayerPage {
     this.unsubLike();
     if (this.unsubSync) this.unsubSync();
     if (this.unsubPlayerLeft) this.unsubPlayerLeft();
+    socketService.off('transfer_received', this.onTransferReceived);
     if (this.sleepTimerId !== -1) {
       clearInterval(this.sleepTimerId);
       this.sleepTimerId = -1;
@@ -306,6 +332,10 @@ struct PlayerPage {
   private async handleOpenMiCast(): Promise<void> {
     this.showMiCast = true;
     this.miLoading = true;
+    // 打开弹窗时加载在线设备 + 订阅上下线事件实时刷新
+    this.loadOnlineDevices();
+    socketService.on('device_online', this.onDevicePresenceChange);
+    socketService.on('device_offline', this.onDevicePresenceChange);
     try {
       const auth = await miApi.getAuthStatus();
       this.miLoggedIn = auth.logged_in;
@@ -334,6 +364,96 @@ struct PlayerPage {
   private handleCloseMiCast(): void {
     this.showMiCast = false;
     this.stopMiPolling();
+    socketService.off('device_online', this.onDevicePresenceChange);
+    socketService.off('device_offline', this.onDevicePresenceChange);
+  }
+
+  /** WS 设备上下线回调：刷新在线设备列表 */
+  private onDevicePresenceChange = (): void => {
+    this.loadOnlineDevices();
+  };
+
+  /** 加载当前账号的在线设备列表（排除本机，仅保留在线） */
+  private async loadOnlineDevices(): Promise<void> {
+    try {
+      if (this.selfDeviceId === '') {
+        this.selfDeviceId = await getOrCreateDeviceId();
+      }
+      const list = await deviceApi.listMyDevices();
+      const selfId = this.selfDeviceId;
+      this.onlineDevices = list.filter((d: OnlineDevice) => d.isOnline && (d.deviceId ?? '') !== selfId);
+    } catch (e) {
+      Logger.w('PlayerPage', `loadOnlineDevices failed: ${String(e)}`);
+    }
+  }
+
+  /** 播放流转：把当前播放推给目标在线设备 */
+  private async handleTransferToDevice(target: OnlineDevice): Promise<void> {
+    const cur = this.current();
+    if (!cur) {
+      promptAction.showToast({ message: t('player.miCastNoTrack') });
+      return;
+    }
+    const targetDeviceId = target.deviceId ?? '';
+    if (targetDeviceId === '') {
+      promptAction.showToast({ message: t('player.transferFailed') });
+      return;
+    }
+    this.transferringId = targetDeviceId;
+    try {
+      // harmony 内部用毫秒，流转协议统一用秒（对齐 mobile/desktop）
+      const progressSec = Math.floor(this.view.currentMs / 1000);
+      const pl = new TransferPlaylist();
+      pl.list = this.view.queue;
+      pl.index = this.view.currentIndex;
+      const payload = new TransferSessionPayload();
+      payload.targetDeviceId = targetDeviceId;
+      payload.currentTrack = cur;
+      payload.playlist = pl;
+      payload.progress = progressSec;
+      socketService.emit('transfer_session', payload);
+      if (this.view.isPlaying) {
+        await playerStore.togglePlay();
+      }
+      promptAction.showToast({ message: t('player.transferSuccess', [['device', target.name]]) });
+      this.handleCloseMiCast();
+    } catch (e) {
+      Logger.w('PlayerPage', `transfer failed: ${String(e)}`);
+      promptAction.showToast({ message: t('player.transferFailed') });
+    } finally {
+      this.transferringId = '';
+    }
+  }
+
+  /** 接收端：监听其他设备发来的流转请求，接管播放 */
+  private onTransferReceived = (payload: Object | null | undefined): void => {
+    this.handleTransferReceived(payload);
+  };
+
+  private async handleTransferReceived(payload: Object | null | undefined): Promise<void> {
+    if (!payload) return;
+    try {
+      const p = payload as Record<string, Object>;
+      const playlistObj = p['playlist'] as Record<string, Object> | undefined;
+      const list = playlistObj ? (playlistObj['list'] as Track[]) : undefined;
+      const index = playlistObj ? Number(playlistObj['index'] ?? 0) : 0;
+      const track = p['currentTrack'] as Track | undefined;
+      const progressSec = Number(p['progress'] ?? 0);
+      const fromDevice = String(p['fromDeviceName'] ?? '');
+
+      if (list && Array.isArray(list) && list.length > 0) {
+        await playerStore.playTrackList(list, Math.max(0, index));
+      } else if (track) {
+        await playerStore.playTrack(track);
+      }
+      // 秒 → 毫秒
+      if (progressSec > 0) {
+        await playerStore.seek(progressSec * 1000);
+      }
+      promptAction.showToast({ message: t('player.transferReceived', [['device', fromDevice]]) });
+    } catch (e) {
+      Logger.e('PlayerPage', `handleTransferReceived failed: ${String(e)}`);
+    }
   }
 
   private async handleCastToMi(deviceId: string, deviceName: string): Promise<void> {
@@ -367,6 +487,17 @@ struct PlayerPage {
       case 'LOOP_LIST': return 'repeat';
       case 'LOOP_SINGLE': return 'repeat-once';
       default: return 'playlist';
+    }
+  }
+
+  /** 在线设备平台图标（desktop/tablet/tv/watch/phone/mini/web） */
+  private platformIcon(platform: string): AppIconName {
+    switch (platform) {
+      case 'desktop': return 'desktop';
+      case 'tablet': return 'tablet';
+      case 'tv': return 'tv';
+      case 'watch': return 'watch';
+      default: return 'music-note'; // phone / mini / web 兜底
     }
   }
 
@@ -1415,6 +1546,60 @@ struct PlayerPage {
         .fontSize(16).fontWeight(FontWeight.Bold)
         .fontColor(this.theme.colors.text)
         .margin({ top: 8, bottom: 16 });
+
+      // 我的在线设备（播放流转）
+      if (this.onlineDevices.length > 0) {
+        Text(t('player.onlineDevices'))
+          .fontSize(12)
+          .fontColor(this.theme.colors.textSecondary)
+          .margin({ bottom: 6 })
+          .alignSelf(ItemAlign.Start);
+        List() {
+          ForEach(this.onlineDevices, (d: OnlineDevice) => {
+            ListItem() {
+              Row({ space: 12 }) {
+                Column() {
+                  AppIcon({ name: this.platformIcon(d.platform ?? 'phone'), iconSize: 20, color: '#FFFFFFFF' });
+                }
+                .width(36).height(36).borderRadius(18)
+                .backgroundColor('#FF34C759')
+                .justifyContent(FlexAlign.Center);
+
+                Column({ space: 2 }) {
+                  Text(d.name)
+                    .fontSize(15).fontWeight(FontWeight.Medium)
+                    .fontColor(this.theme.colors.text)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis });
+                  Text(t(`player.platform_${d.platform ?? 'phone'}`))
+                    .fontSize(12).fontColor(this.theme.colors.textSecondary)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis });
+                }
+                .layoutWeight(1).alignItems(HorizontalAlign.Start);
+
+                if (this.transferringId === (d.deviceId ?? '')) {
+                  LoadingProgress().width(18).height(18).color(this.theme.colors.textSecondary);
+                } else {
+                  AppIcon({ name: 'cast', iconSize: 18, color: this.theme.colors.textSecondary });
+                }
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12, left: 16, right: 16 })
+              .opacity(this.transferringId !== '' ? 0.5 : 1)
+              .onClick(() => {
+                if (this.transferringId === '') this.handleTransferToDevice(d);
+              });
+            }
+          }, (d: OnlineDevice) => String(d.deviceId ?? d.id));
+        }
+        .height(Math.min(this.onlineDevices.length * 64, 200))
+        .scrollBar(BarState.Off);
+
+        Text(t('player.miSpeakerSection'))
+          .fontSize(12)
+          .fontColor(this.theme.colors.textSecondary)
+          .margin({ top: 8, bottom: 6 })
+          .alignSelf(ItemAlign.Start);
+      }
 
       if (this.miLoading) {
         Column({ space: 12 }) {

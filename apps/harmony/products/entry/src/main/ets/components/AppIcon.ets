@@ -49,7 +49,12 @@ export type AppIconName =
   | 'contract'
   | 'search'
   | 'server-outline'
-  | 'settings-outline';
+  | 'settings-outline'
+  | 'cast'
+  | 'desktop'
+  | 'tablet'
+  | 'tv'
+  | 'watch';
 
 const ICON_MAP: Record<AppIconName, Resource> = {
   'home': $r('sys.symbol.house'),
@@ -119,6 +124,14 @@ const ICON_MAP: Record<AppIconName, Resource> = {
   // 设置（对齐 mobile Ionicons settings-outline → SF Symbols gearshape）。
   // 与 'gear' 同源但语义不同（个人页右上入口 vs 内部菜单"评价"等），映射统一。
   'settings-outline': $r('sys.symbol.gearshape'),
+  // 播放流转/投屏（流转到设备的箭头语义）
+  'cast': $r('sys.symbol.paperplane_fill'),
+  // 在线设备平台图标。SDK 缺 desktopcomputer/ipad/tv/applewatch（10903329），
+  // 用已验证存在的符号做语义近似替代。
+  'desktop': $r('sys.symbol.display'),
+  'tablet': $r('sys.symbol.rectangle'),
+  'tv': $r('sys.symbol.play_fill'),
+  'watch': $r('sys.symbol.clock_fill'),
 };
 
 export function getIconResource(name: AppIconName): Resource {

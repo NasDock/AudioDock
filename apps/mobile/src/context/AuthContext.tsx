@@ -20,6 +20,7 @@ import { getBaseURL, initBaseURL, setBaseURL } from "../https";
 import { refreshNetworkMode } from "../utils/networkMode";
 import { User } from "../models";
 import { selectBestServer } from "../utils/networkUtils";
+import { getDevicePlatform, getOrCreateDeviceId } from "../utils/platform";
 
 interface AuthContextType {
   user: User | null;
@@ -261,9 +262,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = async (credentials: Partial<User>) => {
     try {
       const deviceName = Device.modelName || 'Mobile Device';
+      const deviceId = await getOrCreateDeviceId();
+      const platform = getDevicePlatform();
       console.log("credentials", credentials);
       console.log("deviceName", deviceName);
-      const res = await loginApi({ ...credentials, deviceName });
+      const res = await loginApi({ ...credentials, deviceName, deviceId, platform });
       if (res.code === 200 && res.data) {
         const { token: newToken, device } = res.data;
         const normalizedUser = normalizeUserPayload(res.data);
@@ -297,7 +300,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const register = async (credentials: Partial<User>) => {
     try {
       const deviceName = Device.modelName || 'Mobile Device';
-      const res = await registerApi({ ...credentials, deviceName });
+      const deviceId = await getOrCreateDeviceId();
+      const platform = getDevicePlatform();
+      const res = await registerApi({ ...credentials, deviceName, deviceId, platform });
       if (res.code === 200 && res.data) {
         const { token: newToken, device } = res.data;
         const normalizedUser = normalizeUserPayload(res.data);

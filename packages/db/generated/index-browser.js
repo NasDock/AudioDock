@@ -267,6 +267,9 @@ exports.Prisma.SearchRecordScalarFieldEnum = {
 exports.Prisma.DeviceScalarFieldEnum = {
   id: 'id',
   name: 'name',
+  deviceId: 'deviceId',
+  platform: 'platform',
+  lastSeen: 'lastSeen',
   userId: 'userId',
   isOnline: 'isOnline',
   createdAt: 'createdAt',
