@@ -79,6 +79,14 @@
   3. 网页端内网能播是因为网页端走 `/track/stream/:id` 代理，后端（部署在内网）去拉 Alist → 返回给客户端
   4. 但鸿蒙端和外网手机网页端**直接播放 track.path 里的内网地址**，不走代理 → 失败
 
+## 播放流转（transfer_session）WS 链路
+
+- **协议**：发起端 emit `transfer_session {targetDeviceId, currentTrack, playlist:{list,index}, progress(秒)}` → 服务端按 userId+deviceId 匹配在线 socket → 命中回发起端 `transfer_sent` 并给目标发 `transfer_received`；未命中回 `transfer_failed(reason=device_offline)`。另有 REST 版 `POST /user/devices/transfer`（forwardTransfer）供小程序/TV 等无常驻 WS 端使用。
+- **⚠️ 必须等服务端 ack 再提示**：emit 后立刻提示成功是假成功（服务端只回事件、没有 emit 回调）。三端统一模式：on `transfer_sent`/`transfer_failed` + 5s 超时兜底，失败才提示失败（2026-09-15 修复，详见当日日志）。
+- **设备注册**：deviceId 由各端首启生成持久化（desktop/web: localStorage `audiodock_device_id`；mobile: AsyncStorage `@audiodock_device_id`；harmony: kvStore），WS connect query 带 deviceName/deviceId/platform，服务端 `saveDevice` 优先按 deviceId 匹配、兜底按 name。
+- **web 设备名**：desktop 纯 web 环境 deviceName 用 `resolveWebDeviceName()`（UA 解析成 "Chrome xxx on macOS"），不要存整段 UA。
+- **排查日志前缀**：服务端 `[WS]`/`[WS][Transfer]`；客户端 `[Transfer]`/`[SharedSocket]`；harmony 是 hilog tag `Socket`/`PlayerPage`。
+
 ## @soundx/services workspace 包
 
 - father 构建，入口指向 dist；**改 src/ 后必须 `cd packages/services && pnpm build`**，否则引用端拿旧 dist 报 `xxx is not a function`。

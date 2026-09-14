@@ -751,22 +751,64 @@ export function PlayerDetailView({
       Alert.alert(t("playerPage.transferFailed"));
       return;
     }
+    const { socketService } = require("../src/services/socket");
+    if (!socketService.connected) {
+      console.warn("[Transfer] socket not connected, cannot emit transfer_session");
+      Alert.alert(t("playerPage.transferFailed"));
+      return;
+    }
     setTransferring(targetDeviceId);
     try {
-      const { socketService } = require("../src/services/socket");
       const positionSec = Math.floor(position || 0);
-      socketService.emit("transfer_session", {
-        targetDeviceId,
-        currentTrack,
-        playlist: { list: trackList, index: trackList.findIndex((t) => t.id === currentTrack.id) },
-        progress: positionSec,
+      console.log(`[Transfer] emit transfer_session: target=${targetDeviceId} (${targetDevice.name}) track=${currentTrack.name} progress=${positionSec}s`);
+
+      // 等服务端 ack（transfer_sent / transfer_failed），5s 超时兜底
+      const delivered = await new Promise<boolean>((resolve) => {
+        let settled = false;
+        const cleanup = () => {
+          settled = true;
+          socketService.off("transfer_sent", onSent);
+          socketService.off("transfer_failed", onFailed);
+          clearTimeout(timer);
+        };
+        const onSent = (p: any) => {
+          if (settled || p?.targetDeviceId !== targetDeviceId) return;
+          console.log(`[Transfer] ✅ transfer_sent ack for ${targetDeviceId}`);
+          cleanup();
+          resolve(true);
+        };
+        const onFailed = (p: any) => {
+          if (settled || p?.targetDeviceId !== targetDeviceId) return;
+          console.warn(`[Transfer] ❌ transfer_failed: reason=${p?.reason} target=${p?.targetDeviceId}`);
+          cleanup();
+          resolve(false);
+        };
+        const timer = setTimeout(() => {
+          if (settled) return;
+          console.warn(`[Transfer] ⏱ ack timeout for ${targetDeviceId}（服务端 5s 未回，按未送达处理）`);
+          cleanup();
+          resolve(false);
+        }, 5000);
+        socketService.on("transfer_sent", onSent);
+        socketService.on("transfer_failed", onFailed);
+        socketService.emit("transfer_session", {
+          targetDeviceId,
+          currentTrack,
+          playlist: { list: trackList, index: trackList.findIndex((t) => t.id === currentTrack.id) },
+          progress: positionSec,
+        });
       });
+
+      if (!delivered) {
+        Alert.alert(t("playerPage.transferFailed"));
+        return;
+      }
       // 目标设备接管后暂停本端
       if (isPlaying) await pause();
       Alert.alert(t("playerPage.transferSuccess", { device: targetDevice.name }));
       setMiModalVisible(false);
     } catch (e) {
-      console.error("Failed to transfer session:", e);
+      console.error("[Transfer] Failed to transfer session:", e);
       Alert.alert(t("playerPage.transferFailed"));
     } finally {
       setTransferring(null);
@@ -782,13 +824,16 @@ export function PlayerDetailView({
         const index = payload?.playlist?.index ?? 0;
         const track = payload?.currentTrack;
         const progressSec = payload?.progress ?? 0;
+        console.log(`[Transfer] handle transfer_received: from=${payload?.fromDeviceName} track=${track?.name} listLen=${list?.length ?? 0} index=${index} progress=${progressSec}s`);
         if (list && Array.isArray(list) && list.length > 0) {
           await playTrackList(list, Math.max(0, index), progressSec);
         } else if (track) {
           await playTrackList([track], 0, progressSec);
+        } else {
+          console.warn("[Transfer] transfer_received payload 为空（无 playlist 且无 currentTrack），忽略");
         }
       } catch (e) {
-        console.error("Failed to handle transfer_received:", e);
+        console.error("[Transfer] Failed to handle transfer_received:", e);
       }
     };
     socketService.on("transfer_received", onTransferReceived);
@@ -1046,10 +1091,12 @@ export function PlayerDetailView({
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={{ color: colors.text, fontSize: 15, fontWeight: "600" }}>
-                            {d.name}
+                            {d.name || t(`playerPage.platform_${d.platform || "phone"}`)}
                           </Text>
                           <Text style={{ color: colors.secondary, fontSize: 12 }}>
-                            {t(`playerPage.platform_${d.platform || "phone"}`)}
+                            {d.platform
+                              ? t(`playerPage.platform_${d.platform}`, { defaultValue: d.platform })
+                              : t("playerPage.platform_web")}
                           </Text>
                         </View>
                         {transferring === d.deviceId ? (

@@ -274,6 +274,11 @@ export class HarmonySocketService {
   }
 
   private dispatch(event: string, payload: Object | null | undefined): void {
+    // 关键事件打日志，方便排查流转送达（心跳等高频事件不打）
+    if (event === 'transfer_received' || event === 'transfer_sent' || event === 'transfer_failed'
+      || event === 'device_online' || event === 'device_offline' || event === 'auth_error') {
+      Logger.i('Socket', `recv event=${event} payload=${JSON.stringify(payload ?? null)}`);
+    }
     const set = this.listeners.get(event);
     if (set) for (const cb of set) cb(payload);
     // 透传给 wildcard 订阅者

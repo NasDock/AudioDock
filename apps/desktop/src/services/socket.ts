@@ -1,6 +1,6 @@
 import { SharedSocketService } from "@soundx/ws";
 import { useAuthStore } from "../store/auth";
-import { tauriGetDeviceName, isWeb, getDevicePlatform, getOrCreateDeviceId } from "../utils/platform";
+import { tauriGetDeviceName, isWeb, getDevicePlatform, getOrCreateDeviceId, resolveWebDeviceName } from "../utils/platform";
 
 class SocketService extends SharedSocketService {
   async connect() {
@@ -9,11 +9,12 @@ class SocketService extends SharedSocketService {
     if (!token || !user || this.connected) return;
 
     // 2. Get Device Name (Desktop Specific)
-    let deviceName = window.navigator.userAgent;
+    // 纯 web 环境直接解析 UA 得到友好名（避免整段 UA 被其他端显示成 unknown device）
+    let deviceName = resolveWebDeviceName();
     const device = JSON.parse(localStorage.getItem("device") || "{}");
     if (device?.name) {
         deviceName = device.name;
-    } else {
+    } else if (!isWeb()) {
         try {
             const tauriName = await tauriGetDeviceName();
             if (tauriName) {

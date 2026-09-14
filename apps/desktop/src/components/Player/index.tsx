@@ -1572,11 +1572,13 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
                               }
                             />
                           }
-                          title={d.name}
+                          title={d.name || t("player.platform_web")}
                           description={
                             transferring === d.deviceId
                               ? t("common.loading")
-                              : t(`player.platform_${d.platform || "phone"}`)
+                              : d.platform
+                                ? t(`player.platform_${d.platform}`, { defaultValue: d.platform })
+                                : t("player.platform_web")
                           }
                         />
                       </List.Item>
@@ -1954,20 +1956,63 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
       message.error(t("player.transferFailed"));
       return;
     }
+    if (!socketService.connected) {
+      console.warn("[Transfer] socket not connected, cannot emit transfer_session");
+      message.error(t("player.transferFailed"));
+      return;
+    }
     setTransferring(targetDeviceId);
     try {
       const currentIndex = playlist.findIndex((t) => t.id === currentTrack.id);
-      socketService.emit("transfer_session", {
-        targetDeviceId,
-        currentTrack,
-        playlist: { list: playlist, index: currentIndex },
-        progress: Math.floor(currentTime || 0),
+      const progressSec = Math.floor(currentTime || 0);
+      console.log(`[Transfer] emit transfer_session: target=${targetDeviceId} (${targetDevice.name}) track=${currentTrack.name} progress=${progressSec}s`);
+
+      // 等服务端 ack（transfer_sent / transfer_failed），5s 超时兜底
+      const delivered = await new Promise<boolean>((resolve) => {
+        let settled = false;
+        const cleanup = () => {
+          settled = true;
+          socketService.off("transfer_sent", onSent);
+          socketService.off("transfer_failed", onFailed);
+          clearTimeout(timer);
+        };
+        const onSent = (p: any) => {
+          if (settled || p?.targetDeviceId !== targetDeviceId) return;
+          console.log(`[Transfer] ✅ transfer_sent ack for ${targetDeviceId}`);
+          cleanup();
+          resolve(true);
+        };
+        const onFailed = (p: any) => {
+          if (settled || p?.targetDeviceId !== targetDeviceId) return;
+          console.warn(`[Transfer] ❌ transfer_failed: reason=${p?.reason} target=${p?.targetDeviceId}`);
+          cleanup();
+          resolve(false);
+        };
+        const timer = setTimeout(() => {
+          if (settled) return;
+          console.warn(`[Transfer] ⏱ ack timeout for ${targetDeviceId}（服务端 5s 未回，按未送达处理）`);
+          cleanup();
+          resolve(false);
+        }, 5000);
+        socketService.on("transfer_sent", onSent);
+        socketService.on("transfer_failed", onFailed);
+        socketService.emit("transfer_session", {
+          targetDeviceId,
+          currentTrack,
+          playlist: { list: playlist, index: currentIndex },
+          progress: progressSec,
+        });
       });
+
+      if (!delivered) {
+        message.error(t("player.transferFailed"));
+        return;
+      }
       if (isPlaying) pause();
       message.success(t("player.transferSuccess", { device: targetDevice.name }));
       setIsMiDevicesPopoverOpen(false);
     } catch (e) {
-      console.error("Failed to transfer session:", e);
+      console.error("[Transfer] Failed to transfer session:", e);
       message.error(t("player.transferFailed"));
     } finally {
       setTransferring(null);
@@ -1982,6 +2027,7 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         const index: number = payload?.playlist?.index ?? 0;
         const track: Track | undefined = payload?.currentTrack;
         const progressSec: number = payload?.progress ?? 0;
+        console.log(`[Transfer] handle transfer_received: from=${payload?.fromDeviceName} track=${track?.name} listLen=${list?.length ?? 0} index=${index} progress=${progressSec}s`);
         const store = usePlayerStore.getState();
         if (list && Array.isArray(list) && list.length > 0) {
           store.setPlaylist(list);
@@ -1989,10 +2035,12 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
           await store.play(target, undefined, progressSec);
         } else if (track) {
           await store.play(track, undefined, progressSec);
+        } else {
+          console.warn("[Transfer] transfer_received payload 为空（无 playlist 且无 currentTrack），忽略");
         }
         message.info(t("player.transferReceived", { device: payload?.fromDeviceName || "" }));
       } catch (e) {
-        console.error("Failed to handle transfer_received:", e);
+        console.error("[Transfer] Failed to handle transfer_received:", e);
       }
     };
     socketService.on("transfer_received", onTransferReceived);

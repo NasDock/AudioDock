@@ -47,13 +47,14 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
         const payload = this.jwtService.verify(token);
         return { userId: Number(payload.sub), username: payload.username };
       } catch (e) {
-        console.warn(`WS auth token invalid for socket ${client.id}:`, (e as Error).message);
+        console.warn(`[WS] auth token invalid for socket ${client.id}:`, (e as Error).message);
         return null;
       }
     }
     // 兼容未升级的客户端：query.userId（无鉴权，后续版本将移除）
     const rawUserId = client.handshake.query.userId;
     if (rawUserId) {
+      console.log(`[WS] socket ${client.id} auth via legacy query.userId=${rawUserId}（无 token，建议客户端升级）`);
       return { userId: parseInt(rawUserId as string, 10) };
     }
     return null;
@@ -73,7 +74,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
     const uid = auth.userId;
 
-    console.log(`Client connected: ${client.id}, User: ${uid}, Device: ${deviceName}, Platform: ${platform}, DeviceId: ${deviceId}`);
+    console.log(`[WS] connected: socket=${client.id} user=${uid} deviceName=${deviceName} deviceId=${deviceId} platform=${platform}`);
 
     const sockets = this.userSockets.get(uid) || [];
     sockets.push(client.id);
@@ -89,11 +90,13 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Join a room named by user ID for easy broadcasting to specific users
     client.join(`user_${uid}`);
+    console.log(`[WS] user ${uid} online sockets: ${sockets.length} -> [${this.describeSockets(sockets)}]`);
 
     // Set device online
     if (deviceName) {
       try {
         const device = await this.userService.saveDevice(uid, deviceName, deviceId, platform);
+        console.log(`[WS] device_online: user=${uid} deviceId=${device.deviceId ?? deviceId} name=${device.name} platform=${device.platform}`);
         // 广播设备上线（含本端其他设备）
         this.server.to(`user_${uid}`).emit('device_online', {
           deviceId: device.deviceId ?? deviceId ?? null,
@@ -102,14 +105,24 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
           lastSeen: device.lastSeen,
         });
       } catch (e) {
-        console.error(`Failed to set device online: ${e}`);
+        console.error(`[WS] Failed to set device online: ${e}`);
       }
     }
   }
 
+  /** 打印一组 socket 的设备信息（排查流转送达问题时用） */
+  private describeSockets(socketIds: string[]): string {
+    return socketIds
+      .map((sid) => {
+        const m = this.socketMetadata.get(sid);
+        return m ? `${sid}(dev=${m.deviceId ?? '∅'}/name=${m.deviceName})` : sid;
+      })
+      .join(', ');
+  }
+
   async handleDisconnect(client: Socket) {
-    console.log(`Client disconnected: ${client.id}`);
     const meta = this.socketMetadata.get(client.id);
+    console.log(`[WS] disconnected: socket=${client.id} user=${meta?.userId} deviceName=${meta?.deviceName} deviceId=${meta?.deviceId} platform=${meta?.platform}`);
     if (!meta) return;
 
     const uid = meta.userId;
@@ -275,10 +288,12 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     progress?: number;
     fromDeviceName?: string;
   }): Promise<boolean> {
-    const targetSockets = (this.userSockets.get(userId) || []).filter((sid) => {
+    const all = this.userSockets.get(userId) || [];
+    const targetSockets = all.filter((sid) => {
       const m = this.socketMetadata.get(sid);
       return m?.deviceId === payload.targetDeviceId;
     });
+    console.log(`[WS][Transfer] REST forwardTransfer: user=${userId} targetDeviceId=${payload.targetDeviceId} online=[${this.describeSockets(all)}] matched=${targetSockets.length}`);
     if (targetSockets.length === 0) return false;
     targetSockets.forEach((sid) => {
       this.server.to(sid).emit('transfer_received', {
@@ -305,22 +320,31 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     progress?: number;
   }) {
     const meta = this.socketMetadata.get(client.id);
-    if (!meta) return;
+    if (!meta) {
+      console.warn(`[WS][Transfer] transfer_session from unknown socket ${client.id}（无 meta，可能未注册），直接拒绝`);
+      client.emit('transfer_failed', { targetDeviceId: payload?.targetDeviceId, reason: 'sender_not_registered' });
+      return;
+    }
     const uid = meta.userId;
 
-    console.log(`User ${uid} transferring session from ${meta.deviceName} to device ${payload.targetDeviceId}`);
+    const all = this.userSockets.get(uid) || [];
+    const trackName = payload?.currentTrack?.name ?? '(none)';
+    console.log(`[WS][Transfer] transfer_session: user=${uid} from=${meta.deviceName}(${meta.deviceId}) target=${payload?.targetDeviceId} track=${trackName} progress=${payload?.progress}s online=[${this.describeSockets(all)}]`);
 
     // 找到目标设备的 socket（同 userId 且 deviceId 匹配）
-    const targetSockets = (this.userSockets.get(uid) || []).filter((sid) => {
+    const targetSockets = all.filter((sid) => {
       const m = this.socketMetadata.get(sid);
       return m?.deviceId === payload.targetDeviceId && sid !== client.id;
     });
 
     if (targetSockets.length === 0) {
+      const onlineDeviceIds = all.map((sid) => this.socketMetadata.get(sid)?.deviceId ?? '∅');
+      console.warn(`[WS][Transfer] ❌ no match for targetDeviceId=${payload.targetDeviceId}，用户 ${uid} 在线设备 deviceIds=[${onlineDeviceIds.join(', ')}]`);
       client.emit('transfer_failed', { targetDeviceId: payload.targetDeviceId, reason: 'device_offline' });
       return;
     }
 
+    console.log(`[WS][Transfer] ✅ delivering transfer_received to ${targetSockets.length} socket(s): [${targetSockets.join(', ')}]`);
     targetSockets.forEach((sid) => {
       this.server.to(sid).emit('transfer_received', {
         fromDeviceName: meta.deviceName,

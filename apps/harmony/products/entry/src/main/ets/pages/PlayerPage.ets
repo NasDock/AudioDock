@@ -399,6 +399,11 @@ struct PlayerPage {
       promptAction.showToast({ message: t('player.transferFailed') });
       return;
     }
+    if (!socketService.isConnected()) {
+      Logger.w('PlayerPage', '[Transfer] socket not connected, cannot emit transfer_session');
+      promptAction.showToast({ message: t('player.transferFailed') });
+      return;
+    }
     this.transferringId = targetDeviceId;
     try {
       // harmony 内部用毫秒，流转协议统一用秒（对齐 mobile/desktop）
@@ -411,18 +416,69 @@ struct PlayerPage {
       payload.currentTrack = cur;
       payload.playlist = pl;
       payload.progress = progressSec;
-      socketService.emit('transfer_session', payload);
+      Logger.i('PlayerPage', `[Transfer] emit transfer_session: target=${targetDeviceId} (${target.name}) trackId=${cur.id} progress=${progressSec}s`);
+
+      // 等服务端 ack（transfer_sent / transfer_failed），5s 超时兜底
+      const delivered = await this.awaitTransferAck(targetDeviceId, payload);
+
+      if (!delivered) {
+        promptAction.showToast({ message: t('player.transferFailed') });
+        return;
+      }
       if (this.view.isPlaying) {
         await playerStore.togglePlay();
       }
       promptAction.showToast({ message: t('player.transferSuccess', [['device', target.name]]) });
       this.handleCloseMiCast();
     } catch (e) {
-      Logger.w('PlayerPage', `transfer failed: ${String(e)}`);
+      Logger.w('PlayerPage', `[Transfer] transfer failed: ${String(e)}`);
       promptAction.showToast({ message: t('player.transferFailed') });
     } finally {
       this.transferringId = '';
     }
+  }
+
+  /** 发出 transfer_session 并等待服务端 ack（transfer_sent/transfer_failed），超时按失败处理 */
+  private awaitTransferAck(targetDeviceId: string, payload: TransferSessionPayload): Promise<boolean> {
+    return new Promise<boolean>((resolve: (value: boolean) => void): void => {
+      let settled = false;
+      let timer: number = -1;
+      const cleanup = (): void => {
+        settled = true;
+        socketService.off('transfer_sent', onSent);
+        socketService.off('transfer_failed', onFailed);
+        if (timer !== -1) {
+          clearTimeout(timer);
+          timer = -1;
+        }
+      };
+      const onSent = (p: Object | null | undefined): void => {
+        const rec = p as Record<string, Object> | null;
+        const ackId = rec ? String(rec['targetDeviceId'] ?? '') : '';
+        if (settled || ackId !== targetDeviceId) return;
+        Logger.i('PlayerPage', `[Transfer] transfer_sent ack for ${targetDeviceId}`);
+        cleanup();
+        resolve(true);
+      };
+      const onFailed = (p: Object | null | undefined): void => {
+        const rec = p as Record<string, Object> | null;
+        const ackId = rec ? String(rec['targetDeviceId'] ?? '') : '';
+        const reason = rec ? String(rec['reason'] ?? '') : '';
+        if (settled || ackId !== targetDeviceId) return;
+        Logger.w('PlayerPage', `[Transfer] transfer_failed: reason=${reason} target=${ackId}`);
+        cleanup();
+        resolve(false);
+      };
+      timer = setTimeout((): void => {
+        if (settled) return;
+        Logger.w('PlayerPage', `[Transfer] ack timeout for ${targetDeviceId}（服务端 5s 未回，按未送达处理）`);
+        cleanup();
+        resolve(false);
+      }, 5000) as number;
+      socketService.on('transfer_sent', onSent);
+      socketService.on('transfer_failed', onFailed);
+      socketService.emit('transfer_session', payload);
+    });
   }
 
   /** 接收端：监听其他设备发来的流转请求，接管播放 */
@@ -431,7 +487,10 @@ struct PlayerPage {
   };
 
   private async handleTransferReceived(payload: Object | null | undefined): Promise<void> {
-    if (!payload) return;
+    if (!payload) {
+      Logger.w('PlayerPage', '[Transfer] transfer_received payload 为空，忽略');
+      return;
+    }
     try {
       const p = payload as Record<string, Object>;
       const playlistObj = p['playlist'] as Record<string, Object> | undefined;
@@ -440,11 +499,15 @@ struct PlayerPage {
       const track = p['currentTrack'] as Track | undefined;
       const progressSec = Number(p['progress'] ?? 0);
       const fromDevice = String(p['fromDeviceName'] ?? '');
+      Logger.i('PlayerPage', `[Transfer] handle transfer_received: from=${fromDevice} trackId=${track?.id ?? '(none)'} listLen=${list ? list.length : 0} index=${index} progress=${progressSec}s`);
 
       if (list && Array.isArray(list) && list.length > 0) {
         await playerStore.playTrackList(list, Math.max(0, index));
       } else if (track) {
         await playerStore.playTrack(track);
+      } else {
+        Logger.w('PlayerPage', '[Transfer] transfer_received 无 playlist 且无 currentTrack，忽略');
+        return;
       }
       // 秒 → 毫秒
       if (progressSec > 0) {
@@ -452,7 +515,7 @@ struct PlayerPage {
       }
       promptAction.showToast({ message: t('player.transferReceived', [['device', fromDevice]]) });
     } catch (e) {
-      Logger.e('PlayerPage', `handleTransferReceived failed: ${String(e)}`);
+      Logger.e('PlayerPage', `[Transfer] handleTransferReceived failed: ${String(e)}`);
     }
   }
 
@@ -1566,11 +1629,11 @@ struct PlayerPage {
                 .justifyContent(FlexAlign.Center);
 
                 Column({ space: 2 }) {
-                  Text(d.name)
+                  Text(d.name && d.name.length > 0 ? d.name : t(`player.platform_${d.platform ?? 'web'}`))
                     .fontSize(15).fontWeight(FontWeight.Medium)
                     .fontColor(this.theme.colors.text)
                     .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis });
-                  Text(t(`player.platform_${d.platform ?? 'phone'}`))
+                  Text(t(`player.platform_${d.platform ?? 'web'}`))
                     .fontSize(12).fontColor(this.theme.colors.textSecondary)
                     .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis });
                 }
