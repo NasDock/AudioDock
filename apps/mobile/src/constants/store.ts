@@ -2,7 +2,11 @@
  * 跨平台应用商店 URL 配置
  *
  * 本文件集中管理 AudioDock 在各应用商店的下载链接。新增平台只需在此处
- * 添加字段，版本检测 / 跳转逻辑无需改动。
+ * 添加字段，openStoreDebug 等调试入口无需改动。
+ *
+ * ⚠️ 自 2026-09 起 mobile 端版本更新统一走 APK 直装（SystemDownloadManager），
+ * 版本检测不再读本文件；目前仅 openStoreDebug（个人中心调试按钮）会读取 iOS URL
+ * 和 ANDROID_PACKAGE_NAME。
  *
  * ⚠️ Android 各家国内商店 URL 暂为占位（PLACEHOLDER），请替换为真实上架链接后再发布。
  *
@@ -10,10 +14,6 @@
  *  - 华为 AppGallery / 小米 / OPPO / vivo / 荣耀: 暂未上架，使用占位 URL（占位 URL 会在
  *    Linking.canOpenURL 探测阶段失败并 fallback 到 WebBrowser，体验是「打开
  *    浏览器到 404」，不会 crash。正式上架后填入真实 URL 即可）
- *
- * 更新方式说明（与 apps/mobile/hooks/useCheckUpdate.ts 的分流保持一致）：
- *  - 小米 / 红米（isXiaomiDevice）→ 走「国内仓库 APK 直装」，不跳商店
- *  - 其他平台（iOS / OPPO / vivo / 荣耀 / 华为…）→ 跳对应应用商店
  */
 
 /** iOS 端配置 */

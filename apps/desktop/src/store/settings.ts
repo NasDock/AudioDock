@@ -18,6 +18,7 @@ export interface SettingsState {
     acceptSync: boolean;
     recommendationLikeRatio: number;
     experienceProgramEnabled: boolean;
+    activityNotifyEnabled: boolean;
     internalPlaybackQuality: AudioQuality;
     externalPlaybackQuality: AudioQuality;
   };
@@ -67,6 +68,7 @@ export const useSettingsStore = create<SettingsState>()(
         acceptSync: true,
         recommendationLikeRatio: 50,
         experienceProgramEnabled: true,
+        activityNotifyEnabled: true,
         internalPlaybackQuality: 'high',
         externalPlaybackQuality: 'standard',
       },
@@ -149,7 +151,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'soundx-settings',
-      version: 8,
+      version: 9,
       migrate: (persistedState: any, version: number) => {
         if (version === 0) {
           // Migration from version 0 to 1
@@ -213,6 +215,12 @@ export const useSettingsStore = create<SettingsState>()(
             persistedState.carMode.columnOrder.join(',') === 'cover,content,lyrics'
           ) {
             persistedState.carMode.columnOrder = ['cover', 'lyrics', 'content'];
+          }
+        }
+        if (version <= 8) {
+          // Migration to version 9: 新增活动通知开关，默认开启
+          if (persistedState.general && persistedState.general.activityNotifyEnabled === undefined) {
+            persistedState.general.activityNotifyEnabled = true;
           }
         }
         return persistedState;

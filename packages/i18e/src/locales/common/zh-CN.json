@@ -119,6 +119,8 @@
     "relayPlayDescription": "是否接受多设备之间播放接力",
     "syncControl": "同步控制",
     "syncControlDescription": "是否接受同数据源下其他用户的同步控制请求",
+    "activityNotify": "活动通知",
+    "activityNotifyDescription": "有新的优惠活动时弹窗提醒",
     "recommendationPreference": "推荐偏好（喜欢/新鲜）",
     "like": "喜欢",
     "fresh": "新鲜",
@@ -1667,6 +1669,8 @@
     "openStoreFailedTitle": "无法打开应用商店",
     "openStoreFailedBody": "请检查网络或稍后再试",
     "openStore": "前往应用商店",
+    "downloadApkFailedTitle": "更新下载失败",
+    "downloadApkFailedBody": "请检查网络或稍后再试",
     "later": "稍后再说",
     "checking": "检查更新中...",
     "checkUpdate": "检查更新",
@@ -2020,6 +2024,16 @@
     "deleteTask": "删除任务",
     "noTasksYet": "暂无任务",
     "title": "任务标题"
+  },
+  "promotion": {
+    "title": "优惠活动",
+    "activityInProgress": "{{name}} 活动正在进行中",
+    "goView": "去查看",
+    "nextTime": "下次再说",
+    "ignoreActivity": "忽略此活动",
+    "annualPrice": "年卡 ¥{{price}}",
+    "lifetimePrice": "永久卡 ¥{{price}}",
+    "dateRange": "{{start}} 至 {{end}}"
   },
   "taskCenter": {
     "title": "任务中心",

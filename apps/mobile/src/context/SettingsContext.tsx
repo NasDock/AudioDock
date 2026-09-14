@@ -14,6 +14,7 @@ interface SettingsState {
   carPanelsSwapped: boolean;
   screenBottomInset: number;
   voiceAssistantEnabled: boolean;
+  activityNotifyEnabled: boolean;
   recommendationLikeRatio: number;
   eqGains: number[];
   experienceProgramEnabled: boolean;
@@ -40,6 +41,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     carPanelsSwapped: false,
     screenBottomInset: 0,
     voiceAssistantEnabled: false,
+    activityNotifyEnabled: true,
     recommendationLikeRatio: 50,
     eqGains: [0, 0, 0, 0, 0],
     experienceProgramEnabled: true,

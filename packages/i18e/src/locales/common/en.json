@@ -111,6 +111,8 @@
     "relayPlayDescription": "Accept playback relay between devices",
     "syncControl": "Sync Control",
     "syncControlDescription": "Accept sync control requests from other users on the same data source",
+    "activityNotify": "Promotion Notification",
+    "activityNotifyDescription": "Show a popup when a new promotion is available",
     "recommendationPreference": "Recommendation Preference (Like/Fresh)",
     "like": "Like",
     "fresh": "Fresh",
@@ -1660,6 +1662,8 @@
     "openStoreFailedTitle": "Cannot open App Store",
     "openStoreFailedBody": "Please check your network or try again later",
     "openStore": "Open App Store",
+    "downloadApkFailedTitle": "Update download failed",
+    "downloadApkFailedBody": "Please check your network or try again later",
     "later": "Later",
     "checking": "Checking for updates...",
     "checkUpdate": "Check for Updates",
@@ -2013,6 +2017,16 @@
     "deleteTask": "Delete Task",
     "noTasksYet": "No tasks yet",
     "title": "Task Title"
+  },
+  "promotion": {
+    "title": "Promotion",
+    "activityInProgress": "{{name}} promotion is now live",
+    "goView": "View Details",
+    "nextTime": "Maybe Later",
+    "ignoreActivity": "Don't show for this promotion",
+    "annualPrice": "Annual ¥{{price}}",
+    "lifetimePrice": "Lifetime ¥{{price}}",
+    "dateRange": "{{start}} - {{end}}"
   },
   "taskCenter": {
     "title": "Task Center",

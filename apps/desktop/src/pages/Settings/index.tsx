@@ -284,6 +284,20 @@ const Settings: React.FC = () => {
             </div>
           </div>
           <div className={styles.settingItem}>
+            <div className={styles.label}>{t("settings.activityNotify")}</div>
+            <div className={styles.control}>
+              <Space>
+                <Switch
+                  checked={general.activityNotifyEnabled}
+                  onChange={(val) => updateGeneral("activityNotifyEnabled", val)}
+                />
+                <Text className={styles.description}>
+                  {t("settings.activityNotifyDescription")}
+                </Text>
+              </Space>
+            </div>
+          </div>
+          <div className={styles.settingItem}>
             <div className={styles.label}>{t("settings.recommendationPreference")}</div>
             <div className={styles.control}>
               <div style={{ minWidth: 260 }}>

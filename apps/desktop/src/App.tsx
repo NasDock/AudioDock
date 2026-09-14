@@ -43,7 +43,9 @@ import { useEffect, useRef } from "react";
 import InviteListener from "./components/InviteListener";
 import MiniPlayer from "./components/MiniPlayer";
 import UpdateModal from "./components/UpdateModal";
+import PromotionModal from "./components/PromotionModal";
 import { useCheckUpdate } from "./hooks/useCheckUpdate";
+import { useCheckPromotion } from "./hooks/useCheckPromotion";
 import i18n from "./i18n";
 import { socketService } from "./services/socket";
 import { useAuthStore } from "./store/auth";
@@ -84,6 +86,8 @@ const AppContent = () => {
   const { token, user } = useAuthStore();
 
   const { checkUpdate, updateInfo, cancelUpdate } = useCheckUpdate();
+  const { promotion, checkPromotion, ignorePromotion, dismissPromotion } =
+    useCheckPromotion();
 
   useEffect(() => {
     // Check update on startup
@@ -93,6 +97,22 @@ const AppContent = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  const settings = useSettingsStore((state: SettingsState) => state);
+  const { autoLaunch, language, activityNotifyEnabled } = settings.general;
+  const carModeEnabled = settings.carMode?.enabled ?? false;
+  const carModeSeekBridgeRef = useRef<CarModeSeekBridge>({ current: null });
+
+  useEffect(() => {
+    // Check promotion on startup (delayed, once)
+    // 设置页「活动通知」关闭时不弹
+    if (!activityNotifyEnabled) return;
+    const timer = setTimeout(() => {
+      checkPromotion();
+    }, 6000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activityNotifyEnabled]);
+
   useEffect(() => {
     if (token && user) {
       socketService.connect();
@@ -100,12 +120,6 @@ const AppContent = () => {
       socketService.disconnect();
     }
   }, [token, user]);
-
-  // Sync settings on startup
-  const settings = useSettingsStore((state: SettingsState) => state);
-  const { autoLaunch, language } = settings.general;
-  const carModeEnabled = settings.carMode?.enabled ?? false;
-  const carModeSeekBridgeRef = useRef<CarModeSeekBridge>({ current: null });
 
   useEffect(() => {
     if (language === "system") {
@@ -298,6 +312,12 @@ const AppContent = () => {
                           visible={!!updateInfo}
                           updateInfo={updateInfo}
                           onCancel={cancelUpdate}
+                        />
+                        <PromotionModal
+                          visible={!!promotion}
+                          promotion={promotion}
+                          onClose={dismissPromotion}
+                          onIgnore={ignorePromotion}
                         />
                         <InviteListener />
                       </div>

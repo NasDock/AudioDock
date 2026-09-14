@@ -18,11 +18,11 @@ interface UpdateModalProps {
   visible: boolean;
   /** 远端版本信息（null 时 modal 不展示内容） */
   updateInfo: UpdateInfo | null;
-  /** 是否正在跳转商店 / 创建下载任务（用于按钮 loading / 下载中视图） */
+  /** 是否正在创建下载任务（用于按钮 loading / 下载中视图） */
   opening: boolean;
-  /** APK 下载进度（0~1，小米模式下载中才有意义） */
+  /** APK 下载进度（0~1；当前实现下弹窗提交任务后即关闭，进度回调实际不展示） */
   progress: number;
-  /** 点击「立即更新 / 前往应用商店」 */
+  /** 点击「立即更新」 */
   onUpdate: () => void;
   /** 点击「忽略此版本」 */
   onIgnore: () => void;
@@ -31,17 +31,17 @@ interface UpdateModalProps {
 }
 
 /**
- * 版本更新弹窗（v2，支持双模式）
+ * 版本更新弹窗（v3，统一 APK 直装）
  *
- * 更新方式由 useCheckUpdate 按设备品牌决定：
- *   - mode=xiaomi（小米/红米）：「立即更新」→ 系统下载器下载 APK，
- *     下载中展示进度条 + 「隐藏弹窗（后台继续下载）」按钮
- *   - mode=store（iOS / OPPO / vivo / 荣耀…）：「前往应用商店」→ 跳商店
+ * mobile 端不再按设备品牌分流，全部走「国内仓库 APK 直装」
+ * （系统下载器下载 APK，完成后自动拉起安装）。按钮文案统一为「立即更新」。
  *
- * 两种模式共用：
+ * 共用：
  *   - 标题：发现新版本 v{version}
  *   - 内容：GitHub Release body（markdown 渲染）
  *   - 次按钮：忽略此版本（写入 AsyncStorage）
+ *   - 提交下载任务期间展示进度条 + 「隐藏弹窗（后台继续下载）」按钮
+ *     （实际触发频率极低，弹窗通常在 startUpdate 入口即被关闭）
  */
 export const UpdateModal = ({
   visible,
@@ -55,8 +55,8 @@ export const UpdateModal = ({
   const { t } = useTranslation();
   const { colors } = useTheme();
 
-  /** 小米模式且正在创建下载任务 → 展示下载中视图 */
-  const isDownloading = opening && updateInfo?.mode === 'xiaomi';
+  /** 正在创建下载任务 → 展示下载中视图 */
+  const isDownloading = opening;
 
   return (
     <Modal
@@ -173,9 +173,7 @@ export const UpdateModal = ({
                     <ActivityIndicator size="small" color={colors.background} />
                   ) : (
                     <Text style={[styles.primaryButtonText, { color: colors.background }]}>
-                      {updateInfo.mode === 'xiaomi'
-                        ? t('update.updateNow')
-                        : t('update.openStore')}
+                      {t('update.updateNow')}
                     </Text>
                   )}
                 </TouchableOpacity>
