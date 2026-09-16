@@ -1984,7 +1984,7 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         };
         const onFailed = (p: any) => {
           if (settled || p?.targetDeviceId !== targetDeviceId) return;
-          console.warn(`[Transfer] ❌ transfer_failed: reason=${p?.reason} target=${p?.targetDeviceId}`);
+          console.warn(`[Transfer] ❌ transfer_failed: reason=${p?.reason} target=${p?.targetDeviceId} 服务端在线 deviceIds=[${(p?.onlineDeviceIds ?? []).join(", ") || "空"}]`);
           cleanup();
           resolve(false);
         };

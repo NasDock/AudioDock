@@ -386,14 +386,14 @@ export struct SearchContent {
       if (type === 'track') {
         this.playTrack(id);
       } else if (type === 'album') {
-        if (this.carNavCallback) {
+        if (this.carModeEnabled && this.carNavCallback) {
           this.carNavCallback('AlbumDetail', id);
         } else {
           const param: DetailNavParam = { id: id };
           this.pathStack.pushPath({ name: 'AlbumDetail', param: param });
         }
       } else if (type === 'artist') {
-        if (this.carNavCallback) {
+        if (this.carModeEnabled && this.carNavCallback) {
           this.carNavCallback('ArtistDetail', id);
         } else {
           const param: DetailNavParam = { id: id };

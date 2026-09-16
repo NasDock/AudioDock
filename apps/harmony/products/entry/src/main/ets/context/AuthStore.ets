@@ -2,6 +2,7 @@ import { kvStore } from 'features_storage';
 import { httpClient } from 'features_network';
 import { authApi } from 'features_network';
 import { socketService, SocketConnectOptions, SocketConnectQuery } from 'features_socket';
+import { Logger } from 'audiodock_common';
 import deviceInfo from '@ohos.deviceInfo';
 import type { AuthMe, LoginResponse, LoginDto, RegisterDto } from 'features_network';
 import { refreshNetworkMode } from '../utils/networkMode';
@@ -198,11 +199,15 @@ export class AuthStore {
     const user = this.state.user;
     const token = this.state.token;
     const url = this.state.serverAddress;
-    if (!user || !token || !url) return;
+    if (!user || !token || !url) {
+      Logger.w('AuthStore', `connectSyncSocket skipped: user=${user ? 'ok' : 'null'} token=${token ? 'ok' : 'null'} url=${url ?? 'null'}`);
+      return;
+    }
     const name = this.resolveDeviceName();
     this.state.deviceName = name;
     try {
       const deviceId = await getOrCreateDeviceId();
+      Logger.i('AuthStore', `connectSyncSocket: deviceId=${deviceId} deviceName=${name} url=${url}`);
       const query = new SocketConnectQuery();
       query.deviceId = deviceId;
       query.platform = getDevicePlatform();
@@ -214,6 +219,7 @@ export class AuthStore {
       opts.query = query;
       await socketService.connect(opts);
     } catch (e) {
+      Logger.w('AuthStore', `connectSyncSocket failed: ${String(e)}`);
       // 同步 socket 连接失败不应阻塞主流程；PlayerStore 在未连接时也不会广播，
       // 收到 sync_event 时无 listener 直接忽略。
       // 这里仅日志，由重连机制（HarmonySocketService 内部）兜底。

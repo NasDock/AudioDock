@@ -54,7 +54,10 @@ export type AppIconName =
   | 'desktop'
   | 'tablet'
   | 'tv'
-  | 'watch';
+  | 'watch'
+  | 'speedometer'
+  | 'skip-back-outline'
+  | 'skip-forward-outline';
 
 const ICON_MAP: Record<AppIconName, Resource> = {
   'home': $r('sys.symbol.house'),
@@ -132,6 +135,13 @@ const ICON_MAP: Record<AppIconName, Resource> = {
   'tablet': $r('sys.symbol.rectangle'),
   'tv': $r('sys.symbol.play_fill'),
   'watch': $r('sys.symbol.clock_fill'),
+  // 倍速（对齐 mobile Ionicons speedometer-outline）。SDK 无 gauge/speedometer（10903329），
+  // 用 clock（已验证存在）表达"速度/计时"语义近似。
+  'speedometer': $r('sys.symbol.clock'),
+  // 片头/片尾跳过（对齐 mobile Ionicons play-skip-back/forward-outline）。
+  // SDK 无 backward_end/forward_end 线框版（10903329），沿用已验证的 fill 版（与上一首/下一首同图）。
+  'skip-back-outline': $r('sys.symbol.backward_end_fill'),
+  'skip-forward-outline': $r('sys.symbol.forward_end_fill'),
 };
 
 export function getIconResource(name: AppIconName): Resource {

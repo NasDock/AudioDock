@@ -53,6 +53,13 @@ export class HarmonySocketService {
 
   /** socket.io CONNECT 的 auth payload */
   private connectAuthToken: string = '';
+  /** 设备名（中文）——不能放进 URL query（ohos webSocket 对 %XX 编码的中文报 401 Parameter error），走 auth 通道 */
+  private connectDeviceName: string = '';
+  /** deviceId / platform / userId 也挪到 auth 通道：ohos webSocket.connect 对 URL query 参数
+   *  校验极其严格（401 Parameter error 本地直接拒绝），只有 EIO/transport 是安全的 */
+  private connectDeviceId: string = '';
+  private connectPlatform: string = '';
+  private connectUserId: string = '';
   /** 是否已完成 socket.io 握手（收到 CONNECT_OK） */
   private socketIoReady: boolean = false;
   /** 握手失败兜底定时器：发出 CONNECT 后若超时未收到 CONNECT_OK 则判定失败重连 */
@@ -61,6 +68,10 @@ export class HarmonySocketService {
   async connect(opts: SocketConnectOptions): Promise<void> {
     this.manualClose = false;
     this.connectAuthToken = opts.token ?? '';
+    this.connectDeviceName = opts.deviceName ?? '';
+    this.connectDeviceId = opts.query?.deviceId ?? '';
+    this.connectPlatform = opts.query?.platform ?? '';
+    this.connectUserId = opts.userId !== undefined ? String(opts.userId) : '';
     this.url = this.buildUrl(opts);
     await this.openSocket();
   }
@@ -143,10 +154,17 @@ export class HarmonySocketService {
   }
 
   private onEngineOpen(): void {
-    // engine.io 握手完成 → 发 socket.io CONNECT（auth 里带 token）
-    const authPayload = this.connectAuthToken
-      ? JSON.stringify({ token: this.connectAuthToken })
-      : '{}';
+    // engine.io 握手完成 → 发 socket.io CONNECT
+    // 业务参数（deviceName/deviceId/platform/userId）优先走 URL query（服务端旧代码也读 query），
+    // 同时在 auth payload 里也带一份作为兜底（服务端新代码 query→auth 双通道读取）。
+    // ⚠️ 唯一必须的是 token 走 auth（服务端 resolveAuth 从 auth.token 读）。
+    const auth: Record<string, string> = {};
+    if (this.connectAuthToken) auth['token'] = this.connectAuthToken;
+    if (this.connectDeviceName) auth['deviceName'] = this.connectDeviceName;
+    if (this.connectDeviceId) auth['deviceId'] = this.connectDeviceId;
+    if (this.connectPlatform) auth['platform'] = this.connectPlatform;
+    if (this.connectUserId) auth['userId'] = this.connectUserId;
+    const authPayload = JSON.stringify(auth);
     this.sendRaw(`40${authPayload}`);
     // 兜底：5s 内没收到 CONNECT_OK 视为握手失败
     this.clearHandshakeTimer();
@@ -166,7 +184,7 @@ export class HarmonySocketService {
       this.socketIoReady = true;
       this.clearHandshakeTimer();
       this.reconnectAttempt = 0;
-      Logger.i('Socket', 'socket.io connected');
+      Logger.i('Socket', 'socket.io connected (handshake OK, 已注册到服务端设备表)');
       this.dispatch('connect', null);
       return;
     }
@@ -228,7 +246,7 @@ export class HarmonySocketService {
       }
       // WS 已建立，等待服务端 engine.io OPEN 帧
       this.connected = true;
-      Logger.i('Socket', 'ws connected, waiting engine.io handshake');
+      Logger.i('Socket', `ws connected (url=${this.url}), waiting engine.io handshake`);
     });
     this.wsObj.on('message', (err: BusinessError, data: string | ArrayBuffer) => {
       if (err) {
@@ -254,9 +272,15 @@ export class HarmonySocketService {
       Logger.e('Socket', `error: ${err.message}`);
     });
     try {
-      await this.wsObj.connect(this.url, undefined);
+      // ⚠️ ohos webSocket.connect(url, options) 的 options 不能传 undefined——会被参数校验
+      // 拦截（401 Parameter error，本地直接拒绝，不发起任何网络请求）。传空对象或不传第二参。
+      await this.wsObj.connect(this.url, {} as webSocket.WebSocketRequestOptions);
     } catch (e) {
-      Logger.e('Socket', `connect failed: ${String(e)}`);
+      // BusinessError 有 code/message，String(e) 只会打出 [object Object]
+      const be = e as BusinessError;
+      const code = be?.code !== undefined ? String(be.code) : '?';
+      const msg = be?.message ?? String(e);
+      Logger.e('Socket', `connect failed: code=${code} message=${msg} url=${this.url}`);
       if (!this.manualClose) this.scheduleReconnect();
     }
   }
@@ -297,6 +321,9 @@ export class HarmonySocketService {
       .replace(/\/$/, '');
     u += '/socket.io/';
 
+    // 业务参数走 URL query（服务端旧代码也从 query 读，保持兼容）。
+    // ⚠️ 唯一根因是 connect(url, undefined) 第二参传 undefined 会 401，与 URL 内容无关；
+    // 已改为 connect(url, {})，URL 里带 encodeURIComponent 后的参数（含中文 deviceName）可正常连接。
     const q: string[] = ['EIO=4', 'transport=websocket'];
     if (opts.userId !== undefined) q.push(`userId=${encodeURIComponent(String(opts.userId))}`);
     if (opts.deviceName) q.push(`deviceName=${encodeURIComponent(opts.deviceName)}`);

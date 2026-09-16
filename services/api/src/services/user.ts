@@ -143,6 +143,14 @@ export class UserService {
     });
   }
 
+  /** 服务启动时调用：清空所有设备的在线状态（服务重启后所有 socket 已断开，避免「僵尸在线」） */
+  async markAllDevicesOffline(): Promise<void> {
+    await this.prisma.device.updateMany({
+      where: { isOnline: true },
+      data: { isOnline: false },
+    });
+  }
+
   async getUserDevices(userId: number): Promise<Device[]> {
     return await this.prisma.device.findMany({
       where: { userId },

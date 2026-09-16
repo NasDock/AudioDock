@@ -117,7 +117,7 @@ export struct CollectionDetailContent {
           }
           .onClick(() => {
             if (it.album) {
-              if (this.carNavCallback) {
+              if (this.carModeEnabled && this.carNavCallback) {
                 this.carNavCallback('AlbumDetail', it.album.id);
               } else {
                 const param: DetailNavParam = { id: it.album.id };

@@ -81,11 +81,14 @@
 
 ## 播放流转（transfer_session）WS 链路
 
-- **协议**：发起端 emit `transfer_session {targetDeviceId, currentTrack, playlist:{list,index}, progress(秒)}` → 服务端按 userId+deviceId 匹配在线 socket → 命中回发起端 `transfer_sent` 并给目标发 `transfer_received`；未命中回 `transfer_failed(reason=device_offline)`。另有 REST 版 `POST /user/devices/transfer`（forwardTransfer）供小程序/TV 等无常驻 WS 端使用。
-- **⚠️ 必须等服务端 ack 再提示**：emit 后立刻提示成功是假成功（服务端只回事件、没有 emit 回调）。三端统一模式：on `transfer_sent`/`transfer_failed` + 5s 超时兜底，失败才提示失败（2026-09-15 修复，详见当日日志）。
-- **设备注册**：deviceId 由各端首启生成持久化（desktop/web: localStorage `audiodock_device_id`；mobile: AsyncStorage `@audiodock_device_id`；harmony: kvStore），WS connect query 带 deviceName/deviceId/platform，服务端 `saveDevice` 优先按 deviceId 匹配、兜底按 name。
+- **协议**：发起端 emit `transfer_session {targetDeviceId, currentTrack, playlist:{list,index}, progress(秒)}` → 服务端按 userId+deviceId 匹配在线 socket → 命中回发起端 `transfer_sent` 并给目标发 `transfer_received`；未命中回 `transfer_failed(reason=device_offline, onlineDeviceIds=[...])`。另有 REST 版 `POST /user/devices/transfer`（forwardTransfer）供小程序/TV 等无常驻 WS 端使用。
+- **⚠️ 必须等服务端 ack 再提示**：emit 后立刻提示成功是假成功（服务端只回事件、没有 emit 回调）。三端统一模式：on `transfer_sent`/`transfer_failed` + 5s 超时兜底，失败才提示失败（2026-09-15 修复）。
+- **设备注册**：deviceId 由各端首启生成持久化（desktop/web: localStorage `audiodock_device_id`；mobile: AsyncStorage `@audiodock_device_id`；harmony: kvStore `audiodock_device_id`）。
+- **⚠️ hm 端 webSocket 连接**：唯一真根因是 **`connect(url, undefined)` 第二参传 undefined 会被 ohos 参数校验拒绝（真机 401 Parameter error）**，必须传 `{}`。URL 里带 encodeURIComponent 后的业务参数（含中文 deviceName）是**安全的**，不要精简 URL、不要过度把参数挪到 auth（那会导致服务端旧代码读不到、设备不注册）。当前方案：URL query 带 deviceName/deviceId/platform/userId + auth payload 双保险，服务端 query→auth 兜底读取。
+- **⚠️ 服务端 SyncGateway 实现 OnModuleInit（从 `@nestjs/common` 导入），启动时 `markAllDevicesOffline()` 清空所有 isOnline**，避免服务重启后「僵尸在线」设备残留导致流转匹配失败。
+- **⚠️ 调试环境区分**：用户本地调试 = web `localhost:5174` + 鸿蒙 **Preview 预览窗口** + 后端 `localhost:3000`；真机（hdc）是另一套环境（连 NAS `192.168.1.6:8865`）。Preview 窗口的 deviceName 是英文兜底 `HarmonyOS Device`（拿不到 deviceInfo.marketName），且 kvStore 用内存降级（不持久化）。**基于真机日志的修复要警惕是否适用于 Preview**。
 - **web 设备名**：desktop 纯 web 环境 deviceName 用 `resolveWebDeviceName()`（UA 解析成 "Chrome xxx on macOS"），不要存整段 UA。
-- **排查日志前缀**：服务端 `[WS]`/`[WS][Transfer]`；客户端 `[Transfer]`/`[SharedSocket]`；harmony 是 hilog tag `Socket`/`PlayerPage`。
+- **排查日志前缀**：服务端 `[WS]`/`[WS][Transfer]`；客户端 `[Transfer]`/`[SharedSocket]`；hm 端 hilog tag `A0A001/com.audiodock.app/AudioDock` 下的 `[Socket]`/`[AuthStore]`/`[Transfer]`。抓 hm 日志：`hdc shell "hilog | grep -iE 'A0A001.*Socket|A0A001.*Transfer'"`。
 
 ## @soundx/services workspace 包
 

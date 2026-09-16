@@ -5,6 +5,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
+import { OnModuleInit } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 import { UserService } from '../services/user';
@@ -22,7 +23,7 @@ interface SocketMeta {
     origin: '*',
   },
 })
-export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit {
   @WebSocketServer()
   server: Server;
 
@@ -30,6 +31,16 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
   ) {}
+
+  async onModuleInit() {
+    // 服务重启后所有 socket 均已断开，清空遗留的在线标记，避免设备列表显示「僵尸在线」设备
+    try {
+      await this.userService.markAllDevicesOffline();
+      console.log('[WS] onModuleInit: 已清空所有设备的 isOnline 状态');
+    } catch (e) {
+      console.warn('[WS] onModuleInit: 清空 isOnline 失败', e);
+    }
+  }
 
   // Map<UserId, SocketId[]> - Stores all active socket IDs for a user
   private userSockets = new Map<number, string[]>();
@@ -61,9 +72,16 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   async handleConnection(client: Socket) {
-    const deviceName = client.handshake.query.deviceName as string;
-    const deviceId = client.handshake.query.deviceId as string | undefined;
-    const platform = client.handshake.query.platform as string | undefined;
+    // ⚠️ harmony 端（ohos webSocket）对 URL query 校验极严（自定义参数即 401 Parameter error），
+    // 所有业务参数都走 socket.io CONNECT 的 auth payload；其他端仍走 query。这里按 query → auth 兜底。
+    const authData = (client.handshake.auth ?? {}) as Record<string, any>;
+    const deviceName = (client.handshake.query.deviceName as string | undefined)
+      || (authData.deviceName as string | undefined)
+      || 'Unknown Device';
+    const deviceId = (client.handshake.query.deviceId as string | undefined)
+      || (authData.deviceId as string | undefined);
+    const platform = (client.handshake.query.platform as string | undefined)
+      || (authData.platform as string | undefined);
 
     const auth = await this.resolveAuth(client);
     if (!auth) {
@@ -340,7 +358,12 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (targetSockets.length === 0) {
       const onlineDeviceIds = all.map((sid) => this.socketMetadata.get(sid)?.deviceId ?? '∅');
       console.warn(`[WS][Transfer] ❌ no match for targetDeviceId=${payload.targetDeviceId}，用户 ${uid} 在线设备 deviceIds=[${onlineDeviceIds.join(', ')}]`);
-      client.emit('transfer_failed', { targetDeviceId: payload.targetDeviceId, reason: 'device_offline' });
+      // 把服务端视角的在线 deviceIds 一并回给发起端，前端日志可直接对比，不用翻服务端日志
+      client.emit('transfer_failed', {
+        targetDeviceId: payload.targetDeviceId,
+        reason: 'device_offline',
+        onlineDeviceIds: onlineDeviceIds,
+      });
       return;
     }
 
