@@ -106,8 +106,37 @@ export class AVPlayerBackend implements IAudioPlayer {
   async seek(positionMs: number): Promise<void> {
     (await this.ensure()).seek(positionMs);
   }
+  /**
+   * 设置倍速。注意 AVPlayer.setSpeed 的参数是 PlaybackSpeed 枚举（不是裸倍率 number），
+   * 传 1.25 这种小数会被参数校验拒绝（5400103）静默失败；
+   * 且只能在 prepared/playing/paused/completed 态调用，其他状态 5400102 静默失败。
+   * 这里做倍率→枚举映射 + 状态守卫 + speedDone 日志，失败抛错让上层知道没生效。
+   */
   async setSpeed(speed: number): Promise<void> {
-    (await this.ensure()).setSpeed(speed);
+    const p = await this.ensure();
+    const allowed = ['prepared', 'playing', 'paused', 'completed'];
+    if (allowed.indexOf(p.state) < 0) {
+      const msg = `setSpeed(${speed}) rejected: state=${p.state} not in [${allowed.join('/')}]`;
+      Logger.w('AVPlayer', msg);
+      throw new Error(msg);
+    }
+    const map = new Map<number, media.PlaybackSpeed>([
+      [0.5, media.PlaybackSpeed.SPEED_FORWARD_0_50_X],
+      [0.75, media.PlaybackSpeed.SPEED_FORWARD_0_75_X],
+      [1.0, media.PlaybackSpeed.SPEED_FORWARD_1_00_X],
+      [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X],
+      [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X],
+      [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X],
+      [2.0, media.PlaybackSpeed.SPEED_FORWARD_2_00_X],
+    ]);
+    const mapped = map.get(speed);
+    if (mapped === undefined) {
+      const msg = `setSpeed(${speed}) rejected: no PlaybackSpeed enum mapping`;
+      Logger.w('AVPlayer', msg);
+      throw new Error(msg);
+    }
+    p.setSpeed(mapped);
+    Logger.i('AVPlayer', `setSpeed(${speed}) -> enum=${mapped} state=${p.state}`);
   }
   async setVolume(v: number): Promise<void> {
     (await this.ensure()).setVolume(v);

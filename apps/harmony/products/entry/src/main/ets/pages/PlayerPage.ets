@@ -31,10 +31,14 @@ import { SyncNotification } from '../components/SyncNotification';
 class MoreOption {
   key: string = '';
   label: string = '';
+  icon: AppIconName = 'gear';
+  disabled: boolean = false;
 
-  constructor(key: string, label: string) {
+  constructor(key: string, label: string, icon: AppIconName = 'gear', disabled: boolean = false) {
     this.key = key;
     this.label = label;
+    this.icon = icon;
+    this.disabled = disabled;
   }
 }
 
@@ -104,6 +108,9 @@ function normalizeTransferTrack(raw: Record<string, Object>): Track {
 @Component
 struct PlayerPage {
   @State private view: PlayerStateView = playerStore.view();
+  // 倍速独立成响应式字段：@State 对 view 对象的嵌套属性（view.speed）不做深度观察，
+  // subscribe 里整体替换 view 时子组件未必重建（参考设置页 themeMode 用 @StorageLink 而非嵌套对象）。
+  @State private speed: number = playerStore.view().speed;
   @State private showLyrics: boolean = false;
   @State private showPlaylist: boolean = false;
   // 修复 3：播放列表三 Tab（current/history/favorites），对齐 mobile PlaylistModal TabType
@@ -193,6 +200,7 @@ struct PlayerPage {
       });
     this.unsub = playerStore.subscribe(() => {
       this.view = playerStore.view();
+      this.speed = this.view.speed;
       const cur = this.current();
       const curId = cur ? cur.id : '';
       if (curId !== this.lastTrackId) {
@@ -757,7 +765,8 @@ struct PlayerPage {
         })
       Column().width(0).height(0)
         .bindSheet($$this.showMore, this.moreSheet(), {
-          height: '55%',
+          // 对齐 mobile PlayerMoreModal：底部弹层高度跟随内容（wrap_content），不固定百分比、不内部滚动
+          height: SheetSize.FIT_CONTENT,
           dragBar: true,
           backgroundColor: this.theme.colors.surface,
         })
@@ -1385,7 +1394,19 @@ struct PlayerPage {
         Row() {
           this.SkipEdgeBtn('intro')
           this.AudiobookCtrlBtn('skip-back', t('playerMore.back15s'), '', (): void => this.skipBackward15())
-          this.AudiobookCtrlBtn('speedometer', `${this.view.speed}x`, '', (): void => this.togglePlaybackRate())
+          // ⚠️ 倍速按钮不能走带参 @Builder（label 按值快照不重绘），
+          // 也不能绑定 view.speed（@State 对嵌套对象属性不做深度观察）——
+          // 绑定独立的 @State speed 字段，subscribe 里显式同步。
+          Column() {
+            AppIcon({ name: 'speedometer', iconSize: 30, color: this.theme.colors.text })
+            Text(`${this.speed}x`)
+              .fontSize(12)
+              .fontColor(this.theme.colors.textSecondary)
+              .margin({ top: 8 })
+              .maxLines(1)
+          }
+          .alignItems(HorizontalAlign.Center)
+          .onClick((): void => this.togglePlaybackRate())
           this.AudiobookCtrlBtn('skip-forward', t('playerMore.forward15s'), '', (): void => this.skipForward15())
           this.SkipEdgeBtn('outro')
         }
@@ -1396,29 +1417,44 @@ struct PlayerPage {
         .border({ width: { bottom: 1 }, color: { bottom: this.theme.colors.border } })
         .margin({ bottom: 8 });
       }
+      // 选项列表（对齐 mobile PlayerMoreModal：图标 + 标签 + › chevron，行间 0.5px 分隔线，
+      // disabled 整行 0.5 透明度；List 不写 layoutWeight 自适应内容高度，配合 sheet FIT_CONTENT 不滚动）
       List() {
         ForEach(this.getMoreOptions(), (opt: MoreOption) => {
           ListItem() {
-            Row() {
+            Row({ space: 16 }) {
+              AppIcon({
+                name: opt.icon,
+                iconSize: 22,
+                color: opt.disabled ? this.theme.colors.textSecondary : this.theme.colors.text,
+              })
               Text(opt.label)
-                .fontSize(15)
-                .fontColor(this.theme.colors.text)
-                .layoutWeight(1);
-              Text('›')
-                .fontSize(20)
-                .fontColor(this.theme.colors.textSecondary);
+                .fontSize(16)
+                .fontColor(opt.disabled ? this.theme.colors.textSecondary : this.theme.colors.text)
+                .layoutWeight(1)
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis });
+              AppIcon({ name: 'arrow-forward', iconSize: 18, color: this.theme.colors.textSecondary })
             }
             .width('100%')
             .padding({ top: 16, bottom: 16, left: 20, right: 20 })
-            .onClick(() => this.onMoreOption(opt.key));
+            .opacity(opt.disabled ? 0.5 : 1)
+            .onClick(() => {
+              if (!opt.disabled) this.onMoreOption(opt.key);
+            });
           }
         }, (opt: MoreOption) => opt.key)
       }
-      .layoutWeight(1)
+      .width('100%')
+      .divider({
+        strokeWidth: 0.5,
+        color: this.theme.colors.border,
+        startMargin: 58,
+        endMargin: 20,
+      })
       .scrollBar(BarState.Off);
     }
     .width('100%')
-    .height('100%')
     .padding({ left: 4, right: 4 });
   }
 
@@ -1478,25 +1514,31 @@ struct PlayerPage {
   }
 
   private getMoreOptions(): MoreOption[] {
-    // 对齐 mobile PlayerMoreModal.tsx L333-340：下载项随状态切换文案（downloading/downloaded/download）
+    const cur = this.current();
+    // 对齐 mobile PlayerMoreModal.tsx standardOptions 的顺序/图标/disabled：
+    // 艺人 → 专辑 → 曲目详情 → 定时关闭 → 加入歌单 → 下载 → 歌词大小 → 控制位置
+    const hasArtist = !!cur && !!cur.artist;
+    const hasAlbum = !!cur && !!cur.album;
     const dlLabel: string = this.isDownloading
-      ? t('playerMore.downloading', [['name', this.current()?.title ?? '']])
+      ? t('playerMore.downloading', [['name', cur?.title ?? '']])
       : this.isDownloaded
         ? t('playerMore.downloaded')
         : t('playerMore.download');
     const opts: MoreOption[] = [
-      new MoreOption('artist', t('playerMore.artistDetails')),
-      new MoreOption('album', t('playerMore.albumDetails')),
-      new MoreOption('track', t('playerMore.trackDetails')),
-      // 修复 1：更多选项-下载入口（历史 bug：菜单根本没渲染 download 项）
-      new MoreOption('download', dlLabel),
+      new MoreOption('artist', t('playerMore.artistDetails'), 'person', !hasArtist),
+      new MoreOption('album', t('playerMore.albumDetails'), 'list', !hasAlbum),
+      new MoreOption('track', t('playerMore.trackDetails'), 'document', !cur),
       // 对齐 mobile PlayerMoreModal L310：激活时显示剩余 mm:ss（来自 playerStore 全局定时器）
       new MoreOption('sleepTimer', this.view.sleepTimerRemainingSec > 0
         ? t('playerMore.sleepTimerWithTime', [['time', this.formatSleepRemaining(this.view.sleepTimerRemainingSec)]])
-        : t('playerMore.sleepTimer')),
-      new MoreOption('addToPlaylist', t('playerMore.addToPlaylist')),
-      new MoreOption('lyricsSize', t('playerMore.adjustLyricsSize')),
-      new MoreOption('controlPosition', t('playerMore.controlPosition')),
+        : t('playerMore.sleepTimer'), 'time-outline'),
+      new MoreOption('addToPlaylist', t('playerMore.addToPlaylist'), 'plus', !cur),
+      // 修复 1：更多选项-下载入口（历史 bug：菜单根本没渲染 download 项）
+      new MoreOption('download', dlLabel,
+        this.isDownloaded ? 'cloud-download' : 'cloud-download-outline',
+        this.isDownloaded || this.isDownloading),
+      new MoreOption('lyricsSize', t('playerMore.adjustLyricsSize'), 'text-outline'),
+      new MoreOption('controlPosition', t('playerMore.controlPosition'), 'swap-vertical-outline'),
     ];
     return opts;
   }
@@ -1603,7 +1645,7 @@ struct PlayerPage {
   /** 倍速循环：0.5 → 1 → 1.25 → 1.5 → 2（对齐 mobile handleTogglePlaybackRate） */
   private togglePlaybackRate(): void {
     const rates: number[] = [0.5, 1, 1.25, 1.5, 2];
-    const cur: number = rates.indexOf(this.view.speed);
+    const cur: number = rates.indexOf(this.speed);
     const next: number = rates[(cur + 1) % rates.length];
     playerStore.setSpeed(next).catch((e: Error): void => {
       Logger.w('PlayerPage', `setSpeed failed: ${String(e)}`);
@@ -1925,7 +1967,7 @@ struct PlayerPage {
             }
           }, (d: OnlineDevice) => String(d.deviceId ?? d.id));
         }
-        .height(Math.min(this.onlineDevices.length * 64, 200))
+        .height(Math.min(this.onlineDevices.length * 64, 320))
         .scrollBar(BarState.Off);
 
         Text(t('player.miSpeakerSection'))

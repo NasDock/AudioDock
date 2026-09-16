@@ -363,9 +363,14 @@ export class PlayerStore {
     }
   }
 
+  /**
+   * 设置倍速：先调底层（成功才更新 this.speed），失败抛错且不改状态。
+   * 这样 UI 永远只展示"实际生效"的倍速，不会出现"点了变 1.25 但播放还是 1x"的假成功。
+   * 底层失败原因（状态不对/无枚举映射）由 AVPlayerBackend 日志给出。
+   */
   async setSpeed(s: number): Promise<void> {
-    this.speed = s;
     await audioBackend.setSpeed(s);
+    this.speed = s;
     this.notify();
   }
 

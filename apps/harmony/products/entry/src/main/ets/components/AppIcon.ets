@@ -57,7 +57,10 @@ export type AppIconName =
   | 'watch'
   | 'speedometer'
   | 'skip-back-outline'
-  | 'skip-forward-outline';
+  | 'skip-forward-outline'
+  | 'time-outline'
+  | 'text-outline'
+  | 'swap-vertical-outline';
 
 const ICON_MAP: Record<AppIconName, Resource> = {
   'home': $r('sys.symbol.house'),
@@ -138,11 +141,22 @@ const ICON_MAP: Record<AppIconName, Resource> = {
   // 倍速（对齐 mobile Ionicons speedometer-outline）。SDK 无 gauge/speedometer（10903329），
   // 用 clock（已验证存在）表达"速度/计时"语义近似。
   'speedometer': $r('sys.symbol.clock'),
-  // 片头/片尾跳过（对齐 mobile Ionicons play-skip-back/forward-outline）。
-  // SDK 无 backward_end/forward_end 线框版（10903329），沿用已验证的 fill 版（与上一首/下一首同图）。
-  'skip-back-outline': $r('sys.symbol.backward_end_fill'),
-  'skip-forward-outline': $r('sys.symbol.forward_end_fill'),
+  // 片头/片尾跳过（对齐 mobile MaterialCommunityIcons rewind/fast-forward）。
+  // SDK sys.symbol 无双箭头（chevron_backward_2 等 10903329），
+  // 用自定义 SVG（resources/base/media/ic_skip_prev_edge.svg / ic_skip_next_edge.svg），
+  // 与上一首/下一首的单箭头 backward_end_fill 视觉区分。
+  'skip-back-outline': $r('app.media.ic_skip_prev_edge'),
+  'skip-forward-outline': $r('app.media.ic_skip_next_edge'),
+  // 更多选项菜单（对齐 mobile PlayerMoreModal Ionicons）。
+  // textformat_size / arrow_up_arrow_down / arrow_up_and_down 在当前 SDK 都不存在（10903329），
+  // 降级为已验证的 textformat / arrow_up（已在 ICON_MAP 验证过）语义近似。
+  'time-outline': $r('sys.symbol.clock'),
+  'text-outline': $r('sys.symbol.textformat'),
+  'swap-vertical-outline': $r('sys.symbol.arrow_up'),
 };
+
+/** 自定义 SVG 图标集合（非 sys.symbol），AppIcon 用 Image + fillColor 渲染。 */
+const CUSTOM_SVG_ICONS: Set<string> = new Set(['skip-back-outline', 'skip-forward-outline']);
 
 export function getIconResource(name: AppIconName): Resource {
   return ICON_MAP[name];
@@ -155,8 +169,16 @@ export struct AppIcon {
   @Prop color: string = '#000000';
 
   build() {
-    SymbolGlyph(getIconResource(this.name))
-      .fontSize(this.iconSize)
-      .fontColor([this.color])
+    if (CUSTOM_SVG_ICONS.has(this.name)) {
+      // 自定义 SVG 资源：Image + fillColor 覆盖 SVG 内部 fill
+      Image(getIconResource(this.name))
+        .width(this.iconSize)
+        .height(this.iconSize)
+        .fillColor(this.color)
+    } else {
+      SymbolGlyph(getIconResource(this.name))
+        .fontSize(this.iconSize)
+        .fontColor([this.color])
+    }
   }
 }
