@@ -101,3 +101,11 @@
 - 唤醒词 DB 优先（env VOICE_KEYWORDS 仅首启种子）；voice_listener 每 30s reload。
 - 管理 API 前缀 `/api`，前端走 `{服务器}/mi/api/*`。
 - docker-compose 需挂载 `auth.json`、`.mi.token`、`data/` 三路径防登录态丢失。
+
+## apps/desktop (React)
+
+- **⚠️ 严禁在模块顶层（组件函数体外）调用任何 React hook**（如 `theme.useToken()`）——模块加载即执行 → Invalid hook call。token 需用时一律在组件函数体内取（2026-09-17 ArtistDetail 踩过）。
+
+## GitHub Actions (CI)
+
+- **⚠️ Android job 不要用 `android-actions/setup-android@v3`**——它强制安装 Google 已下线的 `tools` 包，在 ubuntu-24.04（当前 `ubuntu-latest`）上必然 `Failed to find package 'tools'` 失败。ubuntu-latest 镜像自带完整 Android SDK，直接删了 setup action 即可（feat-test-release.yml / android-release.yml 2026-09-17 已修）。
