@@ -52,6 +52,44 @@ class TransferSessionPayload {
   progress: number = 0;
 }
 
+/** 把任意端（web/mobile/hm）发来的流转曲目规范化为 hm 播放器内部 Track。 */
+function normalizeTransferTrack(raw: Record<string, Object>): Track {
+  const pickStr = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = raw[k];
+      if (v !== undefined && v !== null && String(v) !== '') return String(v);
+    }
+    return '';
+  };
+  const pickNum = (key: string): number | undefined => {
+    const v = raw[key];
+    return typeof v === 'number' ? v : undefined;
+  };
+  const id = pickStr('id');
+  const path = pickStr('path');
+  let url = pickStr('url');
+  if (!url) {
+    if (path && (path.startsWith('http://') || path.startsWith('https://'))) {
+      url = path;
+    } else if (id) {
+      url = trackApi.streamUrl(id, 'high');
+    }
+  }
+  const track: Track = {
+    id,
+    title: pickStr('title', 'name'),
+    url,
+    artist: pickStr('artist') || undefined,
+    album: pickStr('album') || undefined,
+    duration: pickNum('duration'),
+    ext: pickStr('ext') || undefined,
+    coverUrl: pickStr('coverUrl', 'cover') || undefined,
+    lyrics: pickStr('lyrics') || undefined,
+    contentType: pickStr('contentType', 'type') || undefined,
+  };
+  return track;
+}
+
 /**
  * 播放器详情页，布局与行为对齐 mobile 的 PlayerDetailView：
  * 竖屏：顶部左侧返回（chevron-down）、右侧更多按钮（⋮，打开选项半模态）；中部封面 200×200
@@ -493,14 +531,20 @@ struct PlayerPage {
     try {
       const p = payload as Record<string, Object>;
       const playlistObj = p['playlist'] as Record<string, Object> | undefined;
-      const list = playlistObj ? (playlistObj['list'] as Track[]) : undefined;
+      const rawList = playlistObj ? (playlistObj['list'] as Record<string, Object>[]) : undefined;
       const index = playlistObj ? Number(playlistObj['index'] ?? 0) : 0;
-      const track = p['currentTrack'] as Track | undefined;
+      const rawTrack = p['currentTrack'] as Record<string, Object> | undefined;
       const progressSec = Number(p['progress'] ?? 0);
       const fromDevice = String(p['fromDeviceName'] ?? '');
-      Logger.i('PlayerPage', `[Transfer] handle transfer_received: from=${fromDevice} trackId=${track?.id ?? '(none)'} listLen=${list ? list.length : 0} index=${index} progress=${progressSec}s`);
+      // 各端 Track 模型字段命名不同（hm 用 title/url/coverUrl，web/mobile 用 name/path/cover），
+      // 统一规范化后再交给播放器，否则只有同名字段（artist 等）能存活，歌名/播放地址全丢。
+      const list: Track[] | undefined = rawList && Array.isArray(rawList)
+        ? rawList.map((it: Record<string, Object>): Track => normalizeTransferTrack(it))
+        : undefined;
+      const track: Track | undefined = rawTrack ? normalizeTransferTrack(rawTrack) : undefined;
+      Logger.i('PlayerPage', `[Transfer] handle transfer_received: from=${fromDevice} trackId=${track?.id ?? '(none)'} title=${track?.title ?? ''} listLen=${list ? list.length : 0} index=${index} progress=${progressSec}s`);
 
-      if (list && Array.isArray(list) && list.length > 0) {
+      if (list && list.length > 0) {
         await playerStore.playTrackList(list, Math.max(0, index));
       } else if (track) {
         await playerStore.playTrack(track);

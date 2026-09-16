@@ -2023,13 +2023,33 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
   useEffect(() => {
     const onTransferReceived = async (payload: any) => {
       try {
-        const list: Track[] | undefined = payload?.playlist?.list;
+        // 各端 Track 模型字段命名不同（web/mobile 用 name/path/cover，hm 用 title/url/coverUrl），
+        // 统一规范化后再交给播放器，否则只有同名字段（artist 等）能存活，歌名/播放地址全丢。
+        const normalizeTrack = (t: any): Track => {
+          const id = String(t?.id ?? "");
+          const name = t?.name ?? t?.title ?? "";
+          const path = t?.path ?? t?.url ?? "";
+          return {
+            ...t,
+            id,
+            name,
+            path,
+            cover: t?.cover ?? t?.coverUrl ?? null,
+            type: t?.type ?? t?.contentType,
+          } as Track;
+        };
+        const rawList: any[] | undefined = payload?.playlist?.list;
         const index: number = payload?.playlist?.index ?? 0;
-        const track: Track | undefined = payload?.currentTrack;
+        const rawTrack: any = payload?.currentTrack;
         const progressSec: number = payload?.progress ?? 0;
+        const list: Track[] | undefined =
+          rawList && Array.isArray(rawList) && rawList.length > 0
+            ? rawList.map(normalizeTrack)
+            : undefined;
+        const track: Track | undefined = rawTrack ? normalizeTrack(rawTrack) : undefined;
         console.log(`[Transfer] handle transfer_received: from=${payload?.fromDeviceName} track=${track?.name} listLen=${list?.length ?? 0} index=${index} progress=${progressSec}s`);
         const store = usePlayerStore.getState();
-        if (list && Array.isArray(list) && list.length > 0) {
+        if (list && list.length > 0) {
           store.setPlaylist(list);
           const target = list[Math.max(0, index)] || list[0];
           await store.play(target, undefined, progressSec);

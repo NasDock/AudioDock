@@ -820,12 +820,27 @@ export function PlayerDetailView({
     const { socketService } = require("../src/services/socket");
     const onTransferReceived = async (payload: any) => {
       try {
-        const list = payload?.playlist?.list;
+        // 各端 Track 模型字段命名不同（web/mobile 用 name/path/cover，hm 用 title/url/coverUrl），
+        // 统一规范化后再交给播放器，否则只有同名字段（artist 等）能存活，歌名/播放地址全丢。
+        const normalizeTrack = (t: any): any => ({
+          ...t,
+          id: String(t?.id ?? ""),
+          name: t?.name ?? t?.title ?? "",
+          path: t?.path ?? t?.url ?? "",
+          cover: t?.cover ?? t?.coverUrl ?? null,
+          type: t?.type ?? t?.contentType,
+        });
+        const rawList = payload?.playlist?.list;
         const index = payload?.playlist?.index ?? 0;
-        const track = payload?.currentTrack;
+        const rawTrack = payload?.currentTrack;
         const progressSec = payload?.progress ?? 0;
+        const list =
+          rawList && Array.isArray(rawList) && rawList.length > 0
+            ? rawList.map(normalizeTrack)
+            : undefined;
+        const track = rawTrack ? normalizeTrack(rawTrack) : undefined;
         console.log(`[Transfer] handle transfer_received: from=${payload?.fromDeviceName} track=${track?.name} listLen=${list?.length ?? 0} index=${index} progress=${progressSec}s`);
-        if (list && Array.isArray(list) && list.length > 0) {
+        if (list && list.length > 0) {
           await playTrackList(list, Math.max(0, index), progressSec);
         } else if (track) {
           await playTrackList([track], 0, progressSec);
