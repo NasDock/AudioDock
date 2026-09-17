@@ -223,6 +223,29 @@ export class PlayerStore {
     if (cur) this.broadcastSync('track_change', cur);
   }
 
+  /**
+   * 秒播优化：后台队列解析完成后，把完整队列替换进 store，但不打断当前播放。
+   * 使用场景：播放页入口先用 resolveFirstFast 解析单首开播，后台 resolveRestParallel
+   * 解析完整队列，完成后调本方法把 queue 从「单首占位」升级为「完整列表」。
+   *
+   * 安全保证：
+   * - 若用户在解析期间又点了别的歌（currentTrackId 变了），直接丢弃这次结果。
+   * - currentIndex 指向的曲目仍是同一首，仅 queue 长度/内容变化，不重载音频。
+   * - persistState + broadcastSync('playlist') 让 UI/跨端同步拿到完整队列。
+   */
+  replaceQueuePreservingCurrent(fullQueue: Track[], currentTrackId: string): void {
+    if (fullQueue.length === 0) return;
+    const cur = this.queue[this.currentIndex];
+    if (!cur || cur.id !== currentTrackId) return;
+    const idx = fullQueue.findIndex((t) => t.id === currentTrackId);
+    if (idx < 0) return;
+    this.queue = fullQueue.slice();
+    this.currentIndex = idx;
+    this.persistState();
+    this.notify();
+    this.broadcastSync('playlist', this.queue);
+  }
+
   async playTrack(track: Track): Promise<void> {
     if (this.queue.length === 0 || this.queue[this.currentIndex]?.id !== track.id) {
       this.applyIncomingContentMode(track);

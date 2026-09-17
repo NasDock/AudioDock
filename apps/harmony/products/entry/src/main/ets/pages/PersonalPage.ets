@@ -10,7 +10,7 @@ import { AppIcon, AppIconName } from '../components/AppIcon';
 import { XiaoAiIcon } from '../components/XiaoAiIcon';
 import { CoverImage } from '../components/CoverImage';
 import { authStore } from '../context/AuthStore';
-import { resolveTrackToPlayer } from '../services/trackResolver';
+import { resolveTrackToPlayer, playQueueFast } from '../services/trackResolver';
 import { playerStore } from '../context/PlayerStore';
 import type { Track } from '../context/PlayerStore';
 import { getDownloadedTracks, removeDownloadedTrack } from '../services/downloadService';
@@ -589,14 +589,13 @@ export struct PersonalTab {
       for (const r of this.rows) {
         if (r.kind === 'track' && r.track) queue.push(r.track);
       }
-      const list: Track[] = [];
-      for (const item of queue) list.push(await resolveTrackToPlayer(item, false));
       let idx = 0;
       const targetId = row.track.id;
       for (let i = 0; i < queue.length; i++) {
         if (queue[i].id === targetId) { idx = i; break; }
       }
-      await playerStore.playTrackList(list, idx);
+      // 秒播：先播用户点的这首，完整队列后台并行补齐
+      await playQueueFast(queue, idx, false);
       // 不再自动打开播放详情页：播放交给 MiniPlayer，用户点 MiniPlayer 再进详情
     } catch (e) {
       Logger.w('PersonalTab', `playTrack failed: ${String(e)}`);

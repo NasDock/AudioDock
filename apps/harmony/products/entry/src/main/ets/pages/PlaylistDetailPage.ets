@@ -5,7 +5,7 @@ import { t, getLang } from 'features_i18n';
 import { formatDuration } from 'audiodock_common';
 import { playlistApi } from 'features_network';
 import type { PlaylistDto, TrackDto } from 'features_network';
-import { resolveTrackToPlayer } from '../services/trackResolver';
+import { resolveTrackToPlayer, playQueueFast } from '../services/trackResolver';
 import { playerStore } from '../context/PlayerStore';
 import type { Track } from '../context/PlayerStore';
 import { CoverImage } from '../components/CoverImage';
@@ -324,9 +324,8 @@ export struct PlaylistDetailContent {
   private async handlePlayAll(): Promise<void> {
     if (!this.data || this.data.tracks.length === 0) return;
     try {
-      const tracks: Track[] = [];
-      for (const x of this.data.tracks) tracks.push(await resolveTrackToPlayer(x, false));
-      await playerStore.playTrackList(tracks, 0);
+      // 秒播：先播第 0 首，完整队列后台并行补齐
+      await playQueueFast(this.data.tracks, 0, false);
       // 不再自动打开播放详情页：播放交给 MiniPlayer，用户点 MiniPlayer 再进详情
     } catch (e) {
       Logger.w('PlaylistDetail', `playAll failed: ${String(e)}`);
@@ -336,9 +335,8 @@ export struct PlaylistDetailContent {
   private async playFromIndex(index: number): Promise<void> {
     if (!this.data || this.data.tracks.length === 0) return;
     try {
-      const tracks: Track[] = [];
-      for (const x of this.data.tracks) tracks.push(await resolveTrackToPlayer(x, false));
-      await playerStore.playTrackList(tracks, index);
+      // 秒播：先播 index 这首，完整队列后台并行补齐
+      await playQueueFast(this.data.tracks, index, false);
       // 不再自动打开播放详情页：播放交给 MiniPlayer，用户点 MiniPlayer 再进详情
     } catch (e) {
       Logger.w('PlaylistDetail', `playFromIndex failed: ${String(e)}`);

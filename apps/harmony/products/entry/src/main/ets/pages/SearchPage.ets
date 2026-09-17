@@ -8,7 +8,7 @@ import { trackApi, albumApi, artistApi, httpClient } from 'features_network';
 import type { TrackDto, AlbumDto, ArtistDto } from 'features_network';
 import { rdbStore } from 'features_storage';
 import { Logger } from 'audiodock_common';
-import { resolveTrackToPlayer } from '../services/trackResolver';
+import { playQueueFast } from '../services/trackResolver';
 import { ensureMicPermission, startRecording, stopRecording, speechToText, AsrError } from '../services/speechService';
 import { playerStore } from '../context/PlayerStore';
 import { likesHistory } from '../services/LikesHistoryService';
@@ -410,8 +410,8 @@ export struct SearchContent {
         if (String(tr.id) === trackId) { target = tr; break; }
       }
       if (!target) return;
-      const list = [await resolveTrackToPlayer(target, false)];
-      await playerStore.playTrackList(list, 0);
+      // 秒播：队列只有一首，playQueueFast 等价于直接播，但行为与其他入口统一
+      await playQueueFast([target], 0, false);
       // 不再自动打开播放详情页：播放交给 MiniPlayer，用户点 MiniPlayer 再进详情
     } catch (e) {
       Logger.w('Search', `playTrack: ${String(e)}`);

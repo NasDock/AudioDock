@@ -144,6 +144,38 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
     (state) => state.desktopLyric.enable,
   );
 
+  // 秒播优化：隐藏 audio 预载下一首。
+  // 当前曲目播放时，用另一个 <audio preload="auto"> 拉取播放列表中下一首的首段数据，
+  // 让浏览器/CDN 对该 URL 建立连接并缓存首包。切歌时主 audio 换到相同 URL，
+  // 若命中 HTTP 缓存则跳过网络往返直接出声，实现接近秒切。
+  const preloadAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // 计算下一首并触发预载（仅当前曲目在播且不是电台模式时）
+  useEffect(() => {
+    if (!currentTrack || !isPlaying || isRadioMode) {
+      if (preloadAudioRef.current) {
+        preloadAudioRef.current.src = "";
+      }
+      return;
+    }
+    const idx = playlist.findIndex((t) => t.id === currentTrack.id);
+    if (idx < 0 || idx + 1 >= playlist.length) {
+      if (preloadAudioRef.current) {
+        preloadAudioRef.current.src = "";
+      }
+      return;
+    }
+    const nextTrack = playlist[idx + 1];
+    const nextUrl = buildTrackPlaybackUrl(nextTrack, currentAudioQuality);
+    if (!nextUrl) return;
+    const el = preloadAudioRef.current;
+    if (!el) return;
+    // 已在预载同一首则跳过，避免重复拉流
+    if (el.src === nextUrl) return;
+    el.src = nextUrl;
+    el.load();
+  }, [currentTrack?.id, isPlaying, isRadioMode, playlist, currentAudioQuality]);
+
   // Sync store active mode with app mode
   useEffect(() => {
     syncActiveMode(appMode);
@@ -2294,6 +2326,8 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         onPlaying={() => setIsLoading(false)}
         onCanPlay={() => setIsLoading(false)}
       />
+      {/* 秒播优化：隐藏 audio 预载下一首，切歌时若 URL 命中浏览器缓存则秒切 */}
+      <audio ref={preloadAudioRef} preload="auto" style={{ display: "none" }} />
 
       {!isFullPlayerVisible && !hideMiniPlayer && (
         <div className={styles.miniPlayer}>{renderMiniPlayer(true)}</div>
