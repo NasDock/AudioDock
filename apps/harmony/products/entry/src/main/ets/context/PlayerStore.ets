@@ -104,6 +104,10 @@ export interface PlayerStateView {
   /** 修复 3：听过/收藏 tab 数据（对齐 mobile PlaylistModal current/history/favorites） */
   historyTracks: Track[];
   favoritesTracks: Track[];
+  /** 有声书：跳过片头/片尾秒数（0 关闭）+ 定时关闭剩余秒数（0 关闭） */
+  skipIntroDuration: number;
+  skipOutroDuration: number;
+  sleepTimerRemainingSec: number;
 }
 
 type Listener = () => void;
@@ -129,6 +133,18 @@ export class PlayerStore {
   favoritesTracks: Track[] = [];
   /** 已加载进音频后端的曲目 id，用于恢复态下点播放时判断是否需要重新 load。 */
   private loadedTrackId: string = '';
+  // ─── 有声书：跳过片头/片尾 + 定时关闭（对齐 mobile PlayerContext 全局设置） ───
+  /** 跳过片头秒数，0 关闭；持久化 kvStore 'skipIntroDuration'，对所有有声书生效 */
+  skipIntroDuration: number = 0;
+  /** 跳过片尾秒数，0 关闭；持久化 kvStore 'skipOutroDuration' */
+  skipOutroDuration: number = 0;
+  /** 定时关闭截止时刻（epoch ms），0 关闭；对齐 mobile PlayerContext.sleepTimer */
+  sleepTimerEndAt: number = 0;
+  /** 定时关闭剩余秒数（每秒刷新，供 UI 展示 mm:ss） */
+  sleepTimerRemainingSec: number = 0;
+  private sleepTimerIntervalId: number = -1;
+  /** 防片尾检测连续多次触发 playNext（对齐 mobile isSkippingOutroRef） */
+  private isSkippingOutro: boolean = false;
 
   private listeners = new Set<Listener>();
 
@@ -148,6 +164,9 @@ export class PlayerStore {
       lyrics: this.lyrics, currentLyric: this.currentLyric,
       historyTracks: this.historyTracks,
       favoritesTracks: this.favoritesTracks,
+      skipIntroDuration: this.skipIntroDuration,
+      skipOutroDuration: this.skipOutroDuration,
+      sleepTimerRemainingSec: this.sleepTimerRemainingSec,
     };
   }
 
@@ -344,9 +363,14 @@ export class PlayerStore {
     }
   }
 
+  /**
+   * 设置倍速：先调底层（成功才更新 this.speed），失败抛错且不改状态。
+   * 这样 UI 永远只展示"实际生效"的倍速，不会出现"点了变 1.25 但播放还是 1x"的假成功。
+   * 底层失败原因（状态不对/无枚举映射）由 AVPlayerBackend 日志给出。
+   */
   async setSpeed(s: number): Promise<void> {
-    this.speed = s;
     await audioBackend.setSpeed(s);
+    this.speed = s;
     this.notify();
   }
 
@@ -387,7 +411,14 @@ export class PlayerStore {
       this.currentMs = resumeMs > 0 ? resumeMs : 0;
       if (resumeMs > 0) {
         audioBackend.seek(resumeMs).catch(() => undefined);
+      } else if (t.contentType === 'AUDIOBOOK' && this.skipIntroDuration > 0) {
+        // 有声书自动跳过片头（对齐 mobile playTrack L1635-1636 / onTrackChanged L840-848）
+        const skipMs = this.skipIntroDuration * 1000;
+        audioBackend.seek(skipMs).catch(() => undefined);
+        this.currentMs = skipMs;
       }
+      // 新曲目加载完成，解除片尾跳过防抖（对齐 mobile isSkippingOutroRef 在曲目切换后复位）
+      this.isSkippingOutro = false;
       this.setLyricsText(t.lyrics ?? '');
       Logger.i('PlayerStore', `playing ${t.id} ${t.title}`);
       this.notify();
@@ -428,7 +459,93 @@ export class PlayerStore {
         this.currentLyric = idx >= 0 ? this.lyrics[idx].text : '';
       }
     }
+    this.maybeSkipOutro();
     this.notify();
+  }
+
+  /**
+   * 有声书自动跳过片尾：剩余时长 ≤ skipOutroDuration 且 > 0.5s 时切下一首。
+   * 对齐 mobile PlayerContext.tsx L880-906 的 useEffect 监控逻辑；
+   * remaining > 0.5 防止刚加载 position=0 时误判；isSkippingOutro 防连续触发。
+   */
+  private maybeSkipOutro(): void {
+    const cur = this.queue[this.currentIndex];
+    if (!cur || cur.contentType !== 'AUDIOBOOK') return;
+    if (this.skipOutroDuration <= 0 || !this.isPlaying || this.durationMs <= 0) return;
+    if (this.isSkippingOutro) return;
+    const remainingMs = this.durationMs - this.currentMs;
+    if (remainingMs <= this.skipOutroDuration * 1000 && remainingMs > 500) {
+      this.isSkippingOutro = true;
+      Logger.i('PlayerStore', `auto skip outro (${Math.round(remainingMs / 1000)}s left)`);
+      this.playNext().catch(() => undefined);
+    }
+  }
+
+  // ─── 有声书全局设置：跳过片头/片尾 + 定时关闭（对齐 mobile PlayerContext） ───
+
+  /** 启动时读本地设置（对齐 mobile loadSkipSettings：AsyncStorage skipIntro/OutroDuration）。 */
+  async loadSkipSettings(): Promise<void> {
+    try {
+      const intro = await kvStore.get('skipIntroDuration');
+      const outro = await kvStore.get('skipOutroDuration');
+      if (intro !== null) this.skipIntroDuration = Number(intro) || 0;
+      if (outro !== null) this.skipOutroDuration = Number(outro) || 0;
+      this.notify();
+    } catch (e) {
+      Logger.w('PlayerStore', `loadSkipSettings failed: ${String(e)}`);
+    }
+  }
+
+  setSkipIntroDuration(seconds: number): void {
+    this.skipIntroDuration = Math.max(0, Math.round(seconds));
+    kvStore.set('skipIntroDuration', String(this.skipIntroDuration)).catch(() => undefined);
+    this.notify();
+  }
+
+  setSkipOutroDuration(seconds: number): void {
+    this.skipOutroDuration = Math.max(0, Math.round(seconds));
+    kvStore.set('skipOutroDuration', String(this.skipOutroDuration)).catch(() => undefined);
+    this.notify();
+  }
+
+  /**
+   * 设定定时关闭（分钟）。0 = 取消。
+   * 对齐 mobile SleepTimerModal + PlayerContext.sleepTimer（存截止时刻，每秒刷剩余）。
+   * 返回新剩余分钟数，供 UI toast；到点后自动 pause。
+   */
+  setSleepTimer(minutes: number): number {
+    if (this.sleepTimerIntervalId !== -1) {
+      clearInterval(this.sleepTimerIntervalId);
+      this.sleepTimerIntervalId = -1;
+    }
+    if (minutes <= 0) {
+      this.sleepTimerEndAt = 0;
+      this.sleepTimerRemainingSec = 0;
+      this.notify();
+      return 0;
+    }
+    this.sleepTimerEndAt = Date.now() + minutes * 60000;
+    this.sleepTimerRemainingSec = minutes * 60;
+    this.sleepTimerIntervalId = setInterval((): void => {
+      const remainMs = this.sleepTimerEndAt - Date.now();
+      if (remainMs <= 0) {
+        clearInterval(this.sleepTimerIntervalId);
+        this.sleepTimerIntervalId = -1;
+        this.sleepTimerEndAt = 0;
+        this.sleepTimerRemainingSec = 0;
+        this.pause().catch(() => undefined);
+        this.notify();
+        return;
+      }
+      this.sleepTimerRemainingSec = Math.ceil(remainMs / 1000);
+      this.notify();
+    }, 1000);
+    this.notify();
+    return minutes;
+  }
+
+  sleepTimerActive(): boolean {
+    return this.sleepTimerEndAt > 0;
   }
 
   onStateChange(s: PlayerState): void {
@@ -535,6 +652,7 @@ export class PlayerStore {
     } catch (e) {
       Logger.w('PlayerStore', `read playMode failed: ${String(e)}`);
     }
+    await this.loadSkipSettings();
     await this.loadPersistedState();
   }
 

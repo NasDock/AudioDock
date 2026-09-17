@@ -12,7 +12,7 @@ import {
   resumeTtsTask,
 } from "@soundx/services";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -37,6 +37,10 @@ const STATUS_COLOR: Record<UnifiedTaskStatus, string> = {
   failed: "#ff4d4f",
 };
 
+// 轮询策略：有进行中任务时 2s 高频刷新；没有时退到 30s 慢轮询（避免空跑打爆接口）
+const ACTIVE_POLL_MS = 2000;
+const IDLE_POLL_MS = 30000;
+
 export default function TaskCenterScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -46,11 +50,14 @@ export default function TaskCenterScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
+  const tasksRef = useRef<UnifiedTask[]>([]);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchTasks = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
       const list = await fetchAllTasks();
+      tasksRef.current = list;
       setTasks(list);
     } catch (error) {
       console.error("Failed to fetch tasks:", error);
@@ -60,16 +67,29 @@ export default function TaskCenterScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchTasks(true);
-    const timer = setInterval(() => fetchTasks(false), 2000);
-    return () => clearInterval(timer);
+  // 根据当前任务列表自适应调度下一次轮询
+  const scheduleNext = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    const hasActive = tasksRef.current.some(isTaskActive);
+    const delay = hasActive ? ACTIVE_POLL_MS : IDLE_POLL_MS;
+    timerRef.current = setTimeout(async () => {
+      await fetchTasks(false);
+      scheduleNext();
+    }, delay);
   }, [fetchTasks]);
 
-  const onRefresh = useCallback(() => {
+  useEffect(() => {
+    fetchTasks(true).then(() => scheduleNext());
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [fetchTasks, scheduleNext]);
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    fetchTasks(false);
-  }, [fetchTasks]);
+    await fetchTasks(false);
+    scheduleNext();
+  }, [fetchTasks, scheduleNext]);
 
   const handleTtsAction = async (
     action: "pause" | "resume" | "delete",
@@ -84,16 +104,19 @@ export default function TaskCenterScreen() {
             style: "destructive",
             onPress: async () => {
               await deleteTtsTask(id);
-              fetchTasks(false);
+              await fetchTasks(false);
+              scheduleNext();
             },
           },
         ]);
       } else if (action === "pause") {
         await pauseTtsTask(id);
-        fetchTasks(false);
+        await fetchTasks(false);
+        scheduleNext();
       } else if (action === "resume") {
         await resumeTtsTask(id);
-        fetchTasks(false);
+        await fetchTasks(false);
+        scheduleNext();
       }
     } catch (error) {
       console.error(`Failed to ${action} task:`, error);

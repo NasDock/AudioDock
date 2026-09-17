@@ -17,7 +17,7 @@ export class AuthController {
   @Public()
   @Post('/auth/login')
   async login(
-    @Body() body: User & { deviceName?: string },
+    @Body() body: User & { deviceName?: string; deviceId?: string; platform?: string },
   ): Promise<ISuccessResponse<User & { token: string; device?: Device }> | IErrorResponse> {
     const userInfo = await this.authService.validateUser(
       body.username,
@@ -27,7 +27,7 @@ export class AuthController {
     if (userInfo) {
       // 如果提供了设备名称，保存设备信息
       if (body.deviceName) {
-        device = await this.userService.saveDevice(userInfo.id, body.deviceName);
+        device = await this.userService.saveDevice(userInfo.id, body.deviceName, body.deviceId, body.platform);
       }
 
       // 生成token
@@ -48,8 +48,8 @@ export class AuthController {
   @Public()
   @Post('/auth/register')
   async register(
-    @Body() user: { username: string; password: string, deviceName?: string },
-  ): Promise<ISuccessResponse<User & { token: string, device?: Device }> | IErrorResponse | IParamsErrorResponse | IForbiddenResponse> {
+    @Body() user: { username: string; password: string; deviceName?: string; deviceId?: string; platform?: string },
+  ): Promise<ISuccessResponse<User & { token: string; device?: Device }> | IErrorResponse | IParamsErrorResponse | IForbiddenResponse> {
     try {
       // Check if user already exists
       const existingUser = await this.authService.findUserByUsername(user.username);
@@ -76,7 +76,7 @@ export class AuthController {
 
       let device: Device | undefined;
       if (user.deviceName) {
-        device = await this.userService.saveDevice(newUser.id, user.deviceName);
+        device = await this.userService.saveDevice(newUser.id, user.deviceName, user.deviceId, user.platform);
       }
 
       // Generate token

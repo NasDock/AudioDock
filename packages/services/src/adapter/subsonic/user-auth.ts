@@ -1,5 +1,5 @@
 import { getServiceConfig } from "../../config";
-import { ISuccessResponse, User } from "../../models";
+import { Device, ISuccessResponse, User } from "../../models";
 import { IAuthAdapter, IUserAdapter } from "../interface-user-auth";
 import { SubsonicClient } from "./client";
 
@@ -74,6 +74,16 @@ export class SubsonicUserAdapter implements IUserAdapter {
       is_admin: res.user.adminRole || false,
       avatar: null,
     } as User);
+  }
+
+  /** Subsonic 源不支持设备列表，返回空数组 */
+  async getUserDevices(): Promise<ISuccessResponse<Device[]>> {
+    return { code: 200, message: "success", data: [] };
+  }
+
+  /** Subsonic 源不支持播放流转 */
+  async transferSession(): Promise<ISuccessResponse<{ delivered: boolean }>> {
+    return { code: 500, message: "not supported", data: { delivered: false } };
   }
 
   async uploadUserAvatar(id: number | string, file: any): Promise<ISuccessResponse<any>> {

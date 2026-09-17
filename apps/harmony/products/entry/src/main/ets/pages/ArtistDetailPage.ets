@@ -342,7 +342,7 @@ export struct ArtistDetailContent {
               progress: this.isAudiobook() ? (a.progress ?? 0) : 0,
               theme: this.theme,
               onCardClick: () => {
-                if (this.carNavCallback) {
+                if (this.carModeEnabled && this.carNavCallback) {
                   this.carNavCallback('AlbumDetail', a.id);
                 } else {
                   const param: DetailNavParam = { id: a.id };
@@ -379,7 +379,7 @@ export struct ArtistDetailContent {
               progress: 0,
               theme: this.theme,
               onCardClick: () => {
-                if (this.carNavCallback) {
+                if (this.carModeEnabled && this.carNavCallback) {
                   this.carNavCallback('CollectionDetail', col.id);
                 } else {
                   const param: DetailNavParam = { id: col.id };

@@ -5,8 +5,8 @@ import { buildTheme } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { formatDuration, Logger } from 'audiodock_common';
-import { trackApi, playlistApi, artistApi, albumApi, miApi, plusApi, setPlusAuthToken } from 'features_network';
-import type { PlaylistDto, ArtistDto, AlbumDto, MiDevice, TrackDto } from 'features_network';
+import { trackApi, playlistApi, artistApi, albumApi, miApi, plusApi, setPlusAuthToken, deviceApi } from 'features_network';
+import type { PlaylistDto, ArtistDto, AlbumDto, MiDevice, TrackDto, OnlineDevice } from 'features_network';
 import { kvStore } from 'features_storage';
 import type { LyricLine } from 'features_player';
 import { playerStore } from '../context/PlayerStore';
@@ -15,6 +15,8 @@ import { syncStore } from '../context/SyncStore';
 import type { SyncStateView } from '../context/SyncStore';
 import { resolveTrackToPlayer } from '../services/trackResolver';
 import { getInternalQuality } from '../services/trackQuality';
+import { getOrCreateDeviceId } from '../utils/device';
+import { socketService } from 'features_socket';
 import { likesHistory } from '../services/LikesHistoryService';
 import { downloadTrack, isTrackDownloaded } from '../services/downloadService';
 import type { EventPayload, EventPayloadId } from '../services/LikesHistoryService';
@@ -29,11 +31,67 @@ import { SyncNotification } from '../components/SyncNotification';
 class MoreOption {
   key: string = '';
   label: string = '';
+  icon: AppIconName = 'gear';
+  disabled: boolean = false;
 
-  constructor(key: string, label: string) {
+  constructor(key: string, label: string, icon: AppIconName = 'gear', disabled: boolean = false) {
     this.key = key;
     this.label = label;
+    this.icon = icon;
+    this.disabled = disabled;
   }
+}
+
+/** 播放流转的播放列表载体 */
+class TransferPlaylist {
+  list: Track[] = [];
+  index: number = 0;
+}
+
+/** 播放流转 payload（ArkTS 严格模式要求显式 class，禁用未声明接口的对象字面量） */
+class TransferSessionPayload {
+  targetDeviceId: string = '';
+  currentTrack: Track | null = null;
+  playlist: TransferPlaylist = new TransferPlaylist();
+  progress: number = 0;
+}
+
+/** 把任意端（web/mobile/hm）发来的流转曲目规范化为 hm 播放器内部 Track。 */
+function normalizeTransferTrack(raw: Record<string, Object>): Track {
+  const pickStr = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = raw[k];
+      if (v !== undefined && v !== null && String(v) !== '') return String(v);
+    }
+    return '';
+  };
+  const pickNum = (key: string): number | undefined => {
+    const v = raw[key];
+    return typeof v === 'number' ? v : undefined;
+  };
+  const id = pickStr('id');
+  const path = pickStr('path');
+  let url = pickStr('url');
+  if (!url) {
+    if (path && (path.startsWith('http://') || path.startsWith('https://'))) {
+      url = path;
+    } else if (id) {
+      url = trackApi.streamUrl(id, 'high');
+    }
+  }
+  const track: Track = {
+    id,
+    title: pickStr('title', 'name'),
+    url,
+    artist: pickStr('artist') || undefined,
+    album: pickStr('album') || undefined,
+    duration: pickNum('duration'),
+    ext: pickStr('ext') || undefined,
+    coverUrl: pickStr('coverUrl', 'cover') || undefined,
+    lyrics: pickStr('lyrics') || undefined,
+    contentType: pickStr('contentType', 'type') || undefined,
+  };
+  return track;
 }
 
 /**
@@ -50,6 +108,9 @@ class MoreOption {
 @Component
 struct PlayerPage {
   @State private view: PlayerStateView = playerStore.view();
+  // 倍速独立成响应式字段：@State 对 view 对象的嵌套属性（view.speed）不做深度观察，
+  // subscribe 里整体替换 view 时子组件未必重建（参考设置页 themeMode 用 @StorageLink 而非嵌套对象）。
+  @State private speed: number = playerStore.view().speed;
   @State private showLyrics: boolean = false;
   @State private showPlaylist: boolean = false;
   // 修复 3：播放列表三 Tab（current/history/favorites），对齐 mobile PlaylistModal TabType
@@ -61,7 +122,11 @@ struct PlayerPage {
   @State private showAddToPlaylist: boolean = false;
   @State private showLyricsSize: boolean = false;
   @State private showControlPos: boolean = false;
-  @State private sleepTimerRemaining: number = 0;
+  // 有声书：跳过片头/片尾设置半模态（对齐 mobile PlayerMoreModal skip modal）
+  @State private showSkipSheet: boolean = false;
+  @State private skipSheetType: 'intro' | 'outro' = 'intro';
+  /** 弹窗内临时值，确认后才写入 playerStore（对齐 mobile tempSkipTime） */
+  @State private tempSkipTime: number = 0;
   @State private lyricFontSize: number = 16;
   // 修复 1：当前曲目下载状态（对齐 mobile PlayerMoreModal isDownloaded / isDownloading）
   @State private isDownloaded: boolean = false;
@@ -75,6 +140,10 @@ struct PlayerPage {
   @State private miQRCodeUrl: string = '';
   @State private miLoading: boolean = false;
   @State private miCasting: boolean = false;
+  // 在线设备（播放流转）
+  @State private onlineDevices: OnlineDevice[] = [];
+  @State private transferringId: string = '';
+  @State private selfDeviceId: string = '';
   private miPollingId: number = -1;
   // 同步播放相关状态（对齐 mobile player.tsx 的 sync* 状态）
   @State private syncView: SyncStateView = syncStore.view();
@@ -94,7 +163,6 @@ struct PlayerPage {
   private lastLyricIndex: number = -1;
   private unsub: () => void = () => {};
   private unsubLike: () => void = () => {};
-  private sleepTimerId: number = -1;
   // ─── 横屏布局状态（对齐 mobile player.tsx landscape 逻辑） ───
   // isLandscape：根容器 onAreaChange 测得 width > height 时进入横屏双列布局
   @State private isLandscape: boolean = false;
@@ -132,6 +200,7 @@ struct PlayerPage {
       });
     this.unsub = playerStore.subscribe(() => {
       this.view = playerStore.view();
+      this.speed = this.view.speed;
       const cur = this.current();
       const curId = cur ? cur.id : '';
       if (curId !== this.lastTrackId) {
@@ -174,6 +243,11 @@ struct PlayerPage {
     this.refreshLike();
     this.refreshDownloadStatus();
     this.loadVipStatus();
+    // 播放流转：注册接收端监听 + 初始化本机 deviceId
+    socketService.on('transfer_received', this.onTransferReceived);
+    getOrCreateDeviceId().then((id: string): void => {
+      this.selfDeviceId = id;
+    }).catch(() => undefined);
     const params = router.getParams() as Record<string, string> | undefined;
     const trackId = params?.['trackId'];
     if (trackId) this.loadSingle(trackId);
@@ -199,10 +273,7 @@ struct PlayerPage {
     this.unsubLike();
     if (this.unsubSync) this.unsubSync();
     if (this.unsubPlayerLeft) this.unsubPlayerLeft();
-    if (this.sleepTimerId !== -1) {
-      clearInterval(this.sleepTimerId);
-      this.sleepTimerId = -1;
-    }
+    socketService.off('transfer_received', this.onTransferReceived);
     if (this.hideTimerId !== -1) {
       clearTimeout(this.hideTimerId);
       this.hideTimerId = -1;
@@ -306,6 +377,10 @@ struct PlayerPage {
   private async handleOpenMiCast(): Promise<void> {
     this.showMiCast = true;
     this.miLoading = true;
+    // 打开弹窗时加载在线设备 + 订阅上下线事件实时刷新
+    this.loadOnlineDevices();
+    socketService.on('device_online', this.onDevicePresenceChange);
+    socketService.on('device_offline', this.onDevicePresenceChange);
     try {
       const auth = await miApi.getAuthStatus();
       this.miLoggedIn = auth.logged_in;
@@ -334,6 +409,177 @@ struct PlayerPage {
   private handleCloseMiCast(): void {
     this.showMiCast = false;
     this.stopMiPolling();
+    socketService.off('device_online', this.onDevicePresenceChange);
+    socketService.off('device_offline', this.onDevicePresenceChange);
+  }
+
+  /** WS 设备上下线回调：刷新在线设备列表 */
+  private onDevicePresenceChange = (): void => {
+    this.loadOnlineDevices();
+  };
+
+  /** 加载当前账号的在线设备列表（排除本机，仅保留在线） */
+  private async loadOnlineDevices(): Promise<void> {
+    try {
+      if (this.selfDeviceId === '') {
+        this.selfDeviceId = await getOrCreateDeviceId();
+      }
+      const list = await deviceApi.listMyDevices();
+      const selfId = this.selfDeviceId;
+      this.onlineDevices = list.filter((d: OnlineDevice) => d.isOnline && (d.deviceId ?? '') !== selfId);
+    } catch (e) {
+      Logger.w('PlayerPage', `loadOnlineDevices failed: ${String(e)}`);
+    }
+  }
+
+  /** 播放流转：把当前播放推给目标在线设备 */
+  private async handleTransferToDevice(target: OnlineDevice): Promise<void> {
+    const cur = this.current();
+    if (!cur) {
+      promptAction.showToast({ message: t('player.miCastNoTrack') });
+      return;
+    }
+    const targetDeviceId = target.deviceId ?? '';
+    if (targetDeviceId === '') {
+      promptAction.showToast({ message: t('player.transferFailed') });
+      return;
+    }
+    if (!socketService.isConnected()) {
+      Logger.w('PlayerPage', '[Transfer] socket not connected, cannot emit transfer_session');
+      promptAction.showToast({ message: t('player.transferFailed') });
+      return;
+    }
+    this.transferringId = targetDeviceId;
+    try {
+      // harmony 内部用毫秒，流转协议统一用秒（对齐 mobile/desktop）
+      const progressSec = Math.floor(this.view.currentMs / 1000);
+      const pl = new TransferPlaylist();
+      pl.list = this.view.queue;
+      pl.index = this.view.currentIndex;
+      const payload = new TransferSessionPayload();
+      payload.targetDeviceId = targetDeviceId;
+      payload.currentTrack = cur;
+      payload.playlist = pl;
+      payload.progress = progressSec;
+      Logger.i('PlayerPage', `[Transfer] emit transfer_session: target=${targetDeviceId} (${target.name}) trackId=${cur.id} progress=${progressSec}s`);
+
+      // 等服务端 ack（transfer_sent / transfer_failed），5s 超时兜底
+      const delivered = await this.awaitTransferAck(targetDeviceId, payload);
+
+      if (!delivered) {
+        promptAction.showToast({ message: t('player.transferFailed') });
+        return;
+      }
+      if (this.view.isPlaying) {
+        await playerStore.togglePlay();
+      }
+      promptAction.showToast({ message: t('player.transferSuccess', [['device', target.name]]) });
+      this.handleCloseMiCast();
+    } catch (e) {
+      Logger.w('PlayerPage', `[Transfer] transfer failed: ${String(e)}`);
+      promptAction.showToast({ message: t('player.transferFailed') });
+    } finally {
+      this.transferringId = '';
+    }
+  }
+
+  /** 发出 transfer_session 并等待服务端 ack（transfer_sent/transfer_failed），超时按失败处理 */
+  private awaitTransferAck(targetDeviceId: string, payload: TransferSessionPayload): Promise<boolean> {
+    return new Promise<boolean>((resolve: (value: boolean) => void): void => {
+      let settled = false;
+      let timer: number = -1;
+      const cleanup = (): void => {
+        settled = true;
+        socketService.off('transfer_sent', onSent);
+        socketService.off('transfer_failed', onFailed);
+        if (timer !== -1) {
+          clearTimeout(timer);
+          timer = -1;
+        }
+      };
+      const onSent = (p: Object | null | undefined): void => {
+        const rec = p as Record<string, Object> | null;
+        const ackId = rec ? String(rec['targetDeviceId'] ?? '') : '';
+        if (settled || ackId !== targetDeviceId) return;
+        Logger.i('PlayerPage', `[Transfer] transfer_sent ack for ${targetDeviceId}`);
+        cleanup();
+        resolve(true);
+      };
+      const onFailed = (p: Object | null | undefined): void => {
+        const rec = p as Record<string, Object> | null;
+        const ackId = rec ? String(rec['targetDeviceId'] ?? '') : '';
+        const reason = rec ? String(rec['reason'] ?? '') : '';
+        if (settled || ackId !== targetDeviceId) return;
+        Logger.w('PlayerPage', `[Transfer] transfer_failed: reason=${reason} target=${ackId}`);
+        cleanup();
+        resolve(false);
+      };
+      timer = setTimeout((): void => {
+        if (settled) return;
+        Logger.w('PlayerPage', `[Transfer] ack timeout for ${targetDeviceId}（服务端 5s 未回，按未送达处理）`);
+        cleanup();
+        resolve(false);
+      }, 5000) as number;
+      socketService.on('transfer_sent', onSent);
+      socketService.on('transfer_failed', onFailed);
+      socketService.emit('transfer_session', payload);
+    });
+  }
+
+  /** 接收端：监听其他设备发来的流转请求，接管播放 */
+  private onTransferReceived = (payload: Object | null | undefined): void => {
+    this.handleTransferReceived(payload);
+  };
+
+  private async handleTransferReceived(payload: Object | null | undefined): Promise<void> {
+    if (!payload) {
+      Logger.w('PlayerPage', '[Transfer] transfer_received payload 为空，忽略');
+      return;
+    }
+    try {
+      const p = payload as Record<string, Object>;
+      const playlistObj = p['playlist'] as Record<string, Object> | undefined;
+      const rawList = playlistObj ? (playlistObj['list'] as Record<string, Object>[]) : undefined;
+      const index = playlistObj ? Number(playlistObj['index'] ?? 0) : 0;
+      const rawTrack = p['currentTrack'] as Record<string, Object> | undefined;
+      const progressSec = Number(p['progress'] ?? 0);
+      const fromDevice = String(p['fromDeviceName'] ?? '');
+      // 各端 Track 模型字段命名不同（hm 用 title/url/coverUrl，web/mobile 用 name/path/cover），
+      // 统一规范化后再交给播放器，否则只有同名字段（artist 等）能存活，歌名/播放地址全丢。
+      const list: Track[] | undefined = rawList && Array.isArray(rawList)
+        ? rawList.map((it: Record<string, Object>): Track => normalizeTransferTrack(it))
+        : undefined;
+      const track: Track | undefined = rawTrack ? normalizeTransferTrack(rawTrack) : undefined;
+      Logger.i('PlayerPage', `[Transfer] handle transfer_received: from=${fromDevice} trackId=${track?.id ?? '(none)'} title=${track?.title ?? ''} listLen=${list ? list.length : 0} index=${index} progress=${progressSec}s`);
+
+      // 根据流转曲目的内容类型切换到对应模式（音乐/有声书），否则目标端会在错误模式下播放
+      const targetTrack = (list && list.length > 0) ? list[Math.max(0, index)] : track;
+      if (targetTrack && targetTrack.contentType) {
+        const targetMode = targetTrack.contentType === 'AUDIOBOOK' ? 'AUDIOBOOK' : 'MUSIC';
+        const currentMode = AppStorage.get<string>('playMode') ?? 'MUSIC';
+        if (currentMode !== targetMode) {
+          AppStorage.setOrCreate('playMode', targetMode);
+          await kvStore.set('playMode', targetMode);
+          await playerStore.switchContentMode(targetMode);
+        }
+      }
+
+      if (list && list.length > 0) {
+        await playerStore.playTrackList(list, Math.max(0, index));
+      } else if (track) {
+        await playerStore.playTrack(track);
+      } else {
+        Logger.w('PlayerPage', '[Transfer] transfer_received 无 playlist 且无 currentTrack，忽略');
+        return;
+      }
+      // 秒 → 毫秒
+      if (progressSec > 0) {
+        await playerStore.seek(progressSec * 1000);
+      }
+      promptAction.showToast({ message: t('player.transferReceived', [['device', fromDevice]]) });
+    } catch (e) {
+      Logger.e('PlayerPage', `[Transfer] handleTransferReceived failed: ${String(e)}`);
+    }
   }
 
   private async handleCastToMi(deviceId: string, deviceName: string): Promise<void> {
@@ -367,6 +613,17 @@ struct PlayerPage {
       case 'LOOP_LIST': return 'repeat';
       case 'LOOP_SINGLE': return 'repeat-once';
       default: return 'playlist';
+    }
+  }
+
+  /** 在线设备平台图标（desktop/tablet/tv/watch/phone/mini/web） */
+  private platformIcon(platform: string): AppIconName {
+    switch (platform) {
+      case 'desktop': return 'desktop';
+      case 'tablet': return 'tablet';
+      case 'tv': return 'tv';
+      case 'watch': return 'watch';
+      default: return 'music-note'; // phone / mini / web 兜底
     }
   }
 
@@ -520,7 +777,8 @@ struct PlayerPage {
         })
       Column().width(0).height(0)
         .bindSheet($$this.showMore, this.moreSheet(), {
-          height: '55%',
+          // 对齐 mobile PlayerMoreModal：底部弹层高度跟随内容（wrap_content），不固定百分比、不内部滚动
+          height: SheetSize.FIT_CONTENT,
           dragBar: true,
           backgroundColor: this.theme.colors.surface,
         })
@@ -545,6 +803,13 @@ struct PlayerPage {
       Column().width(0).height(0)
         .bindSheet($$this.showControlPos, this.controlPosSheet(), {
           height: 260,
+          dragBar: true,
+          backgroundColor: this.theme.colors.surface,
+        })
+      // 有声书：跳过片头/片尾设置（对齐 mobile PlayerMoreModal skip modal）
+      Column().width(0).height(0)
+        .bindSheet($$this.showSkipSheet, this.skipSheet(), {
+          height: 420,
           dragBar: true,
           backgroundColor: this.theme.colors.surface,
         })
@@ -1135,50 +1400,157 @@ struct PlayerPage {
         .fontWeight(FontWeight.Bold)
         .fontColor(this.theme.colors.text)
         .margin({ top: 8, bottom: 8 });
+      // 有声书控制组（对齐 mobile PlayerMoreModal audiobookControls：
+      // 仅当前曲目为 AUDIOBOOK 时显示，5 键横排 + 底部分隔线）
+      if (this.current()?.contentType === 'AUDIOBOOK') {
+        Row() {
+          this.SkipEdgeBtn('intro')
+          this.AudiobookCtrlBtn('skip-back', t('playerMore.back15s'), '', (): void => this.skipBackward15())
+          // ⚠️ 倍速按钮不能走带参 @Builder（label 按值快照不重绘），
+          // 也不能绑定 view.speed（@State 对嵌套对象属性不做深度观察）——
+          // 绑定独立的 @State speed 字段，subscribe 里显式同步。
+          Column() {
+            AppIcon({ name: 'speedometer', iconSize: 30, color: this.theme.colors.text })
+            Text(`${this.speed}x`)
+              .fontSize(12)
+              .fontColor(this.theme.colors.textSecondary)
+              .margin({ top: 8 })
+              .maxLines(1)
+          }
+          .alignItems(HorizontalAlign.Center)
+          .onClick((): void => this.togglePlaybackRate())
+          this.AudiobookCtrlBtn('skip-forward', t('playerMore.forward15s'), '', (): void => this.skipForward15())
+          this.SkipEdgeBtn('outro')
+        }
+        .width('100%')
+        .justifyContent(FlexAlign.SpaceAround)
+        .alignItems(VerticalAlign.Top)
+        .padding({ left: 20, right: 20, top: 20, bottom: 20 })
+        .border({ width: { bottom: 1 }, color: { bottom: this.theme.colors.border } })
+        .margin({ bottom: 8 });
+      }
+      // 选项列表（对齐 mobile PlayerMoreModal：图标 + 标签 + › chevron，行间 0.5px 分隔线，
+      // disabled 整行 0.5 透明度；List 不写 layoutWeight 自适应内容高度，配合 sheet FIT_CONTENT 不滚动）
       List() {
         ForEach(this.getMoreOptions(), (opt: MoreOption) => {
           ListItem() {
-            Row() {
+            Row({ space: 16 }) {
+              AppIcon({
+                name: opt.icon,
+                iconSize: 22,
+                color: opt.disabled ? this.theme.colors.textSecondary : this.theme.colors.text,
+              })
               Text(opt.label)
-                .fontSize(15)
-                .fontColor(this.theme.colors.text)
-                .layoutWeight(1);
-              Text('›')
-                .fontSize(20)
-                .fontColor(this.theme.colors.textSecondary);
+                .fontSize(16)
+                .fontColor(opt.disabled ? this.theme.colors.textSecondary : this.theme.colors.text)
+                .layoutWeight(1)
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis });
+              AppIcon({ name: 'arrow-forward', iconSize: 18, color: this.theme.colors.textSecondary })
             }
             .width('100%')
             .padding({ top: 16, bottom: 16, left: 20, right: 20 })
-            .onClick(() => this.onMoreOption(opt.key));
+            .opacity(opt.disabled ? 0.5 : 1)
+            .onClick(() => {
+              if (!opt.disabled) this.onMoreOption(opt.key);
+            });
           }
         }, (opt: MoreOption) => opt.key)
       }
-      .layoutWeight(1)
+      .width('100%')
+      .divider({
+        strokeWidth: 0.5,
+        color: this.theme.colors.border,
+        startMargin: 58,
+        endMargin: 20,
+      })
       .scrollBar(BarState.Off);
     }
     .width('100%')
-    .height('100%')
     .padding({ left: 4, right: 4 });
   }
 
+  /**
+   * 有声书控制组中间三键：图标 + 标签（对齐 mobile controlButton）。
+   * icon 用 AppIcon；speed 档位的 key 传 'speedometer'。
+   * sub 为预留的小字（片头/片尾显示当前秒数用，中间三键传 ''）。
+   */
+  @Builder
+  AudiobookCtrlBtn(icon: AppIconName, label: string, sub: string, onTap: () => void) {
+    Column() {
+      AppIcon({ name: icon, iconSize: 30, color: this.theme.colors.text })
+      Text(label)
+        .fontSize(12)
+        .fontColor(this.theme.colors.textSecondary)
+        .margin({ top: 8 })
+        .maxLines(1)
+      if (sub.length > 0) {
+        Text(sub)
+          .fontSize(10)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.theme.colors.primary)
+          .margin({ top: 2 })
+      }
+    }
+    .alignItems(HorizontalAlign.Center)
+    .onClick(onTap)
+  }
+
+  /**
+   * 有声书控制组两端：片头/片尾跳过设置（对齐 mobile skipButton：
+   * 图标激活时变 primary 色 + 标签 + 当前秒数/关 小字）。
+   */
+  @Builder
+  SkipEdgeBtn(type: 'intro' | 'outro') {
+    Column() {
+      AppIcon({
+        name: type === 'intro' ? 'skip-back-outline' : 'skip-forward-outline',
+        iconSize: 30,
+        color: (type === 'intro' ? this.view.skipIntroDuration : this.view.skipOutroDuration) > 0
+          ? this.theme.colors.primary : this.theme.colors.text,
+      })
+      Text(type === 'intro' ? t('playerMore.intro') : t('playerMore.outro'))
+        .fontSize(12)
+        .fontColor(this.theme.colors.textSecondary)
+        .margin({ top: 8 })
+      Text((type === 'intro' ? this.view.skipIntroDuration : this.view.skipOutroDuration) > 0
+        ? `${type === 'intro' ? this.view.skipIntroDuration : this.view.skipOutroDuration}s`
+        : t('playerMore.turnOff'))
+        .fontSize(10)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.theme.colors.primary)
+        .margin({ top: 2 })
+    }
+    .alignItems(HorizontalAlign.Center)
+    .onClick((): void => this.openSkipSheet(type))
+  }
+
   private getMoreOptions(): MoreOption[] {
-    // 对齐 mobile PlayerMoreModal.tsx L333-340：下载项随状态切换文案（downloading/downloaded/download）
+    const cur = this.current();
+    // 对齐 mobile PlayerMoreModal.tsx standardOptions 的顺序/图标/disabled：
+    // 艺人 → 专辑 → 曲目详情 → 定时关闭 → 加入歌单 → 下载 → 歌词大小 → 控制位置
+    const hasArtist = !!cur && !!cur.artist;
+    const hasAlbum = !!cur && !!cur.album;
     const dlLabel: string = this.isDownloading
-      ? t('playerMore.downloading', [['name', this.current()?.title ?? '']])
+      ? t('playerMore.downloading', [['name', cur?.title ?? '']])
       : this.isDownloaded
         ? t('playerMore.downloaded')
         : t('playerMore.download');
     const opts: MoreOption[] = [
-      new MoreOption('artist', t('playerMore.artistDetails')),
-      new MoreOption('album', t('playerMore.albumDetails')),
-      new MoreOption('track', t('playerMore.trackDetails')),
+      new MoreOption('artist', t('playerMore.artistDetails'), 'person', !hasArtist),
+      new MoreOption('album', t('playerMore.albumDetails'), 'list', !hasAlbum),
+      new MoreOption('track', t('playerMore.trackDetails'), 'document', !cur),
+      // 对齐 mobile PlayerMoreModal L310：激活时显示剩余 mm:ss（来自 playerStore 全局定时器）
+      new MoreOption('sleepTimer', this.view.sleepTimerRemainingSec > 0
+        ? t('playerMore.sleepTimerWithTime', [['time', this.formatSleepRemaining(this.view.sleepTimerRemainingSec)]])
+        : t('playerMore.sleepTimer'), 'time-outline'),
+      new MoreOption('addToPlaylist', t('playerMore.addToPlaylist'), 'plus', !cur),
       // 修复 1：更多选项-下载入口（历史 bug：菜单根本没渲染 download 项）
-      new MoreOption('download', dlLabel),
-      new MoreOption('sleepTimer', this.sleepTimerRemaining > 0
-        ? `${t('playerMore.sleepTimer')} (${this.sleepTimerRemaining}min)` : t('playerMore.sleepTimer')),
-      new MoreOption('addToPlaylist', t('playerMore.addToPlaylist')),
-      new MoreOption('lyricsSize', t('playerMore.adjustLyricsSize')),
-      new MoreOption('controlPosition', t('playerMore.controlPosition')),
+      new MoreOption('download', dlLabel,
+        this.isDownloaded ? 'cloud-download' : 'cloud-download-outline',
+        this.isDownloaded || this.isDownloading),
+      new MoreOption('lyricsSize', t('playerMore.adjustLyricsSize'), 'text-outline'),
+      new MoreOption('controlPosition', t('playerMore.controlPosition'), 'swap-vertical-outline'),
     ];
     return opts;
   }
@@ -1259,28 +1631,79 @@ struct PlayerPage {
     }
   }
 
+  /** 定时关闭剩余秒数 → mm:ss 展示（对齐 mobile remainingTime 格式） */
+  private formatSleepRemaining(sec: number): string {
+    const m: number = Math.floor(sec / 60);
+    const s: number = sec % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  }
+
+  /**
+   * 定时关闭改由 playerStore 全局管理（对齐 mobile PlayerContext.sleepTimer），
+   * 页面关闭后继续计时，到点自动 pause。这里只负责下发指令 + toast。
+   */
   private setSleepTimer(minutes: number): void {
-    if (this.sleepTimerId !== -1) {
-      clearInterval(this.sleepTimerId);
-      this.sleepTimerId = -1;
-    }
     if (minutes <= 0) {
-      this.sleepTimerRemaining = 0;
+      playerStore.setSleepTimer(0);
       promptAction.showToast({ message: t('player.cancelTimer') });
       return;
     }
-    this.sleepTimerRemaining = minutes;
-    this.sleepTimerId = setInterval(() => {
-      this.sleepTimerRemaining -= 1;
-      if (this.sleepTimerRemaining <= 0) {
-        clearInterval(this.sleepTimerId);
-        this.sleepTimerId = -1;
-        this.sleepTimerRemaining = 0;
-        playerStore.togglePlay().catch(() => undefined);
-        promptAction.showToast({ message: t('player.sleepTimerTriggered') });
-      }
-    }, 60000);
-    promptAction.showToast({ message: `${t('playerMore.sleepTimer')} ${minutes}min` });
+    playerStore.setSleepTimer(minutes);
+    promptAction.showToast({ message: t('player.sleepTimerSet', [['time', minutes]]) });
+  }
+
+  // ─── 有声书控制组（对齐 mobile PlayerMoreModal audiobookControls） ───
+
+  /** 倍速循环：0.5 → 1 → 1.25 → 1.5 → 2（对齐 mobile handleTogglePlaybackRate） */
+  private togglePlaybackRate(): void {
+    const rates: number[] = [0.5, 1, 1.25, 1.5, 2];
+    const cur: number = rates.indexOf(this.speed);
+    const next: number = rates[(cur + 1) % rates.length];
+    playerStore.setSpeed(next).catch((e: Error): void => {
+      Logger.w('PlayerPage', `setSpeed failed: ${String(e)}`);
+    });
+  }
+
+  /** 后退 15s（对齐 mobile handleSkipBackward：seekTo(max(0, position-15))） */
+  private skipBackward15(): void {
+    const targetMs: number = Math.max(0, this.view.currentMs - 15000);
+    playerStore.seek(targetMs).catch(() => undefined);
+  }
+
+  /** 前进 15s（对齐 mobile handleSkipForward：seekTo(position+15)，不超出总时长） */
+  private skipForward15(): void {
+    let targetMs: number = this.view.currentMs + 15000;
+    if (this.view.durationMs > 0) targetMs = Math.min(targetMs, this.view.durationMs);
+    playerStore.seek(targetMs).catch(() => undefined);
+  }
+
+  /** 打开跳过片头/片尾设置：读取当前全局值到临时态（对齐 mobile openPendingModal skip 分支） */
+  private openSkipSheet(type: 'intro' | 'outro'): void {
+    this.skipSheetType = type;
+    const curVal: number = type === 'intro' ? this.view.skipIntroDuration : this.view.skipOutroDuration;
+    this.tempSkipTime = curVal === 0 ? 30 : curVal;
+    this.showSkipSheet = true;
+  }
+
+  /** 确认：临时态写入 playerStore 全局（对齐 mobile confirmSkip） */
+  private confirmSkip(): void {
+    if (this.skipSheetType === 'intro') playerStore.setSkipIntroDuration(this.tempSkipTime);
+    else playerStore.setSkipOutroDuration(this.tempSkipTime);
+    this.showSkipSheet = false;
+  }
+
+  /** 关闭/清零（对齐 mobile clearSkip） */
+  private clearSkip(): void {
+    if (this.skipSheetType === 'intro') playerStore.setSkipIntroDuration(0);
+    else playerStore.setSkipOutroDuration(0);
+    this.showSkipSheet = false;
+  }
+
+  /** 秒 → m:ss 大字号显示（对齐 mobile formatTime） */
+  private formatSkipClock(sec: number): string {
+    const m: number = Math.floor(sec / 60);
+    const s: number = sec % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
   }
 
   private async loadPlaylists(): Promise<void> {
@@ -1309,9 +1732,9 @@ struct PlayerPage {
         .fontSize(16).fontWeight(FontWeight.Bold)
         .fontColor(this.theme.colors.text)
         .margin({ top: 8, bottom: 16 });
-      if (this.sleepTimerRemaining > 0) {
+      if (this.view.sleepTimerRemainingSec > 0) {
         Row() {
-          Text(`${t('player.cancelTimer')} (${this.sleepTimerRemaining}min)`)
+          Text(`${t('player.cancelTimer')} (${this.formatSleepRemaining(this.view.sleepTimerRemainingSec)})`)
             .fontSize(15).fontColor('#FF3B30')
         }
         .width('100%').padding({ top: 14, bottom: 14, left: 20, right: 20 })
@@ -1327,6 +1750,102 @@ struct PlayerPage {
       }, (min: number) => `st-${min}`)
     }
     .width('100%').padding({ left: 4, right: 4 })
+  }
+
+  /**
+   * 跳过片头/片尾设置半模态（对齐 mobile PlayerMoreModal skip modal）：
+   * 大字号时间 + 加减按钮（±1/±10）+ 预设快捷键（30/60/90/120s）+ 关闭/确认。
+   * 全局配置，对所有有声书生效。
+   */
+  @Builder skipSheet() {
+    Column() {
+      Text(this.skipSheetType === 'intro' ? t('playerMore.setAutoSkipIntro') : t('playerMore.setAutoSkipOutro'))
+        .fontSize(16).fontWeight(FontWeight.Bold)
+        .fontColor(this.theme.colors.text)
+        .margin({ top: 8, bottom: 4 });
+      Text(t('playerMore.appliesToAllAudiobooks'))
+        .fontSize(12).fontColor(this.theme.colors.textSecondary)
+        .margin({ bottom: 10 });
+
+      // 大字号时间显示（对齐 mobile fontSize:48 primary tabular-nums）
+      Text(this.formatSkipClock(this.tempSkipTime))
+        .fontSize(48).fontWeight(FontWeight.Bold)
+        .fontColor(this.theme.colors.primary)
+        .margin({ top: 10, bottom: 10 });
+
+      // 加减控制栏（对齐 mobile AdjustButton -10/-1 | +1/+10）
+      Row({ space: 16 }) {
+        this.SkipAdjustBtn(-10, '-10')
+        this.SkipAdjustBtn(-1, '-1')
+        Column()
+          .width(1).height(20)
+          .backgroundColor(this.theme.colors.border)
+        this.SkipAdjustBtn(1, '+1')
+        this.SkipAdjustBtn(10, '+10')
+      }
+      .margin({ top: 10, bottom: 8 });
+
+      // 常用预设快捷键（对齐 mobile TimePresetChip 30/60/90/120）
+      Row({ space: 10 }) {
+        ForEach([30, 60, 90, 120], (sec: number) => {
+          Text(`${sec}s`)
+            .fontSize(12).fontWeight(FontWeight.Medium)
+            .fontColor(this.tempSkipTime === sec ? '#FFFFFF' : this.theme.colors.text)
+            .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+            .borderRadius(16)
+            .border({
+              width: 1,
+              color: this.tempSkipTime === sec ? this.theme.colors.primary : this.theme.colors.border,
+            })
+            .backgroundColor(this.tempSkipTime === sec ? this.theme.colors.primary : '#19969696')
+            .onClick(() => { this.tempSkipTime = sec; })
+        }, (sec: number) => `preset-${sec}`)
+      }
+      .margin({ top: 16, bottom: 16 });
+
+      // 底部操作按钮（对齐 mobile：左 关（红底） flex:1 / 右 完成（primary） flex:2）
+      Row({ space: 12 }) {
+        Text(t('playerMore.turnOff'))
+          .fontSize(15).fontWeight(FontWeight.Medium)
+          .fontColor('#FF3B30')
+          .textAlign(TextAlign.Center)
+          .layoutWeight(1)
+          .padding(14)
+          .borderRadius(12)
+          .backgroundColor('#19FF3B30')
+          .onClick(() => this.clearSkip())
+        Text(t('common.done'))
+          .fontSize(15).fontWeight(FontWeight.Bold)
+          .fontColor('#FFFFFF')
+          .textAlign(TextAlign.Center)
+          .layoutWeight(2)
+          .padding(14)
+          .borderRadius(12)
+          .backgroundColor(this.theme.colors.primary)
+          .onClick(() => this.confirmSkip())
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 10 });
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Center)
+    .padding({ left: 4, right: 4 });
+  }
+
+  /** 加减按钮：44 圆形灰底（对齐 mobile AdjustButton） */
+  @Builder
+  SkipAdjustBtn(delta: number, label: string) {
+    Text(label)
+      .fontSize(14).fontWeight(FontWeight.Medium)
+      .fontColor(this.theme.colors.text)
+      .textAlign(TextAlign.Center)
+      .width(44).height(44)
+      .borderRadius(22)
+      .backgroundColor('#19969696')
+      .onClick(() => {
+        const next: number = this.tempSkipTime + delta;
+        this.tempSkipTime = next < 0 ? 0 : next;
+      })
   }
 
   @Builder addToPlaylistSheet() {
@@ -1415,6 +1934,60 @@ struct PlayerPage {
         .fontSize(16).fontWeight(FontWeight.Bold)
         .fontColor(this.theme.colors.text)
         .margin({ top: 8, bottom: 16 });
+
+      // 我的在线设备（播放流转）
+      if (this.onlineDevices.length > 0) {
+        Text(t('player.onlineDevices'))
+          .fontSize(12)
+          .fontColor(this.theme.colors.textSecondary)
+          .margin({ bottom: 6 })
+          .alignSelf(ItemAlign.Start);
+        List() {
+          ForEach(this.onlineDevices, (d: OnlineDevice) => {
+            ListItem() {
+              Row({ space: 12 }) {
+                Column() {
+                  AppIcon({ name: this.platformIcon(d.platform ?? 'phone'), iconSize: 20, color: '#FFFFFFFF' });
+                }
+                .width(36).height(36).borderRadius(18)
+                .backgroundColor('#FF34C759')
+                .justifyContent(FlexAlign.Center);
+
+                Column({ space: 2 }) {
+                  Text(d.name && d.name.length > 0 ? d.name : t(`player.platform_${d.platform ?? 'web'}`))
+                    .fontSize(15).fontWeight(FontWeight.Medium)
+                    .fontColor(this.theme.colors.text)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis });
+                  Text(t(`player.platform_${d.platform ?? 'web'}`))
+                    .fontSize(12).fontColor(this.theme.colors.textSecondary)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis });
+                }
+                .layoutWeight(1).alignItems(HorizontalAlign.Start);
+
+                if (this.transferringId === (d.deviceId ?? '')) {
+                  LoadingProgress().width(18).height(18).color(this.theme.colors.textSecondary);
+                } else {
+                  AppIcon({ name: 'cast', iconSize: 18, color: this.theme.colors.textSecondary });
+                }
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12, left: 16, right: 16 })
+              .opacity(this.transferringId !== '' ? 0.5 : 1)
+              .onClick(() => {
+                if (this.transferringId === '') this.handleTransferToDevice(d);
+              });
+            }
+          }, (d: OnlineDevice) => String(d.deviceId ?? d.id));
+        }
+        .height(Math.min(this.onlineDevices.length * 64, 320))
+        .scrollBar(BarState.Off);
+
+        Text(t('player.miSpeakerSection'))
+          .fontSize(12)
+          .fontColor(this.theme.colors.textSecondary)
+          .margin({ top: 8, bottom: 6 })
+          .alignSelf(ItemAlign.Start);
+      }
 
       if (this.miLoading) {
         Column({ space: 12 }) {

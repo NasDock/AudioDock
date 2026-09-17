@@ -219,11 +219,25 @@ export interface AudiobookCollectionAlbum {
   createdAt: string | Date;
   album?: Album;
 }
+/** 设备平台枚举 */
+export type DevicePlatform =
+  | 'desktop'   // 电脑（Electron/Tauri）
+  | 'web'       // 浏览器
+  | 'tablet'    // 平板（mobile 横屏）
+  | 'phone'     // 手机
+  | 'mini'      // 小程序
+  | 'tv'        // 电视（外部项目）
+  | 'watch';    // 手表（预留）
+
 export interface Device {
   id: number | string;
   name: string;
   userId: number | string;
   isOnline: boolean;
+  /** 稳定唯一设备标识 */
+  deviceId?: string | null;
+  /** 设备平台 */
+  platform?: DevicePlatform | string | null;
   lastSeen?: string | Date;
   createdAt: Date;
   updatedAt: Date;

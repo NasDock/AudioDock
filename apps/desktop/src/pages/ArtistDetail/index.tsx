@@ -47,9 +47,9 @@ import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
 
 const { Title } = Typography;
-const { token } = theme.useToken();
 
 const ArtistDetail: React.FC = () => {
+  const { token } = theme.useToken();
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();

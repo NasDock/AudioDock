@@ -125,6 +125,9 @@ interface PlayerContextType {
   // 📻 电台模式
   isRadioMode: boolean;
   startRadioMode: () => Promise<void>;
+
+  /** 流转接收端专用：根据传入曲目的内容类型切换 MUSIC/AUDIOBOOK 模式（不恢复目标模式的历史状态） */
+  switchContentModeForIncomingTrack: (track?: Track | null) => Promise<void>;
 }
 
 const PlayerContext = createContext<PlayerContextType>({
@@ -165,6 +168,7 @@ const PlayerContext = createContext<PlayerContextType>({
   isRadioMode: false,
   startRadioMode: async () => {},
   reset: async () => {},
+  switchContentModeForIncomingTrack: async () => {},
 });
 
 export const usePlayer = () => useContext(PlayerContext);
@@ -2359,6 +2363,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         setSkipOutroDuration,
         isRadioMode,
         startRadioMode,
+        switchContentModeForIncomingTrack,
         reset: () => TrackPlayer.reset()
       }}
     >

@@ -28,6 +28,14 @@ import { getAdapter } from "./adapter/manager";
     return getAdapter().user.getCurrentUser();
   };
 
+  export const getUserDevices = () => {
+    return getAdapter().user.getUserDevices();
+  };
+
+  export const transferSession = (payload: import("./adapter/interface-user-auth").TransferSessionPayload) => {
+    return getAdapter().user.transferSession(payload);
+  };
+
   export const uploadUserAvatar = (id: number | string, file: any) => {
     return getAdapter().user.uploadUserAvatar(id, file);
   };

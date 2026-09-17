@@ -2,12 +2,18 @@ import webSocket from '@ohos.net.webSocket';
 import { BusinessError } from '@ohos.base';
 import { Logger } from 'audiodock_common';
 
-export interface SocketConnectOptions {
-  url: string;
+/** socket 连接附加 query（ArkTS 严格模式禁未声明接口的对象字面量，用 class） */
+export class SocketConnectQuery {
+  deviceId?: string;
+  platform?: string;
+}
+
+export class SocketConnectOptions {
+  url: string = '';
   token?: string;
   userId?: string | number;
   deviceName?: string;
-  query?: Record<string, string>;
+  query?: SocketConnectQuery;
 }
 
 interface SocketMessage {
@@ -22,6 +28,19 @@ export interface SocketWildcardPayload {
 
 type Listener = (payload: Object | null | undefined) => void;
 
+/**
+ * HarmonyOS 原生 WebSocket 客户端，内置 engine.io v4 / socket.io v4 协议握手层，
+ * 与后端 NestJS socket.io gateway（sync.gateway.ts）完全对齐。
+ *
+ * 协议要点（engine.io v4 over WebSocket，EIO=4）：
+ *  - URL: /socket.io/?EIO=4&transport=websocket
+ *  - 服务端首帧: `0{...handshake json...}`（engine.io OPEN）
+ *  - 客户端回: `40{"token":"..."}`（engine.io MESSAGE + socket.io CONNECT，auth 随包）
+ *  - 服务端回: `40{"sid":"..."}`（socket.io CONNECT_OK）
+ *  - 心跳: 服务端 `2`（ping）→ 客户端必须回 `3`（pong）
+ *  - 业务事件: `42["event",{payload}]`（engine.io MESSAGE + socket.io EVENT）
+ *  - 客户端发事件: `42["event",{...}]`
+ */
 export class HarmonySocketService {
   private wsObj: webSocket.WebSocket | null = null;
   private url: string = '';
@@ -32,18 +51,39 @@ export class HarmonySocketService {
   private listeners = new Map<string, Set<Listener>>();
   private reconnectTimer: number | null = null;
 
+  /** socket.io CONNECT 的 auth payload */
+  private connectAuthToken: string = '';
+  /** 设备名（中文）——不能放进 URL query（ohos webSocket 对 %XX 编码的中文报 401 Parameter error），走 auth 通道 */
+  private connectDeviceName: string = '';
+  /** deviceId / platform / userId 也挪到 auth 通道：ohos webSocket.connect 对 URL query 参数
+   *  校验极其严格（401 Parameter error 本地直接拒绝），只有 EIO/transport 是安全的 */
+  private connectDeviceId: string = '';
+  private connectPlatform: string = '';
+  private connectUserId: string = '';
+  /** 是否已完成 socket.io 握手（收到 CONNECT_OK） */
+  private socketIoReady: boolean = false;
+  /** 握手失败兜底定时器：发出 CONNECT 后若超时未收到 CONNECT_OK 则判定失败重连 */
+  private handshakeTimer: number | null = null;
+
   async connect(opts: SocketConnectOptions): Promise<void> {
     this.manualClose = false;
+    this.connectAuthToken = opts.token ?? '';
+    this.connectDeviceName = opts.deviceName ?? '';
+    this.connectDeviceId = opts.query?.deviceId ?? '';
+    this.connectPlatform = opts.query?.platform ?? '';
+    this.connectUserId = opts.userId !== undefined ? String(opts.userId) : '';
     this.url = this.buildUrl(opts);
     await this.openSocket();
   }
 
   disconnect(): void {
     this.manualClose = true;
+    this.socketIoReady = false;
     if (this.reconnectTimer !== null) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+    this.clearHandshakeTimer();
     if (this.wsObj) {
       const wsRef: webSocket.WebSocket = this.wsObj;
       this.wsObj = null;
@@ -71,30 +111,142 @@ export class HarmonySocketService {
   }
 
   emit(event: string, payload: Object): void {
-    if (!this.wsObj || !this.connected) {
-      Logger.w('Socket', `emit ${event} while disconnected`);
+    if (!this.wsObj || !this.connected || !this.socketIoReady) {
+      Logger.w('Socket', `emit ${event} while not ready (connected=${this.connected}, ready=${this.socketIoReady})`);
       return;
     }
-    const promise = this.wsObj.send(JSON.stringify({ event, payload }));
+    // socket.io EVENT 帧: 42["event",payload]
+    this.sendRaw(`42${JSON.stringify([event, payload])}`);
+  }
+
+  isConnected(): boolean { return this.connected && this.socketIoReady; }
+
+  // ── engine.io 帧处理 ─────────────────────────────────────────
+
+  private sendRaw(text: string): void {
+    if (!this.wsObj) return;
+    const promise = this.wsObj.send(text);
     promise.catch((err: BusinessError) => {
-      Logger.e('Socket', `emit ${event} failed: ${err.message ?? String(err)}`);
+      Logger.e('Socket', `send failed: ${err.message ?? String(err)}`);
     });
   }
 
-  isConnected(): boolean { return this.connected; }
+  private handleFrame(text: string): void {
+    if (!text) return;
+    const head = text.charAt(0);
+
+    // engine.io OPEN: "0{...}"
+    if (head === '0') {
+      this.onEngineOpen();
+      return;
+    }
+    // engine.io PING: "2" → 回 PONG "3"
+    if (head === '2') {
+      this.sendRaw('3');
+      return;
+    }
+    // engine.io MESSAGE: "4..."（socket.io 数据包）
+    if (head === '4') {
+      this.onSocketIoPacket(text.substring(1));
+      return;
+    }
+    // 其他（CLOSE "1"、NOOP "3" 等）忽略
+  }
+
+  private onEngineOpen(): void {
+    // engine.io 握手完成 → 发 socket.io CONNECT
+    // 业务参数（deviceName/deviceId/platform/userId）优先走 URL query（服务端旧代码也读 query），
+    // 同时在 auth payload 里也带一份作为兜底（服务端新代码 query→auth 双通道读取）。
+    // ⚠️ 唯一必须的是 token 走 auth（服务端 resolveAuth 从 auth.token 读）。
+    const auth: Record<string, string> = {};
+    if (this.connectAuthToken) auth['token'] = this.connectAuthToken;
+    if (this.connectDeviceName) auth['deviceName'] = this.connectDeviceName;
+    if (this.connectDeviceId) auth['deviceId'] = this.connectDeviceId;
+    if (this.connectPlatform) auth['platform'] = this.connectPlatform;
+    if (this.connectUserId) auth['userId'] = this.connectUserId;
+    const authPayload = JSON.stringify(auth);
+    this.sendRaw(`40${authPayload}`);
+    // 兜底：5s 内没收到 CONNECT_OK 视为握手失败
+    this.clearHandshakeTimer();
+    this.handshakeTimer = setTimeout(() => {
+      this.handshakeTimer = null;
+      if (!this.socketIoReady) {
+        Logger.e('Socket', 'socket.io handshake timeout, reconnecting');
+        this.forceReconnect();
+      }
+    }, 5000) as number;
+  }
+
+  private onSocketIoPacket(body: string): void {
+    const type = body.charAt(0);
+    // CONNECT_OK: "0{...}"
+    if (type === '0') {
+      this.socketIoReady = true;
+      this.clearHandshakeTimer();
+      this.reconnectAttempt = 0;
+      Logger.i('Socket', 'socket.io connected (handshake OK, 已注册到服务端设备表)');
+      this.dispatch('connect', null);
+      return;
+    }
+    // EVENT / BINARY_EVENT: "2[...]"（binary 不支持，按 event 处理）
+    if (type === '2' || type === '3') {
+      const arrText = body.substring(1);
+      try {
+        const arr = JSON.parse(arrText) as Object[];
+        const event = String(arr[0]);
+        const payload = arr.length > 1 ? arr[1] : null;
+        this.dispatch(event, payload);
+      } catch (e) {
+        Logger.w('Socket', `bad socket.io event: ${String(e)}`);
+      }
+      return;
+    }
+    // CONNECT_ERROR: "4{\"message\":\"...\"}"
+    if (type === '4') {
+      Logger.e('Socket', `socket.io connect error: ${body.substring(1)}`);
+      this.forceReconnect();
+      return;
+    }
+    // DISCONNECT: "1" → 服务端断开 socket.io namespace
+    if (type === '1') {
+      Logger.w('Socket', 'socket.io disconnected by server');
+      this.forceReconnect();
+      return;
+    }
+  }
+
+  private clearHandshakeTimer(): void {
+    if (this.handshakeTimer !== null) {
+      clearTimeout(this.handshakeTimer);
+      this.handshakeTimer = null;
+    }
+  }
+
+  private forceReconnect(): void {
+    this.socketIoReady = false;
+    this.clearHandshakeTimer();
+    if (this.wsObj) {
+      const wsRef = this.wsObj;
+      this.wsObj = null;
+      wsRef.close({ code: 1000, reason: 'handshake_failed' }).catch(() => undefined);
+    }
+    this.connected = false;
+    if (!this.manualClose) this.scheduleReconnect();
+  }
+
+  // ── WebSocket 生命周期 ──────────────────────────────────────
 
   private async openSocket(): Promise<void> {
+    this.socketIoReady = false;
     this.wsObj = webSocket.createWebSocket();
     this.wsObj.on('open', (err: BusinessError, _value: Object) => {
       if (err) {
         Logger.e('Socket', `open error: ${err.message}`);
         return;
       }
+      // WS 已建立，等待服务端 engine.io OPEN 帧
       this.connected = true;
-      this.reconnectAttempt = 0;
-      Logger.i('Socket', 'connected');
-      // 显式派发一个标记事件（payload 为 null，避免 ArkTS 禁止的 inline literal）
-      this.dispatch('connect', null);
+      Logger.i('Socket', `ws connected (url=${this.url}), waiting engine.io handshake`);
     });
     this.wsObj.on('message', (err: BusinessError, data: string | ArrayBuffer) => {
       if (err) {
@@ -102,16 +254,12 @@ export class HarmonySocketService {
         return;
       }
       const text = typeof data === 'string' ? data : '';
-      if (!text) return;
-      try {
-        const parsed = JSON.parse(text) as SocketMessage;
-        if (parsed.event) this.dispatch(parsed.event, parsed.payload ?? null);
-      } catch (e) {
-        Logger.w('Socket', `bad message: ${String(e)}`);
-      }
+      this.handleFrame(text);
     });
     this.wsObj.on('close', (err: BusinessError, _value: webSocket.CloseResult) => {
       this.connected = false;
+      this.socketIoReady = false;
+      this.clearHandshakeTimer();
       if (err) {
         Logger.w('Socket', `close error: ${err.message}`);
       } else {
@@ -124,9 +272,15 @@ export class HarmonySocketService {
       Logger.e('Socket', `error: ${err.message}`);
     });
     try {
-      await this.wsObj.connect(this.url, undefined);
+      // ⚠️ ohos webSocket.connect(url, options) 的 options 不能传 undefined——会被参数校验
+      // 拦截（401 Parameter error，本地直接拒绝，不发起任何网络请求）。传空对象或不传第二参。
+      await this.wsObj.connect(this.url, {} as webSocket.WebSocketRequestOptions);
     } catch (e) {
-      Logger.e('Socket', `connect failed: ${String(e)}`);
+      // BusinessError 有 code/message，String(e) 只会打出 [object Object]
+      const be = e as BusinessError;
+      const code = be?.code !== undefined ? String(be.code) : '?';
+      const msg = be?.message ?? String(e);
+      Logger.e('Socket', `connect failed: code=${code} message=${msg} url=${this.url}`);
       if (!this.manualClose) this.scheduleReconnect();
     }
   }
@@ -144,9 +298,14 @@ export class HarmonySocketService {
   }
 
   private dispatch(event: string, payload: Object | null | undefined): void {
+    // 关键事件打日志，方便排查流转送达（心跳等高频事件不打）
+    if (event === 'transfer_received' || event === 'transfer_sent' || event === 'transfer_failed'
+      || event === 'device_online' || event === 'device_offline' || event === 'auth_error') {
+      Logger.i('Socket', `recv event=${event} payload=${JSON.stringify(payload ?? null)}`);
+    }
     const set = this.listeners.get(event);
     if (set) for (const cb of set) cb(payload);
-    // 透传给 wildcard 订阅者（payload 用 typed object 而非 inline literal）
+    // 透传给 wildcard 订阅者
     const wild = this.listeners.get('*');
     if (wild) {
       const wc: SocketWildcardPayload = { event, payload: payload ?? null };
@@ -155,21 +314,22 @@ export class HarmonySocketService {
   }
 
   private buildUrl(opts: SocketConnectOptions): string {
-    let u = opts.url;
-    const q: string[] = [];
-    if (opts.token) q.push(`token=${encodeURIComponent(opts.token)}`);
+    // 规范化：http→ws / https→wss，并拼上 socket.io 的 engine.io 路径
+    let u = opts.url
+      .replace(/^http:\/\//, 'ws://')
+      .replace(/^https:\/\//, 'wss://')
+      .replace(/\/$/, '');
+    u += '/socket.io/';
+
+    // 业务参数走 URL query（服务端旧代码也从 query 读，保持兼容）。
+    // ⚠️ 唯一根因是 connect(url, undefined) 第二参传 undefined 会 401，与 URL 内容无关；
+    // 已改为 connect(url, {})，URL 里带 encodeURIComponent 后的参数（含中文 deviceName）可正常连接。
+    const q: string[] = ['EIO=4', 'transport=websocket'];
     if (opts.userId !== undefined) q.push(`userId=${encodeURIComponent(String(opts.userId))}`);
     if (opts.deviceName) q.push(`deviceName=${encodeURIComponent(opts.deviceName)}`);
-    if (opts.query) {
-      const entries = Object.entries(opts.query);
-      for (let i = 0; i < entries.length; i++) {
-        const k = entries[i][0];
-        const v = entries[i][1];
-        q.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
-      }
-    }
-    if (q.length) u += `${u.includes('?') ? '&' : '?'}${q.join('&')}`;
-    return u;
+    if (opts.query?.deviceId) q.push(`deviceId=${encodeURIComponent(opts.query.deviceId)}`);
+    if (opts.query?.platform) q.push(`platform=${encodeURIComponent(opts.query.platform)}`);
+    return `${u}?${q.join('&')}`;
   }
 }
 

@@ -9,6 +9,10 @@ export interface SocketConnectOptions {
     userId: number;
     /** Device Name for identification */
     deviceName: string;
+    /** 稳定唯一设备标识（各端首次启动生成 UUID 并持久化） */
+    deviceId?: string;
+    /** 设备平台：desktop / web / tablet / phone / mini / tv / watch */
+    platform?: string;
     /** Extra query params */
     query?: Record<string, any>;
 }
@@ -28,12 +32,14 @@ export class SharedSocketService {
         return;
     }
 
-    const { url, token, userId, deviceName, query } = options;
+    const { url, token, userId, deviceName, deviceId, platform, query } = options;
 
     this.socket = io(url, {
       query: {
         userId,
         deviceName,
+        ...(deviceId ? { deviceId } : {}),
+        ...(platform ? { platform } : {}),
         ...query
       },
       transports: ["websocket"],
@@ -43,11 +49,23 @@ export class SharedSocketService {
     });
 
     this.socket.on("connect", () => {
-      console.log("[SharedSocket] Connected:", this.socket?.id);
+      console.log(`[SharedSocket] Connected: ${this.socket?.id} (deviceId=${deviceId}, deviceName=${deviceName}, platform=${platform})`);
     });
 
-    this.socket.on("disconnect", () => {
-      console.log("[SharedSocket] Disconnected");
+    this.socket.on("disconnect", (reason: string) => {
+      console.log(`[SharedSocket] Disconnected, reason=${reason}`);
+    });
+
+    this.socket.on("connect_error", (err: Error) => {
+      console.warn(`[SharedSocket] connect_error: ${err.message} (url=${url})`);
+    });
+
+    this.socket.on("auth_error", (data: any) => {
+      console.warn(`[SharedSocket] auth_error:`, data);
+    });
+
+    this.socket.on("transfer_received", (payload: any) => {
+      console.log(`[SharedSocket] transfer_received: from=${payload?.fromDeviceName} track=${payload?.currentTrack?.name ?? "(none)"} progress=${payload?.progress}s`);
     });
 
     // Re-attach listeners if any were added before connection
@@ -69,6 +87,18 @@ export class SharedSocketService {
     } else {
       console.warn("[SharedSocket] Not connected, cannot emit:", event);
     }
+  }
+
+  /**
+   * 注册一次性监听（收到一次后自动移除）。用于 transfer_session 的
+   * transfer_sent / transfer_failed ack 场景。
+   */
+  once(event: string, callback: Function) {
+    if (!this.socket) {
+      console.warn("[SharedSocket] once() called before connect, event:", event);
+      return;
+    }
+    this.socket.once(event, callback as any);
   }
 
   on(event: string, callback: Function) {

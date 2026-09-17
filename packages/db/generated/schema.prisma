@@ -306,12 +306,20 @@ model SearchRecord {
 model Device {
   id        Int                @id @default(autoincrement())
   name      String
+  /// 稳定唯一设备标识（各端首次启动生成 UUID 并持久化）
+  deviceId  String?
+  /// 设备平台：desktop / web / tablet / phone / mini / tv / watch
+  platform  String?
+  /// 最后活跃时间（心跳或 WS 连接时刷新）
+  lastSeen  DateTime?
   user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    Int
   isOnline  Boolean            @default(false)
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
   histories UserTrackHistory[]
+
+  @@unique([userId, deviceId])
 }
 
 model Playlist {

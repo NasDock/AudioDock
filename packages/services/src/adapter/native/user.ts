@@ -1,6 +1,6 @@
-import { ILoadMoreData, ISuccessResponse } from "../../models";
+import { Device, ILoadMoreData, ISuccessResponse } from "../../models";
 import request from "../../request";
-import { IUserAdapter } from "../interface-user-auth";
+import { IUserAdapter, TransferSessionPayload } from "../interface-user-auth";
 
 export class NativeUserAdapter implements IUserAdapter {
   addToHistory(trackId: number | string, userId: number | string, progress: number = 0, deviceName?: string, deviceId?: number | string, isSyncMode?: boolean) {
@@ -46,6 +46,14 @@ export class NativeUserAdapter implements IUserAdapter {
 
   getCurrentUser() {
     return request.get<any, ISuccessResponse<any>>("/auth/me");
+  }
+
+  getUserDevices() {
+    return request.get<any, ISuccessResponse<Device[]>>("/user/devices");
+  }
+
+  transferSession(payload: TransferSessionPayload) {
+    return request.post<any, ISuccessResponse<{ delivered: boolean }>>("/user/devices/transfer", payload);
   }
 
   uploadUserAvatar(id: number | string, file: any) {

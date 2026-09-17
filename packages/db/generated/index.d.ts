@@ -19947,6 +19947,9 @@ export namespace Prisma {
   export type DeviceMinAggregateOutputType = {
     id: number | null
     name: string | null
+    deviceId: string | null
+    platform: string | null
+    lastSeen: Date | null
     userId: number | null
     isOnline: boolean | null
     createdAt: Date | null
@@ -19956,6 +19959,9 @@ export namespace Prisma {
   export type DeviceMaxAggregateOutputType = {
     id: number | null
     name: string | null
+    deviceId: string | null
+    platform: string | null
+    lastSeen: Date | null
     userId: number | null
     isOnline: boolean | null
     createdAt: Date | null
@@ -19965,6 +19971,9 @@ export namespace Prisma {
   export type DeviceCountAggregateOutputType = {
     id: number
     name: number
+    deviceId: number
+    platform: number
+    lastSeen: number
     userId: number
     isOnline: number
     createdAt: number
@@ -19986,6 +19995,9 @@ export namespace Prisma {
   export type DeviceMinAggregateInputType = {
     id?: true
     name?: true
+    deviceId?: true
+    platform?: true
+    lastSeen?: true
     userId?: true
     isOnline?: true
     createdAt?: true
@@ -19995,6 +20007,9 @@ export namespace Prisma {
   export type DeviceMaxAggregateInputType = {
     id?: true
     name?: true
+    deviceId?: true
+    platform?: true
+    lastSeen?: true
     userId?: true
     isOnline?: true
     createdAt?: true
@@ -20004,6 +20019,9 @@ export namespace Prisma {
   export type DeviceCountAggregateInputType = {
     id?: true
     name?: true
+    deviceId?: true
+    platform?: true
+    lastSeen?: true
     userId?: true
     isOnline?: true
     createdAt?: true
@@ -20100,6 +20118,9 @@ export namespace Prisma {
   export type DeviceGroupByOutputType = {
     id: number
     name: string
+    deviceId: string | null
+    platform: string | null
+    lastSeen: Date | null
     userId: number
     isOnline: boolean
     createdAt: Date
@@ -20128,6 +20149,9 @@ export namespace Prisma {
   export type DeviceSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    deviceId?: boolean
+    platform?: boolean
+    lastSeen?: boolean
     userId?: boolean
     isOnline?: boolean
     createdAt?: boolean
@@ -20140,6 +20164,9 @@ export namespace Prisma {
   export type DeviceSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    deviceId?: boolean
+    platform?: boolean
+    lastSeen?: boolean
     userId?: boolean
     isOnline?: boolean
     createdAt?: boolean
@@ -20150,6 +20177,9 @@ export namespace Prisma {
   export type DeviceSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    deviceId?: boolean
+    platform?: boolean
+    lastSeen?: boolean
     userId?: boolean
     isOnline?: boolean
     createdAt?: boolean
@@ -20160,13 +20190,16 @@ export namespace Prisma {
   export type DeviceSelectScalar = {
     id?: boolean
     name?: boolean
+    deviceId?: boolean
+    platform?: boolean
+    lastSeen?: boolean
     userId?: boolean
     isOnline?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type DeviceOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "userId" | "isOnline" | "createdAt" | "updatedAt", ExtArgs["result"]["device"]>
+  export type DeviceOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "deviceId" | "platform" | "lastSeen" | "userId" | "isOnline" | "createdAt" | "updatedAt", ExtArgs["result"]["device"]>
   export type DeviceInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
     histories?: boolean | Device$historiesArgs<ExtArgs>
@@ -20188,6 +20221,18 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: number
       name: string
+      /**
+       * 稳定唯一设备标识（各端首次启动生成 UUID 并持久化）
+       */
+      deviceId: string | null
+      /**
+       * 设备平台：desktop / web / tablet / phone / mini / tv / watch
+       */
+      platform: string | null
+      /**
+       * 最后活跃时间（心跳或 WS 连接时刷新）
+       */
+      lastSeen: Date | null
       userId: number
       isOnline: boolean
       createdAt: Date
@@ -20619,6 +20664,9 @@ export namespace Prisma {
   interface DeviceFieldRefs {
     readonly id: FieldRef<"Device", 'Int'>
     readonly name: FieldRef<"Device", 'String'>
+    readonly deviceId: FieldRef<"Device", 'String'>
+    readonly platform: FieldRef<"Device", 'String'>
+    readonly lastSeen: FieldRef<"Device", 'DateTime'>
     readonly userId: FieldRef<"Device", 'Int'>
     readonly isOnline: FieldRef<"Device", 'Boolean'>
     readonly createdAt: FieldRef<"Device", 'DateTime'>
@@ -29323,6 +29371,9 @@ export namespace Prisma {
   export const DeviceScalarFieldEnum: {
     id: 'id',
     name: 'name',
+    deviceId: 'deviceId',
+    platform: 'platform',
+    lastSeen: 'lastSeen',
     userId: 'userId',
     isOnline: 'isOnline',
     createdAt: 'createdAt',
@@ -30592,6 +30643,9 @@ export namespace Prisma {
     NOT?: DeviceWhereInput | DeviceWhereInput[]
     id?: IntFilter<"Device"> | number
     name?: StringFilter<"Device"> | string
+    deviceId?: StringNullableFilter<"Device"> | string | null
+    platform?: StringNullableFilter<"Device"> | string | null
+    lastSeen?: DateTimeNullableFilter<"Device"> | Date | string | null
     userId?: IntFilter<"Device"> | number
     isOnline?: BoolFilter<"Device"> | boolean
     createdAt?: DateTimeFilter<"Device"> | Date | string
@@ -30603,6 +30657,9 @@ export namespace Prisma {
   export type DeviceOrderByWithRelationInput = {
     id?: SortOrder
     name?: SortOrder
+    deviceId?: SortOrderInput | SortOrder
+    platform?: SortOrderInput | SortOrder
+    lastSeen?: SortOrderInput | SortOrder
     userId?: SortOrder
     isOnline?: SortOrder
     createdAt?: SortOrder
@@ -30613,21 +30670,28 @@ export namespace Prisma {
 
   export type DeviceWhereUniqueInput = Prisma.AtLeast<{
     id?: number
+    userId_deviceId?: DeviceUserIdDeviceIdCompoundUniqueInput
     AND?: DeviceWhereInput | DeviceWhereInput[]
     OR?: DeviceWhereInput[]
     NOT?: DeviceWhereInput | DeviceWhereInput[]
     name?: StringFilter<"Device"> | string
+    deviceId?: StringNullableFilter<"Device"> | string | null
+    platform?: StringNullableFilter<"Device"> | string | null
+    lastSeen?: DateTimeNullableFilter<"Device"> | Date | string | null
     userId?: IntFilter<"Device"> | number
     isOnline?: BoolFilter<"Device"> | boolean
     createdAt?: DateTimeFilter<"Device"> | Date | string
     updatedAt?: DateTimeFilter<"Device"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
     histories?: UserTrackHistoryListRelationFilter
-  }, "id">
+  }, "id" | "userId_deviceId">
 
   export type DeviceOrderByWithAggregationInput = {
     id?: SortOrder
     name?: SortOrder
+    deviceId?: SortOrderInput | SortOrder
+    platform?: SortOrderInput | SortOrder
+    lastSeen?: SortOrderInput | SortOrder
     userId?: SortOrder
     isOnline?: SortOrder
     createdAt?: SortOrder
@@ -30645,6 +30709,9 @@ export namespace Prisma {
     NOT?: DeviceScalarWhereWithAggregatesInput | DeviceScalarWhereWithAggregatesInput[]
     id?: IntWithAggregatesFilter<"Device"> | number
     name?: StringWithAggregatesFilter<"Device"> | string
+    deviceId?: StringNullableWithAggregatesFilter<"Device"> | string | null
+    platform?: StringNullableWithAggregatesFilter<"Device"> | string | null
+    lastSeen?: DateTimeNullableWithAggregatesFilter<"Device"> | Date | string | null
     userId?: IntWithAggregatesFilter<"Device"> | number
     isOnline?: BoolWithAggregatesFilter<"Device"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"Device"> | Date | string
@@ -32249,6 +32316,9 @@ export namespace Prisma {
 
   export type DeviceCreateInput = {
     name: string
+    deviceId?: string | null
+    platform?: string | null
+    lastSeen?: Date | string | null
     isOnline?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -32259,6 +32329,9 @@ export namespace Prisma {
   export type DeviceUncheckedCreateInput = {
     id?: number
     name: string
+    deviceId?: string | null
+    platform?: string | null
+    lastSeen?: Date | string | null
     userId: number
     isOnline?: boolean
     createdAt?: Date | string
@@ -32268,6 +32341,9 @@ export namespace Prisma {
 
   export type DeviceUpdateInput = {
     name?: StringFieldUpdateOperationsInput | string
+    deviceId?: NullableStringFieldUpdateOperationsInput | string | null
+    platform?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSeen?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     isOnline?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -32278,6 +32354,9 @@ export namespace Prisma {
   export type DeviceUncheckedUpdateInput = {
     id?: IntFieldUpdateOperationsInput | number
     name?: StringFieldUpdateOperationsInput | string
+    deviceId?: NullableStringFieldUpdateOperationsInput | string | null
+    platform?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSeen?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     userId?: IntFieldUpdateOperationsInput | number
     isOnline?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -32288,6 +32367,9 @@ export namespace Prisma {
   export type DeviceCreateManyInput = {
     id?: number
     name: string
+    deviceId?: string | null
+    platform?: string | null
+    lastSeen?: Date | string | null
     userId: number
     isOnline?: boolean
     createdAt?: Date | string
@@ -32296,6 +32378,9 @@ export namespace Prisma {
 
   export type DeviceUpdateManyMutationInput = {
     name?: StringFieldUpdateOperationsInput | string
+    deviceId?: NullableStringFieldUpdateOperationsInput | string | null
+    platform?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSeen?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     isOnline?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -32304,6 +32389,9 @@ export namespace Prisma {
   export type DeviceUncheckedUpdateManyInput = {
     id?: IntFieldUpdateOperationsInput | number
     name?: StringFieldUpdateOperationsInput | string
+    deviceId?: NullableStringFieldUpdateOperationsInput | string | null
+    platform?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSeen?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     userId?: IntFieldUpdateOperationsInput | number
     isOnline?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -33908,9 +33996,17 @@ export namespace Prisma {
     userId?: SortOrder
   }
 
+  export type DeviceUserIdDeviceIdCompoundUniqueInput = {
+    userId: number
+    deviceId: string
+  }
+
   export type DeviceCountOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    deviceId?: SortOrder
+    platform?: SortOrder
+    lastSeen?: SortOrder
     userId?: SortOrder
     isOnline?: SortOrder
     createdAt?: SortOrder
@@ -33925,6 +34021,9 @@ export namespace Prisma {
   export type DeviceMaxOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    deviceId?: SortOrder
+    platform?: SortOrder
+    lastSeen?: SortOrder
     userId?: SortOrder
     isOnline?: SortOrder
     createdAt?: SortOrder
@@ -33934,6 +34033,9 @@ export namespace Prisma {
   export type DeviceMinOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    deviceId?: SortOrder
+    platform?: SortOrder
+    lastSeen?: SortOrder
     userId?: SortOrder
     isOnline?: SortOrder
     createdAt?: SortOrder
@@ -37929,6 +38031,9 @@ export namespace Prisma {
 
   export type DeviceCreateWithoutHistoriesInput = {
     name: string
+    deviceId?: string | null
+    platform?: string | null
+    lastSeen?: Date | string | null
     isOnline?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -37938,6 +38043,9 @@ export namespace Prisma {
   export type DeviceUncheckedCreateWithoutHistoriesInput = {
     id?: number
     name: string
+    deviceId?: string | null
+    platform?: string | null
+    lastSeen?: Date | string | null
     userId: number
     isOnline?: boolean
     createdAt?: Date | string
@@ -38092,6 +38200,9 @@ export namespace Prisma {
 
   export type DeviceUpdateWithoutHistoriesInput = {
     name?: StringFieldUpdateOperationsInput | string
+    deviceId?: NullableStringFieldUpdateOperationsInput | string | null
+    platform?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSeen?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     isOnline?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -38101,6 +38212,9 @@ export namespace Prisma {
   export type DeviceUncheckedUpdateWithoutHistoriesInput = {
     id?: IntFieldUpdateOperationsInput | number
     name?: StringFieldUpdateOperationsInput | string
+    deviceId?: NullableStringFieldUpdateOperationsInput | string | null
+    platform?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSeen?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     userId?: IntFieldUpdateOperationsInput | number
     isOnline?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -39149,6 +39263,9 @@ export namespace Prisma {
 
   export type DeviceCreateWithoutUserInput = {
     name: string
+    deviceId?: string | null
+    platform?: string | null
+    lastSeen?: Date | string | null
     isOnline?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -39158,6 +39275,9 @@ export namespace Prisma {
   export type DeviceUncheckedCreateWithoutUserInput = {
     id?: number
     name: string
+    deviceId?: string | null
+    platform?: string | null
+    lastSeen?: Date | string | null
     isOnline?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -39356,6 +39476,9 @@ export namespace Prisma {
     NOT?: DeviceScalarWhereInput | DeviceScalarWhereInput[]
     id?: IntFilter<"Device"> | number
     name?: StringFilter<"Device"> | string
+    deviceId?: StringNullableFilter<"Device"> | string | null
+    platform?: StringNullableFilter<"Device"> | string | null
+    lastSeen?: DateTimeNullableFilter<"Device"> | Date | string | null
     userId?: IntFilter<"Device"> | number
     isOnline?: BoolFilter<"Device"> | boolean
     createdAt?: DateTimeFilter<"Device"> | Date | string
@@ -41204,6 +41327,9 @@ export namespace Prisma {
   export type DeviceCreateManyUserInput = {
     id?: number
     name: string
+    deviceId?: string | null
+    platform?: string | null
+    lastSeen?: Date | string | null
     isOnline?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -41387,6 +41513,9 @@ export namespace Prisma {
 
   export type DeviceUpdateWithoutUserInput = {
     name?: StringFieldUpdateOperationsInput | string
+    deviceId?: NullableStringFieldUpdateOperationsInput | string | null
+    platform?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSeen?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     isOnline?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -41396,6 +41525,9 @@ export namespace Prisma {
   export type DeviceUncheckedUpdateWithoutUserInput = {
     id?: IntFieldUpdateOperationsInput | number
     name?: StringFieldUpdateOperationsInput | string
+    deviceId?: NullableStringFieldUpdateOperationsInput | string | null
+    platform?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSeen?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     isOnline?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -41405,6 +41537,9 @@ export namespace Prisma {
   export type DeviceUncheckedUpdateManyWithoutUserInput = {
     id?: IntFieldUpdateOperationsInput | number
     name?: StringFieldUpdateOperationsInput | string
+    deviceId?: NullableStringFieldUpdateOperationsInput | string | null
+    platform?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSeen?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     isOnline?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string

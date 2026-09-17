@@ -1,22 +1,22 @@
 import type { Device, ISuccessResponse, User } from "../../models";
 import request from "../../request";
-import { IAuthAdapter } from "../interface-user-auth";
+import { DeviceLoginInfo, IAuthAdapter } from "../interface-user-auth";
 
 export class NativeAuthAdapter implements IAuthAdapter {
-  async login(user: Partial<User> & { deviceName?: string }) {
+  async login(user: Partial<User> & DeviceLoginInfo) {
     console.log("login", user);
-    const { deviceName = "Unknown Device", ...userData } = user;
+    const { deviceName = "Unknown Device", deviceId, platform, ...userData } = user;
     return request.post<any, ISuccessResponse<User & { token: string, device: Device }>>(
       "/auth/login",
-      { ...userData, deviceName }
+      { ...userData, deviceName, ...(deviceId ? { deviceId } : {}), ...(platform ? { platform } : {}) }
     );
   }
 
-  async register(user: Partial<User> & { deviceName?: string }) {
-    const { deviceName = "Unknown Device", ...userData } = user;
+  async register(user: Partial<User> & DeviceLoginInfo) {
+    const { deviceName = "Unknown Device", deviceId, platform, ...userData } = user;
     return request.post<any, ISuccessResponse<User & { token: string, device: Device }>>(
       "/auth/register",
-      { ...userData, deviceName }
+      { ...userData, deviceName, ...(deviceId ? { deviceId } : {}), ...(platform ? { platform } : {}) }
     );
   }
 

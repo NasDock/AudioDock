@@ -184,8 +184,14 @@ jobs:
           distribution: "zulu"
           java-version: "17"
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # ubuntu-latest 镜像已自带完整 Android SDK（$ANDROID_HOME 已就绪）。
+      # android-actions/setup-android@v3 会强制再装已被 Google 下线的 'tools' 包，
+      # 在 ubuntu-24.04 上必然失败（Failed to find package 'tools'），故移除。
+      - name: Verify Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME" | head
+          sdkmanager --version || true
 
       - name: Install pnpm
         uses: pnpm/action-setup@v3
