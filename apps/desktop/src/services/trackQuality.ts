@@ -1,4 +1,5 @@
 import { getBaseURL } from "../https";
+import { cacheUtils } from "../utils/cache";
 
 export type AudioQuality = "lossless" | "high" | "standard";
 
@@ -28,6 +29,13 @@ export const getFallbackAudioQualityProfile = (): AudioQualityProfile => ({
   ],
 });
 
+// 秒播优化：音质 profile 缓存 5 分钟。
+// 同一首歌反复切换时不再重复请求 /track/:id/playback-qualities，
+// 减少切歌时的网络往返（虽然该请求是异步不阻塞播放，但缓存后连异步延迟也省掉）。
+const QUALITY_PROFILE_CACHE_KEY = (trackId: number | string) =>
+  `quality_profile_${trackId}`;
+const QUALITY_PROFILE_CACHE_TTL = 5 * 60 * 1000; // 5 分钟
+
 export const getTrackAudioQualityProfile = async (track: {
   id: number | string;
   path: string;
@@ -35,6 +43,14 @@ export const getTrackAudioQualityProfile = async (track: {
   if (track.path.startsWith("http")) {
     return getFallbackAudioQualityProfile();
   }
+
+  // 先查缓存
+  const cacheKey = QUALITY_PROFILE_CACHE_KEY(track.id);
+  const cached = cacheUtils.get<AudioQualityProfile>(
+    cacheKey,
+    QUALITY_PROFILE_CACHE_TTL,
+  );
+  if (cached) return cached;
 
   try {
     const response = await fetch(
@@ -44,7 +60,10 @@ export const getTrackAudioQualityProfile = async (track: {
       throw new Error(`Failed to fetch playback qualities: ${response.status}`);
     }
     const payload = await response.json();
-    return payload?.data || getFallbackAudioQualityProfile();
+    const profile: AudioQualityProfile =
+      payload?.data || getFallbackAudioQualityProfile();
+    cacheUtils.set(cacheKey, profile);
+    return profile;
   } catch (error) {
     console.error("Failed to load track audio quality profile:", error);
     return getFallbackAudioQualityProfile();

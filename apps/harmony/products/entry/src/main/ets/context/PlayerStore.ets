@@ -1,5 +1,5 @@
 import { Logger } from 'audiodock_common';
-import { kvStore } from 'features_storage';
+import { kvStore, fileCache } from 'features_storage';
 import { audioBackend, findActiveLine, parseLRC } from 'features_player';
 import { socketService } from 'features_socket';
 import type { LyricLine } from 'features_player';
@@ -445,6 +445,10 @@ export class PlayerStore {
       this.setLyricsText(t.lyrics ?? '');
       Logger.i('PlayerStore', `playing ${t.id} ${t.title}`);
       this.notify();
+
+      // 边播边缓存：开关开启且当前是远程 URL 时，后台静默下载到 audio_cache，
+      // 下次播放直接走 fdSrc 本地文件，实现秒播。不写离线下载元数据，失败静默。
+      this.triggerCacheWhilePlaying(t).catch(() => undefined);
     } catch (e) {
       this.state = 'error';
       Logger.e('PlayerStore', `load failed: ${String(e)}`);
@@ -463,6 +467,22 @@ export class PlayerStore {
     const next = this.currentIndex + 1;
     if (next >= this.queue.length) return this.playMode === 'LOOP_LIST' ? 0 : -1;
     return next;
+  }
+
+  /**
+   * 边播边缓存：开关开启 + 远程 URL + 未缓存时，后台静默下载到 audio_cache。
+   * 下次播放 resolveTrackToPlayer 会命中 fileCache.hasAudio，走 fdSrc 本地文件秒播。
+   * 失败静默（FileCache 内部已打日志），不影响当前播放。
+   */
+  private async triggerCacheWhilePlaying(t: Track): Promise<void> {
+    // 只缓存远程 URL（本地 file:// 已经是缓存，无需再下载）
+    if (!t.url.startsWith('http')) return;
+    const cacheEnabled = await kvStore.get('cacheEnabled');
+    if (cacheEnabled !== 'true') return;
+    const ext = t.ext ?? 'mp3';
+    // 已有缓存则跳过
+    if (await fileCache.hasAudio(t.id, ext)) return;
+    await fileCache.downloadAudioFromUrl(t.id, ext, t.url);
   }
 
   private computePrevIndex(): number {
