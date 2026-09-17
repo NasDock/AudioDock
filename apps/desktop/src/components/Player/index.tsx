@@ -84,9 +84,9 @@ import { useSettingsStore } from "../../store/settings";
 import LazyImage from "../LazyImage";
 import { useSyncStore } from "../../store/sync";
 import { formatDuration } from "../../utils/formatDuration";
-import { isTauri, tauriGetDeviceName } from "../../utils/platform";
+import { isTauri, tauriGetDeviceName, getOrCreateDeviceId } from "../../utils/platform";
 import { getCurrentPlaybackQualityPreference } from "../../utils/playbackQuality";
-import { usePlayMode } from "../../utils/playMode";
+import { getPlayMode, setPlayMode, usePlayMode } from "../../utils/playMode";
 import PlayingIndicator from "../PlayingIndicator";
 import UserSelectModal from "../UserSelectModal";
 import styles from "./index.module.less";
@@ -414,6 +414,8 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
   // 在线设备（播放流转）State
   const [onlineDevices, setOnlineDevices] = useState<OnlineDevice[]>([]);
   const [transferring, setTransferring] = useState<string | null>(null);
+  // 本机稳定设备标识（用于从在线列表里排除自己，不依赖后端返回的 device.deviceId）
+  const selfDeviceId = getOrCreateDeviceId();
 
   // Playback Rate
   const [playbackRate, setPlaybackRate] = useState(() => {
@@ -1535,7 +1537,7 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
 
               {/* 我的在线设备（播放流转） */}
               {onlineDevices.filter(
-                (d) => d.isOnline && d.deviceId && d.deviceId !== (device?.deviceId ?? ""),
+                (d) => d.isOnline && d.deviceId && d.deviceId !== selfDeviceId,
               ).length > 0 && (
                 <>
                   <Text type="secondary" style={{ fontSize: 12, marginBottom: 4 }}>
@@ -1544,7 +1546,7 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
                   <List
                     size="small"
                     dataSource={onlineDevices.filter(
-                      (d) => d.isOnline && d.deviceId && d.deviceId !== (device?.deviceId ?? ""),
+                      (d) => d.isOnline && d.deviceId && d.deviceId !== selfDeviceId,
                     )}
                     renderItem={(d) => (
                       <List.Item
@@ -2049,6 +2051,15 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         const track: Track | undefined = rawTrack ? normalizeTrack(rawTrack) : undefined;
         console.log(`[Transfer] handle transfer_received: from=${payload?.fromDeviceName} track=${track?.name} listLen=${list?.length ?? 0} index=${index} progress=${progressSec}s`);
         const store = usePlayerStore.getState();
+        // 根据流转曲目的内容类型切换到对应模式（音乐/有声书），否则目标端会在错误模式下播放
+        const targetTrack = list?.[Math.max(0, index)] ?? track;
+        if (targetTrack?.type) {
+          const targetMode = targetTrack.type === "AUDIOBOOK" ? TrackType.AUDIOBOOK : TrackType.MUSIC;
+          if (getPlayMode() !== targetMode) {
+            setPlayMode(targetMode);
+            store.syncActiveMode(targetMode);
+          }
+        }
         if (list && list.length > 0) {
           store.setPlaylist(list);
           const target = list[Math.max(0, index)] || list[0];

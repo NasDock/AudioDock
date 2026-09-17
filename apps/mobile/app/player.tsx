@@ -6,6 +6,7 @@ import { PlayMode, usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Track, TrackType, UserTrackLike } from "@/src/models";
 import { getImageUrl } from "@/src/utils/image";
+import { getOrCreateDeviceId } from "@/src/utils/platform";
 import { trackEvent } from "@/src/services/tracking";
 import {
   getMiAuthStatus,
@@ -204,7 +205,11 @@ export function PlayerDetailView({
     availableAudioQualities,
     cycleAudioQuality,
     isRadioMode,
+    switchContentModeForIncomingTrack,
   } = usePlayer();
+  // 流转接收端闭包用：保证 useEffect 里始终拿到最新引用（函数每次渲染重建，但内部依赖 ref 不旧）
+  const switchContentModeRef = useRef(switchContentModeForIncomingTrack);
+  switchContentModeRef.current = switchContentModeForIncomingTrack;
   const [syncModalVisible, setSyncModalVisible] = useState(false);
   const [moreModalVisible, setMoreModalVisible] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
@@ -212,6 +217,11 @@ export function PlayerDetailView({
   const [miDevices, setMiDevices] = useState<MiDevice[]>([]);
   const [onlineDevices, setOnlineDevices] = useState<OnlineDevice[]>([]);
   const [transferring, setTransferring] = useState<string | null>(null);
+  // 本机稳定设备标识（用于从在线列表里排除自己，不依赖后端返回的 device.deviceId）
+  const [selfDeviceId, setSelfDeviceId] = useState<string>("");
+  useEffect(() => {
+    getOrCreateDeviceId().then(setSelfDeviceId);
+  }, []);
   const [miLoggedIn, setMiLoggedIn] = useState(false);
   const [miQRCodeUrl, setMiQRCodeUrl] = useState<string | null>(null);
   const [miLoading, setMiLoading] = useState(false);
@@ -840,6 +850,11 @@ export function PlayerDetailView({
             : undefined;
         const track = rawTrack ? normalizeTrack(rawTrack) : undefined;
         console.log(`[Transfer] handle transfer_received: from=${payload?.fromDeviceName} track=${track?.name} listLen=${list?.length ?? 0} index=${index} progress=${progressSec}s`);
+        // 根据流转曲目的内容类型切换到对应模式（音乐/有声书），否则目标端会在错误模式下播放
+        const targetTrack = list?.[Math.max(0, index)] ?? track;
+        if (targetTrack?.type) {
+          await switchContentModeRef.current(targetTrack);
+        }
         if (list && list.length > 0) {
           await playTrackList(list, Math.max(0, index), progressSec);
         } else if (track) {
@@ -1076,13 +1091,13 @@ export function PlayerDetailView({
               </Text>
 
               {/* 我的在线设备（播放流转） */}
-              {onlineDevices.filter((d) => d.isOnline && d.deviceId !== (device?.deviceId ?? "")).length > 0 && (
+              {onlineDevices.filter((d) => d.isOnline && d.deviceId && d.deviceId !== selfDeviceId).length > 0 && (
                 <View style={{ marginBottom: 12 }}>
                   <Text style={{ color: colors.secondary, fontSize: 12, marginBottom: 6 }}>
                     {t("playerPage.onlineDevices")}
                   </Text>
                   {onlineDevices
-                    .filter((d) => d.isOnline && d.deviceId !== (device?.deviceId ?? ""))
+                    .filter((d) => d.isOnline && d.deviceId && d.deviceId !== selfDeviceId)
                     .map((d) => (
                       <TouchableOpacity
                         key={String(d.deviceId ?? d.id)}

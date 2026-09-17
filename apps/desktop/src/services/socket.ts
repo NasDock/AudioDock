@@ -32,13 +32,21 @@ class SocketService extends SharedSocketService {
     try {
         const storedAddress = localStorage.getItem("serverAddress");
         if (storedAddress) {
-            url = storedAddress;
+            // Web 模式下用户把服务器地址填成 "/api"（同源 nginx 代理路径）时，
+            // socket.io 无法解析相对路径 → 必须回落到 window.location.origin（nginx 已代理 /socket.io/）。
+            // 否则生产环境 desktop 永远连不上 WS，流转必然失败。
+            if (isWeb() && storedAddress.startsWith("/")) {
+                url = window.location.origin;
+            } else {
+                url = storedAddress;
+            }
         }
     } catch (e) {
         console.error("Failed to get server address for socket:", e);
     }
 
     // 4. Connect using Shared Implementation
+    console.log(`[Socket] connecting: url=${url} deviceId=${getOrCreateDeviceId()} platform=${getDevicePlatform()}`);
     super.connect({
         url,
         token,

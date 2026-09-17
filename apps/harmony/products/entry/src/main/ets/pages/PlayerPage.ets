@@ -552,6 +552,18 @@ struct PlayerPage {
       const track: Track | undefined = rawTrack ? normalizeTransferTrack(rawTrack) : undefined;
       Logger.i('PlayerPage', `[Transfer] handle transfer_received: from=${fromDevice} trackId=${track?.id ?? '(none)'} title=${track?.title ?? ''} listLen=${list ? list.length : 0} index=${index} progress=${progressSec}s`);
 
+      // 根据流转曲目的内容类型切换到对应模式（音乐/有声书），否则目标端会在错误模式下播放
+      const targetTrack = (list && list.length > 0) ? list[Math.max(0, index)] : track;
+      if (targetTrack && targetTrack.contentType) {
+        const targetMode = targetTrack.contentType === 'AUDIOBOOK' ? 'AUDIOBOOK' : 'MUSIC';
+        const currentMode = AppStorage.get<string>('playMode') ?? 'MUSIC';
+        if (currentMode !== targetMode) {
+          AppStorage.setOrCreate('playMode', targetMode);
+          await kvStore.set('playMode', targetMode);
+          await playerStore.switchContentMode(targetMode);
+        }
+      }
+
       if (list && list.length > 0) {
         await playerStore.playTrackList(list, Math.max(0, index));
       } else if (track) {

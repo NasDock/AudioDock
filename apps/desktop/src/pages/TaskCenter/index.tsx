@@ -18,10 +18,14 @@ import {
     Tag,
     Typography,
 } from "antd";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 const { Title, Text } = Typography;
+
+// 轮询策略：有进行中任务时 2s 高频刷新；没有时退到 30s 慢轮询（避免空跑打爆接口）
+const ACTIVE_POLL_MS = 2000;
+const IDLE_POLL_MS = 30000;
 
 // 统一状态 → antd Tag 颜色（沿用 TTS 列表页既有色板）
 const STATUS_COLOR: Record<UnifiedTask["status"], string> = {
@@ -37,11 +41,14 @@ const TaskCenter: React.FC = () => {
   const [tasks, setTasks] = useState<UnifiedTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "active">("all");
+  const tasksRef = useRef<UnifiedTask[]>([]);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchTasks = async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
       const list = await fetchAllTasks();
+      tasksRef.current = list;
       setTasks(list);
     } catch (error) {
       console.error("Failed to fetch tasks:", error);
@@ -49,6 +56,25 @@ const TaskCenter: React.FC = () => {
       if (showLoading) setLoading(false);
     }
   };
+
+  // 根据当前任务列表自适应调度下一次轮询
+  const scheduleNext = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    const hasActive = tasksRef.current.some(isTaskActive);
+    const delay = hasActive ? ACTIVE_POLL_MS : IDLE_POLL_MS;
+    timerRef.current = setTimeout(async () => {
+      await fetchTasks(false);
+      scheduleNext();
+    }, delay);
+  };
+
+  useEffect(() => {
+    fetchTasks().then(() => scheduleNext());
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleTtsAction = async (
     action: "pause" | "resume" | "delete",
@@ -58,17 +84,12 @@ const TaskCenter: React.FC = () => {
       if (action === "delete") await deleteTtsTask(id);
       else if (action === "pause") await pauseTtsTask(id);
       else if (action === "resume") await resumeTtsTask(id);
-      fetchTasks(false);
+      await fetchTasks(false);
+      scheduleNext();
     } catch (error) {
       console.error(`Failed to ${action} task:`, error);
     }
   };
-
-  useEffect(() => {
-    fetchTasks();
-    const timer = setInterval(() => fetchTasks(false), 2000);
-    return () => clearInterval(timer);
-  }, []);
 
   const filteredTasks =
     filter === "all" ? tasks : tasks.filter(isTaskActive);
@@ -224,7 +245,13 @@ const TaskCenter: React.FC = () => {
           />
         </div>
         <Flex gap={8}>
-          <Button onClick={() => fetchTasks(true)} loading={loading}>
+          <Button
+            onClick={async () => {
+              await fetchTasks(true);
+              scheduleNext();
+            }}
+            loading={loading}
+          >
             {t("taskCenter.refresh")}
           </Button>
         </Flex>
