@@ -78,6 +78,10 @@ import {
   resolveArtworkUri,
   resolveTrackUri,
 } from "../../services/trackResolver";
+import {
+  cacheAudioInBackground,
+  getCachedAudioUrl,
+} from "../../services/audioCache";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { useSettingsStore } from "../../store/settings";
@@ -175,6 +179,13 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
     el.src = nextUrl;
     el.load();
   }, [currentTrack?.id, isPlaying, isRadioMode, playlist, currentAudioQuality]);
+
+  // 秒播优化：预下载播放列表前后各 5 首（共 10 首）。
+  // web 模式用 CacheStorage（cacheAudioInBackground），Tauri 模式走 cache_download IPC。
+  // 播放列表变化时 preDownloadedIdsRef 清空重新计算；已触发过的曲目跳过。
+  // 注意：effect 体内引用了 cacheEnabled，必须在 cacheEnabled 声明（L388）之后注册，
+  // 所以这段 effect 的实际挂载位置在下方 cacheEnabled 声明之后。
+  const preDownloadedIdsRef = useRef<Set<string>>(new Set());
 
   // Sync store active mode with app mode
   useEffect(() => {
@@ -341,6 +352,46 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
   const cacheEnabled = useSettingsStore((state) => state.download.cacheEnabled);
   const [resolvedUri, setResolvedUri] = useState<string | undefined>(undefined);
 
+  // 播放列表变化时清空预下载标记（重新计算前后 5 首）
+  useEffect(() => {
+    preDownloadedIdsRef.current.clear();
+  }, [playlist]);
+
+  // 当前曲目加载完毕（正在播放）后，预下载播放列表前后各 5 首（共 10 首）。
+  // web 模式用 CacheStorage（cacheAudioInBackground），Tauri 模式走 Rust 本地缓存下载。
+  // 已触发过的曲目跳过（preDownloadedIdsRef 去重）。
+  useEffect(() => {
+    if (!currentTrack || !isPlaying || !cacheEnabled) return;
+    const idx = playlist.findIndex((t) => t.id === currentTrack.id);
+    if (idx < 0) return;
+
+    const PRELOAD_RANGE = 5;
+    const start = Math.max(0, idx - PRELOAD_RANGE);
+    const end = Math.min(playlist.length - 1, idx + PRELOAD_RANGE);
+
+    for (let i = start; i <= end; i++) {
+      if (i === idx) continue; // 当前曲目已在播放
+      const t = playlist[i];
+      const key = String(t.id);
+      if (preDownloadedIdsRef.current.has(key)) continue;
+      preDownloadedIdsRef.current.add(key);
+
+      const url = buildTrackPlaybackUrl(t, currentAudioQuality);
+      if (!url) continue;
+
+      if (isTauri()) {
+        // Tauri：走 Rust 本地缓存下载
+        resolveTrackUri(t, { cacheEnabled }).catch(() => {});
+      } else {
+        // web：走 CacheStorage 后台缓存
+        cacheAudioInBackground(url);
+      }
+    }
+    console.log(
+      `[Player] Pre-loading ±${PRELOAD_RANGE} around index ${idx} (${end - start} tracks)`
+    );
+  }, [currentTrack?.id, isPlaying, cacheEnabled, playlist, currentAudioQuality]);
+
   useEffect(() => {
     if (!currentTrack) {
       setResolvedUri(undefined);
@@ -371,6 +422,21 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         const state = usePlayerStore.getState();
         if (state.currentTrack?.id === currentTrack.id) {
           setResolvedUri(uri);
+        }
+      });
+    } else if (cacheEnabled && !isTauri() && initialUri) {
+      // 秒播优化（web 模式）：CacheStorage 音频缓存。
+      // 复播时 caches.match 是本地索引读取（几十毫秒），命中则换 blob URL 实现秒播；
+      // 未命中则后台下载整首进缓存，供下次复播/切歌命中。
+      getCachedAudioUrl(initialUri).then((blobUrl) => {
+        if (!blobUrl) {
+          // 未命中：后台缓存整首（不阻塞播放）
+          cacheAudioInBackground(initialUri);
+          return;
+        }
+        const state = usePlayerStore.getState();
+        if (state.currentTrack?.id === currentTrack.id) {
+          setResolvedUri(blobUrl);
         }
       });
     }
@@ -785,6 +851,11 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         const isNewSource = !audio.src.includes(resolvedUri);
 
         if (isNewSource) {
+          // 换 src 前 revoke 旧的 blob URL（CacheStorage 缓存命中时 generate 的），
+          // 避免内存泄漏。普通 http URL 调 revokeObjectURL 是 no-op，无副作用。
+          if (audio.src.startsWith("blob:")) {
+            URL.revokeObjectURL(audio.src);
+          }
           audio.pause();
           audio.src = resolvedUri;
           audio.load();

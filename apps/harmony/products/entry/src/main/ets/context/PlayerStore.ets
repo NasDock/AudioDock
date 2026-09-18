@@ -145,6 +145,8 @@ export class PlayerStore {
   private sleepTimerIntervalId: number = -1;
   /** 防片尾检测连续多次触发 playNext（对齐 mobile isSkippingOutroRef） */
   private isSkippingOutro: boolean = false;
+  /** 预下载去重标记：记录已触发过预下载的 trackId，播放列表变化时清空重新计算。 */
+  private preDownloadedIds: Set<string> = new Set();
 
   private listeners = new Set<Listener>();
 
@@ -216,6 +218,8 @@ export class PlayerStore {
     this.applyIncomingContentMode(tracks[Math.max(0, Math.min(startIndex, tracks.length - 1))]);
     this.queue = tracks.slice();
     this.currentIndex = Math.max(0, Math.min(startIndex, tracks.length - 1));
+    // 播放列表变化，清空预下载标记，loadCurrent 成功后重新计算前后 5 首
+    this.preDownloadedIds.clear();
     this.persistState();
     await this.loadCurrent();
     this.broadcastSync('playlist', this.queue);
@@ -241,9 +245,13 @@ export class PlayerStore {
     if (idx < 0) return;
     this.queue = fullQueue.slice();
     this.currentIndex = idx;
+    // 队列从「单首占位」升级为「完整列表」，清空预下载标记重新计算
+    this.preDownloadedIds.clear();
     this.persistState();
     this.notify();
     this.broadcastSync('playlist', this.queue);
+    // 队列补齐后，以完整列表重新触发前后 5 首预下载
+    this.triggerPreloadAround(cur).catch(() => undefined);
   }
 
   async playTrack(track: Track): Promise<void> {
@@ -449,6 +457,9 @@ export class PlayerStore {
       // 边播边缓存：开关开启且当前是远程 URL 时，后台静默下载到 audio_cache，
       // 下次播放直接走 fdSrc 本地文件，实现秒播。不写离线下载元数据，失败静默。
       this.triggerCacheWhilePlaying(t).catch(() => undefined);
+
+      // 预下载播放列表前后各 5 首（共 10 首），切歌时命中本地缓存实现秒切。
+      this.triggerPreloadAround(t).catch(() => undefined);
     } catch (e) {
       this.state = 'error';
       Logger.e('PlayerStore', `load failed: ${String(e)}`);
@@ -483,6 +494,35 @@ export class PlayerStore {
     // 已有缓存则跳过
     if (await fileCache.hasAudio(t.id, ext)) return;
     await fileCache.downloadAudioFromUrl(t.id, ext, t.url);
+  }
+
+  /**
+   * 预下载播放列表中当前曲目前后各 5 首（共 10 首）。
+   * 已缓存/已触发过的曲目跳过（preDownloadedIds 去重），
+   * 播放列表变化时（playTrackList / replaceQueuePreservingCurrent）清空标记重新计算。
+   * 所有网络类型都下载——切歌秒播的前提是「相邻曲目已缓存」；
+   * 流量敏感用户可关闭「边播边缓存」开关（cacheEnabled=false 时直接跳过）。
+   */
+  private async triggerPreloadAround(current: Track): Promise<void> {
+    const cacheEnabled = await kvStore.get('cacheEnabled');
+    if (cacheEnabled !== 'true') return;
+    const idx = this.queue.findIndex((t) => t.id === current.id);
+    if (idx < 0) return;
+    const PRELOAD_RANGE = 5;
+    const start = Math.max(0, idx - PRELOAD_RANGE);
+    const end = Math.min(this.queue.length - 1, idx + PRELOAD_RANGE);
+    for (let i = start; i <= end; i++) {
+      if (i === idx) continue; // 当前曲目已在播放
+      const t = this.queue[i];
+      if (!t.url.startsWith('http')) continue; // 本地文件无需下载
+      if (this.preDownloadedIds.has(t.id)) continue;
+      this.preDownloadedIds.add(t.id);
+      const ext = t.ext ?? 'mp3';
+      // 已有缓存则跳过（hasAudio 是异步磁盘检查，但在这里是后台任务不阻塞播放）
+      if (await fileCache.hasAudio(t.id, ext)) continue;
+      fileCache.downloadAudioFromUrl(t.id, ext, t.url).catch(() => undefined);
+    }
+    Logger.i('PlayerStore', `preload ±${PRELOAD_RANGE} around index ${idx}`);
   }
 
   private computePrevIndex(): number {
