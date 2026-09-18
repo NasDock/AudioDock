@@ -869,26 +869,46 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           // ✨ 智能预缓存：当前曲目开始播放时，预下载播放列表前后各 5 首（共 10 首）。
           // 已缓存/已触发过的曲目跳过（preDownloadedIdsRef 去重），
           // 播放列表变化时 setTrackListState 会清空该标记重新计算。
-          // 所有网络类型都下载——复播秒播的前提是「播过的歌一定已缓存」；
+          //
+          // ⚠️ 最多 2 首并发下载（不是串行也不是全并发）：
+          // 10 首同时 fetch 会和当前播放的流请求抢带宽，导致播放流
+          // android-io-bad-http-status（实测日志 00:31:09）。
+          // 2 并发 + 3s 延迟让当前曲目优先完成初始缓冲，再以小并发预下载。
           // 流量敏感用户可关闭「边播边缓存」开关（cacheEnabled=false 时 resolveTrackUri 直接走远端）。
           const currentListIndex = trackListRef.current.findIndex((t) => t.id === nextTrack.id);
           if (currentListIndex >= 0) {
             const PRELOAD_RANGE = 5;
+            const CONCURRENCY = 2;
             const list = trackListRef.current;
+            // 延迟 3 秒让当前曲目优先完成初始缓冲
+            await new Promise((r) => setTimeout(r, 3000));
+
+            // 收集需要预下载的曲目（跳过当前/已触发/已缓存）
+            const toDownload: Track[] = [];
             for (
               let i = Math.max(0, currentListIndex - PRELOAD_RANGE);
               i <= Math.min(list.length - 1, currentListIndex + PRELOAD_RANGE);
               i++
             ) {
-              if (i === currentListIndex) continue; // 当前曲目已在播放，无需预下载
+              if (i === currentListIndex) continue;
               const t = list[i];
               const key = String(t.id);
               if (preDownloadedIdsRef.current.has(key)) continue;
               preDownloadedIdsRef.current.add(key);
-              resolveTrackUri(t, { cacheEnabled, shouldDownload: true }).catch(() => {});
+              toDownload.push(t);
+            }
+
+            // 最多 CONCURRENCY 首并发下载
+            for (let i = 0; i < toDownload.length; i += CONCURRENCY) {
+              const batch = toDownload.slice(i, i + CONCURRENCY);
+              await Promise.all(
+                batch.map((t) =>
+                  resolveTrackUri(t, { cacheEnabled, shouldDownload: true }).catch(() => {})
+                )
+              );
             }
             console.log(
-              `[Player] Pre-loading ±${PRELOAD_RANGE} around index ${currentListIndex}`
+              `[Player] Pre-loading ±${PRELOAD_RANGE} around index ${currentListIndex} (${toDownload.length} tracks)`
             );
           }
 
@@ -1561,21 +1581,23 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       // 秒播优化：音乐+有声书都走缓存升级分支。
       // - 已命中缓存（cachedPath 非空）：起播已是本地文件，跳过下载，什么也不做
-      // - 未命中：后台下载供下次复播命中。**所有网络类型都下载**（不只 Wi-Fi）——
-      //   复播秒播的前提是「播过的歌一定已缓存」；流量敏感用户可关闭「边播边缓存」开关。
+      // - 未命中：后台下载供下次复播命中。延迟 3s 让当前曲目优先完成初始缓冲。
+      //   所有网络类型都下载（不只 Wi-Fi）；流量敏感用户可关闭「边播边缓存」开关。
       if (!cachedPath) {
-        resolveTrackUri(track, { cacheEnabled, shouldDownload: true })
-          .then((cachedUri) => {
-            if (!isLatestRequest()) return;
-            if (cachedUri && cachedUri !== remoteUri) {
-              console.log(
-                `[Player] Cached copy available for ${track.id}, will use on next play.`
-              );
-            }
-          })
-          .catch(() => {
-            /* keep remote URI */
-          });
+        setTimeout(() => {
+          resolveTrackUri(track, { cacheEnabled, shouldDownload: true })
+            .then((cachedUri) => {
+              if (!isLatestRequest()) return;
+              if (cachedUri && cachedUri !== remoteUri) {
+                console.log(
+                  `[Player] Cached copy available for ${track.id}, will use on next play.`
+                );
+              }
+            })
+            .catch(() => {
+              /* keep remote URI */
+            });
+        }, 3000);
       }
 
       // Background: download cover art for future metadata use.
@@ -1686,15 +1708,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         await TrackPlayer.skip(index);
 
         // ✨ 后台异步触发当前和下一首的缓存/封面升级（不阻塞播放）
-        // 秒播优化：所有网络类型都后台下载（不只 Wi-Fi），确保「播过的歌下次必命中本地缓存」。
+        // 秒播优化：延迟 3s 让当前曲目优先完成初始缓冲，再触发下载；
+        // 最多 2 首并发（当前+下一首），避免和播放流抢带宽。
         // 流量敏感用户可在设置里关闭「边播边缓存」开关（cacheEnabled=false 时 resolveTrackUri 直接走远端）。
         const nearTracks = [tracks[index], tracks[index + 1]].filter(Boolean);
-        nearTracks.forEach((t) => {
-          resolveTrackUri(t, { cacheEnabled, shouldDownload: true }).catch(
-            () => {}
-          );
-          resolveArtworkUriForPlayer(t, { shouldDownload: true }).catch(() => {});
-        });
+        setTimeout(() => {
+          Promise.all(
+            nearTracks.map((t) =>
+              resolveTrackUri(t, { cacheEnabled, shouldDownload: true }).catch(() => {})
+            )
+          ).catch(() => {});
+          nearTracks.forEach((t) => {
+            resolveArtworkUriForPlayer(t, { shouldDownload: true }).catch(() => {});
+          });
+        }, 3000);
       }
       if (!isLatestRequest()) return;
 

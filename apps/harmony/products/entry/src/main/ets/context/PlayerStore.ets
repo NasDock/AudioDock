@@ -482,6 +482,7 @@ export class PlayerStore {
 
   /**
    * 边播边缓存：开关开启 + 远程 URL + 未缓存时，后台静默下载到 audio_cache。
+   * 延迟 3s 让当前曲目优先完成初始缓冲，避免和播放流抢带宽。
    * 下次播放 resolveTrackToPlayer 会命中 fileCache.hasAudio，走 fdSrc 本地文件秒播。
    * 失败静默（FileCache 内部已打日志），不影响当前播放。
    */
@@ -493,6 +494,8 @@ export class PlayerStore {
     const ext = t.ext ?? 'mp3';
     // 已有缓存则跳过
     if (await fileCache.hasAudio(t.id, ext)) return;
+    // 延迟 3 秒让当前曲目优先完成初始缓冲
+    await new Promise<void>((r) => setTimeout(r, 3000));
     await fileCache.downloadAudioFromUrl(t.id, ext, t.url);
   }
 
@@ -500,7 +503,10 @@ export class PlayerStore {
    * 预下载播放列表中当前曲目前后各 5 首（共 10 首）。
    * 已缓存/已触发过的曲目跳过（preDownloadedIds 去重），
    * 播放列表变化时（playTrackList / replaceQueuePreservingCurrent）清空标记重新计算。
-   * 所有网络类型都下载——切歌秒播的前提是「相邻曲目已缓存」；
+   *
+   * ⚠️ 最多 2 首并发下载（不是串行也不是全并发）：
+   * 10 首同时下载会和当前播放的流请求抢带宽，导致播放流异常（mobile 端实测
+   * android-io-bad-http-status）。2 并发 + 3s 延迟让当前曲目优先完成初始缓冲。
    * 流量敏感用户可关闭「边播边缓存」开关（cacheEnabled=false 时直接跳过）。
    */
   private async triggerPreloadAround(current: Track): Promise<void> {
@@ -508,21 +514,38 @@ export class PlayerStore {
     if (cacheEnabled !== 'true') return;
     const idx = this.queue.findIndex((t) => t.id === current.id);
     if (idx < 0) return;
+
+    // 延迟 3 秒让当前曲目优先完成初始缓冲
+    await new Promise<void>((r) => setTimeout(r, 3000));
+
     const PRELOAD_RANGE = 5;
+    const CONCURRENCY = 2;
     const start = Math.max(0, idx - PRELOAD_RANGE);
     const end = Math.min(this.queue.length - 1, idx + PRELOAD_RANGE);
+
+    // 收集需要预下载的曲目（跳过当前/已触发/已缓存/本地文件）
+    const toDownload: Track[] = [];
     for (let i = start; i <= end; i++) {
-      if (i === idx) continue; // 当前曲目已在播放
+      if (i === idx) continue;
       const t = this.queue[i];
-      if (!t.url.startsWith('http')) continue; // 本地文件无需下载
+      if (!t.url.startsWith('http')) continue;
       if (this.preDownloadedIds.has(t.id)) continue;
       this.preDownloadedIds.add(t.id);
       const ext = t.ext ?? 'mp3';
-      // 已有缓存则跳过（hasAudio 是异步磁盘检查，但在这里是后台任务不阻塞播放）
       if (await fileCache.hasAudio(t.id, ext)) continue;
-      fileCache.downloadAudioFromUrl(t.id, ext, t.url).catch(() => undefined);
+      toDownload.push(t);
     }
-    Logger.i('PlayerStore', `preload ±${PRELOAD_RANGE} around index ${idx}`);
+
+    // 最多 CONCURRENCY 首并发下载
+    for (let i = 0; i < toDownload.length; i += CONCURRENCY) {
+      const batch = toDownload.slice(i, i + CONCURRENCY);
+      await Promise.all(
+        batch.map((t) =>
+          fileCache.downloadAudioFromUrl(t.id, t.ext ?? 'mp3', t.url).catch(() => undefined)
+        )
+      );
+    }
+    Logger.i('PlayerStore', `preload ±${PRELOAD_RANGE} around index ${idx} (${toDownload.length} tracks)`);
   }
 
   private computePrevIndex(): number {

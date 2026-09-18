@@ -27,6 +27,11 @@ pub struct TrackMetadata {
     pub lyrics: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub local_path: Option<String>,
+    /// Content-Length captured at download completion. Used by `check_cache` to
+    /// detect truncated files (interrupted downloads) — `len() > 0` alone is not
+    /// enough, a half-written file still passes that check.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expected_size: Option<u64>,
 }
 
 pub struct CacheManager {
@@ -35,7 +40,7 @@ pub struct CacheManager {
 }
 
 impl CacheManager {
-    pub fn new(app_data_dir: PathBuf) -> Self {
+    pub fn new(app_data_dir: PathBuf, download_path: &str) -> Self {
         let cache_dir = app_data_dir.join("audio_cache");
         std::fs::create_dir_all(&cache_dir).ok();
 
@@ -44,6 +49,14 @@ impl CacheManager {
         // Migrate the legacy metadata into the new location once, so existing downloads
         // still show up after the switch to Tauri.
         migrate_legacy_cache(&app_data_dir, &cache_dir);
+
+        // Best-effort startup cleanup: drop orphaned .tmp files and metadata
+        // entries whose backing file is missing, so a stale JSON never tricks
+        // `check_cache` into thinking a track is cached when it isn't.
+        let cleaned = cleanup_orphan_cache(&cache_dir, download_path);
+        if cleaned > 0 {
+            eprintln!("[cache] startup cleanup removed {} orphan entries", cleaned);
+        }
 
         Self {
             cache_dir,
@@ -80,6 +93,26 @@ impl CacheManager {
             let full_path = Path::new(&expanded_download).join(local_path);
             match full_path.metadata() {
                 Ok(m) if m.len() > 0 => {
+                    // Integrity check: if we know the expected size from a previous
+                    // completed download, the local file must match. A truncated
+                    // file (interrupted download, partial rename) would still pass
+                    // `len() > 0`, but playing it would fail midway — exactly the
+                    // bug we're fixing here.
+                    if let Some(expected) = metadata.expected_size {
+                        if m.len() != expected {
+                            eprintln!(
+                                "[cache] track {} size mismatch: expected {} got {}, evicting",
+                                track_id,
+                                expected,
+                                m.len()
+                            );
+                            // Remove the stale metadata + truncated file so the
+                            // next play triggers a fresh download.
+                            let _ = std::fs::remove_file(&meta_path);
+                            let _ = std::fs::remove_file(&full_path);
+                            return Ok(None);
+                        }
+                    }
                     return Ok(Some(local_path.clone()));
                 }
                 _ => {}
@@ -369,8 +402,16 @@ async fn download_track_internal(
     let temp_path = file_path.with_extension("tmp");
 
     if file_path.exists() {
+        // File already on disk — trust it if we can confirm the size matches what
+        // the server would send. Otherwise fall through and re-download so a
+        // stale partial file gets replaced.
+        let local_size = file_path.metadata().ok().map(|m| m.len());
         let mut meta = metadata.clone();
         meta.local_path = Some(rel_path.clone());
+        // Adopt whatever the local file claims as the expected size, since we
+        // have no way to verify it without a network call. The startup cleanup
+        // and future downloads will fix genuinely truncated files.
+        meta.expected_size = local_size;
         let meta_path = cache_dir.join(format!("{}.json", metadata.id));
         tokio::fs::write(
             &meta_path,
@@ -396,13 +437,19 @@ async fn download_track_internal(
         return Err(format!("Download failed: {}", response.status()));
     }
 
+    // Capture Content-Length BEFORE consuming the body, so we can persist it
+    // as the source-of-truth for future integrity checks.
+    let expected_size = response.content_length();
+
     let mut file = tokio::fs::File::create(&temp_path)
         .await
         .map_err(|e| format!("create file: {}", e))?;
     let mut stream = response.bytes_stream();
+    let mut downloaded: u64 = 0;
 
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| format!("chunk: {}", e))?;
+        downloaded += chunk.len() as u64;
         file.write_all(&chunk)
             .await
             .map_err(|e| format!("write: {}", e))?;
@@ -410,6 +457,19 @@ async fn download_track_internal(
 
     file.flush().await.map_err(|e| format!("flush: {}", e))?;
     drop(file);
+
+    // If the server told us how big the body should be, make sure we actually
+    // got that many bytes — otherwise the rename below would silently promote
+    // a truncated file to "cached".
+    if let Some(expected) = expected_size {
+        if downloaded != expected {
+            let _ = tokio::fs::remove_file(&temp_path).await;
+            return Err(format!(
+                "Download truncated: expected {} bytes, got {}",
+                expected, downloaded
+            ));
+        }
+    }
 
     tokio::fs::rename(&temp_path, &file_path)
         .await
@@ -441,6 +501,7 @@ async fn download_track_internal(
 
     let mut meta = metadata.clone();
     meta.local_path = Some(rel_path.clone());
+    meta.expected_size = expected_size;
     let meta_path = cache_dir.join(format!("{}.json", metadata.id));
     tokio::fs::write(
         &meta_path,
@@ -463,4 +524,106 @@ fn sanitize_filename(name: &str) -> String {
             _ => c,
         })
         .collect()
+}
+
+/// Startup hygiene for the on-disk cache. Returns the number of entries removed.
+///
+/// Three things can go wrong between runs:
+///  1. A previous download was interrupted mid-write, leaving `<name>.tmp` next
+///     to where the real file should be. We delete the `.tmp` and any stale
+///     metadata that points to the missing target.
+///  2. The user moved/renamed the download directory, so `local_path` in the
+///     JSON points to a file that no longer exists.
+///  3. The JSON itself is corrupted (partial write, legacy schema drift) and
+///     can't be parsed — it's safer to drop it than keep it around.
+///
+/// This is intentionally *not* recursive: we only scan the cache_dir root and
+/// the user's `download_path` for the exact files referenced by metadata.
+fn cleanup_orphan_cache(cache_dir: &Path, download_path: &str) -> usize {
+    let mut removed = 0;
+
+    // ---- Pass 1: drop orphaned .tmp files in the download dir ---------------
+    // We only know the naming scheme `<filename>.tmp` produced by
+    // `download_track_internal`, so scan the same sub-folders that downloads
+    // can write into: `<download>/music/` and `<download>/audio/<album>/`.
+    if let Ok(expanded) = expand_tilde(download_path) {
+        let root = Path::new(&expanded);
+        let candidates = [root.join("music"), root.join("audio")];
+        for dir in candidates {
+            let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                // `audio/` is one level deeper (album sub-folders)
+                let nested: Vec<PathBuf> = if path.is_dir() {
+                    std::fs::read_dir(&path)
+                        .map(|rd| rd.flatten().map(|e| e.path()).collect())
+                        .unwrap_or_default()
+                } else {
+                    vec![path]
+                };
+                for p in nested {
+                    if p.extension().and_then(|s| s.to_str()) == Some("tmp") {
+                        let _ = std::fs::remove_file(&p);
+                        removed += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- Pass 2: drop metadata JSONs whose backing file is missing ----------
+    let Ok(entries) = std::fs::read_dir(cache_dir) else {
+        return removed;
+    };
+    let expanded_download = expand_tilde(download_path).unwrap_or_default();
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("json") {
+            continue;
+        }
+
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            let _ = std::fs::remove_file(&path);
+            removed += 1;
+            continue;
+        };
+
+        match serde_json::from_str::<TrackMetadata>(&content) {
+            Ok(meta) => {
+                let Some(local) = &meta.local_path else {
+                    // Metadata that never completed a download — useless, drop it.
+                    let _ = std::fs::remove_file(&path);
+                    removed += 1;
+                    continue;
+                };
+                let full = Path::new(&expanded_download).join(local);
+                match full.metadata() {
+                    Ok(m) if m.len() > 0 => {
+                        // If we have an expected size, verify it now so a
+                        // truncated file gets re-downloaded on first play.
+                        if let Some(expected) = meta.expected_size {
+                            if m.len() != expected {
+                                let _ = std::fs::remove_file(&full);
+                                let _ = std::fs::remove_file(&path);
+                                removed += 1;
+                            }
+                        }
+                    }
+                    _ => {
+                        // File missing or empty — metadata is dangling, drop it.
+                        let _ = std::fs::remove_file(&path);
+                        removed += 1;
+                    }
+                }
+            }
+            Err(_) => {
+                // Unparsable JSON (partial write / schema drift) — drop it.
+                let _ = std::fs::remove_file(&path);
+                removed += 1;
+            }
+        }
+    }
+
+    removed
 }

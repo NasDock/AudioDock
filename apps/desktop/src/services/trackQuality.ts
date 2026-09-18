@@ -95,22 +95,15 @@ export const buildTrackPlaybackUrl = (
   track: { id: number | string; path: string },
   quality?: AudioQuality,
 ): string => {
-  // 只有当 path 的 host 就是当前 baseURL 的 host（即本来就是服务器自己的地址）时才直返；
-  // 否则（如 strm 曲目指向 Alist 内网地址）改走 /track/stream 服务端代理，避免外网/跨网段不可达。
-  if (track.path.startsWith("http")) {
-    try {
-      const pathUrl = new URL(track.path);
-      const baseUrl = new URL(getBaseURL().replace(/\/$/, ""));
-      if (pathUrl.host === baseUrl.host) {
-        return track.path;
-      }
-    } catch {
-      // URL parse failed, fall through to proxy
-    }
-    const qualityQuery = quality ? `?quality=${quality}` : "";
-    return `${getBaseURL().replace(/\/$/, "")}/track/stream/${track.id}${qualityQuery}`;
-  }
-
+  // 统一走 /track/stream/:id 代理，让后端处理：
+  //   - 音质参数（?quality=high 转码）
+  //   - STRM 外链（http 开头但 host 不同的，proxyStream 转发）
+  //   - 本地文件的 Range / Content-Type 正确性
+  //
+  // 历史包袱：曾经有过「path 是同 host 完整 URL 就直连」的内网加速分支，
+  // 但后端 `/music/` 实际挂的是 transcoded-mv 目录（不是真实音乐目录），
+  // 直连会 404 或拿到错误 Content-Type，AVPlayer 报 NotSupportedError。
+  // 内网多一跳转发对带宽影响可忽略，稳定性优先。
   const baseURL = getBaseURL().replace(/\/$/, "");
   const qualityQuery = quality ? `?quality=${quality}` : "";
   return `${baseURL}/track/stream/${track.id}${qualityQuery}`;

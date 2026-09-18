@@ -61,8 +61,11 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .unwrap_or_else(|_| std::env::temp_dir().join("audiodock"));
-            let cache_manager = Arc::new(CacheManager::new(app_data_dir.clone()));
             let download_path = Arc::new(Mutex::new(load_download_path(&app_data_dir)));
+            let cache_manager = {
+                let dp = download_path.lock().map(|s| s.clone()).unwrap_or_default();
+                Arc::new(CacheManager::new(app_data_dir.clone(), &dp))
+            };
             // Local streaming HTTP server for cached audio (AVPlayer can't stream
             // from the `media://` custom protocol).
             let media_origin = media_server::start(download_path.clone())?;
