@@ -489,8 +489,9 @@ export class PlayerStore {
   private async triggerCacheWhilePlaying(t: Track): Promise<void> {
     // 只缓存远程 URL（本地 file:// 已经是缓存，无需再下载）
     if (!t.url.startsWith('http')) return;
+    // 对齐 mobile SettingsContext 默认值 true：未显式存过时视为开启
     const cacheEnabled = await kvStore.get('cacheEnabled');
-    if (cacheEnabled !== 'true') return;
+    if (cacheEnabled === 'false') return;
     const ext = t.ext ?? 'mp3';
     // 已有缓存则跳过
     if (await fileCache.hasAudio(t.id, ext)) return;
@@ -507,11 +508,13 @@ export class PlayerStore {
    * ⚠️ 最多 2 首并发下载（不是串行也不是全并发）：
    * 10 首同时下载会和当前播放的流请求抢带宽，导致播放流异常（mobile 端实测
    * android-io-bad-http-status）。2 并发 + 3s 延迟让当前曲目优先完成初始缓冲。
-   * 流量敏感用户可关闭「边播边缓存」开关（cacheEnabled=false 时直接跳过）。
+   * 对齐 mobile：cacheEnabled 默认 true（SettingsContext 未持久化时即开启），
+   * 用户显式关闭时才存 'false'，此时跳过预下载。
    */
   private async triggerPreloadAround(current: Track): Promise<void> {
+    // 对齐 mobile SettingsContext 默认值 true：未显式存过时视为开启
     const cacheEnabled = await kvStore.get('cacheEnabled');
-    if (cacheEnabled !== 'true') return;
+    if (cacheEnabled === 'false') return;
     const idx = this.queue.findIndex((t) => t.id === current.id);
     if (idx < 0) return;
 

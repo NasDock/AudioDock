@@ -1,10 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
-import { getBaseURL } from "../https";
 import type { Track } from "../models";
 import { useAuthStore } from "../store/auth";
 import { useSettingsStore } from "../store/settings";
 import { isTauri } from "../utils/platform";
 import { resolveArtworkUri } from "./trackResolver";
+import { buildTrackPlaybackUrl } from "./trackQuality";
 
 interface TrackMetadata {
   id: number | string;
@@ -28,11 +28,11 @@ export const downloadTrack = async (track: Track): Promise<boolean> => {
   const token = useAuthStore.getState().token;
   const albumName = track.albumEntity?.name || track.album || "Unknown Album";
 
+  // 统一下载源也走 /track/stream/:id 代理（对齐 trackResolver/buildTrackPlaybackUrl），
+  // 避免直连 /music/ 命中 transcoded-mv 目录导致 404 或错误 Content-Type。
   let remoteUri = "";
   if (track.path) {
-    remoteUri = track.path.startsWith("http")
-      ? track.path
-      : `${getBaseURL()}${track.path}`;
+    remoteUri = buildTrackPlaybackUrl({ id: track.id, path: track.path });
   }
 
   if (!remoteUri) return false;

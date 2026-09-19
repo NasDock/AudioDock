@@ -89,10 +89,40 @@ impl CacheManager {
             .map_err(|e| format!("parse meta: {}", e))?;
 
         if let Some(local_path) = &metadata.local_path {
+            // 坏缓存防护：/track/stream/:id 下载时文件名是 track_id（无扩展名），
+            // media_server::mime_for 会落到 application/octet-stream 导致 AVPlayer
+            // NotSupportedError。命中前检查扩展名，无扩展名视为坏缓存清掉重下。
+            if Path::new(local_path).extension().is_none() {
+                eprintln!(
+                    "[cache] track {} local_path {} has no extension, evicting",
+                    track_id, local_path
+                );
+                let _ = std::fs::remove_file(&meta_path);
+                let expanded_download = expand_tilde(download_path)?;
+                let full_path = Path::new(&expanded_download).join(local_path);
+                let _ = std::fs::remove_file(&full_path);
+                return Ok(None);
+            }
             let expanded_download = expand_tilde(download_path)?;
             let full_path = Path::new(&expanded_download).join(local_path);
             match full_path.metadata() {
                 Ok(m) if m.len() > 0 => {
+                    // 坏缓存防护：之前 /music/ 直连可能下载到 200 + text/html 错误页，
+                    // size>0 且有扩展名会骗过 size 校验一直命中。读文件头几个字节，
+                    // 如果是 HTML 开头（<!DOC / <html）视为坏缓存清掉重下。
+                    if let Ok(head) = std::fs::read(&full_path).map(|b| {
+                        String::from_utf8_lossy(&b[..b.len().min(256)]).to_lowercase()
+                    }) {
+                        if head.contains("<!doc") || head.contains("<html") {
+                            eprintln!(
+                                "[cache] track {} local_path {} looks like HTML error page, evicting",
+                                track_id, local_path
+                            );
+                            let _ = std::fs::remove_file(&meta_path);
+                            let _ = std::fs::remove_file(&full_path);
+                            return Ok(None);
+                        }
+                    }
                     // Integrity check: if we know the expected size from a previous
                     // completed download, the local file must match. A truncated
                     // file (interrupted download, partial rename) would still pass
@@ -382,6 +412,20 @@ async fn download_track_internal(
         .and_then(|segments| segments.last())
         .unwrap_or("unknown");
     let decoded_name = percent_decode(file_name);
+    // /track/stream/:id 的 URL 最后一段是 track_id（无扩展名），
+    // media_server::mime_for 靠扩展名判 MIME，无扩展名会落到
+    // application/octet-stream 导致 AVPlayer NotSupportedError。
+    // 此时从 metadata.path（原始 /music/xxx.mp3）抠扩展名补上。
+    let decoded_name = if Path::new(&decoded_name).extension().is_none() {
+        let ext = Path::new(&metadata.path)
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_lowercase())
+            .unwrap_or_else(|| "mp3".to_string());
+        format!("{}.{}", decoded_name, ext)
+    } else {
+        decoded_name
+    };
 
     let sub_folder = if track_type == "MUSIC" {
         "music".to_string()
@@ -435,6 +479,26 @@ async fn download_track_internal(
         .map_err(|e| format!("send: {}", e))?;
     if !response.status().is_success() {
         return Err(format!("Download failed: {}", response.status()));
+    }
+
+    // Content-Type 防线：/music/ 直连命中 transcoded-mv 目录时后端可能返回
+    // 200 + text/html 错误页，size>0 且有扩展名会骗过 check_cache 一直命中坏缓存。
+    // 下载前校验 Content-Type 必须是 audio/* 或 application/octet-stream，
+    // 否则视为下载失败不写缓存。
+    let content_type = response
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_lowercase();
+    let is_audio = content_type.starts_with("audio/")
+        || content_type.starts_with("application/octet-stream")
+        || content_type.is_empty(); // 某些后端不返回 Content-Type，放行
+    if !is_audio {
+        return Err(format!(
+            "Download rejected: Content-Type {} is not audio",
+            content_type
+        ));
     }
 
     // Capture Content-Length BEFORE consuming the body, so we can persist it

@@ -6,6 +6,7 @@ import { useSettingsStore } from "../store/settings";
 import { bucketWidth, isThumbnailBucket } from "../utils/imageBucket";
 import { isTauri } from "../utils/platform";
 import { isCurrentInternalAddress } from "../utils/playbackQuality";
+import { buildTrackPlaybackUrl } from "./trackQuality";
 
 interface ResolveOptions {
   cacheEnabled: boolean;
@@ -50,12 +51,13 @@ export const resolveTrackUri = async (
 ): Promise<string> => {
   const { cacheEnabled } = options;
 
-  // 1. Construct the remote URI (if path exists)
+  // 1. Construct the remote URI (if path exists).
+  // 统一走 /track/stream/:id 代理（对齐 buildTrackPlaybackUrl 的口径），
+  // 让后端处理音质参数 / STRM 外链 / Range / Content-Type，
+  // 避免直连 /music/ 命中 transcoded-mv 目录导致 404 或错误 Content-Type。
   let remoteUri = "";
   if (track.path) {
-    remoteUri = track.path.startsWith("http")
-      ? track.path
-      : `${getBaseURL()}${track.path.split('/').map(encodeURIComponent).join('/')}`;
+    remoteUri = buildTrackPlaybackUrl({ id: track.id, path: track.path });
   }
 
   // Support playback from local list even if path is missing (for legacy or offline tracks)

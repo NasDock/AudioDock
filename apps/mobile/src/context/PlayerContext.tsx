@@ -209,6 +209,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const playbackRequestIdRef = useRef(0);
   const isPlaybackRequestPendingRef = useRef(false);
   const pendingPlaybackTrackIdRef = useRef<string | null>(null);
+  // 用户是否主动暂停（用于区分「加载完停住」和「用户手动暂停」）
+  const userPausedRef = useRef(false);
 
   const prevModeRef = useRef(mode);
   const isInitialLoadRef = useRef(true);
@@ -828,20 +830,38 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         );
         await syncMediaControlCenterState();
 
-        // ✨ 手动切歌兜底：加载结束后若原生状态停在 Stopped/Ready（而非 Playing/Paused），
+        // ✨ 切歌/连播兜底：加载结束后若原生状态停在 Stopped/Ready（而非 Playing/Paused），
         // 说明 play() 意图被 setQueue/skip/remove 的队列重建吞掉了，这里自动补播。
-        // 只针对「有明确切歌请求」的场景（pendingPlaybackTrackIdRef 非空），
-        // 不影响用户手动暂停（Paused 不触发）和自动连播（pending 已清空）。
+        // 触发条件（同时满足）：
+        //   1. 状态不是 Buffering/Loading/Playing/Paused（即 Stopped/Ready/None）
+        //   2. 用户没有主动暂停（userPausedRef.current === false）
+        //   3. 有明确切歌请求（手动切歌）或当前有活跃曲目（自动连播）
+        // 手动切歌：pendingPlaybackTrackIdRef 非空且匹配当前曲目
+        // 自动连播：pending 已清空但 currentTrack 存在（TrackPlayer 自动切下一首后停在 Ready）
+        const isManualSwitchPending =
+          isPlaybackRequestPendingRef.current &&
+          pendingPlaybackTrackIdRef.current &&
+          String(currentTrackRef.current?.id) === pendingPlaybackTrackIdRef.current;
+        const isAutoAdvanceStuck =
+          !isPlaybackRequestPendingRef.current &&
+          currentTrackRef.current &&
+          !userPausedRef.current;
+
         if (
           event.state !== State.Buffering &&
           event.state !== State.Loading &&
           event.state !== State.Playing &&
           event.state !== State.Paused &&
-          isPlaybackRequestPendingRef.current &&
-          pendingPlaybackTrackIdRef.current &&
-          String(currentTrackRef.current?.id) === pendingPlaybackTrackIdRef.current
+          (isManualSwitchPending || isAutoAdvanceStuck)
         ) {
-          console.log("[Player] Auto-resume after manual track switch, state:", event.state);
+          console.log(
+            "[Player] Auto-resume after track switch, state:",
+            event.state,
+            "manual:",
+            isManualSwitchPending,
+            "auto:",
+            isAutoAdvanceStuck
+          );
           TrackPlayer.play().catch(() => {});
         }
       }
@@ -1455,6 +1475,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     playbackRequestIdRef.current = requestId;
     isPlaybackRequestPendingRef.current = true;
     pendingPlaybackTrackIdRef.current = String(track.id);
+    userPausedRef.current = false;
 
     const isLatestRequest = () => requestId === playbackRequestIdRef.current;
 
@@ -1625,6 +1646,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     playbackRequestIdRef.current = requestId;
     isPlaybackRequestPendingRef.current = true;
     pendingPlaybackTrackIdRef.current = tracks[index] ? String(tracks[index].id) : null;
+    userPausedRef.current = false;
 
     const isLatestRequest = () => requestId === playbackRequestIdRef.current;
 
@@ -1776,6 +1798,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const pause = async () => {
     if (isSetup) {
       try {
+        userPausedRef.current = true;
         await TrackPlayer.pause();
         savePlaybackState(mode);
       } catch (error) {
@@ -1787,6 +1810,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const resume = async () => {
     if (isSetup) {
       try {
+        userPausedRef.current = false;
         await TrackPlayer.play();
         savePlaybackState(mode);
       } catch (error) {
