@@ -1,5 +1,6 @@
 import fs from '@ohos.file.fs';
 import common from '@ohos.app.ability.common';
+import http from '@ohos.net.http';
 import { Logger, urlToFilename, formatSize } from 'audiodock_common';
 
 const AUDIO_DIR = 'audio_cache';
@@ -82,6 +83,63 @@ export class FileCache {
   async removeAudio(trackId: string, ext: string): Promise<void> {
     const p = await this.audioPath(trackId, ext);
     await fs.unlink(p).catch(() => undefined);
+  }
+
+  /**
+   * 秒播优化：边播边缓存。从 HTTP URL 直接下载到 audio_cache 目录，
+   * 不写离线下载元数据（不出现在「已下载」列表），纯粹作为播放缓存。
+   *
+   * 与 downloadAudio 的区别：downloadAudio 接受本地文件路径（fs.copyFile），
+   * 本方法接受 HTTP URL，内部用 @ohos.net.http 拉流写文件。
+   *
+   * 调用方负责：
+   * - 先判断 hasAudio 避免重复下载
+   * - 只在 cacheEnabled 开关开启时调用
+   *
+   * 失败静默（只打日志），不影响播放。
+   */
+  async downloadAudioFromUrl(trackId: string, ext: string, url: string): Promise<string> {
+    const dest = await this.audioPath(trackId, ext);
+    const key = `${trackId}:${ext}`;
+    if (this.inflight.has(key)) return this.inflight.get(key)!;
+    const tmp = `${dest}.tmp`;
+    const task = (async () => {
+      const httpReq = http.createHttp();
+      try {
+        const resp = await httpReq.request(url, {
+          method: http.RequestMethod.GET,
+          readTimeout: 60000,
+          connectTimeout: 15000,
+        });
+        if (resp.responseCode !== 200 && resp.responseCode !== 206) {
+          throw new Error(`HTTP ${resp.responseCode}`);
+        }
+        const data = resp.result;
+        if (typeof data !== 'string' && !(data instanceof ArrayBuffer)) {
+          throw new Error('unexpected response type');
+        }
+        const fd = fs.openSync(tmp, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+        if (data instanceof ArrayBuffer) {
+          fs.writeSync(fd.fd, data);
+        } else {
+          fs.writeSync(fd.fd, data as string);
+        }
+        fs.closeSync(fd);
+        await fs.rename(tmp, dest);
+        this.inflight.delete(key);
+        Logger.i('FileCache', `cache-while-playing saved: ${trackId}.${ext}`);
+        return dest;
+      } finally {
+        httpReq.destroy();
+      }
+    })().catch((err: Error) => {
+      this.inflight.delete(key);
+      fs.unlink(tmp).catch(() => undefined);
+      Logger.w('FileCache', `cache-while-playing failed for ${trackId}: ${err.message}`);
+      throw err;
+    });
+    this.inflight.set(key, task);
+    return task;
   }
 
   async sizeByCategory(): Promise<Record<string, number>> {

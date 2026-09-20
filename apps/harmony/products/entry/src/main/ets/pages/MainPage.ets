@@ -22,7 +22,7 @@ import { CollectionDetailContent } from './CollectionDetailPage';
 import { SearchContent } from './SearchPage';
 import { authStore } from '../context/AuthStore';
 import { likesHistory } from '../services/LikesHistoryService';
-import { resolveTrackToPlayer } from '../services/trackResolver';
+import { resolveTrackToPlayer, playQueueFast } from '../services/trackResolver';
 import { playerStore } from '../context/PlayerStore';
 import type { Track } from '../context/PlayerStore';
 import { syncStore } from '../context/SyncStore';
@@ -388,13 +388,12 @@ export struct HomeTab {
 
   async playTrack(track: TrackDto, queue: TrackDto[]): Promise<void> {
     try {
-      const list: Track[] = [];
-      for (const item of queue) list.push(await resolveTrackToPlayer(item, false));
       let idx = 0;
       for (let i = 0; i < queue.length; i++) {
         if (queue[i].id === track.id) { idx = i; break; }
       }
-      await playerStore.playTrackList(list, idx);
+      // 秒播：先播用户点的这首，完整队列后台并行补齐（resolveTrackToPlayer 串行 → playQueueFast）
+      await playQueueFast(queue, idx, false);
       // 不再自动打开播放详情页：播放交给 MiniPlayer，用户点 MiniPlayer 再进详情
     } catch (e) {
       Logger.w('HomeTab', `playTrack failed: ${String(e)}`);

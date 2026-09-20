@@ -1,5 +1,5 @@
 import { Logger } from 'audiodock_common';
-import { kvStore } from 'features_storage';
+import { kvStore, fileCache } from 'features_storage';
 import { audioBackend, findActiveLine, parseLRC } from 'features_player';
 import { socketService } from 'features_socket';
 import type { LyricLine } from 'features_player';
@@ -145,6 +145,8 @@ export class PlayerStore {
   private sleepTimerIntervalId: number = -1;
   /** 防片尾检测连续多次触发 playNext（对齐 mobile isSkippingOutroRef） */
   private isSkippingOutro: boolean = false;
+  /** 预下载去重标记：记录已触发过预下载的 trackId，播放列表变化时清空重新计算。 */
+  private preDownloadedIds: Set<string> = new Set();
 
   private listeners = new Set<Listener>();
 
@@ -216,11 +218,40 @@ export class PlayerStore {
     this.applyIncomingContentMode(tracks[Math.max(0, Math.min(startIndex, tracks.length - 1))]);
     this.queue = tracks.slice();
     this.currentIndex = Math.max(0, Math.min(startIndex, tracks.length - 1));
+    // 播放列表变化，清空预下载标记，loadCurrent 成功后重新计算前后 5 首
+    this.preDownloadedIds.clear();
     this.persistState();
     await this.loadCurrent();
     this.broadcastSync('playlist', this.queue);
     const cur = this.queue[this.currentIndex];
     if (cur) this.broadcastSync('track_change', cur);
+  }
+
+  /**
+   * 秒播优化：后台队列解析完成后，把完整队列替换进 store，但不打断当前播放。
+   * 使用场景：播放页入口先用 resolveFirstFast 解析单首开播，后台 resolveRestParallel
+   * 解析完整队列，完成后调本方法把 queue 从「单首占位」升级为「完整列表」。
+   *
+   * 安全保证：
+   * - 若用户在解析期间又点了别的歌（currentTrackId 变了），直接丢弃这次结果。
+   * - currentIndex 指向的曲目仍是同一首，仅 queue 长度/内容变化，不重载音频。
+   * - persistState + broadcastSync('playlist') 让 UI/跨端同步拿到完整队列。
+   */
+  replaceQueuePreservingCurrent(fullQueue: Track[], currentTrackId: string): void {
+    if (fullQueue.length === 0) return;
+    const cur = this.queue[this.currentIndex];
+    if (!cur || cur.id !== currentTrackId) return;
+    const idx = fullQueue.findIndex((t) => t.id === currentTrackId);
+    if (idx < 0) return;
+    this.queue = fullQueue.slice();
+    this.currentIndex = idx;
+    // 队列从「单首占位」升级为「完整列表」，清空预下载标记重新计算
+    this.preDownloadedIds.clear();
+    this.persistState();
+    this.notify();
+    this.broadcastSync('playlist', this.queue);
+    // 队列补齐后，以完整列表重新触发前后 5 首预下载
+    this.triggerPreloadAround(cur).catch(() => undefined);
   }
 
   async playTrack(track: Track): Promise<void> {
@@ -422,6 +453,13 @@ export class PlayerStore {
       this.setLyricsText(t.lyrics ?? '');
       Logger.i('PlayerStore', `playing ${t.id} ${t.title}`);
       this.notify();
+
+      // 边播边缓存：开关开启且当前是远程 URL 时，后台静默下载到 audio_cache，
+      // 下次播放直接走 fdSrc 本地文件，实现秒播。不写离线下载元数据，失败静默。
+      this.triggerCacheWhilePlaying(t).catch(() => undefined);
+
+      // 预下载播放列表前后各 5 首（共 10 首），切歌时命中本地缓存实现秒切。
+      this.triggerPreloadAround(t).catch(() => undefined);
     } catch (e) {
       this.state = 'error';
       Logger.e('PlayerStore', `load failed: ${String(e)}`);
@@ -440,6 +478,77 @@ export class PlayerStore {
     const next = this.currentIndex + 1;
     if (next >= this.queue.length) return this.playMode === 'LOOP_LIST' ? 0 : -1;
     return next;
+  }
+
+  /**
+   * 边播边缓存：开关开启 + 远程 URL + 未缓存时，后台静默下载到 audio_cache。
+   * 延迟 3s 让当前曲目优先完成初始缓冲，避免和播放流抢带宽。
+   * 下次播放 resolveTrackToPlayer 会命中 fileCache.hasAudio，走 fdSrc 本地文件秒播。
+   * 失败静默（FileCache 内部已打日志），不影响当前播放。
+   */
+  private async triggerCacheWhilePlaying(t: Track): Promise<void> {
+    // 只缓存远程 URL（本地 file:// 已经是缓存，无需再下载）
+    if (!t.url.startsWith('http')) return;
+    // 对齐 mobile SettingsContext 默认值 true：未显式存过时视为开启
+    const cacheEnabled = await kvStore.get('cacheEnabled');
+    if (cacheEnabled === 'false') return;
+    const ext = t.ext ?? 'mp3';
+    // 已有缓存则跳过
+    if (await fileCache.hasAudio(t.id, ext)) return;
+    // 延迟 3 秒让当前曲目优先完成初始缓冲
+    await new Promise<void>((r) => setTimeout(r, 3000));
+    await fileCache.downloadAudioFromUrl(t.id, ext, t.url);
+  }
+
+  /**
+   * 预下载播放列表中当前曲目前后各 5 首（共 10 首）。
+   * 已缓存/已触发过的曲目跳过（preDownloadedIds 去重），
+   * 播放列表变化时（playTrackList / replaceQueuePreservingCurrent）清空标记重新计算。
+   *
+   * ⚠️ 最多 2 首并发下载（不是串行也不是全并发）：
+   * 10 首同时下载会和当前播放的流请求抢带宽，导致播放流异常（mobile 端实测
+   * android-io-bad-http-status）。2 并发 + 3s 延迟让当前曲目优先完成初始缓冲。
+   * 对齐 mobile：cacheEnabled 默认 true（SettingsContext 未持久化时即开启），
+   * 用户显式关闭时才存 'false'，此时跳过预下载。
+   */
+  private async triggerPreloadAround(current: Track): Promise<void> {
+    // 对齐 mobile SettingsContext 默认值 true：未显式存过时视为开启
+    const cacheEnabled = await kvStore.get('cacheEnabled');
+    if (cacheEnabled === 'false') return;
+    const idx = this.queue.findIndex((t) => t.id === current.id);
+    if (idx < 0) return;
+
+    // 延迟 3 秒让当前曲目优先完成初始缓冲
+    await new Promise<void>((r) => setTimeout(r, 3000));
+
+    const PRELOAD_RANGE = 5;
+    const CONCURRENCY = 2;
+    const start = Math.max(0, idx - PRELOAD_RANGE);
+    const end = Math.min(this.queue.length - 1, idx + PRELOAD_RANGE);
+
+    // 收集需要预下载的曲目（跳过当前/已触发/已缓存/本地文件）
+    const toDownload: Track[] = [];
+    for (let i = start; i <= end; i++) {
+      if (i === idx) continue;
+      const t = this.queue[i];
+      if (!t.url.startsWith('http')) continue;
+      if (this.preDownloadedIds.has(t.id)) continue;
+      this.preDownloadedIds.add(t.id);
+      const ext = t.ext ?? 'mp3';
+      if (await fileCache.hasAudio(t.id, ext)) continue;
+      toDownload.push(t);
+    }
+
+    // 最多 CONCURRENCY 首并发下载
+    for (let i = 0; i < toDownload.length; i += CONCURRENCY) {
+      const batch = toDownload.slice(i, i + CONCURRENCY);
+      await Promise.all(
+        batch.map((t) =>
+          fileCache.downloadAudioFromUrl(t.id, t.ext ?? 'mp3', t.url).catch(() => undefined)
+        )
+      );
+    }
+    Logger.i('PlayerStore', `preload ±${PRELOAD_RANGE} around index ${idx} (${toDownload.length} tracks)`);
   }
 
   private computePrevIndex(): number {

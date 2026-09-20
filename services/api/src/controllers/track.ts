@@ -483,6 +483,12 @@ export class TrackController {
 
       // Normal audio file: provide range support via express
       // Use root option for absolute paths to ensure Express handles it correctly
+      // 秒播优化：音频文件内容不可变（同一 track.id 对应同一文件），
+      // 加 Cache-Control 让浏览器/播放器做 HTTP 层缓存，二次播放直接命中。
+      // max-age=86400（1天）足够覆盖正常听歌周期，同时避免永久缓存导致文件更新后客户端拿旧版。
+      // 注意：仅普通音频文件加此头；ffmpeg 实时转码路径（上方）和 STRM 代理路径（proxyStream）不加，
+      // 前者内容每次重新生成，后者缓存策略由上游决定。
+      res.setHeader('Cache-Control', 'public, max-age=86400');
       const rootPath = path.isAbsolute(filePath) ? '/' : undefined;
       return res.sendFile(filePath, { root: rootPath });
       

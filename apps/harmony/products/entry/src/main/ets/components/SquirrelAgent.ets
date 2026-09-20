@@ -6,7 +6,7 @@ import { t } from 'features_i18n';
 import { Logger } from 'audiodock_common';
 import type { Track } from '../context/PlayerStore';
 import { playerStore } from '../context/PlayerStore';
-import { resolveTrackToPlayer } from '../services/trackResolver';
+import { playQueueFast } from '../services/trackResolver';
 import {
   ensureMicPermission, startRecording, stopRecording,
   speechToText, extractIntent, searchAll,
@@ -204,11 +204,8 @@ export struct SquirrelAgent {
   private async playByKeyword(kw: string): Promise<void> {
     const res = await searchAll(kw);
     if (res.tracks.length === 0) return;
-    const list: Track[] = [];
-    for (const tr of res.tracks) {
-      list.push(await resolveTrackToPlayer(tr, false));
-    }
-    await playerStore.playTrackList(list, 0);
+    // 秒播：先播第 0 首，完整结果列表后台并行补齐
+    await playQueueFast(res.tracks, 0, false);
   }
 
   private showResult(text: string): void {

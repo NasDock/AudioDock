@@ -16,7 +16,7 @@ import { miniPlayerHasContent } from '../components/MiniPlayer';
 import { XiaoAiIcon } from '../components/XiaoAiIcon';
 import { AddToPlaylistModal } from '../components/AddToPlaylistModal';
 import { mvPlaylistStore } from '../store/MvPlaylistStore';
-import { resolveTrackToPlayer } from '../services/trackResolver';
+import { resolveTrackToPlayer, playQueueFast } from '../services/trackResolver';
 import { getInternalQuality } from '../services/trackQuality';
 import { playerStore } from '../context/PlayerStore';
 import type { Track } from '../context/PlayerStore';
@@ -477,9 +477,8 @@ export struct ArtistDetailContent {
   private async playFrom(index: number): Promise<void> {
     if (this.tracks.length === 0) return;
     try {
-      const list: Track[] = [];
-      for (const x of this.tracks) list.push(await resolveTrackToPlayer(x, false));
-      await playerStore.playTrackList(list, index);
+      // 秒播：先播 index 这首，完整队列后台并行补齐
+      await playQueueFast(this.tracks, index, false);
       // 不再自动打开播放详情页：播放交给 MiniPlayer，用户点 MiniPlayer 再进详情
     } catch (e) {
       Logger.w('ArtistDetail', `play failed: ${String(e)}`);

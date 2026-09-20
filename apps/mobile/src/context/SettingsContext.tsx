@@ -33,7 +33,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const defaultSettings: SettingsState = {
     acceptRelay: true,
     acceptSync: true,
-    cacheEnabled: false,
+    // 秒播优化：默认开启本地缓存，已播曲目落盘后直接 file:// 秒播，不走网络。
+    // 用户可在设置里手动关闭；已持久化的旧设置（cacheEnabled:false）会覆盖此默认值，不受影响。
+    cacheEnabled: true,
     autoOrientation: true,
     autoTheme: true,
     carModeEnabled: false,

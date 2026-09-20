@@ -15,7 +15,7 @@ import { AppIcon } from '../components/AppIcon';
 import { CoverImage } from '../components/CoverImage';
 import { XiaoAiIcon } from '../components/XiaoAiIcon';
 import { authStore } from '../context/AuthStore';
-import { resolveTrackToPlayer } from '../services/trackResolver';
+import { resolveTrackToPlayer, playQueueFast } from '../services/trackResolver';
 import { playerStore } from '../context/PlayerStore';
 import type { Track } from '../context/PlayerStore';
 import { mvPlaylistStore } from '../store/MvPlaylistStore';
@@ -385,9 +385,8 @@ export struct LibraryTab {
 
   async playFrom(index: number): Promise<void> {
     try {
-      const list: Track[] = [];
-      for (const item of this.tracks) list.push(await resolveTrackToPlayer(item, false));
-      await playerStore.playTrackList(list, index);
+      // 秒播：先播 index 这首，完整队列后台并行补齐
+      await playQueueFast(this.tracks, index, false);
       // 不再自动打开播放详情页：播放交给 MiniPlayer，用户点 MiniPlayer 再进详情
     } catch (e) {
       Logger.w('LibraryTab', `play failed: ${String(e)}`);

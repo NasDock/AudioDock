@@ -117,6 +117,71 @@ export const isCached = async (trackId: number | string, originalPath: string): 
   }
 };
 
+/**
+ * 秒播优化：音频缓存的同步内存索引。
+ * 起播路径不能 await 任何 IO（FileSystem.getInfoAsync 也不行），
+ * 否则「点击→出声」会被磁盘检查拖慢。这里用一个 Set 缓存已知命中的 trackId，
+ * App 启动时从磁盘初始化一次，之后下载成功/删除时同步维护。
+ */
+const cachedTrackIds = new Set<string>();
+let cacheIndexInitPromise: Promise<void> | null = null;
+
+const ensureCacheIndex = (): Promise<void> => {
+  if (cacheIndexInitPromise) return cacheIndexInitPromise;
+  cacheIndexInitPromise = (async () => {
+    try {
+      await ensureCacheDirExists();
+      const files = await FileSystem.readDirectoryAsync(CACHE_DIR);
+      for (const f of files) {
+        // 文件名格式：{trackId}.{ext}，跳过 .tmp 半成品
+        if (f.endsWith('.tmp')) continue;
+        const dot = f.lastIndexOf('.');
+        if (dot > 0) cachedTrackIds.add(f.substring(0, dot));
+      }
+      console.log(`[Cache] Audio cache index ready: ${cachedTrackIds.size} entries`);
+    } catch (e) {
+      console.warn('[Cache] Failed to init audio cache index', e);
+    }
+  })();
+  return cacheIndexInitPromise;
+};
+
+// 模块加载即开始预热索引（不阻塞 import）
+ensureCacheIndex();
+
+/**
+ * 同步判断曲目是否已缓存。索引未初始化完成时返回 null（保守走远端，
+ * 不阻塞起播）；初始化完成后命中则返回本地 file:// 路径。
+ */
+export const getCachedTrackPathSync = (
+  trackId: number | string,
+  originalPath: string,
+): string | null => {
+  const key = String(trackId);
+  if (!cachedTrackIds.has(key)) return null;
+  const extension = originalPath.split('.').pop() || 'mp3';
+  // resolveLocalPath 确保 file:// 前缀（RNTP 要求本地文件必须带 scheme）
+  return resolveLocalPath(`${CACHE_DIR}${key}.${extension}`);
+};
+
+const markCached = (trackId: number | string): void => {
+  cachedTrackIds.add(String(trackId));
+};
+
+/**
+ * 删除某曲目的本地缓存文件，并同步更新内存索引。
+ */
+export const removeCachedTrack = async (
+  trackId: number | string,
+  originalPath: string,
+): Promise<void> => {
+  try {
+    await FileSystem.deleteAsync(getLocalPath(trackId, originalPath), { idempotent: true });
+  } finally {
+    cachedTrackIds.delete(String(trackId));
+  }
+};
+
 const downloadPromises = new Map<number | string, Promise<string | null>>();
 
 /**
@@ -139,6 +204,7 @@ export const downloadTrack = async (track: Track, url: string): Promise<string |
       const fileInfo = await FileSystem.getInfoAsync(localPath);
       if (fileInfo.exists) {
         await saveTrackMetadata(track, localPath);
+        markCached(track.id);
         return localPath;
       }
 
@@ -151,9 +217,10 @@ export const downloadTrack = async (track: Track, url: string): Promise<string |
           from: tempPath,
           to: localPath
         });
-        
+
         console.log(`[Cache] Successfully downloaded and verified track ${track.id}`);
         await saveTrackMetadata(track, localPath);
+        markCached(track.id);
         return localPath;
       } else {
         // Cleanup temp file if download failed

@@ -49,7 +49,7 @@ import {
 import { usePlayMode } from "../utils/playMode";
 import { useTranslation } from "react-i18next";
 import { updateWidget, updateWidgetCollections } from "../native/WidgetBridge";
-import { cacheCover } from "../services/cache";
+import { cacheCover, getCachedTrackPathSync } from "../services/cache";
 import { resolveArtworkUri } from "../services/trackResolver";
 import { getBaseURL } from "../https";
 import { toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
@@ -209,6 +209,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const playbackRequestIdRef = useRef(0);
   const isPlaybackRequestPendingRef = useRef(false);
   const pendingPlaybackTrackIdRef = useRef<string | null>(null);
+  // 用户是否主动暂停（用于区分「加载完停住」和「用户手动暂停」）
+  const userPausedRef = useRef(false);
 
   const prevModeRef = useRef(mode);
   const isInitialLoadRef = useRef(true);
@@ -254,11 +256,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     setCurrentTrack(track);
   }, []);
 
+  // 预下载去重标记：记录已触发过预下载的 trackId，避免同一首歌重复下载。
+  // setTrackListState 时清空（播放列表变化 → 重新计算预下载范围）。
+  const preDownloadedIdsRef = useRef<Set<string>>(new Set());
+
   const setTrackListState = useCallback((tracks: Track[]) => {
     tracks.forEach((track) => {
       knownTrackByIdRef.current.set(String(track.id), track);
     });
     trackListRef.current = tracks;
+    // 播放列表变化，清空预下载标记，下次切歌时重新计算前后 5 首
+    preDownloadedIdsRef.current.clear();
     setTrackList(tracks);
   }, []);
 
@@ -771,6 +779,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             IOSCategoryOptions.AllowAirPlay,
             IOSCategoryOptions.DuckOthers,
           ],
+          // 秒播优化（缓冲参数单位均为秒）：
+          // minBuffer 默认 50s 过大——播放器会一直等到缓冲了 50s 才稳定播放，起播慢。
+          // 降到 15s 保证流畅度的同时显著缩短起播等待。
+          minBuffer: 15,
+          // maxBuffer 限制总缓冲量，避免无限拉流占内存；与 minBuffer 保持合理比例。
+          maxBuffer: 50,
+          // playBuffer 是「起播/seek 后需要多少缓冲才开始出声」的阈值，默认 2.5s 合理，
+          // 显式写出避免被 minBuffer 间接拉高。
+          playBuffer: 2.5,
+          // backBuffer 保留已播内容，避免 seek 回退时重新拉流；30s 够覆盖常见回退场景。
+          backBuffer: 30,
         });
         await updatePlayerCapabilities();
         setIsSetup(true);
@@ -810,6 +829,41 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           event.state === State.Buffering || event.state === State.Loading
         );
         await syncMediaControlCenterState();
+
+        // ✨ 切歌/连播兜底：加载结束后若原生状态停在 Stopped/Ready（而非 Playing/Paused），
+        // 说明 play() 意图被 setQueue/skip/remove 的队列重建吞掉了，这里自动补播。
+        // 触发条件（同时满足）：
+        //   1. 状态不是 Buffering/Loading/Playing/Paused（即 Stopped/Ready/None）
+        //   2. 用户没有主动暂停（userPausedRef.current === false）
+        //   3. 有明确切歌请求（手动切歌）或当前有活跃曲目（自动连播）
+        // 手动切歌：pendingPlaybackTrackIdRef 非空且匹配当前曲目
+        // 自动连播：pending 已清空但 currentTrack 存在（TrackPlayer 自动切下一首后停在 Ready）
+        const isManualSwitchPending =
+          isPlaybackRequestPendingRef.current &&
+          pendingPlaybackTrackIdRef.current &&
+          String(currentTrackRef.current?.id) === pendingPlaybackTrackIdRef.current;
+        const isAutoAdvanceStuck =
+          !isPlaybackRequestPendingRef.current &&
+          currentTrackRef.current &&
+          !userPausedRef.current;
+
+        if (
+          event.state !== State.Buffering &&
+          event.state !== State.Loading &&
+          event.state !== State.Playing &&
+          event.state !== State.Paused &&
+          (isManualSwitchPending || isAutoAdvanceStuck)
+        ) {
+          console.log(
+            "[Player] Auto-resume after track switch, state:",
+            event.state,
+            "manual:",
+            isManualSwitchPending,
+            "auto:",
+            isAutoAdvanceStuck
+          );
+          TrackPlayer.play().catch(() => {});
+        }
       }
       if (event.type === Event.PlaybackActiveTrackChanged) {
         // ✨ 当切歌发生（无论是手动还是自动播放下一首）
@@ -832,13 +886,50 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           setCurrentTrackState(nextTrack);
           isSkippingOutroRef.current = false;
 
-          // ✨ 智能预缓存：当当前歌曲开始播放时，自动触发下一首的后台下载
+          // ✨ 智能预缓存：当前曲目开始播放时，预下载播放列表前后各 5 首（共 10 首）。
+          // 已缓存/已触发过的曲目跳过（preDownloadedIdsRef 去重），
+          // 播放列表变化时 setTrackListState 会清空该标记重新计算。
+          //
+          // ⚠️ 最多 2 首并发下载（不是串行也不是全并发）：
+          // 10 首同时 fetch 会和当前播放的流请求抢带宽，导致播放流
+          // android-io-bad-http-status（实测日志 00:31:09）。
+          // 2 并发 + 3s 延迟让当前曲目优先完成初始缓冲，再以小并发预下载。
+          // 流量敏感用户可关闭「边播边缓存」开关（cacheEnabled=false 时 resolveTrackUri 直接走远端）。
           const currentListIndex = trackListRef.current.findIndex((t) => t.id === nextTrack.id);
-          const nextIndexForCache = currentListIndex + 1;
-          if (nextIndexForCache < trackListRef.current.length) {
-              const preCacheTrack = trackListRef.current[nextIndexForCache];
-              console.log(`[Player] Pre-caching next song: ${preCacheTrack.name}`);
-              resolveTrackUri(preCacheTrack, { cacheEnabled, shouldDownload: true }).catch(() => {});
+          if (currentListIndex >= 0) {
+            const PRELOAD_RANGE = 5;
+            const CONCURRENCY = 2;
+            const list = trackListRef.current;
+            // 延迟 3 秒让当前曲目优先完成初始缓冲
+            await new Promise((r) => setTimeout(r, 3000));
+
+            // 收集需要预下载的曲目（跳过当前/已触发/已缓存）
+            const toDownload: Track[] = [];
+            for (
+              let i = Math.max(0, currentListIndex - PRELOAD_RANGE);
+              i <= Math.min(list.length - 1, currentListIndex + PRELOAD_RANGE);
+              i++
+            ) {
+              if (i === currentListIndex) continue;
+              const t = list[i];
+              const key = String(t.id);
+              if (preDownloadedIdsRef.current.has(key)) continue;
+              preDownloadedIdsRef.current.add(key);
+              toDownload.push(t);
+            }
+
+            // 最多 CONCURRENCY 首并发下载
+            for (let i = 0; i < toDownload.length; i += CONCURRENCY) {
+              const batch = toDownload.slice(i, i + CONCURRENCY);
+              await Promise.all(
+                batch.map((t) =>
+                  resolveTrackUri(t, { cacheEnabled, shouldDownload: true }).catch(() => {})
+                )
+              );
+            }
+            console.log(
+              `[Player] Pre-loading ±${PRELOAD_RANGE} around index ${currentListIndex} (${toDownload.length} tracks)`
+            );
           }
 
           // ✨ 处理有声书自动跳过片头
@@ -1261,12 +1352,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           const shouldUseSingleTrackQueue = state.playMode === PlayMode.SHUFFLE;
           if (shouldUseSingleTrackQueue) {
             const uri =
-              activeTrack.type === TrackType.AUDIOBOOK
-                ? await resolveTrackUri(activeTrack, {
-                    cacheEnabled,
-                    shouldDownload: true,
-                  })
-                : buildTrackPlaybackUrl(activeTrack);
+              await resolveTrackUri(activeTrack, {
+                cacheEnabled,
+                shouldDownload: true,
+              });
             const artwork = await resolveArtworkUriForPlayer(activeTrack, {
               shouldDownload: true,
             });
@@ -1287,14 +1376,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             const queue = await Promise.all(
               list.map(async (track: Track, i: number) => {
                 const isNearCurrent = i === activeIndex || i === activeIndex + 1;
-                const uri =
-                  track.type === TrackType.AUDIOBOOK
-                    ? await resolveTrackUri(track, {
-                        cacheEnabled,
-                        shouldDownload: isNearCurrent,
-                        fast: !isNearCurrent,
-                      })
-                    : buildTrackPlaybackUrl(track);
+                // 秒播优化：音乐也走 resolveTrackUri，本地缓存命中直接 file:// 秒播；
+                // 未命中时后台下载（仅当前/下一首，fast 跳过其余曲目的磁盘检查）。
+                const uri = await resolveTrackUri(track, {
+                  cacheEnabled,
+                  shouldDownload: isNearCurrent,
+                  fast: !isNearCurrent,
+                });
                 const artwork = await resolveArtworkUriForPlayer(track, {
                   shouldDownload: isNearCurrent,
                   fast: !isNearCurrent,
@@ -1387,6 +1475,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     playbackRequestIdRef.current = requestId;
     isPlaybackRequestPendingRef.current = true;
     pendingPlaybackTrackIdRef.current = String(track.id);
+    userPausedRef.current = false;
 
     const isLatestRequest = () => requestId === playbackRequestIdRef.current;
 
@@ -1423,7 +1512,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       // re-buffer and defeat the purpose of this fix.
       const initialQuality: AudioQuality = preferredQuality ?? "lossless";
 
-      const remoteUri = buildTrackPlaybackUrl(track, initialQuality);
+      // 秒播优化：起播前同步查音频缓存内存索引（cache.ts 启动时已预热）。
+      // 命中 → 直接用本地 file:// 路径，复播零网络；未命中 → 走远端，后台下载供下次。
+      const cachedPath = cacheEnabled
+        ? getCachedTrackPathSync(track.id, track.path)
+        : null;
+      const remoteUri = cachedPath ?? buildTrackPlaybackUrl(track, initialQuality);
 
       // Artwork: use the remote URL immediately. A cached / downloaded
       // copy is wired up in the background and just swaps the metadata.
@@ -1451,8 +1545,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         await TrackPlayer.add(trackData);
         if (!isLatestRequest()) return;
         await TrackPlayer.skip(queue.length);
-        // 延迟移除旧歌曲（不使用 await 以免阻塞后续播放逻辑）
-        TrackPlayer.remove(Array.from({ length: queue.length }, (_, i) => i)).catch(() => {});
+        // 旧歌曲延迟到 play() 之后移除（见下方），避免 fire-and-forget remove
+        // 与 play 竞争导致原生队列索引位移、把刚发出的 play 意图吞掉。
       } else {
         await TrackPlayer.add(trackData);
       }
@@ -1483,6 +1577,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       await TrackPlayer.play();
       if (!isLatestRequest()) return;
 
+      // play() 已发出后再清理旧队列：此时 remove 即使触发索引位移，
+      // 也只会影响后续队列顺序，不会吞掉本次起播意图。
+      if (queue.length > 0) {
+        TrackPlayer.remove(Array.from({ length: queue.length }, (_, i) => i)).catch(() => {});
+      }
+
       setCurrentTrackState(track);
       setCurrentAudioQuality(initialQuality);
 
@@ -1499,24 +1599,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           .catch(() => {
             /* keep initial quality */
           });
-      } else {
-        // Audiobook: upgrade URI to a local cache file when available.
-        resolveTrackUri(track, { cacheEnabled, shouldDownload: true })
-          .then((cachedUri) => {
-            if (!isLatestRequest()) return;
-            if (cachedUri && cachedUri !== remoteUri) {
-              // TrackPlayer doesn't allow swapping the URL of an active
-              // track without a re-buffer, so the cache benefit applies on
-              // the next play. We still surface it for the user via the
-              // state cache that future playTrack invocations read.
-              console.log(
-                `[Player] Cached copy available for ${track.id}, will use on next play.`
-              );
-            }
-          })
-          .catch(() => {
-            /* keep remote URI */
-          });
+      }
+      // 秒播优化：音乐+有声书都走缓存升级分支。
+      // - 已命中缓存（cachedPath 非空）：起播已是本地文件，跳过下载，什么也不做
+      // - 未命中：后台下载供下次复播命中。延迟 3s 让当前曲目优先完成初始缓冲。
+      //   所有网络类型都下载（不只 Wi-Fi）；流量敏感用户可关闭「边播边缓存」开关。
+      if (!cachedPath) {
+        setTimeout(() => {
+          resolveTrackUri(track, { cacheEnabled, shouldDownload: true })
+            .then((cachedUri) => {
+              if (!isLatestRequest()) return;
+              if (cachedUri && cachedUri !== remoteUri) {
+                console.log(
+                  `[Player] Cached copy available for ${track.id}, will use on next play.`
+                );
+              }
+            })
+            .catch(() => {
+              /* keep remote URI */
+            });
+        }, 3000);
       }
 
       // Background: download cover art for future metadata use.
@@ -1544,6 +1646,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     playbackRequestIdRef.current = requestId;
     isPlaybackRequestPendingRef.current = true;
     pendingPlaybackTrackIdRef.current = tracks[index] ? String(tracks[index].id) : null;
+    userPausedRef.current = false;
 
     const isLatestRequest = () => requestId === playbackRequestIdRef.current;
 
@@ -1558,8 +1661,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       // is the safe default that every backend supports.
       const listQuality: AudioQuality = "lossless";
 
-      const buildSyncUri = (t: Track): string =>
-        t.type === TrackType.AUDIOBOOK
+      // 秒播优化：同步查缓存内存索引，命中的曲目直接给 file:// 本地路径，
+      // 整列 setQueue 依然零 IO 阻塞；未命中的走远端 URL。
+      const buildSyncUri = (t: Track): string => {
+        const cached = cacheEnabled ? getCachedTrackPathSync(t.id, t.path) : null;
+        if (cached) return cached;
+        return t.type === TrackType.AUDIOBOOK
           ? (t.path.startsWith("http")
               ? t.path
               : `${getBaseURL()}${t.path
@@ -1567,6 +1674,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                   .map(encodeURIComponent)
                   .join("/")}`)
           : buildTrackPlaybackUrl(t, listQuality);
+      };
 
       const shouldUseSingleTrackQueue = playModeRef.current === PlayMode.SHUFFLE;
       if (shouldUseSingleTrackQueue) {
@@ -1622,15 +1730,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         await TrackPlayer.skip(index);
 
         // ✨ 后台异步触发当前和下一首的缓存/封面升级（不阻塞播放）
+        // 秒播优化：延迟 3s 让当前曲目优先完成初始缓冲，再触发下载；
+        // 最多 2 首并发（当前+下一首），避免和播放流抢带宽。
+        // 流量敏感用户可在设置里关闭「边播边缓存」开关（cacheEnabled=false 时 resolveTrackUri 直接走远端）。
         const nearTracks = [tracks[index], tracks[index + 1]].filter(Boolean);
-        nearTracks.forEach((t) => {
-          if (t.type === TrackType.AUDIOBOOK) {
-            resolveTrackUri(t, { cacheEnabled, shouldDownload: true }).catch(
-              () => {}
-            );
-          }
-          resolveArtworkUriForPlayer(t, { shouldDownload: true }).catch(() => {});
-        });
+        setTimeout(() => {
+          Promise.all(
+            nearTracks.map((t) =>
+              resolveTrackUri(t, { cacheEnabled, shouldDownload: true }).catch(() => {})
+            )
+          ).catch(() => {});
+          nearTracks.forEach((t) => {
+            resolveArtworkUriForPlayer(t, { shouldDownload: true }).catch(() => {});
+          });
+        }, 3000);
       }
       if (!isLatestRequest()) return;
 
@@ -1685,6 +1798,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const pause = async () => {
     if (isSetup) {
       try {
+        userPausedRef.current = true;
         await TrackPlayer.pause();
         savePlaybackState(mode);
       } catch (error) {
@@ -1696,6 +1810,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const resume = async () => {
     if (isSetup) {
       try {
+        userPausedRef.current = false;
         await TrackPlayer.play();
         savePlaybackState(mode);
       } catch (error) {

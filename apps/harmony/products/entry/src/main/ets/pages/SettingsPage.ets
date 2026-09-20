@@ -117,7 +117,7 @@ struct SettingsPage {
   @StorageLink('screenBottomInset') screenBottomInset: number = 0;
   @State acceptRelay: boolean = false;
   @State acceptSync: boolean = false;
-  @State cacheEnabled: boolean = false;
+  @State cacheEnabled: boolean = true;
   @State audiobookMode: boolean = false;
   @State experienceProgramEnabled: boolean = false;
   @State recommendationLikeRatio: number = 50;
@@ -167,7 +167,8 @@ struct SettingsPage {
       // kvStore 读出后写入 AppStorage，本页直接走 @StorageLink，不再重复读 kvStore。
       this.acceptRelay = await this.readBool('acceptRelay', true);
       this.acceptSync = await this.readBool('acceptSync', true);
-      this.cacheEnabled = await this.readBool('cacheEnabled', false);
+      // 对齐 mobile SettingsContext cacheEnabled 默认值 true；老用户若显式存过 'false' 会覆盖默认值，不受影响
+      this.cacheEnabled = await this.readBool('cacheEnabled', true);
       this.experienceProgramEnabled = await this.readBool('experienceProgramEnabled', true);
       this.audiobookMode = (await kvStore.get('playMode')) === 'AUDIOBOOK';
       const ratioRaw = await kvStore.get('recommendationLikeRatio');

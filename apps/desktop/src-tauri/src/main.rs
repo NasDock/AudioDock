@@ -4,6 +4,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 mod commands;
 mod tray;
@@ -25,6 +26,29 @@ pub fn run() {
         ))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    if event.state() != ShortcutState::Pressed {
+                        return;
+                    }
+                    // macOS: Cmd+Option+I, Windows/Linux: Ctrl+Shift+I
+                    let mac_shortcut =
+                        Shortcut::new(Some(Modifiers::SUPER | Modifiers::ALT), Code::KeyI);
+                    let win_shortcut =
+                        Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyI);
+                    if shortcut == &mac_shortcut || shortcut == &win_shortcut {
+                        if let Some(window) = app.get_webview_window("main") {
+                            if window.is_devtools_open() {
+                                window.close_devtools();
+                            } else {
+                                window.open_devtools();
+                            }
+                        }
+                    }
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_opener::init())
@@ -37,8 +61,11 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .unwrap_or_else(|_| std::env::temp_dir().join("audiodock"));
-            let cache_manager = Arc::new(CacheManager::new(app_data_dir.clone()));
             let download_path = Arc::new(Mutex::new(load_download_path(&app_data_dir)));
+            let cache_manager = {
+                let dp = download_path.lock().map(|s| s.clone()).unwrap_or_default();
+                Arc::new(CacheManager::new(app_data_dir.clone(), &dp))
+            };
             // Local streaming HTTP server for cached audio (AVPlayer can't stream
             // from the `media://` custom protocol).
             let media_origin = media_server::start(download_path.clone())?;
@@ -52,6 +79,19 @@ pub fn run() {
 
             // Setup tray (must be after state init)
             tray::setup_tray(app.handle())?;
+
+            // Register devtools toggle shortcuts (works in release builds
+            // because the `devtools` cargo feature is enabled).
+            // macOS: Cmd+Option+I, Windows/Linux: Ctrl+Shift+I
+            let shortcuts = [
+                Shortcut::new(Some(Modifiers::SUPER | Modifiers::ALT), Code::KeyI),
+                Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyI),
+            ];
+            for shortcut in shortcuts {
+                if let Err(e) = app.global_shortcut().register(shortcut) {
+                    eprintln!("[tauri] failed to register devtools shortcut {:?}: {}", shortcut, e);
+                }
+            }
 
             // Setup menu for macOS
             #[cfg(target_os = "macos")]

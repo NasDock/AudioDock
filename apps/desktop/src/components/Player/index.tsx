@@ -78,6 +78,10 @@ import {
   resolveArtworkUri,
   resolveTrackUri,
 } from "../../services/trackResolver";
+import {
+  cacheAudioInBackground,
+  getCachedAudioUrl,
+} from "../../services/audioCache";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { useSettingsStore } from "../../store/settings";
@@ -143,6 +147,45 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
   const desktopLyricEnable = useSettingsStore(
     (state) => state.desktopLyric.enable,
   );
+
+  // 秒播优化：隐藏 audio 预载下一首。
+  // 当前曲目播放时，用另一个 <audio preload="auto"> 拉取播放列表中下一首的首段数据，
+  // 让浏览器/CDN 对该 URL 建立连接并缓存首包。切歌时主 audio 换到相同 URL，
+  // 若命中 HTTP 缓存则跳过网络往返直接出声，实现接近秒切。
+  const preloadAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // 计算下一首并触发预载（仅当前曲目在播且不是电台模式时）
+  useEffect(() => {
+    if (!currentTrack || !isPlaying || isRadioMode) {
+      if (preloadAudioRef.current) {
+        preloadAudioRef.current.src = "";
+      }
+      return;
+    }
+    const idx = playlist.findIndex((t) => t.id === currentTrack.id);
+    if (idx < 0 || idx + 1 >= playlist.length) {
+      if (preloadAudioRef.current) {
+        preloadAudioRef.current.src = "";
+      }
+      return;
+    }
+    const nextTrack = playlist[idx + 1];
+    const nextUrl = buildTrackPlaybackUrl(nextTrack, currentAudioQuality);
+    if (!nextUrl) return;
+    const el = preloadAudioRef.current;
+    if (!el) return;
+    // 已在预载同一首则跳过，避免重复拉流
+    if (el.src === nextUrl) return;
+    el.src = nextUrl;
+    el.load();
+  }, [currentTrack?.id, isPlaying, isRadioMode, playlist, currentAudioQuality]);
+
+  // 秒播优化：预下载播放列表前后各 5 首（共 10 首）。
+  // web 模式用 CacheStorage（cacheAudioInBackground），Tauri 模式走 cache_download IPC。
+  // 播放列表变化时 preDownloadedIdsRef 清空重新计算；已触发过的曲目跳过。
+  // 注意：effect 体内引用了 cacheEnabled，必须在 cacheEnabled 声明（L388）之后注册，
+  // 所以这段 effect 的实际挂载位置在下方 cacheEnabled 声明之后。
+  const preDownloadedIdsRef = useRef<Set<string>>(new Set());
 
   // Sync store active mode with app mode
   useEffect(() => {
@@ -309,6 +352,65 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
   const cacheEnabled = useSettingsStore((state) => state.download.cacheEnabled);
   const [resolvedUri, setResolvedUri] = useState<string | undefined>(undefined);
 
+  // 播放列表变化时清空预下载标记（重新计算前后 5 首）
+  useEffect(() => {
+    preDownloadedIdsRef.current.clear();
+  }, [playlist]);
+
+  // 当前曲目加载完毕（正在播放）后，预下载播放列表前后各 5 首（共 10 首）。
+  // web 模式用 CacheStorage（cacheAudioInBackground），Tauri 模式走 Rust 本地缓存下载。
+  // 已触发过的曲目跳过（preDownloadedIdsRef 去重）。
+  //
+  // ⚠️ 最多 2 首并发 + 3s 延迟：10 首同时下载会和当前播放流抢带宽，
+  // 导致播放流异常（mobile 端实测 android-io-bad-http-status）。
+  // 3s 延迟让当前曲目优先完成初始缓冲，再以小并发预下载。
+  useEffect(() => {
+    if (!currentTrack || !isPlaying || !cacheEnabled) return;
+    const idx = playlist.findIndex((t) => t.id === currentTrack.id);
+    if (idx < 0) return;
+
+    const PRELOAD_RANGE = 5;
+    const CONCURRENCY = 2;
+    const start = Math.max(0, idx - PRELOAD_RANGE);
+    const end = Math.min(playlist.length - 1, idx + PRELOAD_RANGE);
+
+    // 收集需要预下载的曲目（跳过当前/已触发）
+    const toDownload: typeof playlist = [];
+    for (let i = start; i <= end; i++) {
+      if (i === idx) continue;
+      const t = playlist[i];
+      const key = String(t.id);
+      if (preDownloadedIdsRef.current.has(key)) continue;
+      preDownloadedIdsRef.current.add(key);
+      toDownload.push(t);
+    }
+    if (toDownload.length === 0) return;
+
+    // 延迟 3 秒让当前曲目优先完成初始缓冲
+    const timer = setTimeout(async () => {
+      for (let i = 0; i < toDownload.length; i += CONCURRENCY) {
+        const batch = toDownload.slice(i, i + CONCURRENCY);
+        await Promise.all(
+          batch.map((t) => {
+            const url = buildTrackPlaybackUrl(t, currentAudioQuality);
+            if (!url) return Promise.resolve();
+            if (isTauri()) {
+              return resolveTrackUri(t, { cacheEnabled }).catch(() => {});
+            } else {
+              cacheAudioInBackground(url);
+              return Promise.resolve();
+            }
+          })
+        );
+      }
+      console.log(
+        `[Player] Pre-loading ±${PRELOAD_RANGE} around index ${idx} (${toDownload.length} tracks)`
+      );
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [currentTrack?.id, isPlaying, cacheEnabled, playlist, currentAudioQuality]);
+
   useEffect(() => {
     if (!currentTrack) {
       setResolvedUri(undefined);
@@ -339,6 +441,21 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         const state = usePlayerStore.getState();
         if (state.currentTrack?.id === currentTrack.id) {
           setResolvedUri(uri);
+        }
+      });
+    } else if (cacheEnabled && !isTauri() && initialUri) {
+      // 秒播优化（web 模式）：CacheStorage 音频缓存。
+      // 复播时 caches.match 是本地索引读取（几十毫秒），命中则换 blob URL 实现秒播；
+      // 未命中则延迟 3s 后台缓存整首（让当前曲目优先完成初始缓冲，避免抢带宽）。
+      getCachedAudioUrl(initialUri).then((blobUrl) => {
+        if (!blobUrl) {
+          // 未命中：延迟 3s 后台缓存整首（不阻塞播放）
+          setTimeout(() => cacheAudioInBackground(initialUri), 3000);
+          return;
+        }
+        const state = usePlayerStore.getState();
+        if (state.currentTrack?.id === currentTrack.id) {
+          setResolvedUri(blobUrl);
         }
       });
     }
@@ -753,6 +870,11 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         const isNewSource = !audio.src.includes(resolvedUri);
 
         if (isNewSource) {
+          // 换 src 前 revoke 旧的 blob URL（CacheStorage 缓存命中时 generate 的），
+          // 避免内存泄漏。普通 http URL 调 revokeObjectURL 是 no-op，无副作用。
+          if (audio.src.startsWith("blob:")) {
+            URL.revokeObjectURL(audio.src);
+          }
           audio.pause();
           audio.src = resolvedUri;
           audio.load();
@@ -2294,6 +2416,8 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         onPlaying={() => setIsLoading(false)}
         onCanPlay={() => setIsLoading(false)}
       />
+      {/* 秒播优化：隐藏 audio 预载下一首，切歌时若 URL 命中浏览器缓存则秒切 */}
+      <audio ref={preloadAudioRef} preload="auto" style={{ display: "none" }} />
 
       {!isFullPlayerVisible && !hideMiniPlayer && (
         <div className={styles.miniPlayer}>{renderMiniPlayer(true)}</div>
