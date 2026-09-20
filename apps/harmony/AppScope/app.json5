@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.audiodock.app",
     "vendor": "AudioDock",
-    "versionCode": 8,
-    "versionName": "1.2.4",
+    "versionCode": 9,
+    "versionName": "1.2.5",
     "icon": "$media:app_icon",
     "label": "$string:app_name",
     "description": "$string:app_desc",

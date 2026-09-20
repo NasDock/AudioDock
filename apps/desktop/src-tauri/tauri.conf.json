@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "AudioDock",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "identifier": "cn.audiodock.desktop",
   "build": {
     "beforeDevCommand": "pnpm dev",

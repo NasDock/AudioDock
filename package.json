@@ -1,6 +1,6 @@
 {
   "name": "soundX",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "packageManager": "pnpm@10.28.1",
   "description": "",
   "main": "index.js",

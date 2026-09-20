@@ -1,6 +1,6 @@
 {
   "name": "@soundx/i18e",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Shared i18n resources and helpers for SoundX apps",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
