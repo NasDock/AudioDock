@@ -536,6 +536,9 @@ importers:
 
   packages/ws:
     dependencies:
+      js-md5:
+        specifier: ^0.8.3
+        version: 0.8.3
       socket.io-client:
         specifier: ^4.8.1
         version: 4.8.1
