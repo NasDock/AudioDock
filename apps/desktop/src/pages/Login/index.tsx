@@ -44,7 +44,7 @@ import subsonic from "../../assets/subsonic.png";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuthStore } from "../../store/auth";
 import { trackEvent } from "../../services/tracking";
-import { isWeb, tauriGetDeviceName, getDevicePlatform, getOrCreateDeviceId, computeStableDeviceId } from "../../utils/platform";
+import { isWeb, tauriGetDeviceName, getDevicePlatform, computeStableDeviceId } from "../../utils/platform";
 import { applyDesktopScanLoginResult } from "../../utils/scanLogin";
 import styles from "./index.module.less";
 

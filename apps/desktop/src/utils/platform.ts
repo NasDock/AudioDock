@@ -185,7 +185,6 @@ const buildDesktopFingerprint = async (): Promise<{
   arch: string;
   deviceName: string;
 }> => {
-  const clientType = getDevicePlatform(); // desktop | web
   if (!isTauri()) {
     // web 端：无稳定硬件指纹，只能尽力而为（UA 里的系统信息）
     const ua = typeof window !== "undefined" ? window.navigator.userAgent : "";
