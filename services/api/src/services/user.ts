@@ -91,7 +91,7 @@ export class UserService {
 
     if (device) {
       // 存在则更新在线状态 + 补录 deviceId/platform + 刷新 lastSeen
-      return await this.prisma.device.update({
+      const updated = await this.prisma.device.update({
         where: { id: device.id },
         data: {
           isOnline: true,
@@ -100,6 +100,10 @@ export class UserService {
           ...(platform ? { platform } : {}),
         },
       });
+      // 清理同 userId + 同 name 下的其它重复记录（deviceId 漂移 / 旧脏数据）。
+      // 这些重复条目会让设备列表里同一台设备出现多次、且 isOnline 互相打架。
+      await this.mergeDuplicateDevices(userId, deviceName, device.id);
+      return updated;
     } else {
       // 不存在则创建新设备
       return await this.prisma.device.create({
@@ -113,6 +117,36 @@ export class UserService {
         },
       });
     }
+  }
+
+  /**
+   * 合并同 userId + 同设备名下的重复记录：把其它条目的 isOnline 置 false 并删除，
+   * 只保留当前活跃这一条。解决 deviceId 漂移导致同一台设备在列表里出现多次的问题。
+   */
+  private async mergeDuplicateDevices(userId: number, deviceName: string, keepId: number): Promise<void> {
+    try {
+      const dup = await this.prisma.device.findMany({
+        where: { userId, name: deviceName, id: { not: keepId } },
+        select: { id: true },
+      });
+      if (dup.length > 0) {
+        await this.prisma.device.deleteMany({
+          where: { userId, name: deviceName, id: { in: dup.map((d) => d.id) } },
+        });
+        console.log(`[Device] 合并重复设备: user=${userId} name=${deviceName} 删除 ${dup.length} 条旧记录，保留 id=${keepId}`);
+      }
+    } catch (e) {
+      // 去重失败不影响主流程
+      console.warn('[Device] mergeDuplicateDevices failed:', e);
+    }
+  }
+
+  /** 清理 deviceId 为 null 的脏数据（早期未传 deviceId 的端留下的 Unknown Device 记录） */
+  async cleanNullDeviceIdRecords(userId: number): Promise<number> {
+    const res = await this.prisma.device.deleteMany({
+      where: { userId, deviceId: null },
+    });
+    return res.count;
   }
 
   async setDeviceOffline(userId: number, deviceName: string, deviceId?: string): Promise<void> {
@@ -149,6 +183,13 @@ export class UserService {
       where: { isOnline: true },
       data: { isOnline: false },
     });
+    // 顺带清理 deviceId 为 null 的脏数据（早期 Unknown Device 残留）
+    try {
+      const res = await this.prisma.device.deleteMany({ where: { deviceId: null } });
+      if (res.count > 0) console.log(`[WS] 启动时清理 deviceId=null 脏设备记录 ${res.count} 条`);
+    } catch (e) {
+      console.warn('[WS] 清理 null deviceId 记录失败', e);
+    }
   }
 
   async getUserDevices(userId: number): Promise<Device[]> {

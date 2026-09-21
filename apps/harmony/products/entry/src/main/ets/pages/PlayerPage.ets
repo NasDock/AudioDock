@@ -51,6 +51,9 @@ class TransferPlaylist {
 /** 播放流转 payload（ArkTS 严格模式要求显式 class，禁用未声明接口的对象字面量） */
 class TransferSessionPayload {
   targetDeviceId: string = '';
+  /** 兜底匹配维度：deviceId 漂移时服务端按 deviceName+platform 回退匹配 */
+  targetDeviceName: string = '';
+  targetPlatform: string = '';
   currentTrack: Track | null = null;
   playlist: TransferPlaylist = new TransferPlaylist();
   progress: number = 0;
@@ -458,6 +461,8 @@ struct PlayerPage {
       pl.index = this.view.currentIndex;
       const payload = new TransferSessionPayload();
       payload.targetDeviceId = targetDeviceId;
+      payload.targetDeviceName = target.name ?? '';
+      payload.targetPlatform = target.platform ?? '';
       payload.currentTrack = cur;
       payload.playlist = pl;
       payload.progress = progressSec;

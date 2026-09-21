@@ -803,6 +803,9 @@ export function PlayerDetailView({
         socketService.on("transfer_failed", onFailed);
         socketService.emit("transfer_session", {
           targetDeviceId,
+          // 兜底匹配维度：deviceId 漂移时服务端按 deviceName+platform 回退匹配
+          targetDeviceName: targetDevice.name,
+          targetPlatform: targetDevice.platform,
           currentTrack,
           playlist: { list: trackList, index: trackList.findIndex((t) => t.id === currentTrack.id) },
           progress: positionSec,

@@ -44,7 +44,7 @@ import subsonic from "../../assets/subsonic.png";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuthStore } from "../../store/auth";
 import { trackEvent } from "../../services/tracking";
-import { isWeb, tauriGetDeviceName, getDevicePlatform, getOrCreateDeviceId } from "../../utils/platform";
+import { isWeb, tauriGetDeviceName, getDevicePlatform, getOrCreateDeviceId, computeStableDeviceId } from "../../utils/platform";
 import { applyDesktopScanLoginResult } from "../../utils/scanLogin";
 import styles from "./index.module.less";
 
@@ -475,7 +475,7 @@ const Login: React.FC = () => {
           username,
           password,
           deviceName,
-          deviceId: getOrCreateDeviceId(),
+          deviceId: await computeStableDeviceId(),
           platform: getDevicePlatform(),
         });
         ensureSuccess(res);
@@ -504,7 +504,7 @@ const Login: React.FC = () => {
           username,
           password,
           deviceName,
-          deviceId: getOrCreateDeviceId(),
+          deviceId: await computeStableDeviceId(),
           platform: getDevicePlatform(),
         });
         ensureSuccess(res);

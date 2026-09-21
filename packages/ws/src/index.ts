@@ -1,5 +1,7 @@
 import { io, Socket } from "socket.io-client";
 
+export * from "./deviceId";
+
 export interface SocketConnectOptions {
     /** Connection URL */
     url: string;

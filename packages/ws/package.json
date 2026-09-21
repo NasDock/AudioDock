@@ -20,6 +20,7 @@
     "access": "public"
   },
   "dependencies": {
+    "js-md5": "^0.8.3",
     "socket.io-client": "^4.8.1"
   },
   "devDependencies": {

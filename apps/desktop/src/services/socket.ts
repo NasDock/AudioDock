@@ -1,6 +1,6 @@
 import { SharedSocketService } from "@soundx/ws";
 import { useAuthStore } from "../store/auth";
-import { tauriGetDeviceName, isWeb, getDevicePlatform, getOrCreateDeviceId, resolveWebDeviceName } from "../utils/platform";
+import { tauriGetDeviceName, isWeb, getDevicePlatform, computeStableDeviceId, resolveWebDeviceName } from "../utils/platform";
 
 class SocketService extends SharedSocketService {
   async connect() {
@@ -46,13 +46,15 @@ class SocketService extends SharedSocketService {
     }
 
     // 4. Connect using Shared Implementation
-    console.log(`[Socket] connecting: url=${url} deviceId=${getOrCreateDeviceId()} platform=${getDevicePlatform()}`);
+    // WS 注册是「必须稳定」场景，await 拿确定性 deviceId（避免拿到首次的临时 boot id）
+    const deviceId = await computeStableDeviceId();
+    console.log(`[Socket] connecting: url=${url} deviceId=${deviceId} platform=${getDevicePlatform()}`);
     super.connect({
         url,
         token,
         userId: user.id as number,
         deviceName,
-        deviceId: getOrCreateDeviceId(),
+        deviceId,
         platform: getDevicePlatform(),
     });
   }

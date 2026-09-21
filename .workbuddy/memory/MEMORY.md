@@ -1,5 +1,12 @@
 # AudioDock 项目长期记忆
 
+## 设备标识（deviceId）规范
+
+- **deviceId 必须是确定性的**：`computeDeviceId` = md5(clientType␟osName␟osVersion␟brand␟manufacturer␟model␟deviceName) 前12位 + 端类型前缀。算法在 `packages/ws/src/deviceId.ts`，全端（desktop/mobile/hm/web）拼接规则必须逐字节一致，改动要五端同步。
+- **禁止再用 `xxx_${Date.now()}_${random}` 随机生成 deviceId**——存储被清就漂移，导致 WS 在连 ID 与 DB 设备列表 ID 对不上、流转永远 device_offline。这是 2026-09-21 流转故障的根因。
+- desktop 端区分「同步 getter」（getOrCreateDeviceId，向后兼容）和「async 权威值」（computeStableDeviceId，WS/Login/注册必须用后者）。hm 端用 cryptoFramework.createMd('MD5')，指纹字段取自 deviceInfo（osFullName/productModel/marketName）。
+- 服务端 `transfer_session` 支持 targetDeviceName/targetPlatform 兜底匹配（deviceId 漂移时按 deviceName+platform 回退）；`saveDevice` 自动合并同 userId+name 重复记录；`markAllDevicesOffline` 顺带清 deviceId=null 脏数据。
+
 ## apps/harmony 构建环境
 
 - **hvigor 命令行构建**：`DEVECO_SDK_HOME` 指向 DevEco 内置 SDK 根 `/Applications/DevEco-Studio.app/Contents/sdk`（不是 `default/openharmony` 或外部 `~/Library/OpenHarmony/Sdk`）；node 用 DevEco 自带 `Contents/tools/node/bin/node` 且必须 `env -u NODE_OPTIONS`。
