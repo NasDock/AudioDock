@@ -4,6 +4,35 @@ import { buffer } from '@kit.ArkTS';
 import { kvStore } from 'features_storage';
 
 /**
+ * 当前数据源的稳定标识（用于本地缓存按源隔离）。
+ *
+ * 背景：hm 音频缓存只按 track_id 存（{trackId}.{ext}），多数据源下 track_id 撞车会
+ * 串歌（A 源缓存的歌，切到 B 源同 track_id 被误命中）。把 serverAddress 归一化后
+ * 哈希成 sourceKey，缓存文件按源隔离，不同源互不命中。
+ *
+ * 从 kvStore 读 serverAddress（authStore 已写入），归一化后 FNV-1a 哈希。
+ * 与 desktop/mobile 的 getSourceKey 算法一致（FNV-1a 32bit → base36）。
+ */
+export async function getSourceKey(): Promise<string> {
+  let raw = '';
+  try {
+    raw = (await kvStore.get('serverAddress')) ?? '';
+  } catch {
+    raw = '';
+  }
+  const normalized = raw.trim().toLowerCase().replace(/\/+$/, '');
+  if (normalized === '') return 'default';
+  // FNV-1a 32bit
+  let h = 0x811c9dc5;
+  for (let i = 0; i < normalized.length; i++) {
+    h ^= normalized.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  // 转无符号后 base36
+  return (h >>> 0).toString(36);
+}
+
+/**
  * 设备平台（用于在线设备列表 / 播放流转）。
  * 复用 @ohos.deviceInfo 的 deviceType：phone / tablet / tv / watch / 2in1 等。
  */

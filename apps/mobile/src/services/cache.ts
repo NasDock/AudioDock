@@ -1,11 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Track } from '../models';
+import { getSourceKey } from '../https';
 
 const CACHE_DIR = `${FileSystem.documentDirectory || ''}audio_cache/`;
 const COVER_CACHE_DIR = `${FileSystem.documentDirectory || ''}cover_cache/`;
 const OFFLINE_TRACKS_KEY = 'offline_tracks';
 const coverDownloadPromises = new Map<string, Promise<string>>();
+
+/**
+ * 缓存文件名 key（多数据源隔离）。
+ * 不同源同 track_id 是两首不同的歌，文件名必须带源前缀，否则互相覆盖/误命中（串歌）。
+ * 格式：`{sourceKey}_{trackId}`，与内存索引 cachedTrackIds 的 key 一致。
+ */
+const cacheKey = (trackId: number | string): string => `${getSourceKey()}_${trackId}`;
 
 /**
  * Ensure the cache directory exists
@@ -98,10 +106,11 @@ export const cacheCover = async (url: string): Promise<string> => {
 
 /**
  * Get the local path for a track
+ * 文件名带源前缀：{sourceKey}_{trackId}.{ext}，不同源同 track_id 物理隔离。
  */
 export const getLocalPath = (trackId: number | string, originalPath: string): string => {
   const extension = originalPath.split('.').pop() || 'mp3';
-  return `${CACHE_DIR}${trackId}.${extension}`;
+  return `${CACHE_DIR}${cacheKey(trackId)}.${extension}`;
 };
 
 /**
@@ -133,7 +142,8 @@ const ensureCacheIndex = (): Promise<void> => {
       await ensureCacheDirExists();
       const files = await FileSystem.readDirectoryAsync(CACHE_DIR);
       for (const f of files) {
-        // 文件名格式：{trackId}.{ext}，跳过 .tmp 半成品
+        // 文件名格式：{sourceKey}_{trackId}.{ext}，跳过 .tmp 半成品
+        // 整个「文件名去掉扩展名」就是缓存 key，已含源前缀，天然按源隔离
         if (f.endsWith('.tmp')) continue;
         const dot = f.lastIndexOf('.');
         if (dot > 0) cachedTrackIds.add(f.substring(0, dot));
@@ -152,12 +162,13 @@ ensureCacheIndex();
 /**
  * 同步判断曲目是否已缓存。索引未初始化完成时返回 null（保守走远端，
  * 不阻塞起播）；初始化完成后命中则返回本地 file:// 路径。
+ * key 含源前缀，仅命中当前源的缓存。
  */
 export const getCachedTrackPathSync = (
   trackId: number | string,
   originalPath: string,
 ): string | null => {
-  const key = String(trackId);
+  const key = cacheKey(trackId);
   if (!cachedTrackIds.has(key)) return null;
   const extension = originalPath.split('.').pop() || 'mp3';
   // resolveLocalPath 确保 file:// 前缀（RNTP 要求本地文件必须带 scheme）
@@ -165,7 +176,7 @@ export const getCachedTrackPathSync = (
 };
 
 const markCached = (trackId: number | string): void => {
-  cachedTrackIds.add(String(trackId));
+  cachedTrackIds.add(cacheKey(trackId));
 };
 
 /**
@@ -178,28 +189,30 @@ export const removeCachedTrack = async (
   try {
     await FileSystem.deleteAsync(getLocalPath(trackId, originalPath), { idempotent: true });
   } finally {
-    cachedTrackIds.delete(String(trackId));
+    cachedTrackIds.delete(cacheKey(trackId));
   }
 };
 
-const downloadPromises = new Map<number | string, Promise<string | null>>();
+const downloadPromises = new Map<string, Promise<string | null>>();
 
 /**
  * Download a track to the local cache and save metadata
  */
 export const downloadTrack = async (track: Track, url: string): Promise<string | null> => {
-  if (downloadPromises.has(track.id)) {
-    return downloadPromises.get(track.id)!;
+  // 下载去重 key 按源隔离（不同源同 track_id 是两场独立下载）
+  const dlKey = cacheKey(track.id);
+  if (downloadPromises.has(dlKey)) {
+    return downloadPromises.get(dlKey)!;
   }
 
   const downloadPromise = (async () => {
     try {
       if (!url) return null;
-      
+
       await ensureCacheDirExists();
       const localPath = getLocalPath(track.id, url);
       const tempPath = `${localPath}.tmp`;
-      
+
       // Check if already exists to avoid redownloading
       const fileInfo = await FileSystem.getInfoAsync(localPath);
       if (fileInfo.exists) {
@@ -210,7 +223,7 @@ export const downloadTrack = async (track: Track, url: string): Promise<string |
 
       console.log(`[Cache] Starting download for track ${track.id}: ${url} to temp path`);
       const downloadRes = await FileSystem.downloadAsync(url, tempPath);
-      
+
       if (downloadRes.status === 200) {
         // Atomic move to final destination
         await FileSystem.moveAsync({
@@ -231,32 +244,37 @@ export const downloadTrack = async (track: Track, url: string): Promise<string |
       console.error(`[Cache] Failed to download track ${track.id}`, e);
       return null;
     } finally {
-      downloadPromises.delete(track.id);
+      downloadPromises.delete(dlKey);
     }
   })();
 
-  downloadPromises.set(track.id, downloadPromise);
+  downloadPromises.set(dlKey, downloadPromise);
   return downloadPromise;
 };
 
 /**
  * Save track metadata to AsyncStorage
+ * 给记录打上 sourceKey，离线列表按源隔离（不同源同 track_id 不互相覆盖）。
  */
 const saveTrackMetadata = async (track: Track, localPath: string) => {
   try {
     const stored = await AsyncStorage.getItem(OFFLINE_TRACKS_KEY);
     const tracks: Track[] = stored ? JSON.parse(stored) : [];
-    
-    const existingIndex = tracks.findIndex(t => t.id === track.id);
-    // Overwrite path with local path for offline playback
-    const trackWithLocalPath = { ...track, path: localPath };
-    
+    const src = getSourceKey();
+
+    // 仅匹配「同 track_id 且同 sourceKey」的记录，不同源的同名 id 不动
+    const existingIndex = tracks.findIndex(
+      (t: any) => t.id === track.id && (t.sourceKey ?? '') === src
+    );
+    // Overwrite path with local path for offline playback; 记录所属源
+    const trackWithLocalPath = { ...track, path: localPath, sourceKey: src } as Track;
+
     if (existingIndex > -1) {
       tracks[existingIndex] = trackWithLocalPath;
     } else {
       tracks.push(trackWithLocalPath);
     }
-    
+
     await AsyncStorage.setItem(OFFLINE_TRACKS_KEY, JSON.stringify(tracks));
   } catch (e) {
     console.error("Failed to save track metadata", e);
@@ -264,20 +282,25 @@ const saveTrackMetadata = async (track: Track, localPath: string) => {
 }
 
 /**
- * Get all downloaded tracks
+ * Get all downloaded tracks（仅当前数据源）。
+ * 旧记录（无 sourceKey）不归属任何源，为保证离线可用性仍列出，但提示后续可按源清理。
  */
 export const getDownloadedTracks = async (): Promise<Track[]> => {
   try {
     const stored = await AsyncStorage.getItem(OFFLINE_TRACKS_KEY);
     if (!stored) return [];
-    
+
     const tracks: Track[] = JSON.parse(stored);
-    
+    const src = getSourceKey();
+
+    // 只保留当前源的记录（无 sourceKey 的旧记录也列出，避免升级后已下载内容凭空消失）
+    const scoped = tracks.filter((t: any) => !t.sourceKey || t.sourceKey === src);
+
     // Optional: Verify file existence and clean up
     const validTracks: Track[] = [];
     let hasChanges = false;
 
-    for (const track of tracks) {
+    for (const track of scoped) {
       if (track.path && await isCached(track.id, track.path)) {
         validTracks.push(track);
       } else {
@@ -285,9 +308,8 @@ export const getDownloadedTracks = async (): Promise<Track[]> => {
       }
     }
 
-    if (hasChanges) {
-        await AsyncStorage.setItem(OFFLINE_TRACKS_KEY, JSON.stringify(validTracks));
-    }
+    // 注意：hasChanges 时只更新当前源命中的部分，不能整表覆盖（会误删其它源的记录）。
+    // 这里保守处理：不自动整表回写，留给 clearSpecificCache / removeDownloadedTrack 维护。
 
     return validTracks;
   } catch (e) {
@@ -301,35 +323,30 @@ export const getDownloadedTracks = async (): Promise<Track[]> => {
  */
 export const removeDownloadedTrack = async (trackId: number | string, url?: string) => {
     try {
+        const src = getSourceKey();
         // Remove file
         if (url) {
             const localPath = getLocalPath(trackId, url);
             await FileSystem.deleteAsync(localPath, { idempotent: true });
         } else {
-             // Try to find path from metadata
+             // Try to find path from metadata（仅当前源）
               const stored = await AsyncStorage.getItem(OFFLINE_TRACKS_KEY);
               if (stored) {
                   const tracks: Track[] = JSON.parse(stored);
-                  const track = tracks.find(t => t.id === trackId);
+                  const track = tracks.find((t: any) => t.id === trackId && (t.sourceKey ?? '') === src);
                   if (track && track.path) {
-                       // If path is already local (starts with file:// or contains audio_cache), use it directly?
-                       // getLocalPath appends ID and extension. track.path IS the local path we saved.
-                       // But wait, isCached checks getLocalPath(id, originalUrl).
-                       // If we saved localPath to track.path, we can just delete it?
-                       // Yes, if track.path is the file path.
-                       // But earlier we used `getLocalPath` which derives name from ID + extension of ORIGINAL url.
-                       // If we don't have original URL extension, we might fail to delete if we constructed the path wrong?
-                       // But track.path should be the absolute local path we saved.
                        await FileSystem.deleteAsync(track.path, { idempotent: true });
                   }
               }
         }
 
-        // Remove from metadata
+        // Remove from metadata（仅删当前源的该曲目，其它源的同名 id 保留）
         const stored = await AsyncStorage.getItem(OFFLINE_TRACKS_KEY);
         if (stored) {
             const tracks: Track[] = JSON.parse(stored);
-            const newTracks = tracks.filter(t => t.id !== trackId);
+            const newTracks = tracks.filter(
+              (t: any) => !(t.id === trackId && (t.sourceKey ?? '') === src)
+            );
             await AsyncStorage.setItem(OFFLINE_TRACKS_KEY, JSON.stringify(newTracks));
         }
     } catch (e) {

@@ -7,6 +7,7 @@ import { userDataApi } from 'features_network';
 import type { TrackDto } from 'features_network';
 import { syncStore } from './SyncStore';
 import { authStore } from './AuthStore';
+import { getSourceKey } from '../utils/device';
 
 export interface Track {
   id: string;
@@ -493,11 +494,13 @@ export class PlayerStore {
     const cacheEnabled = await kvStore.get('cacheEnabled');
     if (cacheEnabled === 'false') return;
     const ext = t.ext ?? 'mp3';
+    // 多数据源隔离：缓存文件按源前缀区分
+    const sourceKey = await getSourceKey();
     // 已有缓存则跳过
-    if (await fileCache.hasAudio(t.id, ext)) return;
+    if (await fileCache.hasAudio(t.id, ext, sourceKey)) return;
     // 延迟 3 秒让当前曲目优先完成初始缓冲
     await new Promise<void>((r) => setTimeout(r, 3000));
-    await fileCache.downloadAudioFromUrl(t.id, ext, t.url);
+    await fileCache.downloadAudioFromUrl(t.id, ext, t.url, sourceKey);
   }
 
   /**
@@ -521,6 +524,9 @@ export class PlayerStore {
     // 延迟 3 秒让当前曲目优先完成初始缓冲
     await new Promise<void>((r) => setTimeout(r, 3000));
 
+    // 多数据源隔离：sourceKey 随当前 serverAddress 变化，预下载/查重都按源
+    const sourceKey = await getSourceKey();
+
     const PRELOAD_RANGE = 5;
     const CONCURRENCY = 2;
     const start = Math.max(0, idx - PRELOAD_RANGE);
@@ -535,7 +541,7 @@ export class PlayerStore {
       if (this.preDownloadedIds.has(t.id)) continue;
       this.preDownloadedIds.add(t.id);
       const ext = t.ext ?? 'mp3';
-      if (await fileCache.hasAudio(t.id, ext)) continue;
+      if (await fileCache.hasAudio(t.id, ext, sourceKey)) continue;
       toDownload.push(t);
     }
 
@@ -544,7 +550,7 @@ export class PlayerStore {
       const batch = toDownload.slice(i, i + CONCURRENCY);
       await Promise.all(
         batch.map((t) =>
-          fileCache.downloadAudioFromUrl(t.id, t.ext ?? 'mp3', t.url).catch(() => undefined)
+          fileCache.downloadAudioFromUrl(t.id, t.ext ?? 'mp3', t.url, sourceKey).catch(() => undefined)
         )
       );
     }
