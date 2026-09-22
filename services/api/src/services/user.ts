@@ -76,16 +76,22 @@ export class UserService {
     platform?: string,
   ): Promise<Device> {
     const now = new Date();
-    // 优先按 deviceId 查找（稳定唯一标识），兜底按 name 查找（兼容旧端）
+    // 优先按 deviceId 精确查找（稳定唯一标识）
     let device: Device | null = null;
     if (deviceId) {
       device = await this.prisma.device.findFirst({
         where: { userId, deviceId },
       });
     }
+    // 兜底按 name + platform 查找（兼容旧端；必须带 platform 维度，
+    // 否则同主机名/同设备名的 desktop 与 web 会互相误合并）。
     if (!device) {
       device = await this.prisma.device.findFirst({
-        where: { userId, name: deviceName },
+        where: {
+          userId,
+          name: deviceName,
+          ...(platform ? { platform } : {}),
+        },
       });
     }
 
@@ -100,9 +106,10 @@ export class UserService {
           ...(platform ? { platform } : {}),
         },
       });
-      // 清理同 userId + 同 name 下的其它重复记录（deviceId 漂移 / 旧脏数据）。
-      // 这些重复条目会让设备列表里同一台设备出现多次、且 isOnline 互相打架。
-      await this.mergeDuplicateDevices(userId, deviceName, device.id);
+      // 仅当 deviceId 精确命中时，才清理同 deviceId 的重复记录（安全，不会误删同名异端设备）
+      if (deviceId) {
+        await this.mergeDuplicateDevices(userId, deviceId, device.id);
+      }
       return updated;
     } else {
       // 不存在则创建新设备
@@ -120,20 +127,23 @@ export class UserService {
   }
 
   /**
-   * 合并同 userId + 同设备名下的重复记录：把其它条目的 isOnline 置 false 并删除，
-   * 只保留当前活跃这一条。解决 deviceId 漂移导致同一台设备在列表里出现多次的问题。
+   * 合并同 userId + 同 deviceId 下的重复记录。
+   *
+   * ⚠️ 只能按 deviceId 去重，绝不能按 name——同主机名/同设备名的 desktop 与 web
+   * 是两台不同设备，按 name 删会把它们互相删掉（曾导致所有设备离线）。
+   * 仅在确认 deviceId 命中后调用（同一 deviceId 不应有多条记录）。
    */
-  private async mergeDuplicateDevices(userId: number, deviceName: string, keepId: number): Promise<void> {
+  private async mergeDuplicateDevices(userId: number, deviceId: string, keepId: number): Promise<void> {
     try {
       const dup = await this.prisma.device.findMany({
-        where: { userId, name: deviceName, id: { not: keepId } },
+        where: { userId, deviceId, id: { not: keepId } },
         select: { id: true },
       });
       if (dup.length > 0) {
         await this.prisma.device.deleteMany({
-          where: { userId, name: deviceName, id: { in: dup.map((d) => d.id) } },
+          where: { userId, deviceId, id: { in: dup.map((d) => d.id) } },
         });
-        console.log(`[Device] 合并重复设备: user=${userId} name=${deviceName} 删除 ${dup.length} 条旧记录，保留 id=${keepId}`);
+        console.log(`[Device] 合并重复设备: user=${userId} deviceId=${deviceId} 删除 ${dup.length} 条重复记录，保留 id=${keepId}`);
       }
     } catch (e) {
       // 去重失败不影响主流程
