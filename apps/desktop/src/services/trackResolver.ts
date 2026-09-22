@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Album, Mv, Track } from "@soundx/services";
-import { getBaseURL } from "../https";
+import { getBaseURL, getSourceKey } from "../https";
 import { useAuthStore } from "../store/auth";
 import { useSettingsStore } from "../store/settings";
 import { bucketWidth, isThumbnailBucket } from "../utils/imageBucket";
@@ -30,6 +30,8 @@ const getMediaOrigin = async (): Promise<string> => {
 
 interface TrackMetadata {
   id: number | string;
+  /** 数据源标识（多源缓存隔离），见 https/index.ts getSourceKey */
+  sourceKey?: string;
   path: string;
   name: string;
   artist: string;
@@ -78,14 +80,17 @@ export const resolveTrackUri = async (
 
   if (cacheEnabled && track.id && isTauri()) {
     try {
+      // 多数据源隔离：sourceKey 随当前 baseURL 变化，A/B 两源同 track_id 互不命中
+      const sourceKey = getSourceKey();
       const cachedPath = await invoke("cache_check", {
         trackId: track.id,
+        sourceKey,
         originalPath: track.path,
         downloadPath,
         trackType: track.type,
         albumName,
       }) as string | null;
-      
+
       if (cachedPath) {
         // cache_check returns a streaming http:// URL for the cached file.
         return cachedPath;
@@ -93,10 +98,11 @@ export const resolveTrackUri = async (
 
       // 3. If not cached, trigger background download
       const token = useAuthStore.getState().token;
-      
+
       // Prepare metadata for offline use
       const metadata: TrackMetadata = {
         id: track.id,
+        sourceKey,
         path: track.path,
         name: track.name,
         artist: track.artist,
@@ -110,6 +116,7 @@ export const resolveTrackUri = async (
 
       invoke("cache_download", {
         trackId: track.id,
+        sourceKey,
         url: remoteUri,
         downloadPath,
         trackType: track.type,
