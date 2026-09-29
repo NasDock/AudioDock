@@ -411,17 +411,50 @@ const handleOpenMore = () => {
         </View>
 
         <View className='player-content'>
-            <View className='player-artwork-lyric-area' onClick={() => setShowLyrics(!showLyrics)}>
+            <View className='player-artwork-lyric-area'>
                 {!showLyrics ? (
-                    <View className='player-artwork-container'>
-                        <Image 
-                            src={getImageUrl(currentTrack.cover, 600)} 
-                            className='player-artwork' 
-                            mode='aspectFill' webp
-                        />
+                    <View className='player-artwork-column'>
+                        <View onClick={() => setShowLyrics(true)}>
+                            <View className='player-artwork-container'>
+                                <Image
+                                    src={getImageUrl(currentTrack.cover, 600)}
+                                    className='player-artwork'
+                                    mode='aspectFill' webp
+                                />
+                            </View>
+                        </View>
+                        {/* 有声书模式：操作按钮组贴在封面正下方（与封面同在一个弹性区域内，
+                            随封面一起居中，保证按钮组紧贴封面而非悬在中缝） */}
+                        {currentTrack.type === 'AUDIOBOOK' && (
+                            <View className='player-audiobook-quick-actions'>
+                              <View className='player-audiobook-quick-btn' onClick={() => openSkipConfig('intro')}>
+                                <Text className='player-audiobook-menu-icon icon icon-prev' />
+                                <Text className='player-audiobook-quick-label'>{t('player.intro')}</Text>
+                                <Text className='player-audiobook-quick-value'>{skipIntroDuration > 0 ? `${skipIntroDuration}s` : '关'}</Text>
+                              </View>
+                              <View className='player-audiobook-quick-btn' onClick={() => handleSkip(-15)}>
+                                <Text className='player-audiobook-quick-plain'>-15s</Text>
+                                <Text className='player-audiobook-quick-label'>{t('player.backward')}</Text>
+                              </View>
+                              <View className='player-audiobook-quick-btn' onClick={togglePlaybackRate}>
+                                <Text className='player-audiobook-menu-icon icon icon-headset' />
+                                <Text className='player-audiobook-quick-label'>{t('player.speed')}</Text>
+                                <Text className='player-audiobook-quick-value'>{playbackRate}x</Text>
+                              </View>
+                              <View className='player-audiobook-quick-btn' onClick={() => handleSkip(15)}>
+                                <Text className='player-audiobook-quick-plain'>+15s</Text>
+                                <Text className='player-audiobook-quick-label'>{t('player.skipForward')}</Text>
+                              </View>
+                              <View className='player-audiobook-quick-btn' onClick={() => openSkipConfig('outro')}>
+                                <Text className='player-audiobook-menu-icon icon icon-next' />
+                                <Text className='player-audiobook-quick-label'>{t('player.skipOutro')}</Text>
+                                <Text className='player-audiobook-quick-value'>{skipOutroDuration > 0 ? `${skipOutroDuration}s` : '关'}</Text>
+                              </View>
+                            </View>
+                        )}
                     </View>
                 ) : (
-                    <View className='player-lyrics-container'>
+                    <View className='player-lyrics-container' onClick={() => setShowLyrics(false)}>
                         {lyrics.length > 0 ? (
                             <ScrollView 
                                 scrollY 

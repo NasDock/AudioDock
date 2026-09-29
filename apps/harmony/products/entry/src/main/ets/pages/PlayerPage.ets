@@ -1030,6 +1030,11 @@ struct PlayerPage {
             fallbackText: (this.current()?.title ?? '?').substring(0, 1),
           })
             .onClick(() => { this.showLyrics = true; });
+          // 有声书模式：操作按钮组贴在封面正下方（与封面同在一个弹性 Column 内，
+          // 随封面一起居中，保证按钮组紧贴封面而非悬在中缝）
+          if (this.current()?.contentType === 'AUDIOBOOK') {
+            this.audiobookQuickActions();
+          }
         }
       }
       .layoutWeight(1)
@@ -1046,6 +1051,36 @@ struct PlayerPage {
     .width('100%')
     .layoutWeight(1)
     .padding({ left: 30, right: 30 });
+  }
+
+  /**
+   * 有声书模式封面下方置顶操作按钮组（片头/-15s/倍速/+15s/片尾）。
+   * 功能与 moreSheet() 内的有声书控制组完全一致，复用同一组 handler。
+   */
+  @Builder audiobookQuickActions() {
+    Row() {
+      this.SkipEdgeBtn('intro')
+      this.AudiobookCtrlBtn('skip-back', t('playerMore.back15s'), '', (): void => this.skipBackward15())
+      // ⚠️ 倍速按钮不能走带参 @Builder（label 按值快照不重绘），
+      // 绑定独立的 @State speed 字段，subscribe 里显式同步。
+      Column() {
+        AppIcon({ name: 'speedometer', iconSize: 30, color: this.theme.colors.textSecondary })
+        Text(`${this.speed}x`)
+          .fontSize(12)
+          .fontColor(this.theme.colors.textSecondary)
+          .margin({ top: 8 })
+          .maxLines(1)
+      }
+      .alignItems(HorizontalAlign.Center)
+      .onClick((): void => this.togglePlaybackRate())
+      this.AudiobookCtrlBtn('skip-forward', t('playerMore.forward15s'), '', (): void => this.skipForward15())
+      this.SkipEdgeBtn('outro')
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.SpaceAround)
+    .alignItems(VerticalAlign.Top)
+    .opacity(0.6)
+    .margin({ top: 24 });
   }
 
   @Builder lyricsView() {

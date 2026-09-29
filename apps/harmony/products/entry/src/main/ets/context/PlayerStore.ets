@@ -442,11 +442,14 @@ export class PlayerStore {
       this.durationMs = (t.duration ?? 0) * 1000;
       this.currentMs = resumeMs > 0 ? resumeMs : 0;
       if (resumeMs > 0) {
-        audioBackend.seek(resumeMs).catch(() => undefined);
+        await audioBackend.seek(resumeMs);
       } else if (t.contentType === 'AUDIOBOOK' && this.skipIntroDuration > 0) {
-        // 有声书自动跳过片头（对齐 mobile playTrack L1635-1636 / onTrackChanged L840-848）
+        // 有声书自动跳过片头（对齐 mobile playTrack L1635-1636 / onTrackChanged L840-848）。
+        // 修复「跳过片头无效」：load 在 prepared 态 resolve、紧接 play()，
+        // prepared→playing 过渡期下发的 seek 会被系统吞掉。这里等待 seek 确认，
+        // 并用 timeUpdate 校验实际进度是否到位，不到位则在 playing 稳定态重试一次。
         const skipMs = this.skipIntroDuration * 1000;
-        audioBackend.seek(skipMs).catch(() => undefined);
+        await this.seekIntroReliably(skipMs);
         this.currentMs = skipMs;
       }
       // 新曲目加载完成，解除片尾跳过防抖（对齐 mobile isSkippingOutroRef 在曲目切换后复位）
@@ -579,14 +582,44 @@ export class PlayerStore {
   }
 
   /**
+   * 可靠的片头跳过 seek：AVPlayer 在 prepared→playing 过渡期会吞掉 seek。
+   * 先 seek 一次并等待确认；随后用一次 timeUpdate 校验实际进度，若没跳到目标附近
+   * （说明被过渡期吞了），在 playing 稳定态补做一次。
+   */
+  private async seekIntroReliably(skipMs: number): Promise<void> {
+    try {
+      await audioBackend.seek(skipMs);
+    } catch (e) {
+      Logger.w('PlayerStore', `seekIntro first seek failed: ${String(e)}`);
+    }
+    // 等一个 timeUpdate 周期校验实际进度
+    const beforeMs = this.currentMs;
+    await new Promise<void>((resolve) => setTimeout(resolve, 400));
+    // 校验：若当前进度远小于目标（说明 seek 没生效），在稳定态补一次
+    if (this.currentMs < skipMs - 2000 && this.isPlaying) {
+      Logger.w('PlayerStore', `seekIntro verify failed (at ${Math.round(this.currentMs / 1000)}s < ${Math.round(skipMs / 1000)}s), retry`);
+      try {
+        await audioBackend.seek(skipMs);
+      } catch (e) {
+        Logger.w('PlayerStore', `seekIntro retry failed: ${String(e)}`);
+      }
+    }
+    Logger.i('PlayerStore', `seekIntro target=${Math.round(skipMs / 1000)}s before=${Math.round(beforeMs / 1000)}s after=${Math.round(this.currentMs / 1000)}s`);
+  }
+
+  /**
    * 有声书自动跳过片尾：剩余时长 ≤ skipOutroDuration 且 > 0.5s 时切下一首。
    * 对齐 mobile PlayerContext.tsx L880-906 的 useEffect 监控逻辑；
    * remaining > 0.5 防止刚加载 position=0 时误判；isSkippingOutro 防连续触发。
+   * 修复：去掉对 this.isPlaying 的硬限制——onStateChange 会在 preparing/ready 等
+   * 过渡态把 isPlaying 置 false，若此时进度已进片尾窗口就错过触发；改为看 state。
    */
   private maybeSkipOutro(): void {
     const cur = this.queue[this.currentIndex];
     if (!cur || cur.contentType !== 'AUDIOBOOK') return;
-    if (this.skipOutroDuration <= 0 || !this.isPlaying || this.durationMs <= 0) return;
+    if (this.skipOutroDuration <= 0 || this.durationMs <= 0) return;
+    // 仅在真正播放中触发（state 为 playing），排除 paused/idle/preparing
+    if (this.state !== 'playing') return;
     if (this.isSkippingOutro) return;
     const remainingMs = this.durationMs - this.currentMs;
     if (remainingMs <= this.skipOutroDuration * 1000 && remainingMs > 500) {

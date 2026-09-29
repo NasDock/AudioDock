@@ -14,6 +14,10 @@ export class AVPlayerBackend implements IAudioPlayer {
   private currentFd: number = -1;
   private prepareResolve: (() => void) | null = null;
   private prepareReject: ((err: Error) => void) | null = null;
+  /** seek 完成回调（seekDone 时 resolve），保证 seek 真正生效后再继续。 */
+  private seekResolve: (() => void) | null = null;
+  /** 待执行的片头/自动 seek：在 playing 稳定态补做（prepared→playing 过渡期的 seek 会被系统吞掉）。 */
+  private pendingSeekMs: number = -1;
   /**
    * 当前曲目的内容类型（MUSIC / AUDIOBOOK），load 时更新，
    * 在 AVPlayer 进入 initialized 态时（首次 prepare 前）写入 audioRendererInfo.usage。
@@ -103,8 +107,37 @@ export class AVPlayerBackend implements IAudioPlayer {
     this.currentUrl = '';
     if (this.player) { await this.player.release(); this.player = null; }
   }
+  /**
+   * seek 到指定毫秒。对齐 setSpeed 的可靠性处理：
+   * - 状态守卫：仅在 prepared/playing/paused/completed 稳定态直接 seek；
+   *   其他状态（如 load 刚 resolve 的 prepared→playing 过渡）先记为 pendingSeekMs，
+   *   等 stateChange 进入稳定态后补做，避免 seek 被系统静默吞掉。
+   * - 等待 seekDone 才真正返回，保证上层拿到的进度已生效。
+   */
   async seek(positionMs: number): Promise<void> {
-    (await this.ensure()).seek(positionMs);
+    const p = await this.ensure();
+    const allowed = ['prepared', 'playing', 'paused', 'completed'];
+    if (allowed.indexOf(p.state) < 0) {
+      Logger.w('AVPlayer', `seek(${positionMs}) deferred: state=${p.state}`);
+      this.pendingSeekMs = positionMs;
+      return;
+    }
+    return this.doSeek(positionMs);
+  }
+
+  /** 直接下发 seek 并等待 seekDone（带 3s 超时兜底，避免 Promise 挂死）。 */
+  private doSeek(positionMs: number): Promise<void> {
+    const p = this.player;
+    if (!p) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        this.seekResolve = null;
+        Logger.w('AVPlayer', `seek(${positionMs}) seekDone timeout`);
+        resolve();
+      }, 3000);
+      this.seekResolve = () => { clearTimeout(timer); resolve(); };
+      p.seek(positionMs);
+    });
   }
   /**
    * 设置倍速。注意 AVPlayer.setSpeed 的参数是 PlaybackSpeed 枚举（不是裸倍率 number），
@@ -160,6 +193,11 @@ export class AVPlayerBackend implements IAudioPlayer {
       const pl: TimeUpdatePayload = { currentMs: ms, durationMs: p.duration };
       this.dispatch('timeUpdate', pl);
     });
+    p.on('seekDone', (_ms: number) => {
+      const r = this.seekResolve;
+      this.seekResolve = null;
+      if (r) r();
+    });
     p.on('durationUpdate', (ms: number) => {
       const pl: TimeUpdatePayload = { currentMs: p.currentTime, durationMs: ms };
       this.dispatch('durationUpdate', pl);
@@ -206,6 +244,13 @@ export class AVPlayerBackend implements IAudioPlayer {
         this.prepareResolve = null;
         this.prepareReject = null;
         r(new Error('AVPlayer prepare failed'));
+      }
+      // 进入稳定可寻址态后，补做被过渡期吞掉的 pendingSeek（片头自动跳过等）
+      if ((s === 'playing' || s === 'paused' || s === 'prepared' || s === 'completed') && this.pendingSeekMs >= 0) {
+        const ms = this.pendingSeekMs;
+        this.pendingSeekMs = -1;
+        Logger.i('AVPlayer', `flush pendingSeek(${ms}) at state=${s}`);
+        this.doSeek(ms).catch((): void => undefined);
       }
     });
     p.on('error', (err: BusinessError) => {

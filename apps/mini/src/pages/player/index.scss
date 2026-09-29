@@ -47,10 +47,19 @@
   .player-artwork-lyric-area {
     flex: 1;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     width: 100%;
     overflow: hidden;
+  }
+
+  // 封面 + 有声书操作按钮组的纵向容器（让按钮组紧贴封面、随封面一起居中）
+  .player-artwork-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
   }
 
   .player-artwork-container {
@@ -351,6 +360,57 @@
     font-size: 22rpx;
     font-weight: 700;
     color: #000;
+  }
+
+  // 有声书模式：封面下方置顶操作按钮组（复用菜单内图标样式）
+  .player-audiobook-quick-actions {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12rpx;
+    margin-top: 40rpx;
+    padding: 0 8rpx;
+    width: 100%;
+    box-sizing: border-box;
+    opacity: 0.6;
+  }
+
+  .player-audiobook-quick-btn {
+    flex: 1;
+    min-width: 0;
+    padding: 16rpx 8rpx;
+    border-radius: 20rpx;
+    background-color: rgba(150, 150, 150, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    align-self: stretch;
+
+    // 按钮组内图标颜色调淡（覆盖复用的 player-audiobook-menu-icon 的 #333）
+    .player-audiobook-menu-icon {
+      color: #888;
+    }
+  }
+
+  .player-audiobook-quick-plain {
+    font-size: 28rpx;
+    font-weight: 700;
+    color: #888;
+    margin-bottom: 8rpx;
+  }
+
+  .player-audiobook-quick-label {
+    font-size: 22rpx;
+    color: #999;
+    margin-bottom: 6rpx;
+  }
+
+  .player-audiobook-quick-value {
+    font-size: 22rpx;
+    font-weight: 700;
+    color: #888;
   }
 
   .player-menu-section {
