@@ -441,15 +441,14 @@ export class PlayerStore {
       // 后端 duration 字段单位是秒，PlayerStore 内部统一用毫秒
       this.durationMs = (t.duration ?? 0) * 1000;
       this.currentMs = resumeMs > 0 ? resumeMs : 0;
+      // 有声书自动跳过片头 / 续播定位：load 在 prepared 态 resolve，此刻 AVPlayer 处于
+      // 稳定可寻址态（prepared），seek 可靠。必须在 play() 之后但进度 tick 开始前下发，
+      // 并用 seekDone 确认；若被过渡期吞掉（timeUpdate 校验未到位），在 playing 稳定态补一次。
       if (resumeMs > 0) {
-        await audioBackend.seek(resumeMs);
+        await this.seekReliably(resumeMs);
       } else if (t.contentType === 'AUDIOBOOK' && this.skipIntroDuration > 0) {
-        // 有声书自动跳过片头（对齐 mobile playTrack L1635-1636 / onTrackChanged L840-848）。
-        // 修复「跳过片头无效」：load 在 prepared 态 resolve、紧接 play()，
-        // prepared→playing 过渡期下发的 seek 会被系统吞掉。这里等待 seek 确认，
-        // 并用 timeUpdate 校验实际进度是否到位，不到位则在 playing 稳定态重试一次。
         const skipMs = this.skipIntroDuration * 1000;
-        await this.seekIntroReliably(skipMs);
+        await this.seekReliably(skipMs);
         this.currentMs = skipMs;
       }
       // 新曲目加载完成，解除片尾跳过防抖（对齐 mobile isSkippingOutroRef 在曲目切换后复位）
@@ -582,44 +581,42 @@ export class PlayerStore {
   }
 
   /**
-   * 可靠的片头跳过 seek：AVPlayer 在 prepared→playing 过渡期会吞掉 seek。
-   * 先 seek 一次并等待确认；随后用一次 timeUpdate 校验实际进度，若没跳到目标附近
-   * （说明被过渡期吞了），在 playing 稳定态补做一次。
+   * 可靠的自动 seek（片头跳过/续播）：AVPlayer 在 prepared→playing 过渡期会吞掉 seek。
+   * 先 await seek（底层等 seekDone）；随后等一个 timeUpdate 周期校验实际进度，
+   * 若没跳到目标附近（说明被吞），在 playing 稳定态补 seek 一次。
    */
-  private async seekIntroReliably(skipMs: number): Promise<void> {
+  private async seekReliably(targetMs: number): Promise<void> {
     try {
-      await audioBackend.seek(skipMs);
+      await audioBackend.seek(targetMs);
     } catch (e) {
-      Logger.w('PlayerStore', `seekIntro first seek failed: ${String(e)}`);
+      Logger.w('PlayerStore', `seekReliably first seek(${Math.round(targetMs / 1000)}s) failed: ${String(e)}`);
     }
     // 等一个 timeUpdate 周期校验实际进度
-    const beforeMs = this.currentMs;
     await new Promise<void>((resolve) => setTimeout(resolve, 400));
-    // 校验：若当前进度远小于目标（说明 seek 没生效），在稳定态补一次
-    if (this.currentMs < skipMs - 2000 && this.isPlaying) {
-      Logger.w('PlayerStore', `seekIntro verify failed (at ${Math.round(this.currentMs / 1000)}s < ${Math.round(skipMs / 1000)}s), retry`);
+    // 校验：若当前进度远小于目标（说明 seek 没生效），补一次
+    if (this.currentMs < targetMs - 2000 && this.state === 'playing') {
+      Logger.w('PlayerStore', `seekReliably verify failed (at ${Math.round(this.currentMs / 1000)}s < ${Math.round(targetMs / 1000)}s), retry`);
       try {
-        await audioBackend.seek(skipMs);
+        await audioBackend.seek(targetMs);
       } catch (e) {
-        Logger.w('PlayerStore', `seekIntro retry failed: ${String(e)}`);
+        Logger.w('PlayerStore', `seekReliably retry failed: ${String(e)}`);
       }
     }
-    Logger.i('PlayerStore', `seekIntro target=${Math.round(skipMs / 1000)}s before=${Math.round(beforeMs / 1000)}s after=${Math.round(this.currentMs / 1000)}s`);
+    Logger.i('PlayerStore', `seekReliably target=${Math.round(targetMs / 1000)}s now=${Math.round(this.currentMs / 1000)}s`);
   }
 
   /**
    * 有声书自动跳过片尾：剩余时长 ≤ skipOutroDuration 且 > 0.5s 时切下一首。
    * 对齐 mobile PlayerContext.tsx L880-906 的 useEffect 监控逻辑；
    * remaining > 0.5 防止刚加载 position=0 时误判；isSkippingOutro 防连续触发。
-   * 修复：去掉对 this.isPlaying 的硬限制——onStateChange 会在 preparing/ready 等
-   * 过渡态把 isPlaying 置 false，若此时进度已进片尾窗口就错过触发；改为看 state。
    */
   private maybeSkipOutro(): void {
     const cur = this.queue[this.currentIndex];
     if (!cur || cur.contentType !== 'AUDIOBOOK') return;
     if (this.skipOutroDuration <= 0 || this.durationMs <= 0) return;
-    // 仅在真正播放中触发（state 为 playing），排除 paused/idle/preparing
-    if (this.state !== 'playing') return;
+    // 触发门槛用 isPlaying（loadCurrent 播起即置 true，比 state 更早稳定），
+    // 但排除明确的暂停/空闲，避免暂停时误触。
+    if (!this.isPlaying || this.state === 'paused' || this.state === 'idle') return;
     if (this.isSkippingOutro) return;
     const remainingMs = this.durationMs - this.currentMs;
     if (remainingMs <= this.skipOutroDuration * 1000 && remainingMs > 500) {

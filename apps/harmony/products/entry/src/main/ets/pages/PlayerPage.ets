@@ -114,6 +114,10 @@ struct PlayerPage {
   // 倍速独立成响应式字段：@State 对 view 对象的嵌套属性（view.speed）不做深度观察，
   // subscribe 里整体替换 view 时子组件未必重建（参考设置页 themeMode 用 @StorageLink 而非嵌套对象）。
   @State private speed: number = playerStore.view().speed;
+  // 跳过片头/片尾秒数独立成响应式字段：与 speed 同理，@State 对 view.skipIntroDuration
+  // 这类嵌套属性不做深度观察，subscribe 里整体替换 view 时角标不会重绘（导致确认后仍显示"关"）。
+  @State private skipIntroSec: number = playerStore.view().skipIntroDuration;
+  @State private skipOutroSec: number = playerStore.view().skipOutroDuration;
   @State private showLyrics: boolean = false;
   @State private showPlaylist: boolean = false;
   // 修复 3：播放列表三 Tab（current/history/favorites），对齐 mobile PlaylistModal TabType
@@ -204,6 +208,8 @@ struct PlayerPage {
     this.unsub = playerStore.subscribe(() => {
       this.view = playerStore.view();
       this.speed = this.view.speed;
+      this.skipIntroSec = this.view.skipIntroDuration;
+      this.skipOutroSec = this.view.skipOutroDuration;
       const cur = this.current();
       const curId = cur ? cur.id : '';
       if (curId !== this.lastTrackId) {
@@ -1055,33 +1061,81 @@ struct PlayerPage {
 
   /**
    * 有声书模式封面下方置顶操作按钮组（片头/-15s/倍速/+15s/片尾）。
+   * 简约样式：图标 + 右下角小角标展示状态；前进/后退纯文本数字、无文字标签。
    * 功能与 moreSheet() 内的有声书控制组完全一致，复用同一组 handler。
+   * 不复用 SkipEdgeBtn/AudiobookCtrlBtn（它们带整行文字标签，且被 moreSheet 占用）。
+   * 对齐：所有按钮统一 56x56 等高盒子 + 内容居中，保证图标/数字基线一致。
    */
   @Builder audiobookQuickActions() {
     Row() {
-      this.SkipEdgeBtn('intro')
-      this.AudiobookCtrlBtn('skip-back', t('playerMore.back15s'), '', (): void => this.skipBackward15())
-      // ⚠️ 倍速按钮不能走带参 @Builder（label 按值快照不重绘），
-      // 绑定独立的 @State speed 字段，subscribe 里显式同步。
-      Column() {
-        AppIcon({ name: 'speedometer', iconSize: 30, color: this.theme.colors.textSecondary })
-        Text(`${this.speed}x`)
-          .fontSize(12)
-          .fontColor(this.theme.colors.textSecondary)
-          .margin({ top: 8 })
-          .maxLines(1)
-      }
-      .alignItems(HorizontalAlign.Center)
-      .onClick((): void => this.togglePlaybackRate())
-      this.AudiobookCtrlBtn('skip-forward', t('playerMore.forward15s'), '', (): void => this.skipForward15())
-      this.SkipEdgeBtn('outro')
+      // 片头：图标 + 右下角 秒数/关 角标，激活时主题色
+      this.QuickIconBadge(
+        'skip-back-outline',
+        this.skipIntroSec > 0 ? `${this.skipIntroSec}s` : t('playerMore.turnOff'),
+        this.skipIntroSec > 0,
+        (): void => this.openSkipSheet('intro')
+      )
+      // 后退 15s：纯数字当图标
+      this.QuickTextBtn('-15', (): void => this.skipBackward15())
+      // 倍速：图标 + 右下角倍率角标（绑定独立 @State speed，避开带参 @Builder 快照坑）。
+      // 图标比片头/片尾略小，视觉更精致。
+      this.QuickIconBadge('speedometer', `${this.speed}x`, false, (): void => this.togglePlaybackRate(), 20)
+      // 前进 15s：纯数字当图标
+      this.QuickTextBtn('+15', (): void => this.skipForward15())
+      // 片尾：图标 + 右下角 秒数/关 角标，激活时主题色
+      this.QuickIconBadge(
+        'skip-forward-outline',
+        this.skipOutroSec > 0 ? `${this.skipOutroSec}s` : t('playerMore.turnOff'),
+        this.skipOutroSec > 0,
+        (): void => this.openSkipSheet('outro')
+      )
     }
     .width('100%')
     .justifyContent(FlexAlign.SpaceAround)
-    .alignItems(VerticalAlign.Top)
+    .alignItems(VerticalAlign.Center)
     .opacity(0.6)
     .margin({ top: 24 });
   }
+
+  /**
+   * 简约操作按钮：56x56 盒子，Stack 居中放图标，角标用绝对偏移叠在图标右下角。
+   * 主内容（图标）固定在盒子几何中心，与 ±15 数字按钮的中心严格对齐。
+   * active 时图标与角标都用主题色，否则次要色。
+   */
+  @Builder
+  QuickIconBadge(icon: AppIconName, badge: string, active: boolean, onTap: () => void, iconSize: number = 26) {
+    Stack({ alignContent: Alignment.Center }) {
+      AppIcon({
+        name: icon,
+        iconSize: iconSize,
+        color: active ? this.theme.colors.primary : this.theme.colors.textSecondary,
+      })
+      // 角标：从中心向右下偏移，贴在图标右下角
+      Text(badge)
+        .fontSize(10)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(active ? this.theme.colors.primary : this.theme.colors.textSecondary)
+        .translate({ x: 14, y: 10 })
+    }
+    .width(56)
+    .height(56)
+    .onClick(onTap)
+  }
+
+  /** 纯文本数字按钮（前进/后退 ±15），与图标按钮同高、内容同中心对齐。 */
+  @Builder
+  QuickTextBtn(label: string, onTap: () => void) {
+    Stack({ alignContent: Alignment.Center }) {
+      Text(label)
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.theme.colors.textSecondary)
+    }
+    .width(56)
+    .height(56)
+    .onClick(onTap)
+  }
+
 
   @Builder lyricsView() {
     if (this.view.lyrics.length === 0) {

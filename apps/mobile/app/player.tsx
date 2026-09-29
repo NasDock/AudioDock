@@ -676,79 +676,75 @@ export function PlayerDetailView({
     return `${minutes}:${String(seconds).padStart(2, "0")}`;
   };
 
-  // 有声书模式：封面下方置顶操作按钮组（片头/-15s/倍速/+15s/片尾）
+  // 有声书模式：封面下方置顶操作按钮组（片头/-15s/倍速/+15s/片尾）。
+  // 简约样式：图标 + 右下角小角标展示状态；前进/后退纯图标无文字。
   const renderAudiobookQuickActions = () => (
     <View style={styles.audiobookQuickActions}>
+      {/* 片头：图标 + 右下角秒数/关 角标，激活时角标主题色 */}
       <TouchableOpacity
         style={styles.audiobookQuickBtn}
         onPress={() => openSkipModal("intro")}
       >
-        <Ionicons
-          name="play-skip-back-outline"
-          size={28}
-          color={skipIntroDuration > 0 ? colors.primary : colors.secondary}
-        />
-        <Text style={[styles.audiobookQuickLabel, { color: colors.secondary }]}>
-          {t("playerMore.intro")}
-        </Text>
-        <Text
-          style={{
-            fontSize: 10,
-            color: colors.secondary,
-            marginTop: 2,
-            fontWeight: "bold",
-          }}
-        >
-          {skipIntroDuration > 0 ? `${skipIntroDuration}s` : t("playerMore.turnOff")}
-        </Text>
+        <View style={styles.audiobookQuickIconBox}>
+          <Ionicons
+            name="play-skip-back-outline"
+            size={28}
+            color={skipIntroDuration > 0 ? colors.primary : colors.secondary}
+          />
+          <Text
+            style={[
+              styles.audiobookQuickBadge,
+              { color: skipIntroDuration > 0 ? colors.primary : colors.secondary },
+            ]}
+          >
+            {skipIntroDuration > 0 ? `${skipIntroDuration}s` : t("playerMore.turnOff")}
+          </Text>
+        </View>
       </TouchableOpacity>
 
+      {/* 后退 15s：纯图标 */}
       <TouchableOpacity style={styles.audiobookQuickBtn} onPress={skipBackward}>
         <MaterialCommunityIcons name="rewind-15" size={28} color={colors.secondary} />
-        <Text style={[styles.audiobookQuickLabel, { color: colors.secondary }]}>
-          {t("playerMore.back15s")}
-        </Text>
       </TouchableOpacity>
 
+      {/* 倍速：图标 + 右下角倍率角标 */}
       <TouchableOpacity
         style={styles.audiobookQuickBtn}
         onPress={togglePlaybackRateAudiobook}
       >
-        <Ionicons name="speedometer-outline" size={28} color={colors.secondary} />
-        <Text style={[styles.audiobookQuickLabel, { color: colors.secondary }]}>
-          {playbackRate}x
-        </Text>
+        <View style={styles.audiobookQuickIconBox}>
+          <Ionicons name="speedometer-outline" size={28} color={colors.secondary} />
+          <Text style={[styles.audiobookQuickBadge, { color: colors.secondary }]}>
+            {playbackRate}x
+          </Text>
+        </View>
       </TouchableOpacity>
 
+      {/* 前进 15s：纯图标 */}
       <TouchableOpacity style={styles.audiobookQuickBtn} onPress={skipForward}>
         <MaterialCommunityIcons name="fast-forward-15" size={28} color={colors.secondary} />
-        <Text style={[styles.audiobookQuickLabel, { color: colors.secondary }]}>
-          {t("playerMore.forward15s")}
-        </Text>
       </TouchableOpacity>
 
+      {/* 片尾：图标 + 右下角秒数/关 角标，激活时角标主题色 */}
       <TouchableOpacity
         style={styles.audiobookQuickBtn}
         onPress={() => openSkipModal("outro")}
       >
-        <Ionicons
-          name="play-skip-forward-outline"
-          size={28}
-          color={skipOutroDuration > 0 ? colors.primary : colors.secondary}
-        />
-        <Text style={[styles.audiobookQuickLabel, { color: colors.secondary }]}>
-          {t("playerMore.outro")}
-        </Text>
-        <Text
-          style={{
-            fontSize: 10,
-            color: colors.secondary,
-            marginTop: 2,
-            fontWeight: "bold",
-          }}
-        >
-          {skipOutroDuration > 0 ? `${skipOutroDuration}s` : t("playerMore.turnOff")}
-        </Text>
+        <View style={styles.audiobookQuickIconBox}>
+          <Ionicons
+            name="play-skip-forward-outline"
+            size={28}
+            color={skipOutroDuration > 0 ? colors.primary : colors.secondary}
+          />
+          <Text
+            style={[
+              styles.audiobookQuickBadge,
+              { color: skipOutroDuration > 0 ? colors.primary : colors.secondary },
+            ]}
+          >
+            {skipOutroDuration > 0 ? `${skipOutroDuration}s` : t("playerMore.turnOff")}
+          </Text>
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -2015,9 +2011,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minWidth: 56,
   },
-  audiobookQuickLabel: {
-    fontSize: 12,
-    marginTop: 6,
+  // 图标盒：相对定位，供右下角角标绝对定位
+  audiobookQuickIconBox: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // 右下角小角标（秒数/倍率/关），贴在图标右下角
+  audiobookQuickBadge: {
+    position: "absolute",
+    right: -14,
+    bottom: -4,
+    fontSize: 9,
+    fontWeight: "bold",
   },
   skipModalBackdrop: {
     flex: 1,

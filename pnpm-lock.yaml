@@ -46,7 +46,7 @@ importers:
         specifier: ^3.14.10
         version: 3.14.10(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@tauri-apps/api':
-        specifier: ^2.0.0
+        specifier: ~2.11.0
         version: 2.11.1
       '@tauri-apps/plugin-autostart':
         specifier: 2.5.1

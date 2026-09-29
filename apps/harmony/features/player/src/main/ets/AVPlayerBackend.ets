@@ -4,7 +4,7 @@ import fs from '@ohos.file.fs';
 import { BusinessError } from '@ohos.base';
 import { Logger } from 'audiodock_common';
 import type { IAudioPlayer, PlayerEvent, PlayerListener, PlayerPayload,
-  TimeUpdatePayload, StateChangePayload, ErrorPayload, BufferingPayload } from './IAudioPlayer';
+  TimeUpdatePayload, StateChangePayload, ErrorPayload, BufferingPayload, SeekDonePayload } from './IAudioPlayer';
 
 export class AVPlayerBackend implements IAudioPlayer {
   private player: media.AVPlayer | null = null;
@@ -193,7 +193,9 @@ export class AVPlayerBackend implements IAudioPlayer {
       const pl: TimeUpdatePayload = { currentMs: ms, durationMs: p.duration };
       this.dispatch('timeUpdate', pl);
     });
-    p.on('seekDone', (_ms: number) => {
+    p.on('seekDone', (ms: number) => {
+      const pl: SeekDonePayload = { positionMs: ms };
+      this.dispatch('seekDone', pl);
       const r = this.seekResolve;
       this.seekResolve = null;
       if (r) r();
