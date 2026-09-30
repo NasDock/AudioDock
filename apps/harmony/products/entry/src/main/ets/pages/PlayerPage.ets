@@ -291,10 +291,19 @@ struct PlayerPage {
   }
 
   // ─── 横屏控制条自动隐藏（对齐 mobile player.tsx resetHideTimer / needsAutoHide） ───
-  // needsAutoHide = isLandscape && 封面(250) + 控制条高度 + 80 > 容器高度
+  // 横屏封面尺寸（有声书加按钮组后缩小，避免挤掉悬浮控制条）
+  private landscapeCoverSize(): number {
+    return this.current()?.contentType === 'AUDIOBOOK' ? 200 : 250;
+  }
+  // 左列封面区内容高度：封面 + （有声书时）按钮组约 80
+  private landscapeContentHeight(): number {
+    const base = this.landscapeCoverSize();
+    return this.current()?.contentType === 'AUDIOBOOK' ? base + 80 : base;
+  }
+  // needsAutoHide = isLandscape && 内容高度 + 控制条高度 + 80 > 容器高度
   private needsAutoHide(): boolean {
     return this.isLandscape && this.controlsHeight > 0 &&
-      250 + this.controlsHeight + 80 > this.containerHeight;
+      this.landscapeContentHeight() + this.controlsHeight + 80 > this.containerHeight;
   }
 
   // 悬浮控制条顶部 y 坐标：对齐 mobile bottom:40（容器高 - 40 - 控制条自身高），不小于 0
@@ -871,42 +880,76 @@ struct PlayerPage {
    */
   @Builder landscapeContent() {
     Row() {
-      // ── 左列（对齐 landscapeLeft: flex:1, center, padding:24） ──
-      Stack({ alignContent: Alignment.Center }) {
-        CoverImage({
-          path: this.current()?.coverUrl ?? null,
-          imgWidth: 250,
-          imgHeight: 250,
-          radius: 15,
-          fallbackText: (this.current()?.title ?? '?').substring(0, 1),
-        })
-          .onClick(() => {
-            // 对齐 mobile: needsAutoHide 时点封面切换控制条显隐
-            if (this.needsAutoHide()) {
-              if (this.controlsVisible) {
-                if (this.hideTimerId !== -1) {
-                  clearTimeout(this.hideTimerId);
-                  this.hideTimerId = -1;
-                }
-                this.controlsVisible = false;
-                animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
-                  this.controlsOpacity = 0;
-                });
-              } else {
-                this.resetHideTimer();
-              }
-            }
-          });
+      // ── 左列（改为 Column 纵向流式布局，避免 Stack 绝对定位导致控制条位置不随内容变化） ──
+      Column() {
+        // 顶部：关闭（左） + 更多（右），固定在左列顶部
+        Row() {
+          Row() {
+            AppIcon({ name: 'chevron-down', iconSize: 26, color: this.theme.colors.text });
+          }
+          .width(44).height(44)
+          .justifyContent(FlexAlign.Center)
+          .onClick(() => router.back());
 
-        // 悬浮控制条（对齐 landscapeControls: absolute, bottom:40, left:10%, width:80%, radius:16, padding:10）
+          Blank();
+
+          Row() {
+            Text('⋮')
+              .fontSize(22)
+              .fontColor(this.theme.colors.text)
+              .textAlign(TextAlign.Center);
+          }
+          .width(44).height(44)
+          .justifyContent(FlexAlign.Center)
+          .onClick(() => { this.showMore = true; });
+        }
+        .width('100%');
+
+        // 中部：封面 + 有声书操作按钮组，居中并上移，占满剩余空间
+        Column() {
+          CoverImage({
+            path: this.current()?.coverUrl ?? null,
+            imgWidth: this.landscapeCoverSize(),
+            imgHeight: this.landscapeCoverSize(),
+            radius: 15,
+            fallbackText: (this.current()?.title ?? '?').substring(0, 1),
+          })
+            .onClick(() => {
+              // 对齐 mobile: needsAutoHide 时点封面切换控制条显隐
+              if (this.needsAutoHide()) {
+                if (this.controlsVisible) {
+                  if (this.hideTimerId !== -1) {
+                    clearTimeout(this.hideTimerId);
+                    this.hideTimerId = -1;
+                  }
+                  this.controlsVisible = false;
+                  animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
+                    this.controlsOpacity = 0;
+                  });
+                } else {
+                  this.resetHideTimer();
+                }
+              }
+            });
+          // 横屏/平板模式：有声书封面下方置顶操作按钮组（与竖屏同一组）
+          if (this.current()?.contentType === 'AUDIOBOOK') {
+            this.audiobookQuickActions();
+          }
+        }
+        .alignItems(HorizontalAlign.Center)
+        .justifyContent(FlexAlign.Center)
+        .layoutWeight(1)
+        .width('100%')
+        .translate({ y: -12 });
+
+        // 底部：悬浮控制条（随控制条显隐，固定在左列底部）
         Column() {
           this.controls();
         }
-        .width('80%')
+        .width('100%')
         .borderRadius(16)
         .padding(10)
         .backgroundColor(this.theme.colors.background)
-        .position({ x: '10%', y: this.controlsTop() })
         .opacity(this.controlsOpacity)
         .hitTestBehavior(this.controlsVisible ? HitTestMode.Default : HitTestMode.None)
         .onAreaChange((oldVal: Area, newVal: Area) => {
@@ -916,38 +959,10 @@ struct PlayerPage {
             this.resetHideTimer();
           }
         });
-
-        // 返回按钮（对齐 landscapeBackBtn: absolute, top:20, left:20, zIndex:10）
-        Row() {
-          AppIcon({ name: 'chevron-down', iconSize: 26, color: this.theme.colors.text });
-        }
-        .width(44).height(44)
-        .justifyContent(FlexAlign.Center)
-        .position({ x: 20, y: 20 })
-        .zIndex(10)
-        .onClick(() => router.back());
-
-        // 更多按钮（对齐 landscapeMoreBtn: absolute, top:20, right:20, zIndex:10）
-        Row() {
-          Text('⋮')
-            .fontSize(22)
-            .fontColor(this.theme.colors.text)
-            .textAlign(TextAlign.Center);
-        }
-        .width(44).height(44)
-        .justifyContent(FlexAlign.Center)
-        .position({ x: this.leftColumnWidth - 64, y: 20 })
-        .zIndex(10)
-        .onClick(() => { this.showMore = true; });
       }
       .layoutWeight(1)
       .height('100%')
-      .padding(24)
-      // 左列 Stack 有 padding:24，position 以自身宽为基准，'.translate(-64)' 需要补偿 padding
-      // 因此把左列宽度测出来算右侧偏移，保证按钮贴右边缘（对齐 mobile right:20）
-      .onAreaChange((oldVal: Area, newVal: Area) => {
-        this.leftColumnWidth = newVal.width as number;
-      });
+      .padding(24);
 
       // ── 右列（对齐 landscapeRight: flex:1, padding:24, paddingTop:34, paddingBottom:14, center） ──
       Column() {

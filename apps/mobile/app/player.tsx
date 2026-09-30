@@ -1725,6 +1725,9 @@ export function PlayerDetailView({
                 onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
                 style={[styles.artwork, { marginBottom: 0 }]}
               />
+              {/* 横屏/平板模式：有声书封面下方置顶操作按钮组（与竖屏同一组） */}
+              {currentTrack.type === TrackType.AUDIOBOOK &&
+                renderAudiobookQuickActions()}
             </TouchableOpacity>
             <Animated.View
               style={[
