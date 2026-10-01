@@ -20,6 +20,9 @@ struct TtsCreateTaskPage {
   @StorageLink('themeMode') @Watch('onThemeModeChange') themeMode: ThemeMode = 'light';
   @State private langAtBuild: string = getLang();
   @State theme: Theme = buildTheme('light');
+  // 沉浸式避让区高度（vp，services/systemBar publishAvoidArea 下发）
+  @StorageProp('statusBarHeightVp') statusBarHeightVp: number = 0;
+  @StorageProp('navBarHeightVp') navBarHeightVp: number = 0;
 
   @State loading: boolean = false;
   @State view: string = 'select'; // 'select' | 'review'
@@ -773,10 +776,16 @@ struct TtsCreateTaskPage {
   }
 
   build() {
-    if (this.langAtBuild === 'zh-CN') {
-      this.LocalizedContent()
-    } else {
-      this.LocalizedContent()
+    // 沉浸式避让：全屏布局下页面从物理 y=0 排版，外层 Column padding 避开状态栏/小横条
+    Column() {
+      if (this.langAtBuild === 'zh-CN') {
+        this.LocalizedContent()
+      } else {
+        this.LocalizedContent()
+      }
     }
+    .width('100%').height('100%')
+    .backgroundColor(this.theme.colors.background)
+    .padding({ top: this.statusBarHeightVp, bottom: this.navBarHeightVp })
   }
 }
