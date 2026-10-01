@@ -22,6 +22,7 @@ import { usePlayerStore } from "../../store/player";
 import { useSettingsStore } from "../../store/settings";
 import { usePlayMode } from "../../utils/playMode";
 import { isTauri } from "../../utils/platform";
+import { getSourceKey } from "../../https";
 import styles from "./index.module.less";
 
 const { Title } = Typography;
@@ -42,6 +43,8 @@ const Downloads: React.FC = () => {
       const results = await invoke<any[]>("cache_list", {
         downloadPath,
         trackType: mode,
+        // 只列当前数据源的缓存，避免 A/B 源的已下载歌曲混排、点播串源
+        sourceKey: getSourceKey(),
       });
       setLocalItems(results);
     } catch (error) {

@@ -136,6 +136,7 @@ pub async fn open_directory(path: String) -> Result<String, String> {
 pub async fn cache_check(
     state: State<'_, AppState>,
     track_id: i64,
+    source_key: Option<String>,
     original_path: String,
     download_path: String,
     track_type: String,
@@ -145,6 +146,7 @@ pub async fn cache_check(
     let origin = state.media_origin.clone();
     let rel = cache_manager.check_cache(
         track_id,
+        source_key.as_deref(),
         &original_path,
         &download_path,
         &track_type,
@@ -177,6 +179,7 @@ pub async fn update_download_path(
 pub async fn cache_download(
     state: State<'_, AppState>,
     track_id: i64,
+    source_key: Option<String>,
     url: String,
     download_path: String,
     track_type: String,
@@ -189,6 +192,7 @@ pub async fn cache_download(
     let rel = cache_manager
         .download_track(
             track_id,
+            source_key.as_deref(),
             &url,
             &download_path,
             &track_type,
@@ -210,9 +214,10 @@ pub async fn cache_list(
     state: State<'_, AppState>,
     download_path: String,
     track_type: String,
+    source_key: Option<String>,
 ) -> Result<Vec<TrackMetadata>, String> {
     let cache_manager = state.cache_manager.clone();
-    cache_manager.list_cache(&download_path, &track_type)
+    cache_manager.list_cache(&download_path, &track_type, source_key.as_deref())
 }
 
 #[tauri::command]

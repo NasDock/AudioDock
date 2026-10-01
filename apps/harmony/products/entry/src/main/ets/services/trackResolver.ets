@@ -1,13 +1,16 @@
 import { fileCache } from 'features_storage';
 import type { TrackDto } from 'features_network';
 import { getInternalQuality, getExternalQuality, resolveTrackUrl } from './trackQuality';
+import { getSourceKey } from '../utils/device';
 import type { Track } from '../context/PlayerStore';
 import { playerStore } from '../context/PlayerStore';
 
 export async function resolveTrackToPlayer(track: TrackDto, isExternal: boolean): Promise<Track> {
   const ext = track.ext ?? 'mp3';
-  if (await fileCache.hasAudio(track.id, ext)) {
-    return toPlayerTrack(track, await fileCache.audioPath(track.id, ext));
+  // 多数据源隔离：sourceKey 随当前 serverAddress 变化，A/B 两源同 track_id 互不命中
+  const sourceKey = await getSourceKey();
+  if (await fileCache.hasAudio(track.id, ext, sourceKey)) {
+    return toPlayerTrack(track, await fileCache.audioPath(track.id, ext, sourceKey));
   }
   const q = isExternal ? await getExternalQuality() : await getInternalQuality();
   const url = await resolveTrackUrl(track.id, q, track.path);

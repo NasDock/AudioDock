@@ -411,17 +411,57 @@ const handleOpenMore = () => {
         </View>
 
         <View className='player-content'>
-            <View className='player-artwork-lyric-area' onClick={() => setShowLyrics(!showLyrics)}>
+            <View className='player-artwork-lyric-area'>
                 {!showLyrics ? (
-                    <View className='player-artwork-container'>
-                        <Image 
-                            src={getImageUrl(currentTrack.cover, 600)} 
-                            className='player-artwork' 
-                            mode='aspectFill' webp
-                        />
+                    <View className='player-artwork-column'>
+                        <View onClick={() => setShowLyrics(true)}>
+                            <View className='player-artwork-container'>
+                                <Image
+                                    src={getImageUrl(currentTrack.cover, 600)}
+                                    className='player-artwork'
+                                    mode='aspectFill' webp
+                                />
+                            </View>
+                        </View>
+                        {/* 有声书模式：操作按钮组贴在封面正下方（与封面同在一个弹性区域内，
+                            随封面一起居中）。简约样式：图标 + 右下角小角标展示状态，
+                            前进/后退纯图标无文字。 */}
+                        {currentTrack.type === 'AUDIOBOOK' && (
+                            <View className='player-audiobook-quick-actions'>
+                              {/* 片头：图标 + 右下角秒数/关 角标，激活时角标高亮 */}
+                              <View className='player-audiobook-quick-btn' onClick={() => openSkipConfig('intro')}>
+                                <View className='player-audiobook-quick-iconbox'>
+                                  <Text className={`player-audiobook-quick-icon icon icon-prev ${skipIntroDuration > 0 ? 'active' : ''}`} />
+                                  <Text className={`player-audiobook-quick-badge ${skipIntroDuration > 0 ? 'active' : ''}`}>{skipIntroDuration > 0 ? `${skipIntroDuration}s` : '关'}</Text>
+                                </View>
+                              </View>
+                              {/* 后退 15s：纯图标 */}
+                              <View className='player-audiobook-quick-btn' onClick={() => handleSkip(-15)}>
+                                <Text className='player-audiobook-quick-plain-icon'>-15</Text>
+                              </View>
+                              {/* 倍速：图标 + 右下角倍率角标 */}
+                              <View className='player-audiobook-quick-btn' onClick={togglePlaybackRate}>
+                                <View className='player-audiobook-quick-iconbox'>
+                                  <Text className='player-audiobook-quick-icon icon icon-headset' />
+                                  <Text className='player-audiobook-quick-badge'>{playbackRate}x</Text>
+                                </View>
+                              </View>
+                              {/* 前进 15s：纯图标 */}
+                              <View className='player-audiobook-quick-btn' onClick={() => handleSkip(15)}>
+                                <Text className='player-audiobook-quick-plain-icon'>+15</Text>
+                              </View>
+                              {/* 片尾：图标 + 右下角秒数/关 角标，激活时角标高亮 */}
+                              <View className='player-audiobook-quick-btn' onClick={() => openSkipConfig('outro')}>
+                                <View className='player-audiobook-quick-iconbox'>
+                                  <Text className={`player-audiobook-quick-icon icon icon-next ${skipOutroDuration > 0 ? 'active' : ''}`} />
+                                  <Text className={`player-audiobook-quick-badge ${skipOutroDuration > 0 ? 'active' : ''}`}>{skipOutroDuration > 0 ? `${skipOutroDuration}s` : '关'}</Text>
+                                </View>
+                              </View>
+                            </View>
+                        )}
                     </View>
                 ) : (
-                    <View className='player-lyrics-container'>
+                    <View className='player-lyrics-container' onClick={() => setShowLyrics(false)}>
                         {lyrics.length > 0 ? (
                             <ScrollView 
                                 scrollY 

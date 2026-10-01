@@ -5,6 +5,7 @@ import { Logger } from 'audiodock_common';
 import { httpClient, trackApi } from 'features_network';
 import type { TrackDto } from 'features_network';
 import { fileCache, kvStore } from 'features_storage';
+import { getSourceKey } from '../utils/device';
 
 /**
  * 下载服务，对齐 mobile apps/mobile/src/services/downloadManager.ts：
@@ -18,6 +19,7 @@ import { fileCache, kvStore } from 'features_storage';
  *   + fs.openSync/writeSync 动态 import 后类型消失的问题。
  * - 然后用 FileCache.downloadAudio(trackId, ext, 'file://...') 把缓存文件复制到正式位置。
  * - TrackDto 字段是 name/cover/path（不是 title/coverUrl/url），跟后端 Prisma 对齐。
+ * - 多数据源隔离：FileCache 文件名与 KV 元数据都带 sourceKey，不同源同 track_id 互不命中。
  */
 
 const TAG = 'downloadService';
@@ -35,6 +37,8 @@ export interface DownloadedMeta {
   ext: string;
   size: number;
   downloadedAt: number;
+  /** 数据源标识（多源隔离）。旧记录无此字段，视为「通用」兼容。 */
+  sourceKey?: string;
 }
 
 /**
@@ -89,23 +93,28 @@ function extractExt(path: string): string {
 
 /**
  * 判断 trackId 是否已下载（用 FileCache.hasAudio 探测常见后缀）。
+ * 仅判断当前源（sourceKey 随 serverAddress 变化）。
  */
 export async function isTrackDownloaded(trackId: string): Promise<boolean> {
+  const src = await getSourceKey();
   for (const ext of ['mp3', 'm4a', 'aac', 'flac', 'ogg']) {
-    if (await fileCache.hasAudio(trackId, ext)) return true;
+    if (await fileCache.hasAudio(trackId, ext, src)) return true;
   }
   return false;
 }
 
 /**
- * 删除已下载单曲（FileCache + KV 列表）。
+ * 删除已下载单曲（FileCache + KV 列表）。仅删当前源的记录。
  */
 export async function removeDownloadedTrack(trackId: string): Promise<void> {
+  const src = await getSourceKey();
   for (const ext of ['mp3', 'm4a', 'aac', 'flac', 'ogg']) {
-    await fileCache.removeAudio(trackId, ext).catch(() => undefined);
+    await fileCache.removeAudio(trackId, ext, src).catch(() => undefined);
   }
   const list: DownloadedMeta[] = await readOfflineList();
-  const next: DownloadedMeta[] = list.filter((m: DownloadedMeta): boolean => m.trackId !== trackId);
+  const next: DownloadedMeta[] = list.filter(
+    (m: DownloadedMeta): boolean => !(m.trackId === trackId && (m.sourceKey ?? '') === src)
+  );
   await writeOfflineList(next);
 }
 
@@ -144,6 +153,9 @@ export async function downloadTrack(context: common.UIAbilityContext, track: Tra
     Logger.w(TAG, `trackApi.getById(${track.id}) failed, fall back to original: ${String(e)}`);
   }
 
+  // 多数据源隔离：sourceKey 随当前 serverAddress 变化
+  const src: string = await getSourceKey();
+
   // 推断 ext：从 path 上截（.m4a / .mp3）；默认 m4a（与鸿蒙 AVRecorder 一致）
   const pathStr: string = fullTrack.path ?? '';
   const ext: string = extractExt(pathStr);
@@ -156,8 +168,8 @@ export async function downloadTrack(context: common.UIAbilityContext, track: Tra
   try {
     await downloadToFile(context, url, tmpFile);
 
-    // 用 FileCache.downloadAudio 复制到目标位置
-    const dest: string = await fileCache.downloadAudio(track.id, ext, `file://${tmpFile}`);
+    // 用 FileCache.downloadAudio 复制到目标位置（带源前缀）
+    const dest: string = await fileCache.downloadAudio(track.id, ext, `file://${tmpFile}`, undefined, src);
 
     // 写元数据（TrackDto 字段：name / cover；不是 title / coverUrl）
     const stat = fs.statSync(tmpFile);
@@ -172,9 +184,13 @@ export async function downloadTrack(context: common.UIAbilityContext, track: Tra
       ext: ext,
       size: stat.size,
       downloadedAt: Date.now(),
+      sourceKey: src,
     };
     const list: DownloadedMeta[] = await readOfflineList();
-    const filtered: DownloadedMeta[] = list.filter((m: DownloadedMeta): boolean => m.trackId !== track.id);
+    // 仅替换同 trackId + 同 sourceKey 的记录，其它源的同名 id 保留
+    const filtered: DownloadedMeta[] = list.filter(
+      (m: DownloadedMeta): boolean => !(m.trackId === track.id && (m.sourceKey ?? '') === src)
+    );
     filtered.push(meta);
     await writeOfflineList(filtered);
 
@@ -214,8 +230,10 @@ export async function downloadTracks(
 }
 
 /**
- * 获取已下载列表（KV 中的元数据）。
+ * 获取已下载列表（KV 中的元数据）。仅当前源；旧记录（无 sourceKey）仍列出以保证兼容。
  */
 export async function getDownloadedTracks(): Promise<DownloadedMeta[]> {
-  return readOfflineList();
+  const src = await getSourceKey();
+  const list = await readOfflineList();
+  return list.filter((m: DownloadedMeta): boolean => !m.sourceKey || m.sourceKey === src);
 }

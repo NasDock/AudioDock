@@ -7,6 +7,7 @@ import { userDataApi } from 'features_network';
 import type { TrackDto } from 'features_network';
 import { syncStore } from './SyncStore';
 import { authStore } from './AuthStore';
+import { getSourceKey } from '../utils/device';
 
 export interface Track {
   id: string;
@@ -440,12 +441,14 @@ export class PlayerStore {
       // 后端 duration 字段单位是秒，PlayerStore 内部统一用毫秒
       this.durationMs = (t.duration ?? 0) * 1000;
       this.currentMs = resumeMs > 0 ? resumeMs : 0;
+      // 有声书自动跳过片头 / 续播定位：load 在 prepared 态 resolve，此刻 AVPlayer 处于
+      // 稳定可寻址态（prepared），seek 可靠。必须在 play() 之后但进度 tick 开始前下发，
+      // 并用 seekDone 确认；若被过渡期吞掉（timeUpdate 校验未到位），在 playing 稳定态补一次。
       if (resumeMs > 0) {
-        audioBackend.seek(resumeMs).catch(() => undefined);
+        await this.seekReliably(resumeMs);
       } else if (t.contentType === 'AUDIOBOOK' && this.skipIntroDuration > 0) {
-        // 有声书自动跳过片头（对齐 mobile playTrack L1635-1636 / onTrackChanged L840-848）
         const skipMs = this.skipIntroDuration * 1000;
-        audioBackend.seek(skipMs).catch(() => undefined);
+        await this.seekReliably(skipMs);
         this.currentMs = skipMs;
       }
       // 新曲目加载完成，解除片尾跳过防抖（对齐 mobile isSkippingOutroRef 在曲目切换后复位）
@@ -493,11 +496,13 @@ export class PlayerStore {
     const cacheEnabled = await kvStore.get('cacheEnabled');
     if (cacheEnabled === 'false') return;
     const ext = t.ext ?? 'mp3';
+    // 多数据源隔离：缓存文件按源前缀区分
+    const sourceKey = await getSourceKey();
     // 已有缓存则跳过
-    if (await fileCache.hasAudio(t.id, ext)) return;
+    if (await fileCache.hasAudio(t.id, ext, sourceKey)) return;
     // 延迟 3 秒让当前曲目优先完成初始缓冲
     await new Promise<void>((r) => setTimeout(r, 3000));
-    await fileCache.downloadAudioFromUrl(t.id, ext, t.url);
+    await fileCache.downloadAudioFromUrl(t.id, ext, t.url, sourceKey);
   }
 
   /**
@@ -521,6 +526,9 @@ export class PlayerStore {
     // 延迟 3 秒让当前曲目优先完成初始缓冲
     await new Promise<void>((r) => setTimeout(r, 3000));
 
+    // 多数据源隔离：sourceKey 随当前 serverAddress 变化，预下载/查重都按源
+    const sourceKey = await getSourceKey();
+
     const PRELOAD_RANGE = 5;
     const CONCURRENCY = 2;
     const start = Math.max(0, idx - PRELOAD_RANGE);
@@ -535,7 +543,7 @@ export class PlayerStore {
       if (this.preDownloadedIds.has(t.id)) continue;
       this.preDownloadedIds.add(t.id);
       const ext = t.ext ?? 'mp3';
-      if (await fileCache.hasAudio(t.id, ext)) continue;
+      if (await fileCache.hasAudio(t.id, ext, sourceKey)) continue;
       toDownload.push(t);
     }
 
@@ -544,7 +552,7 @@ export class PlayerStore {
       const batch = toDownload.slice(i, i + CONCURRENCY);
       await Promise.all(
         batch.map((t) =>
-          fileCache.downloadAudioFromUrl(t.id, t.ext ?? 'mp3', t.url).catch(() => undefined)
+          fileCache.downloadAudioFromUrl(t.id, t.ext ?? 'mp3', t.url, sourceKey).catch(() => undefined)
         )
       );
     }
@@ -573,6 +581,31 @@ export class PlayerStore {
   }
 
   /**
+   * 可靠的自动 seek（片头跳过/续播）：AVPlayer 在 prepared→playing 过渡期会吞掉 seek。
+   * 先 await seek（底层等 seekDone）；随后等一个 timeUpdate 周期校验实际进度，
+   * 若没跳到目标附近（说明被吞），在 playing 稳定态补 seek 一次。
+   */
+  private async seekReliably(targetMs: number): Promise<void> {
+    try {
+      await audioBackend.seek(targetMs);
+    } catch (e) {
+      Logger.w('PlayerStore', `seekReliably first seek(${Math.round(targetMs / 1000)}s) failed: ${String(e)}`);
+    }
+    // 等一个 timeUpdate 周期校验实际进度
+    await new Promise<void>((resolve) => setTimeout(resolve, 400));
+    // 校验：若当前进度远小于目标（说明 seek 没生效），补一次
+    if (this.currentMs < targetMs - 2000 && this.state === 'playing') {
+      Logger.w('PlayerStore', `seekReliably verify failed (at ${Math.round(this.currentMs / 1000)}s < ${Math.round(targetMs / 1000)}s), retry`);
+      try {
+        await audioBackend.seek(targetMs);
+      } catch (e) {
+        Logger.w('PlayerStore', `seekReliably retry failed: ${String(e)}`);
+      }
+    }
+    Logger.i('PlayerStore', `seekReliably target=${Math.round(targetMs / 1000)}s now=${Math.round(this.currentMs / 1000)}s`);
+  }
+
+  /**
    * 有声书自动跳过片尾：剩余时长 ≤ skipOutroDuration 且 > 0.5s 时切下一首。
    * 对齐 mobile PlayerContext.tsx L880-906 的 useEffect 监控逻辑；
    * remaining > 0.5 防止刚加载 position=0 时误判；isSkippingOutro 防连续触发。
@@ -580,7 +613,10 @@ export class PlayerStore {
   private maybeSkipOutro(): void {
     const cur = this.queue[this.currentIndex];
     if (!cur || cur.contentType !== 'AUDIOBOOK') return;
-    if (this.skipOutroDuration <= 0 || !this.isPlaying || this.durationMs <= 0) return;
+    if (this.skipOutroDuration <= 0 || this.durationMs <= 0) return;
+    // 触发门槛用 isPlaying（loadCurrent 播起即置 true，比 state 更早稳定），
+    // 但排除明确的暂停/空闲，避免暂停时误触。
+    if (!this.isPlaying || this.state === 'paused' || this.state === 'idle') return;
     if (this.isSkippingOutro) return;
     const remainingMs = this.durationMs - this.currentMs;
     if (remainingMs <= this.skipOutroDuration * 1000 && remainingMs > 500) {

@@ -206,6 +206,10 @@ export function PlayerDetailView({
     cycleAudioQuality,
     isRadioMode,
     switchContentModeForIncomingTrack,
+    skipIntroDuration,
+    setSkipIntroDuration,
+    skipOutroDuration,
+    setSkipOutroDuration,
   } = usePlayer();
   // 流转接收端闭包用：保证 useEffect 里始终拿到最新引用（函数每次渲染重建，但内部依赖 ref 不旧）
   const switchContentModeRef = useRef(switchContentModeForIncomingTrack);
@@ -241,6 +245,10 @@ export function PlayerDetailView({
   const [isVip, setIsVip] = useState(false);
   const [lyricFontSize, setLyricFontSize] = useState(16);
   const [controlsBottomOffset, setControlsBottomOffset] = useState(0);
+  // 有声书快捷操作（封面下方置顶按钮组）：跳过片头/片尾弹窗状态
+  const [skipModalVisible, setSkipModalVisible] = useState(false);
+  const [skipModalType, setSkipModalType] = useState<"intro" | "outro" | null>(null);
+  const [tempSkipTime, setTempSkipTime] = useState<number>(0);
   const lineLayouts = useRef<{ [key: number]: any }>({});
 
   const closePlayer = useCallback(() => {
@@ -620,6 +628,300 @@ export function PlayerDetailView({
     seekTo(Math.max(0, position - 15));
   };
 
+  // 有声书快捷按钮组：倍速循环档位与 PlayerMoreModal 一致（5 档）
+  const togglePlaybackRateAudiobook = () => {
+    const rates = [0.5, 1, 1.25, 1.5, 2];
+    const currentIndex = rates.indexOf(playbackRate);
+    const nextRate = rates[(currentIndex + 1) % rates.length];
+    setPlaybackRate(nextRate);
+  };
+
+  const openSkipModal = (type: "intro" | "outro") => {
+    setSkipModalType(type);
+    const currentVal = type === "intro" ? skipIntroDuration : skipOutroDuration;
+    setTempSkipTime(currentVal === 0 ? 30 : currentVal);
+    setSkipModalVisible(true);
+  };
+
+  const cancelSkip = () => {
+    setSkipModalVisible(false);
+    setSkipModalType(null);
+  };
+
+  const confirmSkip = () => {
+    if (skipModalType === "intro") {
+      setSkipIntroDuration(tempSkipTime);
+    } else if (skipModalType === "outro") {
+      setSkipOutroDuration(tempSkipTime);
+    }
+    cancelSkip();
+  };
+
+  const clearSkip = () => {
+    if (skipModalType === "intro") {
+      setSkipIntroDuration(0);
+    } else if (skipModalType === "outro") {
+      setSkipOutroDuration(0);
+    }
+    cancelSkip();
+  };
+
+  const adjustSkipTime = (delta: number) => {
+    setTempSkipTime((prev) => Math.max(0, prev + delta));
+  };
+
+  const formatSkipTime = (s: number) => {
+    const minutes = Math.floor(s / 60);
+    const seconds = s % 60;
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  };
+
+  // 有声书模式：封面下方置顶操作按钮组（片头/-15s/倍速/+15s/片尾）。
+  // 简约样式：图标 + 右下角小角标展示状态；前进/后退纯图标无文字。
+  const renderAudiobookQuickActions = () => (
+    <View style={styles.audiobookQuickActions}>
+      {/* 片头：图标 + 右下角秒数/关 角标，激活时角标主题色 */}
+      <TouchableOpacity
+        style={styles.audiobookQuickBtn}
+        onPress={() => openSkipModal("intro")}
+      >
+        <View style={styles.audiobookQuickIconBox}>
+          <Ionicons
+            name="play-skip-back-outline"
+            size={28}
+            color={skipIntroDuration > 0 ? colors.primary : colors.secondary}
+          />
+          <Text
+            style={[
+              styles.audiobookQuickBadge,
+              { color: skipIntroDuration > 0 ? colors.primary : colors.secondary },
+            ]}
+          >
+            {skipIntroDuration > 0 ? `${skipIntroDuration}s` : t("playerMore.turnOff")}
+          </Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* 后退 15s：纯图标 */}
+      <TouchableOpacity style={styles.audiobookQuickBtn} onPress={skipBackward}>
+        <MaterialCommunityIcons name="rewind-15" size={28} color={colors.secondary} />
+      </TouchableOpacity>
+
+      {/* 倍速：图标 + 右下角倍率角标 */}
+      <TouchableOpacity
+        style={styles.audiobookQuickBtn}
+        onPress={togglePlaybackRateAudiobook}
+      >
+        <View style={styles.audiobookQuickIconBox}>
+          <Ionicons name="speedometer-outline" size={28} color={colors.secondary} />
+          <Text style={[styles.audiobookQuickBadge, { color: colors.secondary }]}>
+            {playbackRate}x
+          </Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* 前进 15s：纯图标 */}
+      <TouchableOpacity style={styles.audiobookQuickBtn} onPress={skipForward}>
+        <MaterialCommunityIcons name="fast-forward-15" size={28} color={colors.secondary} />
+      </TouchableOpacity>
+
+      {/* 片尾：图标 + 右下角秒数/关 角标，激活时角标主题色 */}
+      <TouchableOpacity
+        style={styles.audiobookQuickBtn}
+        onPress={() => openSkipModal("outro")}
+      >
+        <View style={styles.audiobookQuickIconBox}>
+          <Ionicons
+            name="play-skip-forward-outline"
+            size={28}
+            color={skipOutroDuration > 0 ? colors.primary : colors.secondary}
+          />
+          <Text
+            style={[
+              styles.audiobookQuickBadge,
+              { color: skipOutroDuration > 0 ? colors.primary : colors.secondary },
+            ]}
+          >
+            {skipOutroDuration > 0 ? `${skipOutroDuration}s` : t("playerMore.turnOff")}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // 有声书快捷按钮组：跳过片头/片尾设置弹窗（与 PlayerMoreModal 内的行为一致）
+  const renderSkipModal = () => (
+    <Modal
+      visible={skipModalVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={cancelSkip}
+      supportedOrientations={['portrait', 'landscape', 'landscape-left', 'landscape-right']}
+    >
+      <Pressable style={styles.skipModalBackdrop} onPress={cancelSkip}>
+        <Pressable
+          style={{ width: "100%", maxWidth: 450, alignSelf: "center" }}
+          onPress={() => {}}
+        >
+          <View
+            style={[
+              styles.skipModalContent,
+              {
+                backgroundColor: colors.card,
+                paddingBottom: insets.bottom + 20,
+              },
+            ]}
+          >
+            <View style={styles.skipModalHandle} />
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "600",
+                color: colors.text,
+                textAlign: "center",
+                paddingHorizontal: 20,
+                paddingBottom: 4,
+              }}
+            >
+              {skipModalType === "intro"
+                ? t("playerMore.setAutoSkipIntro")
+                : t("playerMore.setAutoSkipOutro")}
+            </Text>
+            <Text
+              style={{
+                textAlign: "center",
+                color: colors.secondary,
+                fontSize: 12,
+                marginBottom: 10,
+              }}
+            >
+              {t("playerMore.appliesToAllAudiobooks")}
+            </Text>
+
+            <View style={{ alignItems: "center", paddingVertical: 10 }}>
+              <Text
+                style={{
+                  fontSize: 48,
+                  fontWeight: "bold",
+                  color: colors.primary,
+                  fontVariant: ["tabular-nums"],
+                }}
+              >
+                {formatSkipTime(tempSkipTime)}
+              </Text>
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 16,
+                  marginTop: 20,
+                }}
+              >
+                {[-10, -1, 1, 10].map((delta, i) => (
+                  <React.Fragment key={delta}>
+                    {i === 2 && (
+                      <View
+                        style={{
+                          width: 1,
+                          height: 20,
+                          backgroundColor: colors.border,
+                        }}
+                      />
+                    )}
+                    <TouchableOpacity
+                      onPress={() => adjustSkipTime(delta)}
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        backgroundColor: "rgba(150,150,150,0.1)",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{ color: colors.text, fontSize: 14, fontWeight: "600" }}>
+                        {delta > 0 ? `+${delta}` : `${delta}`}
+                      </Text>
+                    </TouchableOpacity>
+                  </React.Fragment>
+                ))}
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 24 }}>
+                {[30, 60, 90, 120].map((seconds) => (
+                  <TouchableOpacity
+                    key={seconds}
+                    onPress={() => setTempSkipTime(seconds)}
+                    style={{
+                      backgroundColor:
+                        tempSkipTime === seconds ? colors.primary : "rgba(150,150,150,0.1)",
+                      paddingVertical: 6,
+                      paddingHorizontal: 12,
+                      borderRadius: 16,
+                      borderWidth: 1,
+                      borderColor: tempSkipTime === seconds ? colors.primary : colors.border,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: tempSkipTime === seconds ? "#FFF" : colors.text,
+                        fontSize: 12,
+                        fontWeight: "600",
+                      }}
+                    >
+                      {seconds}s
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View
+              style={{
+                flexDirection: "row",
+                paddingHorizontal: 20,
+                paddingTop: 10,
+                gap: 12,
+              }}
+            >
+              <TouchableOpacity
+                onPress={clearSkip}
+                style={{
+                  flex: 1,
+                  padding: 14,
+                  alignItems: "center",
+                  backgroundColor: "rgba(255, 59, 48, 0.1)",
+                  borderRadius: 12,
+                }}
+              >
+                <Text style={{ color: "#FF3B30", fontWeight: "600" }}>
+                  {t("playerMore.turnOff")}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={confirmSkip}
+                style={{
+                  flex: 2,
+                  padding: 14,
+                  alignItems: "center",
+                  backgroundColor: colors.primary,
+                  borderRadius: 12,
+                }}
+              >
+                <Text style={{ color: "#FFF", fontWeight: "bold" }}>
+                  {t("common.done")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+
   const handleOpenMore = () => {
     setMoreModalVisible(true);
     trackEvent({
@@ -803,6 +1105,9 @@ export function PlayerDetailView({
         socketService.on("transfer_failed", onFailed);
         socketService.emit("transfer_session", {
           targetDeviceId,
+          // 兜底匹配维度：deviceId 漂移时服务端按 deviceName+platform 回退匹配
+          targetDeviceName: targetDevice.name,
+          targetPlatform: targetDevice.platform,
           currentTrack,
           playlist: { list: trackList, index: trackList.findIndex((t) => t.id === currentTrack.id) },
           progress: positionSec,
@@ -1420,6 +1725,9 @@ export function PlayerDetailView({
                 onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
                 style={[styles.artwork, { marginBottom: 0 }]}
               />
+              {/* 横屏/平板模式：有声书封面下方置顶操作按钮组（与竖屏同一组） */}
+              {currentTrack.type === TrackType.AUDIOBOOK &&
+                renderAudiobookQuickActions()}
             </TouchableOpacity>
             <Animated.View
               style={[
@@ -1601,23 +1909,30 @@ export function PlayerDetailView({
                 )}
               </View>
             ) : (
-              <TouchableOpacity
-                style={styles.artworkContainer}
-                activeOpacity={0.9}
-                onPress={() => setShowLyrics(true)}
-              >
-                <Image
-                  source={{
-                    uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
-                  }}
-                  style={styles.artwork}
-                />
-              </TouchableOpacity>
+              <View style={{ alignItems: "center" }}>
+                <TouchableOpacity
+                  style={styles.artworkContainer}
+                  activeOpacity={0.9}
+                  onPress={() => setShowLyrics(true)}
+                >
+                  <Image
+                    source={{
+                      uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
+                    }}
+                    style={styles.artwork}
+                  />
+                </TouchableOpacity>
+                {/* 有声书模式：操作按钮组贴在封面正下方（与封面同在一个居中的容器内，
+                    保证按钮组紧贴封面而非悬在中缝） */}
+                {currentTrack.type === TrackType.AUDIOBOOK &&
+                  renderAudiobookQuickActions()}
+              </View>
             )}
           </View>
         </View>
 
         <View style={{ marginBottom: controlsBottomOffset }}>{renderControls()}</View>
+        {renderSkipModal()}
       </View>
     </View>
   );
@@ -1684,6 +1999,54 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 20,
     boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.3)",
+  },
+  // 有声书模式：封面下方置顶操作按钮组
+  audiobookQuickActions: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "flex-start",
+    width: "100%",
+    marginTop: 24,
+    opacity: 0.6,
+  },
+  audiobookQuickBtn: {
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 56,
+  },
+  // 图标盒：相对定位，供右下角角标绝对定位
+  audiobookQuickIconBox: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // 右下角小角标（秒数/倍率/关），贴在图标右下角
+  audiobookQuickBadge: {
+    position: "absolute",
+    right: -14,
+    bottom: -4,
+    fontSize: 9,
+    fontWeight: "bold",
+  },
+  skipModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  skipModalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 8,
+    width: "100%",
+  },
+  skipModalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: "rgba(150,150,150,0.3)",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 16,
+    marginTop: 8,
   },
   lyricsContainer: {
     flex: 1,

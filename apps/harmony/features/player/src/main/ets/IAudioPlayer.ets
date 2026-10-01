@@ -1,13 +1,14 @@
 export type PlayerEvent =
   | 'timeUpdate' | 'ended' | 'error' | 'stateChange'
-  | 'bufferingUpdate' | 'durationUpdate';
+  | 'bufferingUpdate' | 'durationUpdate' | 'seekDone';
 
 export interface TimeUpdatePayload { currentMs: number; durationMs: number }
 export interface StateChangePayload { state: string }
 export interface ErrorPayload { message: string }
 export interface BufferingPayload { value: number }
+export interface SeekDonePayload { positionMs: number }
 
-export type PlayerPayload = TimeUpdatePayload | StateChangePayload | ErrorPayload | BufferingPayload | null;
+export type PlayerPayload = TimeUpdatePayload | StateChangePayload | ErrorPayload | BufferingPayload | SeekDonePayload | null;
 
 export type PlayerListener = (payload: PlayerPayload) => void;
 

@@ -18,6 +18,29 @@ export function getBaseURL(): string {
   return "/api";
 }
 
+/**
+ * 当前数据源的稳定标识（用于本地缓存按源隔离）。
+ *
+ * 背景：desktop 的音频缓存只按 track_id 存，多数据源下 track_id 撞车会串歌
+ * （A 源缓存的歌，切到 B 源同名 track_id 被误命中）。把 baseURL 归一化后哈希
+ * 成 sourceKey，缓存元数据按 `sourceKey_trackId` 隔离，不同源互不命中。
+ *
+ * 归一化：去协议头差异之外的尾斜杠、转小写，避免 "http://A/" 与 "http://A" 算成两个源。
+ */
+export function getSourceKey(): string {
+  const raw = getBaseURL().trim().toLowerCase().replace(/\/+$/, "");
+  // 同源 web 部署（/api 相对路径）统一成一个固定 key，避免空串哈希歧义
+  if (raw === "/api" || raw === "") return "sameorigin";
+  // 动态 import 会打断缓存同步链路，这里用简易稳定哈希（FNV-1a），
+  // 仅作源区分，不需要密码学强度
+  let h = 0x811c9dc5;
+  for (let i = 0; i < raw.length; i++) {
+    h ^= raw.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
 const instance = axios.create({
   baseURL: getBaseURL(),
   timeout: 30000,

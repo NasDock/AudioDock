@@ -46,7 +46,7 @@ importers:
         specifier: ^3.14.10
         version: 3.14.10(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@tauri-apps/api':
-        specifier: ^2.0.0
+        specifier: ~2.11.0
         version: 2.11.1
       '@tauri-apps/plugin-autostart':
         specifier: 2.5.1
@@ -536,6 +536,9 @@ importers:
 
   packages/ws:
     dependencies:
+      js-md5:
+        specifier: ^0.8.3
+        version: 0.8.3
       socket.io-client:
         specifier: ^4.8.1
         version: 4.8.1

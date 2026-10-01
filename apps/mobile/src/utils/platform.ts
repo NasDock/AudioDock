@@ -61,15 +61,31 @@ export const getDevicePlatform = (): 'phone' | 'tablet' => {
 const DEVICE_ID_KEY = '@audiodock_device_id';
 
 /**
- * 获取稳定唯一设备标识。首次调用生成 UUID 并持久化到 AsyncStorage。
- * 延迟 import 避免循环依赖。
+ * 获取稳定唯一设备标识（确定性）。
+ *
+ * deviceId 由设备固有信息推导：clientType + osName/osVersion + brand/manufacturer + model，
+ * 同一台物理设备无论何时算出来都是同一个 ID，免疫 AsyncStorage 被清 / App 重装导致的漂移。
+ * 算法与 desktop / harmony / web 端一致（@soundx/ws computeDeviceId），保证跨端去重有效。
+ *
+ * 结果仍会写入 AsyncStorage 做缓存（省去每次重算），但即使缓存丢失也能重新算出同一个值。
  */
 export const getOrCreateDeviceId = async (): Promise<string> => {
   const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-  const existing = await AsyncStorage.getItem(DEVICE_ID_KEY);
-  if (existing) return existing;
-  const id = `mobile_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
-  await AsyncStorage.setItem(DEVICE_ID_KEY, id);
+  const { computeDeviceId } = await import('@soundx/ws');
+  const id = computeDeviceId({
+    clientType: getDevicePlatform(), // phone | tablet
+    osName: Device.osName ?? Platform.OS,
+    osVersion: Device.osVersion != null ? String(Device.osVersion) : '',
+    brand: Device.brand ?? '',
+    manufacturer: Device.manufacturer ?? '',
+    model: Device.modelName ?? '',
+  });
+  // 缓存结果（非必须，丢失可重算出同一值）
+  try {
+    await AsyncStorage.setItem(DEVICE_ID_KEY, id);
+  } catch {
+    // 忽略持久化失败
+  }
   return id;
 };
 

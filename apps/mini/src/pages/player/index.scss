@@ -47,10 +47,19 @@
   .player-artwork-lyric-area {
     flex: 1;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     width: 100%;
     overflow: hidden;
+  }
+
+  // 封面 + 有声书操作按钮组的纵向容器（让按钮组紧贴封面、随封面一起居中）
+  .player-artwork-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
   }
 
   .player-artwork-container {
@@ -351,6 +360,66 @@
     font-size: 22rpx;
     font-weight: 700;
     color: #000;
+  }
+
+  // 有声书模式：封面下方置顶操作按钮组。简约样式：图标 + 右下角小角标。
+  .player-audiobook-quick-actions {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    margin-top: 40rpx;
+    padding: 0 8rpx;
+    width: 100%;
+    box-sizing: border-box;
+    opacity: 0.6;
+  }
+
+  .player-audiobook-quick-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 96rpx;
+  }
+
+  // 图标盒：相对定位，供右下角角标绝对定位
+  .player-audiobook-quick-iconbox {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  // 组内图标（片头/片尾/倍速用 iconfont，前进/后退用纯文本数字）
+  .player-audiobook-quick-icon {
+    font-size: 44rpx;
+    color: #888;
+
+    &.active {
+      color: #000;
+    }
+  }
+
+  // 前进/后退 ±15：纯数字当图标
+  .player-audiobook-quick-plain-icon {
+    font-size: 34rpx;
+    font-weight: 700;
+    color: #888;
+  }
+
+  // 右下角小角标（秒数/倍率/关），贴在图标右下角
+  .player-audiobook-quick-badge {
+    position: absolute;
+    right: -28rpx;
+    bottom: -8rpx;
+    font-size: 18rpx;
+    font-weight: 700;
+    color: #888;
+
+    &.active {
+      color: #000;
+    }
   }
 
   .player-menu-section {

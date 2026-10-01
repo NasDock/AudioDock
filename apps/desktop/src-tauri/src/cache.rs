@@ -10,6 +10,10 @@ use tokio::sync::Mutex;
 #[serde(rename_all = "camelCase")]
 pub struct TrackMetadata {
     pub id: i64,
+    /// 数据源标识（多源缓存隔离）。不同 serverAddress 下同 track_id 是两首不同的歌，
+    /// 缓存元数据与音频文件都按 source_key 隔离，避免 A 源缓存被 B 源误命中（串歌）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_key: Option<String>,
     pub path: String,
     pub name: String,
     pub artist: String,
@@ -36,7 +40,25 @@ pub struct TrackMetadata {
 
 pub struct CacheManager {
     cache_dir: PathBuf,
-    active_downloads: Mutex<HashMap<i64, tokio::task::JoinHandle<Result<Option<String>, String>>>>,
+    active_downloads: Mutex<HashMap<String, tokio::task::JoinHandle<Result<Option<String>, String>>>>,
+}
+
+/// 缓存元数据文件名 key。多数据源下必须带 source_key 前缀，否则不同源同 track_id
+/// 会共用一份 `{track_id}.json` 互相覆盖 / 误命中（A 源的歌切到 B 源被串播）。
+/// 兼容：source_key 为空（旧版前端）时退化为裸 track_id，行为同旧版。
+fn cache_key(track_id: i64, source_key: Option<&str>) -> String {
+    match source_key {
+        Some(sk) if !sk.is_empty() => format!("{}_{}", sk, track_id),
+        _ => format!("{}", track_id),
+    }
+}
+
+/// 音频文件落盘的源隔离子目录前缀。同一首歌在不同源各存一份，物理隔离。
+fn source_prefix(source_key: Option<&str>) -> String {
+    match source_key {
+        Some(sk) if !sk.is_empty() => format!("src_{}", sk),
+        _ => String::new(),
+    }
 }
 
 impl CacheManager {
@@ -73,12 +95,13 @@ impl CacheManager {
     pub fn check_cache(
         &self,
         track_id: i64,
+        source_key: Option<&str>,
         _original_path: &str,
         download_path: &str,
         _track_type: &str,
         _album_name: &str,
     ) -> Result<Option<String>, String> {
-        let meta_path = self.cache_dir.join(format!("{}.json", track_id));
+        let meta_path = self.cache_dir.join(format!("{}.json", cache_key(track_id, source_key)));
         if !meta_path.exists() {
             return Ok(None);
         }
@@ -87,6 +110,18 @@ impl CacheManager {
             .map_err(|e| format!("read meta: {}", e))?;
         let metadata: TrackMetadata = serde_json::from_str(&content)
             .map_err(|e| format!("parse meta: {}", e))?;
+
+        // 源一致性校验：缓存记录里存的 source_key 必须与当前源一致，否则视为未命中。
+        // 文件名已按源隔离，这里是双保险（防止旧版无 sourceKey 的 JSON 或手动复制导致串源）。
+        let meta_src = metadata.source_key.as_deref().unwrap_or("");
+        let cur_src = source_key.unwrap_or("");
+        if !cur_src.is_empty() && meta_src != cur_src {
+            eprintln!(
+                "[cache] track {} source mismatch: cached={} current={}, miss",
+                track_id, meta_src, cur_src
+            );
+            return Ok(None);
+        }
 
         if let Some(local_path) = &metadata.local_path {
             // 坏缓存防护：/track/stream/:id 下载时文件名是 track_id（无扩展名），
@@ -155,6 +190,7 @@ impl CacheManager {
     pub async fn download_track(
         &self,
         track_id: i64,
+        source_key: Option<&str>,
         url: &str,
         download_path: &str,
         track_type: &str,
@@ -162,10 +198,12 @@ impl CacheManager {
         metadata: TrackMetadata,
         token: Option<&str>,
     ) -> Result<Option<String>, String> {
+        // 下载去重 key 同样按源隔离（不同源同 track_id 是两场独立下载）
+        let dl_key = cache_key(track_id, source_key);
         // Check if already downloading
         {
             let active = self.active_downloads.lock().await;
-            if active.contains_key(&track_id) {
+            if active.contains_key(&dl_key) {
                 return Ok(None);
             }
         }
@@ -176,29 +214,36 @@ impl CacheManager {
         let cache_dir = self.cache_dir.clone();
         let track_type = track_type.to_string();
         let album_name = album_name.to_string();
+        // 源隔离：metadata 里带上 source_key，落盘子目录也按源分开
+        let mut metadata = metadata;
+        metadata.source_key = source_key.map(|s| s.to_string());
+        let src_prefix = source_prefix(source_key);
+        let meta_file_key = dl_key.clone();
 
         let handle = tokio::spawn(async move {
             download_track_internal(
                 &url,
                 &expanded_download,
+                &src_prefix,
                 &track_type,
                 &album_name,
                 &metadata,
                 token.as_deref(),
                 &cache_dir,
+                &meta_file_key,
             )
             .await
         });
 
         {
             let mut active = self.active_downloads.lock().await;
-            active.insert(track_id, handle);
+            active.insert(dl_key.clone(), handle);
         }
 
         // Wait for completion and clean up
         let result = {
             let mut active = self.active_downloads.lock().await;
-            if let Some(handle) = active.remove(&track_id) {
+            if let Some(handle) = active.remove(&dl_key) {
                 match handle.await {
                     Ok(res) => res,
                     Err(e) => Err(format!("Download task failed: {}", e)),
@@ -215,6 +260,7 @@ impl CacheManager {
         &self,
         download_path: &str,
         track_type: &str,
+        source_key: Option<&str>,
     ) -> Result<Vec<TrackMetadata>, String> {
         let mut results = Vec::new();
 
@@ -233,6 +279,13 @@ impl CacheManager {
                 let content = std::fs::read_to_string(&path)
                     .map_err(|e| format!("read meta: {}", e))?;
                 if let Ok(data) = serde_json::from_str::<TrackMetadata>(&content) {
+                    // 多数据源隔离：传了 source_key 就只列当前源的缓存；
+                    // 没传（旧调用方）则列出全部，保持向后兼容。
+                    if let Some(sk) = source_key {
+                        if !sk.is_empty() && data.source_key.as_deref().unwrap_or("") != sk {
+                            continue;
+                        }
+                    }
                     if data.track_type == track_type {
                         if let Some(local_path) = &data.local_path {
                             let full_path = Path::new(&expanded_download).join(local_path);
@@ -400,11 +453,13 @@ fn migrate_legacy_cache(app_data_dir: &Path, cache_dir: &Path) {
 async fn download_track_internal(
     url: &str,
     download_path: &str,
+    src_prefix: &str,
     track_type: &str,
     album_name: &str,
     metadata: &TrackMetadata,
     token: Option<&str>,
     cache_dir: &Path,
+    meta_file_key: &str,
 ) -> Result<Option<String>, String> {
     let url_parsed = reqwest::Url::parse(url).map_err(|e| format!("url parse: {}", e))?;
     let file_name = url_parsed
@@ -427,10 +482,17 @@ async fn download_track_internal(
         decoded_name
     };
 
-    let sub_folder = if track_type == "MUSIC" {
+    // 落盘路径按源隔离：src_<key>/music/... / src_<key>/audio/<album>/...
+    // 不同源同 track_id/同文件名各存一份，物理上杜绝串歌。
+    let base_folder = if track_type == "MUSIC" {
         "music".to_string()
     } else {
         format!("audio/{}", sanitize_filename(album_name))
+    };
+    let sub_folder = if src_prefix.is_empty() {
+        base_folder
+    } else {
+        format!("{}/{}", src_prefix, base_folder)
     };
 
     let file_path = Path::new(download_path)
@@ -456,7 +518,7 @@ async fn download_track_internal(
         // have no way to verify it without a network call. The startup cleanup
         // and future downloads will fix genuinely truncated files.
         meta.expected_size = local_size;
-        let meta_path = cache_dir.join(format!("{}.json", metadata.id));
+        let meta_path = cache_dir.join(format!("{}.json", meta_file_key));
         tokio::fs::write(
             &meta_path,
             serde_json::to_string_pretty(&meta).map_err(|e| format!("ser: {}", e))?,
@@ -545,7 +607,7 @@ async fn download_track_internal(
                 .extension()
                 .and_then(|s| s.to_str())
                 .unwrap_or("jpg");
-            let cover_name = format!("{}_cover.{}", metadata.id, cover_ext);
+            let cover_name = format!("{}_cover.{}", meta_file_key, cover_ext);
             let cover_path = cache_dir.join(&cover_name);
 
             if let Ok(cover_res) = client.get(cover_url).send().await {
@@ -566,7 +628,7 @@ async fn download_track_internal(
     let mut meta = metadata.clone();
     meta.local_path = Some(rel_path.clone());
     meta.expected_size = expected_size;
-    let meta_path = cache_dir.join(format!("{}.json", metadata.id));
+    let meta_path = cache_dir.join(format!("{}.json", meta_file_key));
     tokio::fs::write(
         &meta_path,
         serde_json::to_string_pretty(&meta).map_err(|e| format!("ser: {}", e))?,
@@ -609,10 +671,26 @@ fn cleanup_orphan_cache(cache_dir: &Path, download_path: &str) -> usize {
     // ---- Pass 1: drop orphaned .tmp files in the download dir ---------------
     // We only know the naming scheme `<filename>.tmp` produced by
     // `download_track_internal`, so scan the same sub-folders that downloads
-    // can write into: `<download>/music/` and `<download>/audio/<album>/`.
+    // can write into: `<download>/music/`, `<download>/audio/<album>/`,
+    // plus the per-source variants `<download>/src_<key>/(music|audio)/...`.
     if let Ok(expanded) = expand_tilde(download_path) {
         let root = Path::new(&expanded);
-        let candidates = [root.join("music"), root.join("audio")];
+        let mut candidates = vec![root.join("music"), root.join("audio")];
+        // 多数据源：每个 src_<key> 子目录下还有一层 music/ 与 audio/
+        if let Ok(entries) = std::fs::read_dir(root) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_dir()
+                    && p.file_name()
+                        .and_then(|s| s.to_str())
+                        .map(|n| n.starts_with("src_"))
+                        .unwrap_or(false)
+                {
+                    candidates.push(p.join("music"));
+                    candidates.push(p.join("audio"));
+                }
+            }
+        }
         for dir in candidates {
             let Ok(entries) = std::fs::read_dir(&dir) else { continue };
             for entry in entries.flatten() {

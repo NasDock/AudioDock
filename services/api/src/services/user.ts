@@ -76,22 +76,28 @@ export class UserService {
     platform?: string,
   ): Promise<Device> {
     const now = new Date();
-    // 优先按 deviceId 查找（稳定唯一标识），兜底按 name 查找（兼容旧端）
+    // 优先按 deviceId 精确查找（稳定唯一标识）
     let device: Device | null = null;
     if (deviceId) {
       device = await this.prisma.device.findFirst({
         where: { userId, deviceId },
       });
     }
+    // 兜底按 name + platform 查找（兼容旧端；必须带 platform 维度，
+    // 否则同主机名/同设备名的 desktop 与 web 会互相误合并）。
     if (!device) {
       device = await this.prisma.device.findFirst({
-        where: { userId, name: deviceName },
+        where: {
+          userId,
+          name: deviceName,
+          ...(platform ? { platform } : {}),
+        },
       });
     }
 
     if (device) {
       // 存在则更新在线状态 + 补录 deviceId/platform + 刷新 lastSeen
-      return await this.prisma.device.update({
+      const updated = await this.prisma.device.update({
         where: { id: device.id },
         data: {
           isOnline: true,
@@ -100,6 +106,11 @@ export class UserService {
           ...(platform ? { platform } : {}),
         },
       });
+      // 仅当 deviceId 精确命中时，才清理同 deviceId 的重复记录（安全，不会误删同名异端设备）
+      if (deviceId) {
+        await this.mergeDuplicateDevices(userId, deviceId, device.id);
+      }
+      return updated;
     } else {
       // 不存在则创建新设备
       return await this.prisma.device.create({
@@ -113,6 +124,39 @@ export class UserService {
         },
       });
     }
+  }
+
+  /**
+   * 合并同 userId + 同 deviceId 下的重复记录。
+   *
+   * ⚠️ 只能按 deviceId 去重，绝不能按 name——同主机名/同设备名的 desktop 与 web
+   * 是两台不同设备，按 name 删会把它们互相删掉（曾导致所有设备离线）。
+   * 仅在确认 deviceId 命中后调用（同一 deviceId 不应有多条记录）。
+   */
+  private async mergeDuplicateDevices(userId: number, deviceId: string, keepId: number): Promise<void> {
+    try {
+      const dup = await this.prisma.device.findMany({
+        where: { userId, deviceId, id: { not: keepId } },
+        select: { id: true },
+      });
+      if (dup.length > 0) {
+        await this.prisma.device.deleteMany({
+          where: { userId, deviceId, id: { in: dup.map((d) => d.id) } },
+        });
+        console.log(`[Device] 合并重复设备: user=${userId} deviceId=${deviceId} 删除 ${dup.length} 条重复记录，保留 id=${keepId}`);
+      }
+    } catch (e) {
+      // 去重失败不影响主流程
+      console.warn('[Device] mergeDuplicateDevices failed:', e);
+    }
+  }
+
+  /** 清理 deviceId 为 null 的脏数据（早期未传 deviceId 的端留下的 Unknown Device 记录） */
+  async cleanNullDeviceIdRecords(userId: number): Promise<number> {
+    const res = await this.prisma.device.deleteMany({
+      where: { userId, deviceId: null },
+    });
+    return res.count;
   }
 
   async setDeviceOffline(userId: number, deviceName: string, deviceId?: string): Promise<void> {
@@ -149,6 +193,13 @@ export class UserService {
       where: { isOnline: true },
       data: { isOnline: false },
     });
+    // 顺带清理 deviceId 为 null 的脏数据（早期 Unknown Device 残留）
+    try {
+      const res = await this.prisma.device.deleteMany({ where: { deviceId: null } });
+      if (res.count > 0) console.log(`[WS] 启动时清理 deviceId=null 脏设备记录 ${res.count} 条`);
+    } catch (e) {
+      console.warn('[WS] 清理 null deviceId 记录失败', e);
+    }
   }
 
   async getUserDevices(userId: number): Promise<Device[]> {

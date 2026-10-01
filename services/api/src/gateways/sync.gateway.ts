@@ -333,6 +333,10 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   @SubscribeMessage('transfer_session')
   async handleTransferSession(client: Socket, payload: {
     targetDeviceId: string;
+    /** 目标设备名（deviceId 漂移时的兜底匹配维度） */
+    targetDeviceName?: string;
+    /** 目标平台（配合 deviceName 兜底，避免同名不同端误中） */
+    targetPlatform?: string;
     currentTrack?: any;
     playlist?: any;
     progress?: number;
@@ -350,10 +354,26 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     console.log(`[WS][Transfer] transfer_session: user=${uid} from=${meta.deviceName}(${meta.deviceId}) target=${payload?.targetDeviceId} track=${trackName} progress=${payload?.progress}s online=[${this.describeSockets(all)}]`);
 
     // 找到目标设备的 socket（同 userId 且 deviceId 匹配）
-    const targetSockets = all.filter((sid) => {
+    let targetSockets = all.filter((sid) => {
       const m = this.socketMetadata.get(sid);
       return m?.deviceId === payload.targetDeviceId && sid !== client.id;
     });
+
+    // 兜底：deviceId 匹配不到时（旧端 deviceId 漂移 / DB 脏数据），
+    // 回退按 deviceName + platform 匹配。deviceName（主机名/设备名）通常比 deviceId 更稳定。
+    if (targetSockets.length === 0 && payload.targetDeviceName) {
+      targetSockets = all.filter((sid) => {
+        const m = this.socketMetadata.get(sid);
+        return (
+          sid !== client.id &&
+          m?.deviceName === payload.targetDeviceName &&
+          (!payload.targetPlatform || m?.platform === payload.targetPlatform)
+        );
+      });
+      if (targetSockets.length > 0) {
+        console.log(`[WS][Transfer] deviceId 未命中，已按 deviceName+platform 兜底命中 ${targetSockets.length} 个 socket（targetName=${payload.targetDeviceName}）`);
+      }
+    }
 
     if (targetSockets.length === 0) {
       const onlineDeviceIds = all.map((sid) => this.socketMetadata.get(sid)?.deviceId ?? '∅');

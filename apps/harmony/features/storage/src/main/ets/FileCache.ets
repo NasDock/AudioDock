@@ -34,23 +34,35 @@ export class FileCache {
     Logger.i('FileCache', `Cache root: ${this.rootDir}`);
   }
 
-  async audioPath(trackId: string, ext: string): Promise<string> {
-    return `${this.rootDir}/${AUDIO_DIR}/${trackId}.${ext.replace(/^\./, '')}`;
+  /**
+   * 音频缓存文件名（多数据源隔离）。
+   * 不同源同 trackId 是两首不同的歌，文件名必须带源前缀，否则互相覆盖/误命中（串歌）。
+   * 格式：`{sourceKey}_{trackId}.{ext}`；sourceKey 为空（旧调用）退化为 `{trackId}.{ext}`。
+   */
+  private audioFileName(trackId: string, ext: string, sourceKey?: string): string {
+    const cleanExt = ext.replace(/^\./, '');
+    if (sourceKey && sourceKey.length > 0) return `${sourceKey}_${trackId}.${cleanExt}`;
+    return `${trackId}.${cleanExt}`;
+  }
+
+  async audioPath(trackId: string, ext: string, sourceKey?: string): Promise<string> {
+    return `${this.rootDir}/${AUDIO_DIR}/${this.audioFileName(trackId, ext, sourceKey)}`;
   }
 
   async coverPath(url: string, ext: string = 'jpg'): Promise<string> {
     return `${this.rootDir}/${COVER_DIR}/${urlToFilename(url, ext)}`;
   }
 
-  async lyricsPath(trackId: string): Promise<string> {
+  async lyricsPath(trackId: string, sourceKey?: string): Promise<string> {
+    if (sourceKey && sourceKey.length > 0) return `${this.rootDir}/${LYRICS_DIR}/${sourceKey}_${trackId}.json`;
     return `${this.rootDir}/${LYRICS_DIR}/${trackId}.json`;
   }
 
-  async hasAudio(trackId: string, ext: string): Promise<boolean> {
+  async hasAudio(trackId: string, ext: string, sourceKey?: string): Promise<boolean> {
     // 注意：API 11+ 的 fs.access 不再抛异常，而是 resolve 出 boolean，
     // 之前 .then(() => true) 的写法会把 false 也吞掉，导致永远返回 true。
     try {
-      return await fs.access(await this.audioPath(trackId, ext));
+      return await fs.access(await this.audioPath(trackId, ext, sourceKey));
     } catch (_e) {
       return false;
     }
@@ -59,9 +71,10 @@ export class FileCache {
   async downloadAudio(
     trackId: string, ext: string, sourceUri: string,
     onProgress?: (p: DownloadProgress) => void,
+    sourceKey?: string,
   ): Promise<string> {
-    const dest = await this.audioPath(trackId, ext);
-    const key = `${trackId}:${ext}`;
+    const dest = await this.audioPath(trackId, ext, sourceKey);
+    const key = `${sourceKey ?? ''}:${trackId}:${ext}`;
     if (this.inflight.has(key)) return this.inflight.get(key)!;
     const tmp = `${dest}.tmp`;
     const task = (async () => {
@@ -80,8 +93,8 @@ export class FileCache {
     return task;
   }
 
-  async removeAudio(trackId: string, ext: string): Promise<void> {
-    const p = await this.audioPath(trackId, ext);
+  async removeAudio(trackId: string, ext: string, sourceKey?: string): Promise<void> {
+    const p = await this.audioPath(trackId, ext, sourceKey);
     await fs.unlink(p).catch(() => undefined);
   }
 
@@ -98,9 +111,9 @@ export class FileCache {
    *
    * 失败静默（只打日志），不影响播放。
    */
-  async downloadAudioFromUrl(trackId: string, ext: string, url: string): Promise<string> {
-    const dest = await this.audioPath(trackId, ext);
-    const key = `${trackId}:${ext}`;
+  async downloadAudioFromUrl(trackId: string, ext: string, url: string, sourceKey?: string): Promise<string> {
+    const dest = await this.audioPath(trackId, ext, sourceKey);
+    const key = `${sourceKey ?? ''}:${trackId}:${ext}`;
     if (this.inflight.has(key)) return this.inflight.get(key)!;
     const tmp = `${dest}.tmp`;
     const task = (async () => {

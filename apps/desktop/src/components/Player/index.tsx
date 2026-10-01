@@ -88,7 +88,7 @@ import { useSettingsStore } from "../../store/settings";
 import LazyImage from "../LazyImage";
 import { useSyncStore } from "../../store/sync";
 import { formatDuration } from "../../utils/formatDuration";
-import { isTauri, tauriGetDeviceName, getOrCreateDeviceId } from "../../utils/platform";
+import { isTauri, tauriGetDeviceName, getOrCreateDeviceId, computeStableDeviceId } from "../../utils/platform";
 import { getCurrentPlaybackQualityPreference } from "../../utils/playbackQuality";
 import { getPlayMode, setPlayMode, usePlayMode } from "../../utils/playMode";
 import PlayingIndicator from "../PlayingIndicator";
@@ -532,7 +532,16 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
   const [onlineDevices, setOnlineDevices] = useState<OnlineDevice[]>([]);
   const [transferring, setTransferring] = useState<string | null>(null);
   // 本机稳定设备标识（用于从在线列表里排除自己，不依赖后端返回的 device.deviceId）
-  const selfDeviceId = getOrCreateDeviceId();
+  // 流转比对必须稳定，用确定性 deviceId；异步加载，算好前先用同步缓存值
+  const [selfDeviceId, setSelfDeviceId] = useState<string>(() => getOrCreateDeviceId());
+  useEffect(() => {
+    let mounted = true;
+    computeStableDeviceId().then((id) => {
+      if (mounted && id && id !== selfDeviceId) setSelfDeviceId(id);
+    }).catch(() => undefined);
+    return () => { mounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Playback Rate
   const [playbackRate, setPlaybackRate] = useState(() => {
@@ -2122,6 +2131,9 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         socketService.on("transfer_failed", onFailed);
         socketService.emit("transfer_session", {
           targetDeviceId,
+          // 兜底匹配维度：deviceId 漂移时服务端按 deviceName+platform 回退匹配
+          targetDeviceName: targetDevice.name,
+          targetPlatform: targetDevice.platform,
           currentTrack,
           playlist: { list: playlist, index: currentIndex },
           progress: progressSec,
