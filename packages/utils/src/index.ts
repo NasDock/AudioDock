@@ -92,6 +92,17 @@ export interface ScanResult {
   [key: string]: any;
 }
 
+/**
+ * 扫描预检钩子：在 parseFile 之前调用，返回 true 表示该文件无需处理
+ *（例如 mtime 未变化），直接跳过解析与回调。调用方需自行将其计入已处理集合。
+ */
+export type ScanSkipPredicate = (filePath: string, stat: fs.Stats) => boolean;
+
+export interface ScanOptions {
+  audioOnly?: boolean;
+  shouldSkip?: ScanSkipPredicate;
+}
+
 export class LocalMusicScanner {
   constructor(private cacheDir: string) {
     if (!fs.existsSync(cacheDir)) {
@@ -104,7 +115,7 @@ export class LocalMusicScanner {
     return targetPath.startsWith(transcodedMvDir);
   }
 
-  async scanMusic(dir: string, onFile?: (result: ScanResult) => Promise<void>): Promise<ScanResult[]> {
+  async scanMusic(dir: string, onFile?: (result: ScanResult) => Promise<void>, options?: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
     if (!fs.existsSync(dir)) return results;
 
@@ -116,7 +127,7 @@ export class LocalMusicScanner {
         }
         results.push(metadata);
       }
-    }, { audioOnly: true });
+    }, { audioOnly: true, shouldSkip: options?.shouldSkip });
     return results;
   }
 
@@ -136,7 +147,7 @@ export class LocalMusicScanner {
     return results;
   }
 
-  async scanAudiobook(dir: string, onFile?: (result: ScanResult) => Promise<void>): Promise<ScanResult[]> {
+  async scanAudiobook(dir: string, onFile?: (result: ScanResult) => Promise<void>, options?: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
     if (!fs.existsSync(dir)) return results;
 
@@ -169,7 +180,7 @@ export class LocalMusicScanner {
         }
         results.push(metadata);
       }
-    }, { audioOnly: true });
+    }, { audioOnly: true, shouldSkip: options?.shouldSkip });
     return results;
   }
 
@@ -210,7 +221,7 @@ export class LocalMusicScanner {
   private readonly VIDEO_EXTENSIONS = /\.(mp4|mkv|avi|webm)$/i;
   private readonly ALL_MEDIA_EXTENSIONS = /\.(mp3|flac|ogg|wav|m4a|mp4|strm|mkv|avi|webm|aac|wma|opus|ape|aiff|aif|dsf|dff|wv|mpc|alac)$/i;
 
-  private async traverse(dir: string, callback: (path: string) => Promise<void>, options?: { audioOnly?: boolean }) {
+  private async traverse(dir: string, callback: (path: string) => Promise<void>, options?: ScanOptions) {
     const extensionPattern = options?.audioOnly ? this.AUDIO_EXTENSIONS : this.ALL_MEDIA_EXTENSIONS;
     try {
       const files = fs.readdirSync(dir);
@@ -224,6 +235,10 @@ export class LocalMusicScanner {
           if (stat.isDirectory()) {
             await this.traverse(fullPath, callback, options);
           } else if (extensionPattern.test(file)) {
+            // 预检命中（如 mtime 未变化）则跳过，避免昂贵的 parseFile
+            if (options?.shouldSkip && options.shouldSkip(fullPath, stat)) {
+              continue;
+            }
             await callback(fullPath);
           }
         } catch (e) {

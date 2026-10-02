@@ -5,8 +5,8 @@ import { buildTheme } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { formatDuration, Logger } from 'audiodock_common';
-import { trackApi, playlistApi, artistApi, albumApi, miApi, plusApi, setPlusAuthToken, deviceApi } from 'features_network';
-import type { PlaylistDto, ArtistDto, AlbumDto, MiDevice, TrackDto, OnlineDevice } from 'features_network';
+import { trackApi, playlistApi, artistApi, albumApi, miApi, plusApi, setPlusAuthToken, deviceApi, mvApi } from 'features_network';
+import type { PlaylistDto, ArtistDto, AlbumDto, MiDevice, TrackDto, OnlineDevice, MVDto } from 'features_network';
 import { kvStore } from 'features_storage';
 import type { LyricLine } from 'features_player';
 import { playerStore } from '../context/PlayerStore';
@@ -27,6 +27,7 @@ import { XiaoAiIcon } from '../components/XiaoAiIcon';
 import { PlayingIndicator } from '../components/PlayingIndicator';
 import { SyncInviteModal } from '../components/SyncInviteModal';
 import { SyncNotification } from '../components/SyncNotification';
+import { mvPlaylistStore } from '../store/MvPlaylistStore';
 
 class MoreOption {
   key: string = '';
@@ -140,6 +141,9 @@ struct PlayerPage {
   @State private isDownloading: boolean = false;
   @State private controlBottomOffset: number = 0;
   @State private playlists: PlaylistDto[] = [];
+  // 当前曲目是否有 MV（对齐 mobile player.tsx hasMv / checkMvStatus）
+  @State private hasMv: boolean = false;
+  private mvDto: MVDto | null = null;
   // 小爱音箱投放相关状态（对齐 mobile player.tsx 的 mi* 状态）
   @State private showMiCast: boolean = false;
   @State private miDevices: MiDevice[] = [];
@@ -165,6 +169,9 @@ struct PlayerPage {
   @StorageLink('themeMode') @Watch('onThemeModeChange') themeMode: ThemeMode = 'light';
   @State private langAtBuild: string = getLang();
   @State theme: Theme = buildTheme('light');
+  // 沉浸式避让区高度（vp，services/systemBar publishAvoidArea 下发）
+  @StorageProp('statusBarHeightVp') statusBarHeightVp: number = 0;
+  @StorageProp('navBarHeightVp') navBarHeightVp: number = 0;
   private lyricScroller: Scroller = new Scroller();
   private lastTrackId: string = '';
   private lastLyricIndex: number = -1;
@@ -217,6 +224,8 @@ struct PlayerPage {
         this.refreshLike();
         // 修复 1：曲目变化时刷新 isDownloaded
         this.refreshDownloadStatus();
+        // 曲目变化时刷新 MV 可用性（对齐 mobile checkMvStatus）
+        this.refreshMvStatus();
       }
       // 横屏时右侧歌词常驻（对齐 mobile: isLandscape ? type !== AUDIOBOOK : showLyrics）
       const lyricsVisible = this.isLandscape || this.showLyrics;
@@ -251,6 +260,7 @@ struct PlayerPage {
     this.lastTrackId = cur ? cur.id : '';
     this.refreshLike();
     this.refreshDownloadStatus();
+    this.refreshMvStatus();
     this.loadVipStatus();
     // 播放流转：注册接收端监听 + 初始化本机 deviceId
     socketService.on('transfer_received', this.onTransferReceived);
@@ -735,11 +745,18 @@ struct PlayerPage {
     // 语言切换时重建整页：条件读取 langAtBuild 建立依赖（框架只追踪读取状态变量的表达式，
     // t() 是普通函数无法被追踪），语言变化使 if 分支切换，旧子树销毁、新子树重建，
     // 所有 t() 文案（含局部 @Builder 和 @Prop 传串的子组件）都按新语言重新求值。
-    if (this.langAtBuild === 'zh-CN') {
-      this.LocalizedContent()
-    } else {
-      this.LocalizedContent()
+    // 沉浸式避让：全屏布局下页面从物理 y=0 排版，外层 Column padding 避开状态栏/小横条，
+    // padding 区域由本容器主题背景填充（状态栏区域与页面同色）。
+    Column() {
+      if (this.langAtBuild === 'zh-CN') {
+        this.LocalizedContent()
+      } else {
+        this.LocalizedContent()
+      }
     }
+    .width('100%').height('100%')
+    .backgroundColor(this.theme.colors.background)
+    .padding({ top: this.statusBarHeightVp, bottom: this.navBarHeightVp })
   }
 
   @Builder
@@ -794,6 +811,8 @@ struct PlayerPage {
           height: '60%',
           dragBar: true,
           backgroundColor: this.theme.colors.background,
+          // 宽屏（>=600vp，如平板横屏）下半模态默认 popup 贴边，显式指定：横屏居中、竖屏底部
+          preferType: this.isLandscape ? SheetType.CENTER : SheetType.BOTTOM,
         })
       Column().width(0).height(0)
         .bindSheet($$this.showMore, this.moreSheet(), {
@@ -801,30 +820,40 @@ struct PlayerPage {
           height: SheetSize.FIT_CONTENT,
           dragBar: true,
           backgroundColor: this.theme.colors.surface,
+          // 宽屏（>=600vp，如平板横屏）下半模态默认 popup 贴边，显式指定：横屏居中、竖屏底部
+          preferType: this.isLandscape ? SheetType.CENTER : SheetType.BOTTOM,
         })
       Column().width(0).height(0)
         .bindSheet($$this.showSleepTimer, this.sleepTimerSheet(), {
           height: 360,
           dragBar: true,
           backgroundColor: this.theme.colors.surface,
+          // 宽屏（>=600vp，如平板横屏）下半模态默认 popup 贴边，显式指定：横屏居中、竖屏底部
+          preferType: this.isLandscape ? SheetType.CENTER : SheetType.BOTTOM,
         })
       Column().width(0).height(0)
         .bindSheet($$this.showAddToPlaylist, this.addToPlaylistSheet(), {
           height: '50%',
           dragBar: true,
           backgroundColor: this.theme.colors.surface,
+          // 宽屏（>=600vp，如平板横屏）下半模态默认 popup 贴边，显式指定：横屏居中、竖屏底部
+          preferType: this.isLandscape ? SheetType.CENTER : SheetType.BOTTOM,
         })
       Column().width(0).height(0)
         .bindSheet($$this.showLyricsSize, this.lyricsSizeSheet(), {
           height: 280,
           dragBar: true,
           backgroundColor: this.theme.colors.surface,
+          // 宽屏（>=600vp，如平板横屏）下半模态默认 popup 贴边，显式指定：横屏居中、竖屏底部
+          preferType: this.isLandscape ? SheetType.CENTER : SheetType.BOTTOM,
         })
       Column().width(0).height(0)
         .bindSheet($$this.showControlPos, this.controlPosSheet(), {
           height: 260,
           dragBar: true,
           backgroundColor: this.theme.colors.surface,
+          // 宽屏（>=600vp，如平板横屏）下半模态默认 popup 贴边，显式指定：横屏居中、竖屏底部
+          preferType: this.isLandscape ? SheetType.CENTER : SheetType.BOTTOM,
         })
       // 有声书：跳过片头/片尾设置（对齐 mobile PlayerMoreModal skip modal）
       Column().width(0).height(0)
@@ -832,18 +861,24 @@ struct PlayerPage {
           height: 420,
           dragBar: true,
           backgroundColor: this.theme.colors.surface,
+          // 宽屏（>=600vp，如平板横屏）下半模态默认 popup 贴边，显式指定：横屏居中、竖屏底部
+          preferType: this.isLandscape ? SheetType.CENTER : SheetType.BOTTOM,
         })
       Column().width(0).height(0)
         .bindSheet($$this.showMiCast, this.miCastSheet(), {
           height: 420,
           dragBar: true,
           backgroundColor: this.theme.colors.surface,
+          // 宽屏（>=600vp，如平板横屏）下半模态默认 popup 贴边，显式指定：横屏居中、竖屏底部
+          preferType: this.isLandscape ? SheetType.CENTER : SheetType.BOTTOM,
         })
       Column().width(0).height(0)
         .bindSheet($$this.showSyncInvite, this.syncInviteSheet(), {
           height: '70%',
           dragBar: true,
           backgroundColor: this.theme.colors.surface,
+          // 宽屏（>=600vp，如平板横屏）下半模态默认 popup 贴边，显式指定：横屏居中、竖屏底部
+          preferType: this.isLandscape ? SheetType.CENTER : SheetType.BOTTOM,
         })
 
       // 同步邀请通知：覆盖在所有内容之上（顶级 Stack，作为叠层不参与主轴 layout）
@@ -943,12 +978,14 @@ struct PlayerPage {
         .translate({ y: -12 });
 
         // 底部：悬浮控制条（随控制条显隐，固定在左列底部）
+        // 横屏同样应用控制组底部偏移（与竖屏 content() 一致，此前漏接导致横屏调不动）
         Column() {
           this.controls();
         }
         .width('100%')
         .borderRadius(16)
         .padding(10)
+        .margin({ bottom: this.controlBottomOffset })
         .backgroundColor(this.theme.colors.background)
         .opacity(this.controlsOpacity)
         .hitTestBehavior(this.controlsVisible ? HitTestMode.Default : HitTestMode.None)
@@ -1211,33 +1248,68 @@ struct PlayerPage {
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start);
 
-        AppIcon({
-          name: this.liked ? 'heart-fill' : 'heart',
-          iconSize: 24,
-          color: this.liked ? this.theme.colors.primary : this.theme.colors.text,
-        })
-          .onClick(() => this.toggleLike());
-
-        XiaoAiIcon({
-          iconSize: 24,
-          color: this.miLoggedIn ? this.theme.colors.primary : this.theme.colors.text,
-        })
-          .onClick(() => { this.handleOpenMiCast(); });
-
-        // 修复 2：去掉软下线，同步播放按钮常驻（对齐 mobile player.tsx Ionicons people / people-outline）
+        // 按钮顺序对齐 mobile player.tsx 信息行：同步 → MV → 喜欢 → 设备列表 → 更多
+        // 1. 同步播放（对齐 mobile Ionicons people / people-outline）
         // 非会员点击时 handleSyncPress 内部弹"请开通 Plus"对话框（参考 mobile player.tsx L268-322）
-        AppIcon({
-          name: this.syncView.isSynced ? 'person-fill' : 'person',
-          iconSize: 24,
-          color: this.syncView.isSynced ? this.theme.colors.primary : this.theme.colors.text,
-        })
-          .width(28).height(28)
-          .margin({ left: 4 })
-          .onClick((): void => {
-            this.handleSyncPress().catch((e: Error): void => {
-              Logger.w('PlayerPage', `handleSyncPress rejected: ${String(e)}`);
-            });
+        Row() {
+          AppIcon({
+            name: this.syncView.isSynced ? 'person-fill' : 'person',
+            iconSize: 24,
+            color: this.syncView.isSynced ? this.theme.colors.primary : this.theme.colors.text,
           });
+        }
+        .width(28).height(28)
+        .justifyContent(FlexAlign.Center)
+        .onClick((): void => {
+          this.handleSyncPress().catch((e: Error): void => {
+            Logger.w('PlayerPage', `handleSyncPress rejected: ${String(e)}`);
+          });
+        });
+
+        // 2. MV（非有声书且当前曲目有 MV 时展示，对齐 mobile hasMv + videocam-outline）
+        if (this.current()?.contentType !== 'AUDIOBOOK' && this.hasMv) {
+          Row() {
+            AppIcon({ name: 'video', iconSize: 24, color: this.theme.colors.text });
+          }
+          .width(28).height(28)
+          .justifyContent(FlexAlign.Center)
+          .onClick(() => this.handleOpenMv());
+        }
+
+        // 3. 喜欢（统一 28×28 居中盒子，与同步/MV/更多对齐同一水平线）
+        Row() {
+          AppIcon({
+            name: this.liked ? 'heart-fill' : 'heart',
+            iconSize: 24,
+            color: this.liked ? this.theme.colors.primary : this.theme.colors.text,
+          });
+        }
+        .width(28).height(28)
+        .justifyContent(FlexAlign.Center)
+        .onClick(() => this.toggleLike());
+
+        // 4. 设备列表（小爱投放 + 在线设备流转）
+        Row() {
+          XiaoAiIcon({
+            iconSize: 24,
+            color: this.miLoggedIn ? this.theme.colors.primary : this.theme.colors.text,
+          });
+        }
+        .width(28).height(28)
+        .justifyContent(FlexAlign.Center)
+        .onClick(() => { this.handleOpenMiCast(); });
+
+        // 5. 更多选项入口（对齐 mobile 信息行末尾 ellipsis）
+        // 与其它按钮同样的 28×28 居中盒子：裸 Text 在行内顶部对齐时纵向位置对不齐图标
+        Row() {
+          Text('⋮')
+            .fontSize(22)
+            .fontColor(this.theme.colors.text)
+            .textAlign(TextAlign.Center);
+        }
+        .width(28).height(28)
+        .justifyContent(FlexAlign.Center)
+        .onClick(() => { this.showMore = true; });
       }
       .width('100%')
       .alignItems(VerticalAlign.Top)
@@ -2209,6 +2281,43 @@ struct PlayerPage {
    * 刷新当前曲目的"是否已下载"状态。
    * 异步探测 FileCache.hasAudio(trackId, ext)，多种 ext 任意命中即 true。
    */
+  /**
+   * 刷新当前曲目的 MV 可用性（对齐 mobile player.tsx checkMvStatus）：
+   * 有声书/无曲目时 hasMv=false；否则 mvApi.byTrack 命中即缓存 dto 供跳转。
+   */
+  private refreshMvStatus(): void {
+    const cur = this.current();
+    if (!cur || cur.contentType === 'AUDIOBOOK') {
+      this.hasMv = false;
+      this.mvDto = null;
+      return;
+    }
+    const trackId: string = cur.id;
+    mvApi.byTrack(trackId)
+      .then((mv: MVDto | null): void => {
+        // 防止慢响应覆盖新曲目状态
+        const now = this.current();
+        if (!now || now.id !== trackId) return;
+        this.hasMv = mv !== null;
+        this.mvDto = mv;
+      })
+      .catch((): void => {
+        const now = this.current();
+        if (!now || now.id !== trackId) return;
+        this.hasMv = false;
+        this.mvDto = null;
+      });
+  }
+
+  /** 跳转 MV 详情（对齐 mobile player.tsx 信息行 videocam 按钮：setPlaylist 后 push MVDetailPage）。 */
+  private handleOpenMv(): void {
+    const mv: MVDto | null = this.mvDto;
+    if (!mv) return;
+    const list: MVDto[] = [mv];
+    mvPlaylistStore.setPlaylist(list, 0);
+    router.pushUrl({ url: 'pages/MVDetailPage', params: { id: mv.id } });
+  }
+
   private refreshDownloadStatus(): void {
     const cur = this.current();
     if (!cur) {

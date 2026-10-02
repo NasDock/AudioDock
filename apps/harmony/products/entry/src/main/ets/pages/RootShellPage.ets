@@ -65,6 +65,9 @@ struct RootShellPage {
   @State theme: Theme = buildTheme('light');
   @State promotion: VipCurrentLowestPriceData | null = null;
   @State showPromotion: boolean = false;
+  // 沉浸式避让区高度（vp，由 services/systemBar publishAvoidArea 下发）
+  @StorageProp('statusBarHeightVp') statusBarHeightVp: number = 0;
+  @StorageProp('navBarHeightVp') navBarHeightVp: number = 0;
 
   onThemeModeChange(): void {
     this.theme = buildTheme(this.themeMode);
@@ -140,6 +143,9 @@ struct RootShellPage {
     // 否则子页面无法挂载渲染 → 只剩平级的 GlobalBottomBar，内容区白屏。
     // @Builder 内不允许 const 局部变量声明（Only UI component syntax），
     // 所以参数表达式直接作为组件参数值传进去。
+    // 注意：NavDestination 不要 expandSafeArea —— 沉浸式下它会带着页面内容一起
+    // 渗到状态栏/导航栏下面（顶部标题被系统横条盖住）。背景渗入由外层 Navigation 的
+    // expandSafeArea 统一负责，页面内容保持默认安全区避让。
     if (name === 'MainTabs') {
       NavDestination() {
         MainPageContent({ pathStack: this.pathStack })
@@ -148,7 +154,6 @@ struct RootShellPage {
       .width('100%')
       .height('100%')
       .backgroundColor(this.theme.colors.background)
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     } else if (name === 'ArtistDetail') {
       NavDestination() {
         ArtistDetailContent({
@@ -160,7 +165,6 @@ struct RootShellPage {
       .width('100%')
       .height('100%')
       .backgroundColor(this.theme.colors.background)
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     } else if (name === 'AlbumDetail') {
       NavDestination() {
         AlbumDetailContent({
@@ -172,7 +176,6 @@ struct RootShellPage {
       .width('100%')
       .height('100%')
       .backgroundColor(this.theme.colors.background)
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     } else if (name === 'PlaylistDetail') {
       NavDestination() {
         PlaylistDetailContent({
@@ -184,7 +187,6 @@ struct RootShellPage {
       .width('100%')
       .height('100%')
       .backgroundColor(this.theme.colors.background)
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     } else if (name === 'CollectionDetail') {
       NavDestination() {
         CollectionDetailContent({
@@ -196,7 +198,6 @@ struct RootShellPage {
       .width('100%')
       .height('100%')
       .backgroundColor(this.theme.colors.background)
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     } else if (name === 'Search') {
       NavDestination() {
         SearchContent({ pathStack: this.pathStack })
@@ -205,7 +206,6 @@ struct RootShellPage {
       .width('100%')
       .height('100%')
       .backgroundColor(this.theme.colors.background)
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     }
   }
 
@@ -224,6 +224,10 @@ struct RootShellPage {
       .navDestination(this.DestinationBuilder)
       .hideNavBar(true)
       .backgroundColor(this.theme.colors.background)
+      // 沉浸式避让：全屏布局下 Navigation 内容从物理 y=0 排版，顶部 padding 让所有
+      // NavDestination 页面内容统一避开状态栏（背景仍由本组件 theme 背景填充）；
+      // 底部 padding 让页面内容避开小横条（GlobalBottomBar 已自行处理底部避让并覆盖该区域）。
+      .padding({ top: this.statusBarHeightVp, bottom: this.navBarHeightVp })
       // Navigation 背景延伸到状态栏与导航栏区域。NavDestination 默认 extendSafeArea
       // 但背景透明，会盖住下层根 Stack 的黑背景、透出窗口白底，形成状态栏下方白色条带。
       // 让 Navigation 自身黑背景延伸，填充 NavDestination 透明层下方。
