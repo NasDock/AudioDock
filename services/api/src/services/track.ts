@@ -40,6 +40,7 @@ export interface TrackPlaybackProfile {
 interface TrackProbeInfo {
   bitrate: number | null;
   isLossless: boolean;
+  codecName: string | null;
 }
 
 @Injectable()
@@ -178,6 +179,7 @@ export class TrackService {
         resolve({
           bitrate: null,
           isLossless: extLossless.has(ext),
+          codecName: ext ? ext.slice(1) : null,
         });
 
       ffprobe.on('error', fallback);
@@ -196,6 +198,7 @@ export class TrackService {
           resolve({
             bitrate: bitrateRaw,
             isLossless,
+            codecName: codecName || (ext ? ext.slice(1) : null),
           });
         } catch {
           fallback();
@@ -225,22 +228,37 @@ export class TrackService {
     }
 
     const probe = await this.probeTrack(filePath);
+    const probeCodec = (probe.codecName || path.extname(filePath).slice(1)).toUpperCase();
+    const probeBitrate = probe.bitrate ? `${Math.round(probe.bitrate / 1000)}kbps` : '原始';
 
     if (probe.isLossless) {
       return {
         defaultQuality: 'lossless',
         options: [
-          { quality: 'lossless', label: '无损', codec: 'FLAC', bitrate: '原始' },
+          { quality: 'lossless', label: '无损', codec: probeCodec, bitrate: '原始' },
           { quality: 'high', label: '高品质', codec: 'AAC', bitrate: '256kbps' },
           { quality: 'standard', label: '标准', codec: 'AAC', bitrate: '128kbps' },
         ],
       };
     }
 
+    // 有损源文件（MP3/AAC/OGG…）同样提供 lossless 档 = 直发源文件（原音质）。
+    // 之前没有这一档：客户端选「无损」会被服务端回落到 defaultQuality，
+    // 把 320k MP3 无谓地再转码成 AAC 256k（有损转有损，画质只会更差）。
+    // defaultQuality 也定为 lossless：不带 quality 参数的旧客户端/缓存下载
+    // 拿到的都是原始文件，不会触发任何转码。
+    const rawOption: TrackPlaybackQualityOption = {
+      quality: 'lossless',
+      label: '原音质',
+      codec: probeCodec,
+      bitrate: probeBitrate,
+    };
+
     if ((probe.bitrate || 0) >= 256_000) {
       return {
-        defaultQuality: 'high',
+        defaultQuality: 'lossless',
         options: [
+          rawOption,
           { quality: 'high', label: '高品质', codec: 'AAC', bitrate: '256kbps' },
           { quality: 'standard', label: '标准', codec: 'AAC', bitrate: '128kbps' },
         ],
@@ -248,8 +266,9 @@ export class TrackService {
     }
 
     return {
-      defaultQuality: 'standard',
+      defaultQuality: 'lossless',
       options: [
+        rawOption,
         { quality: 'standard', label: '标准', codec: 'AAC', bitrate: '128kbps' },
       ],
     };
@@ -291,6 +310,14 @@ export class TrackService {
         '.m4a': 'audio/mp4',
         '.aac': 'audio/aac',
         '.mp3': 'audio/mpeg',
+        '.ogg': 'audio/ogg',
+        '.oga': 'audio/ogg',
+        '.opus': 'audio/ogg',
+        '.wma': 'audio/x-ms-wma',
+        '.aiff': 'audio/aiff',
+        '.aif': 'audio/aiff',
+        '.ape': 'audio/x-monkeys-audio',
+        '.alac': 'audio/mp4',
       };
 
       return {

@@ -6,10 +6,12 @@ import { useSettingsStore } from "../store/settings";
 import { bucketWidth, isThumbnailBucket } from "../utils/imageBucket";
 import { isTauri } from "../utils/platform";
 import { isCurrentInternalAddress } from "../utils/playbackQuality";
-import { buildTrackPlaybackUrl } from "./trackQuality";
+import { AudioQuality, buildTrackPlaybackUrl } from "./trackQuality";
 
 interface ResolveOptions {
   cacheEnabled: boolean;
+  /** 播放音质（对齐设置页的内外网配置）；缺省由服务端按 defaultQuality 处理 */
+  quality?: AudioQuality;
 }
 
 /**
@@ -51,15 +53,22 @@ export const resolveTrackUri = async (
   track: Track,
   options: ResolveOptions
 ): Promise<string> => {
-  const { cacheEnabled } = options;
+  const { cacheEnabled, quality } = options;
 
   // 1. Construct the remote URI (if path exists).
   // 统一走 /track/stream/:id 代理（对齐 buildTrackPlaybackUrl 的口径），
   // 让后端处理音质参数 / STRM 外链 / Range / Content-Type，
   // 避免直连 /music/ 命中 transcoded-mv 目录导致 404 或错误 Content-Type。
+  //
+  // 播放 URI 必须带 quality —— 否则缓存未命中时这里返回的无 quality URL
+  // 会覆盖 Player 传入的带 quality initialUri，设置页配置被静默忽略。
+  // 后台缓存下载（cache_download）则刻意不带 quality：缓存按 track 维度
+  // 复用，若把转码档缓存下来，之后切回原音质会误命中低音质副本。
   let remoteUri = "";
+  let downloadUri = "";
   if (track.path) {
-    remoteUri = buildTrackPlaybackUrl({ id: track.id, path: track.path });
+    remoteUri = buildTrackPlaybackUrl({ id: track.id, path: track.path }, quality);
+    downloadUri = buildTrackPlaybackUrl({ id: track.id, path: track.path });
   }
 
   // Support playback from local list even if path is missing (for legacy or offline tracks)
@@ -117,7 +126,7 @@ export const resolveTrackUri = async (
       invoke("cache_download", {
         trackId: track.id,
         sourceKey,
-        url: remoteUri,
+        url: downloadUri,
         downloadPath,
         trackType: track.type,
         albumName,

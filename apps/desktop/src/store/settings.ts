@@ -69,8 +69,10 @@ export const useSettingsStore = create<SettingsState>()(
         recommendationLikeRatio: 50,
         experienceProgramEnabled: true,
         activityNotifyEnabled: true,
-        internalPlaybackQuality: 'high',
-        externalPlaybackQuality: 'standard',
+        // 音质默认「原音质」（无损直连原始文件，服务端不转码）；
+        // 用户可在设置里按内/外网分别降档省流量。
+        internalPlaybackQuality: 'lossless',
+        externalPlaybackQuality: 'lossless',
       },
       desktopLyric: {
         enable: false,
@@ -182,10 +184,10 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (persistedState.general) {
           if (persistedState.general.internalPlaybackQuality === undefined) {
-            persistedState.general.internalPlaybackQuality = 'high';
+            persistedState.general.internalPlaybackQuality = 'lossless';
           }
           if (persistedState.general.externalPlaybackQuality === undefined) {
-            persistedState.general.externalPlaybackQuality = 'standard';
+            persistedState.general.externalPlaybackQuality = 'lossless';
           }
         }
         if (version <= 4) {

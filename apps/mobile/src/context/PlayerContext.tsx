@@ -65,7 +65,7 @@ import { useNotification } from "./NotificationContext";
 import { useSettings } from "./SettingsContext";
 import { useSync } from "./SyncContext";
 import { trackEvent } from "../services/tracking";
-import { getCurrentPlaybackQualityPreference } from "../utils/playbackQuality";
+import { getCurrentPlaybackQualityPreference, getPlaybackQualityPreferenceSync } from "../utils/playbackQuality";
 
 export enum PlayMode {
   SEQUENCE = "SEQUENCE",
@@ -247,6 +247,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const skipOutroDurationRef = React.useRef(skipOutroDuration);
   const radioNextTrackRef = React.useRef<Track | null>(null);
   const knownTrackByIdRef = React.useRef<Map<string, Track>>(new Map());
+  // 音质设置快照 ref：playTrack/playTrackList 可能被 widget/同步事件等
+  // 旧闭包调用，用 ref 保证起播时总能拿到最新的内/外网音质设置。
+  const qualitySettingsRef = React.useRef({
+    internalPlaybackQuality,
+    externalPlaybackQuality,
+  });
 
   const setCurrentTrackState = useCallback((track: Track | null) => {
     if (track) {
@@ -351,6 +357,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       if (cancelled) return;
       setPreferredAudioQuality(nextQuality);
       preferredAudioQualityRef.current = nextQuality;
+    };
+    qualitySettingsRef.current = {
+      internalPlaybackQuality,
+      externalPlaybackQuality,
     };
     void syncPreferredQuality();
     return () => {
@@ -1349,12 +1359,19 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           setTrackListState(list);
           setCurrentTrackState(activeTrack);
 
+          // 恢复播放同样遵循设置页的内外网音质偏好（仅影响音乐播放 URL；
+          // 后台缓存下载仍拉原音质，见 trackResolver）。
+          const restoreQuality = getPlaybackQualityPreferenceSync(
+            qualitySettingsRef.current,
+          );
+
           const shouldUseSingleTrackQueue = state.playMode === PlayMode.SHUFFLE;
           if (shouldUseSingleTrackQueue) {
             const uri =
               await resolveTrackUri(activeTrack, {
                 cacheEnabled,
                 shouldDownload: true,
+                quality: restoreQuality,
               });
             const artwork = await resolveArtworkUriForPlayer(activeTrack, {
               shouldDownload: true,
@@ -1382,6 +1399,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                   cacheEnabled,
                   shouldDownload: isNearCurrent,
                   fast: !isNearCurrent,
+                  quality: restoreQuality,
                 });
                 const artwork = await resolveArtworkUriForPlayer(track, {
                   shouldDownload: isNearCurrent,
@@ -1503,14 +1521,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       // download run in the background and only upgrade state when they
       // resolve — they never gate the play call.
       //
-      // Note: getCurrentPlaybackQualityPreference is async (reads
-      // AsyncStorage) so we can't await it on the play path. Falling back to
-      // "lossless" gives a sensible default that works for every track; if
-      // the user picked a different preferred quality the background
-      // prepareAudioQuality() call will reconcile the UI state. We
-      // deliberately do NOT swap the audio URL mid-playback — that would
-      // re-buffer and defeat the purpose of this fix.
-      const initialQuality: AudioQuality = preferredQuality ?? "lossless";
+      // 音质来源（优先级）：显式传入 preferredQuality（如播放页手动切音质）
+      // > 设置页按当前内外网环境推导的偏好（同步读取，不阻塞起播）。
+      // 服务端 /track/stream 会按曲目实际可用的音质档位校验，用户选的档位
+      // 不存在时自动回落到 defaultQuality，所以这里可以放心透传。
+      // 注意不在播放中途换 URL —— 会重新缓冲。
+      const initialQuality: AudioQuality =
+        preferredQuality ??
+        getPlaybackQualityPreferenceSync(qualitySettingsRef.current);
 
       // 秒播优化：起播前同步查音频缓存内存索引（cache.ts 启动时已预热）。
       // 命中 → 直接用本地 file:// 路径，复播零网络；未命中 → 走远端，后台下载供下次。
@@ -1657,9 +1675,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Pick the preferred quality synchronously for the same reason as
       // playTrack: never block queue setup on an HTTP profile fetch.
-      // AsyncStorage-backed preferences are read in the background; "lossless"
-      // is the safe default that every backend supports.
-      const listQuality: AudioQuality = "lossless";
+      // 整列 URL 统一用设置页按当前内外网推导的音质；服务端会对每首曲目
+      // 校验档位合法性，不存在时回落 defaultQuality。
+      const listQuality: AudioQuality = getPlaybackQualityPreferenceSync(
+        qualitySettingsRef.current,
+      );
 
       // 秒播优化：同步查缓存内存索引，命中的曲目直接给 file:// 本地路径，
       // 整列 setQueue 依然零 IO 阻塞；未命中的走远端 URL。

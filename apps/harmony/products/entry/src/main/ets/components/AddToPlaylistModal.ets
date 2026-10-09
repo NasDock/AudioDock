@@ -104,7 +104,7 @@ export struct AddToPlaylistModal {
       // 这里显式声明 Promise<Track>[] 给 Promise.all，避免类型推导把
       // 数组元素推断成 Promise<Promise<Track>>。
       const promises: Promise<Track>[] = this.tracks.map(
-        (t): Promise<Track> => resolveTrackToPlayer(t, false)
+        (t): Promise<Track> => resolveTrackToPlayer(t)
       );
       const resolved: Track[] = await Promise.all(promises);
       playerStore.insertTracksNext(resolved);

@@ -14,7 +14,7 @@ import type { PlayerStateView, Track } from '../context/PlayerStore';
 import { syncStore } from '../context/SyncStore';
 import type { SyncStateView } from '../context/SyncStore';
 import { resolveTrackToPlayer } from '../services/trackResolver';
-import { getInternalQuality } from '../services/trackQuality';
+import { getCurrentQuality } from '../services/trackQuality';
 import { getOrCreateDeviceId } from '../utils/device';
 import { socketService } from 'features_socket';
 import { likesHistory } from '../services/LikesHistoryService';
@@ -620,7 +620,7 @@ struct PlayerPage {
     }
     this.miCasting = true;
     try {
-      const quality = await getInternalQuality();
+      const quality = await getCurrentQuality();
       const url = trackApi.streamUrl(cur.id, quality);
       const title = `${cur.title} - ${cur.artist ?? ''}`;
       await miApi.playByUrl(deviceId, url, title);
@@ -2380,7 +2380,7 @@ struct PlayerPage {
 
   private loadSingle(trackId: string): void {
     trackApi.getById(trackId)
-      .then((dto) => resolveTrackToPlayer(dto, false))
+      .then((dto) => resolveTrackToPlayer(dto))
       .then((track) => playerStore.playTrack(track))
       .catch(() => undefined);
   }

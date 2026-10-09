@@ -47,8 +47,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     recommendationLikeRatio: 50,
     eqGains: [0, 0, 0, 0, 0],
     experienceProgramEnabled: true,
-    internalPlaybackQuality: 'high',
-    externalPlaybackQuality: 'standard',
+    // 音质默认「原音质」（无损直连原始文件）；用户可在设置里按内/外网分别降档省流量。
+    internalPlaybackQuality: 'lossless',
+    externalPlaybackQuality: 'lossless',
   };
   const [settings, setSettings] = useState<SettingsState>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);

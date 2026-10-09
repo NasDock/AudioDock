@@ -595,7 +595,7 @@ export struct PersonalTab {
         if (queue[i].id === targetId) { idx = i; break; }
       }
       // 秒播：先播用户点的这首，完整队列后台并行补齐
-      await playQueueFast(queue, idx, false);
+      await playQueueFast(queue, idx);
       // 不再自动打开播放详情页：播放交给 MiniPlayer，用户点 MiniPlayer 再进详情
     } catch (e) {
       Logger.w('PersonalTab', `playTrack failed: ${String(e)}`);

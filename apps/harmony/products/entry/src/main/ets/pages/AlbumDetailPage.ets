@@ -16,7 +16,7 @@ import { AddToPlaylistModal } from '../components/AddToPlaylistModal';
 import { XiaoAiIcon } from '../components/XiaoAiIcon';
 import { mvPlaylistStore } from '../store/MvPlaylistStore';
 import { resolveTrackToPlayer, playQueueFast } from '../services/trackResolver';
-import { getInternalQuality } from '../services/trackQuality';
+import { getCurrentQuality } from '../services/trackQuality';
 import { downloadTracks } from '../services/downloadService';
 import { likesHistory, EventPayloadId } from '../services/LikesHistoryService';
 import { playerStore } from '../context/PlayerStore';
@@ -601,7 +601,7 @@ export struct AlbumDetailContent {
     }
     this.miCasting = true;
     try {
-      const quality = await getInternalQuality();
+      const quality = await getCurrentQuality();
       const payloads: MiTrackPayload[] = this.tracks.map((tr: TrackDto) => {
         const p: MiTrackPayload = {
           url: trackApi.streamUrl(tr.id, quality),

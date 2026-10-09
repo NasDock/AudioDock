@@ -1,18 +1,25 @@
 import { fileCache } from 'features_storage';
 import type { TrackDto } from 'features_network';
-import { getInternalQuality, getExternalQuality, resolveTrackUrl } from './trackQuality';
+import { getCurrentQuality, getExternalQuality, getInternalQuality, resolveTrackUrl } from './trackQuality';
+import type { Quality } from './trackQuality';
 import { getSourceKey } from '../utils/device';
 import type { Track } from '../context/PlayerStore';
 import { playerStore } from '../context/PlayerStore';
 
-export async function resolveTrackToPlayer(track: TrackDto, isExternal: boolean): Promise<Track> {
+/**
+ * isExternal 可选：不传时按当前网络环境自动判定（见 getCurrentQuality）。
+ * 之前所有调用方硬编码 false，导致外网音质设置永远不生效。
+ */
+export async function resolveTrackToPlayer(track: TrackDto, isExternal?: boolean): Promise<Track> {
   const ext = track.ext ?? 'mp3';
   // 多数据源隔离：sourceKey 随当前 serverAddress 变化，A/B 两源同 track_id 互不命中
   const sourceKey = await getSourceKey();
   if (await fileCache.hasAudio(track.id, ext, sourceKey)) {
     return toPlayerTrack(track, await fileCache.audioPath(track.id, ext, sourceKey));
   }
-  const q = isExternal ? await getExternalQuality() : await getInternalQuality();
+  const q: Quality = isExternal !== undefined
+    ? (isExternal ? await getExternalQuality() : await getInternalQuality())
+    : await getCurrentQuality();
   const url = await resolveTrackUrl(track.id, q, track.path);
   return toPlayerTrack(track, url);
 }
@@ -21,7 +28,7 @@ export async function resolveTrackToPlayer(track: TrackDto, isExternal: boolean)
  * 秒播优化第一步：只解析用户点击的那一首（磁盘 KV 检查），其余先不管。
  * 调用方拿到结果后立刻 playerStore.playTrackList 开播，实现「点击即出声」。
  */
-export async function resolveFirstFast(queue: TrackDto[], startIndex: number, isExternal: boolean): Promise<Track> {
+export async function resolveFirstFast(queue: TrackDto[], startIndex: number, isExternal?: boolean): Promise<Track> {
   const idx = Math.max(0, Math.min(startIndex, queue.length - 1));
   return resolveTrackToPlayer(queue[idx], isExternal);
 }
@@ -38,7 +45,7 @@ export async function resolveRestParallel(
   originalQueue: TrackDto[],
   first: Track,
   firstIndex: number,
-  isExternal: boolean,
+  isExternal?: boolean,
 ): Promise<Track[]> {
   const rest: Array<Promise<Track>> = originalQueue.map((item, i) => {
     if (i === firstIndex) return Promise.resolve(first);
@@ -61,7 +68,7 @@ export async function resolveRestParallel(
 export async function playQueueFast(
   queue: TrackDto[],
   startIndex: number,
-  isExternal: boolean,
+  isExternal?: boolean,
 ): Promise<void> {
   if (queue.length === 0) return;
   const idx = Math.max(0, Math.min(startIndex, queue.length - 1));
