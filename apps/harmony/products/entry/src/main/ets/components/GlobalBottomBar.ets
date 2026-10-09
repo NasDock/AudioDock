@@ -21,6 +21,7 @@ export struct GlobalBottomBar {
   @StorageLink('carModeEnabled') carModeEnabled: boolean = false;
   @StorageLink('mainTabIndex') mainTabIndex: number = 0;
   @StorageProp('appLang') appLang: string = 'zh-CN';
+  @StorageProp('navBarHeightVp') navBarHeightVp: number = 0;
   @State theme: Theme = buildTheme('light');
 
   onThemeModeChange(): void {
@@ -60,12 +61,12 @@ export struct GlobalBottomBar {
       .border({ width: { top: 0.5 }, color: this.theme.colors.border })
     }
     .width('100%')
+    // 沉浸式避让：全屏布局下 tab 栏贴在物理底部会被小横条盖住，
+    // 底部 padding 抬起内容，padding 区域由本组件背景填充（对齐 mobile height: 49 + insets.bottom）。
+    .padding({ bottom: this.navBarHeightVp })
     // 对齐 mobile GlobalBottomBar 的 colors.tabBar（亮色=白/暗色=黑，与 MiniPlayer 的 background 一致），
     // 之前用 surface（灰）导致 tab 栏和 MiniPlayer 之间有明显色差
     .backgroundColor(this.theme.colors.tabBar)
-    // tab 栏背景延伸到底部小横条区域，让小横条区域与 tab 栏同色（对齐 mobile 的
-    // height: 49 + insets.bottom + paddingBottom: insets.bottom）。tab 内容仍在安全区内避让。
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
   }
 
   @Builder

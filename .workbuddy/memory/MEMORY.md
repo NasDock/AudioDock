@@ -28,6 +28,14 @@
 - `t(key, params)` 插值参数是 `Array<[string, string|number]>` 元组；@Entry build() 需 if/else 包 builder 调用；`formBindingData` 用 default import 不带花括号。
 - **ArkUI 8 位 hex 颜色是 `#AARRGGBB`**（透明度在前，不是 CSS 的 RRGGBBAA）。
 - **每组件只能绑定一个 bindSheet**：挂第二个会顶掉第一个，每个 sheet 配一个不可见锚点 Column 分散绑定。
+- **宽屏（>=600vp，平板横屏）bindSheet 默认 preferType=popup 会贴边**：要居中须显式 `preferType: SheetType.CENTER`（竖屏 BOTTOM），不写就贴屏幕一侧。
+
+## hm 沉浸式状态栏方案（全屏 + 避让区 padding）
+
+- **正确姿势**：① `setWindowLayoutFullScreen(true)`（`services/systemBar.ets` setSystemBarWindow）；② 同处用 `getWindowAvoidArea(TYPE_SYSTEM/TYPE_NAVIGATION_INDICATOR)` 换 vp 存 `AppStorage('statusBarHeightVp'/'navBarHeightVp')` + 监听 avoidAreaChange；③ 每个 @Entry 页面根容器 `@StorageProp` 这两个值并加 padding；RootShellPage 只 pad Navigation 一次即可覆盖所有 tab/NavDestination 页面；GlobalBottomBar pad bottom。`setWindowSystemBarProperties` 设图标反差色。
+- **关键认知**：`expandSafeArea` **不改变布局**，只扩展组件绘制区域；全屏后页面从物理 y=0 排版，必须自己做避让 padding，否则内容被状态栏盖住。NavDestination 上不要放 expandSafeArea。
+- 没开 ① 时系统栏是独立不透明区域，`statusBarColor` 不生效，只能显示系统默认白/黑条。
+- 新增 @Entry 页面必须照抄这套 @StorageProp + padding，否则会被状态栏/小横条遮挡。
 
 ## AVSession 通知栏播控
 

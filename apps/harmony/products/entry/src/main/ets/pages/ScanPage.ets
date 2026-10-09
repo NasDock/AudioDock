@@ -56,6 +56,9 @@ const SCAN_KIT_SUPPORTED: boolean = canIUse('SystemCapability.Multimedia.Scan.Sc
 struct ScanPage {
   @StorageLink('themeMode') @Watch('onThemeModeChange') themeMode: ThemeMode = 'light';
   @State theme: Theme = buildTheme('light');
+  // 沉浸式避让区高度（vp，services/systemBar publishAvoidArea 下发）
+  @StorageProp('statusBarHeightVp') statusBarHeightVp: number = 0;
+  @StorageProp('navBarHeightVp') navBarHeightVp: number = 0;
   @State permissionGranted: boolean = false;
   @State checkingPermission: boolean = true;
   @State busy: boolean = false;
@@ -314,5 +317,7 @@ struct ScanPage {
       }
     }
     .width('100%').height('100%').backgroundColor(this.theme.colors.background)
+    // 沉浸式避让：全屏布局下页面从物理 y=0 排版，根容器 padding 避开状态栏/小横条
+    .padding({ top: this.statusBarHeightVp, bottom: this.navBarHeightVp })
   }
 }

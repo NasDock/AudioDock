@@ -1570,6 +1570,16 @@ export function PlayerDetailView({
         >
           <XiaoAiIcon size={24} color={miLoggedIn ? colors.primary : colors.text} />
         </TouchableOpacity>
+        {/* 更多选项入口：设备列表按钮右侧（对齐 mini 播放页信息行末尾的更多按钮） */}
+        <TouchableOpacity
+          onPress={() => {
+            setMoreModalVisible(true);
+            resetHideTimer();
+          }}
+          style={styles.likeButton}
+        >
+          <Ionicons name="ellipsis-vertical" size={24} color={colors.text} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.timeContainer}>
@@ -1702,13 +1712,10 @@ export function PlayerDetailView({
                 </TouchableOpacity>
               )}
             </View>
-            <TouchableOpacity
-              onPress={() => {
-                if (needsAutoHide) {
-                  setControlsVisible(!controlsVisible);
-                }
-              }}
-              activeOpacity={1}
+            {/* 修复：外层改为普通 View 承担布局，封面单独一个 TouchableOpacity，
+                跳过片头片尾按钮组移为兄弟节点（对齐竖屏结构）。
+                此前按钮组嵌在封面 TouchableOpacity 内部，父级拦截触摸导致横屏点击无反应。 */}
+            <View
               style={[
                 styles.landscapeArtworkContainer,
                 !needsAutoHide && {
@@ -1718,17 +1725,26 @@ export function PlayerDetailView({
                 },
               ]}
             >
-              <Image
-                source={{
-                  uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
+              <TouchableOpacity
+                onPress={() => {
+                  if (needsAutoHide) {
+                    setControlsVisible(!controlsVisible);
+                  }
                 }}
-                onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
-                style={[styles.artwork, { marginBottom: 0 }]}
-              />
+                activeOpacity={1}
+              >
+                <Image
+                  source={{
+                    uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
+                  }}
+                  onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
+                  style={[styles.artwork, { marginBottom: 0 }]}
+                />
+              </TouchableOpacity>
               {/* 横屏/平板模式：有声书封面下方置顶操作按钮组（与竖屏同一组） */}
               {currentTrack.type === TrackType.AUDIOBOOK &&
                 renderAudiobookQuickActions()}
-            </TouchableOpacity>
+            </View>
             <Animated.View
               style={[
                 styles.landscapeControls,
@@ -1805,6 +1821,9 @@ export function PlayerDetailView({
             </View>
           </View>
         </View>
+        {/* 修复：横屏分支也要挂载跳过片头/片尾设置弹窗，
+            否则横屏下点片头/片尾按钮只改了 state 却没有 Modal 可显示，表现为"点击没反应" */}
+        {renderSkipModal()}
       </View>
     );
   }

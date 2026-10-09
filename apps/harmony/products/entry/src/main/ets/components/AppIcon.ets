@@ -60,7 +60,8 @@ export type AppIconName =
   | 'skip-forward-outline'
   | 'time-outline'
   | 'text-outline'
-  | 'swap-vertical-outline';
+  | 'swap-vertical-outline'
+  | 'video';
 
 const ICON_MAP: Record<AppIconName, Resource> = {
   'home': $r('sys.symbol.house'),
@@ -153,10 +154,13 @@ const ICON_MAP: Record<AppIconName, Resource> = {
   'time-outline': $r('sys.symbol.clock'),
   'text-outline': $r('sys.symbol.textformat'),
   'swap-vertical-outline': $r('sys.symbol.arrow_up'),
+  // MV 入口（对齐 mobile Ionicons videocam-outline）。SDK sys.symbol 无 video/play_rectangle
+  // 可用符号，用自定义 SVG（resources/base/media/ic_video.svg），fillColor 覆盖颜色。
+  'video': $r('app.media.ic_video'),
 };
 
 /** 自定义 SVG 图标集合（非 sys.symbol），AppIcon 用 Image + fillColor 渲染。 */
-const CUSTOM_SVG_ICONS: Set<string> = new Set(['skip-back-outline', 'skip-forward-outline']);
+const CUSTOM_SVG_ICONS: Set<string> = new Set(['skip-back-outline', 'skip-forward-outline', 'video']);
 
 export function getIconResource(name: AppIconName): Resource {
   return ICON_MAP[name];

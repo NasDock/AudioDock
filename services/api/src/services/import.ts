@@ -65,6 +65,8 @@ export interface ImportTask {
   mvTotal?: number;
   mvCurrent?: number;
   currentFileName?: string;
+  // 本次扫描中因 mtime 未变化而跳过的文件数（未走解析/指纹/写库）
+  skipped?: number;
   mode?: 'incremental' | 'full' | 'compact';
   // Distinguishes the task's origin for the Task Center. `mode` alone can't tell a
   // WebDAV sync apart from a normal incremental scan (both use mode:'incremental').
@@ -99,6 +101,8 @@ export class ImportService implements OnModuleInit {
   private folderCache = new Map<string, number>();
   private watcher: chokidar.FSWatcher | null = null;
   private scanner: LocalMusicScanner | null = null;
+  // 扫描期间受影响、需要重算状态的专辑集合（延后批量刷新，避免每首歌都刷一次父级状态）
+  private dirtyAlbumIds = new Set<number>();
 
   constructor(
     private readonly trackService: TrackService,
@@ -299,6 +303,8 @@ export class ImportService implements OnModuleInit {
         task.current = (task.current || 0) + 1;
       }
     });
+    // processTrackData 只标记不刷新，这里统一 flush（该入口也会被独立 WebDAV 同步触发）
+    await this.flushDirtyAlbums();
     this.logger.log(
       `WebDAV scan completed for source: ${target.source.name} [${target.kind}]`,
     );
@@ -1241,6 +1247,8 @@ export class ImportService implements OnModuleInit {
         const folderId = await this.getFolderId(metadata.originalPath || filePath, basePath, type);
         const sortFields = this.getTrackSortFields(metadata.originalPath || filePath, basePath);
         await this.processTrackData(metadata, type, basePath, cachePath, audioUrl, folderId, hash, sortFields, TrackSource.FILE);
+        // 单文件事件，立即 flush（processTrackData 只标记不刷新）
+        await this.flushDirtyAlbums();
       }
     }
   }
@@ -1581,6 +1589,36 @@ export class ImportService implements OnModuleInit {
     }
   }
 
+  private markAlbumDirty(albumId: number | null | undefined) {
+    if (albumId) this.dirtyAlbumIds.add(albumId);
+  }
+
+  private async flushDirtyAlbums() {
+    if (this.dirtyAlbumIds.size === 0) return;
+    const ids = Array.from(this.dirtyAlbumIds);
+    this.dirtyAlbumIds.clear();
+    for (const albumId of ids) {
+      await this.updateParentStatus(albumId, 'album');
+    }
+  }
+
+  /**
+   * 预载本地（FILE 来源）ACTIVE 曲目的 path → {id, mtime} 索引，
+   * 供扫描预检（mtime 短路）判断文件是否未变化。
+   * 只索引 ACTIVE：TRASHED 记录不跳过，走正常处理以维持「文件仍在则复活」语义。
+   */
+  private async buildLocalTrackIndex(): Promise<Map<string, { id: number; mtimeMs: number | null }>> {
+    const tracks = await this.prisma.track.findMany({
+      where: { source: TrackSource.FILE, status: FileStatus.ACTIVE },
+      select: { id: true, path: true, fileModifiedAt: true },
+    });
+    const map = new Map<string, { id: number; mtimeMs: number | null }>();
+    for (const t of tracks) {
+      map.set(t.path, { id: t.id, mtimeMs: t.fileModifiedAt ? t.fileModifiedAt.getTime() : null });
+    }
+    return map;
+  }
+
   private async startImport(
     id: string,
     musicPaths: string[],
@@ -1611,6 +1649,36 @@ export class ImportService implements OnModuleInit {
       const processedTrackIds = new Set<number>();
 
       this.scanner = new LocalMusicScanner(cachePath);
+
+      // 预载本地曲目 mtime 索引：未变化的文件跳过 parseFile/指纹/写库（mtime 短路）。
+      // 增量与全量共用；全量模式下「跳过」等同于「已见到该文件」，不影响清理语义。
+      this.dirtyAlbumIds.clear();
+      const localTrackIndex = await this.buildLocalTrackIndex();
+      let skippedCount = 0;
+      // 容忍 DB datetime 精度截断（如 MySQL DATETIME 秒级）造成的 mtime 抖动
+      const MTIME_TOLERANCE_MS = 2000;
+      const makeShouldSkip = (basePath: string, type: TrackType) => (filePath: string, stat: fs.Stats): boolean => {
+        // STRM 文件的 track.path 是远端 URL，无法从本地路径推导，始终处理
+        if (/\.strm$/i.test(filePath)) return false;
+        const urlType = type === TrackType.AUDIOBOOK ? 'audio' : 'music';
+        const candidates = [this.convertToHttpUrl(filePath, urlType, basePath)];
+        if (this.needsAudioTranscode(filePath)) {
+          const transcodedPath = this.getAudioTranscodedFilePath(filePath, cachePath);
+          candidates.push(this.getAudioTranscodedPublicUrl(transcodedPath, cachePath));
+        }
+        for (const key of candidates) {
+          const rec = localTrackIndex.get(key);
+          if (!rec || rec.mtimeMs == null) continue;
+          if (Math.abs(rec.mtimeMs - stat.mtimeMs) <= MTIME_TOLERANCE_MS) {
+            processedTrackIds.add(rec.id);
+            skippedCount++;
+            task.current = (task.current || 0) + 1;
+            task.localCurrent = (task.localCurrent || 0) + 1;
+            return true;
+          }
+        }
+        return false;
+      };
 
       task.status = TaskStatus.PREPARING;
       task.message = '正在统计本地文件数量...';
@@ -1652,6 +1720,7 @@ export class ImportService implements OnModuleInit {
       task.webdavCurrent = 0;
       task.mvCurrent = 0;
       task.current = 0;
+      task.skipped = 0;
       task.status = TaskStatus.PARSING;
       task.message = '正在解析媒体文件...';
 
@@ -1693,14 +1762,14 @@ export class ImportService implements OnModuleInit {
           }
           task.currentFileName = item.title || path.basename(item.path);
           await processItem(item, TrackType.MUSIC, musicPath);
-        });
+        }, { shouldSkip: makeShouldSkip(musicPath, TrackType.MUSIC) });
       }
 
       for (const audiobookPath of audiobookPaths) {
         await this.scanner.scanAudiobook(audiobookPath, async (item) => {
           task.currentFileName = item.title || path.basename(item.path);
           await processItem(item, TrackType.AUDIOBOOK, audiobookPath);
-        });
+        }, { shouldSkip: makeShouldSkip(audiobookPath, TrackType.AUDIOBOOK) });
       }
 
       for (const mvPath of mvPaths) {
@@ -1723,6 +1792,14 @@ export class ImportService implements OnModuleInit {
         await this.startWebDAVImport(cachePath, TrackType.MUSIC, id, true);
       }
 
+      // 统一刷新本次扫描受影响的专辑/艺人状态（扫描期仅标记，避免每首歌重复刷新）
+      await this.flushDirtyAlbums();
+
+      task.skipped = skippedCount;
+      if (skippedCount > 0) {
+        this.logger.log(`Scan skipped ${skippedCount} unchanged files (mtime match)`);
+      }
+
       // Cleanup orphans if it's a full update
       if (mode === 'full') {
         task.message = '正在清理已失效数据...';
@@ -1734,6 +1811,8 @@ export class ImportService implements OnModuleInit {
 
     } catch (error) {
       console.error('Import failed:', error);
+      // 失败也尽量把已处理文件的父级状态刷掉，避免状态滞留到下次扫描
+      await this.flushDirtyAlbums().catch(() => { });
       task.status = TaskStatus.FAILED;
       task.message = error instanceof Error ? error.message : String(error);
     }
@@ -2427,9 +2506,9 @@ export class ImportService implements OnModuleInit {
       });
 
       if (existingTrack.albumId && existingTrack.albumId !== album.id) {
-        await this.updateParentStatus(existingTrack.albumId, 'album');
+        this.markAlbumDirty(existingTrack.albumId);
       }
-      await this.updateParentStatus(album.id, 'album');
+      this.markAlbumDirty(album.id);
       return existingTrack.id;
     } else {
       // Create new record
