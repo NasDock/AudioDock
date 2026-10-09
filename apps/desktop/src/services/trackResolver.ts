@@ -6,7 +6,8 @@ import { useSettingsStore } from "../store/settings";
 import { bucketWidth, isThumbnailBucket } from "../utils/imageBucket";
 import { isTauri } from "../utils/platform";
 import { isCurrentInternalAddress } from "../utils/playbackQuality";
-import { AudioQuality, buildTrackPlaybackUrl } from "./trackQuality";
+import type { AudioQuality } from "./trackQuality";
+import { buildTrackPlaybackUrl } from "./trackQuality";
 
 interface ResolveOptions {
   cacheEnabled: boolean;

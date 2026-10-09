@@ -1,7 +1,8 @@
 import { getBaseURL } from "../https";
 import { Track, TrackType } from "../models";
 import { getImageUrl } from "../utils/image";
-import { AudioQuality, buildTrackPlaybackUrl } from "./trackQuality";
+import type { AudioQuality } from "./trackQuality";
+import { buildTrackPlaybackUrl } from "./trackQuality";
 import {
   cacheCover,
   downloadTrack,

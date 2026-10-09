@@ -624,6 +624,90 @@ struct SettingsPage {
     }
   }
 
+  /**
+   * 内网/外网播放品质行。刻意做成无参 @Builder：
+   * 带参 @Builder（ActionRow 的 valueText）按值快照、不订阅状态，
+   * 无参 @Builder 体内读取 this.internalQuality/externalQuality 才被框架追踪，
+   * loadSettings 更新 @State 后行内 label 自动重建（历史 bug：回显永远停首帧）。
+   */
+  @Builder
+  InternalQualityRow() {
+    Row() {
+      Column() {
+        Text(t('settings.internalPlaybackQuality'))
+          .fontSize(17)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.theme.colors.text)
+          .margin({ bottom: 4 })
+        Text(t('settings.internalPlaybackQualityDescription'))
+          .fontSize(13)
+          .fontColor(this.theme.colors.textSecondary)
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+      .margin({ right: 20 })
+
+      Row() {
+        Text(this.getQualityLabel(this.internalQuality))
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.theme.colors.textSecondary)
+          .margin({ right: 6 })
+        Text('›')
+          .fontSize(20)
+          .fontColor(this.theme.colors.textSecondary)
+      }
+    }
+    .width('100%')
+    .padding({ top: 15, bottom: 15 })
+    .borderWidth({ bottom: 0.5 })
+    .borderColor(this.theme.colors.border)
+    .onClick((): void => {
+      // 用 AppStorage 替代 router.getParams()：aboutToAppear 阶段 getParams 经常拿不到，
+      // 改为 PlaybackQualityPage 在 onPageShow 时从 AppStorage 读
+      AppStorage.setOrCreate('pendingPlaybackQuality', { network: 'internal' });
+      router.pushUrl({ url: 'pages/PlaybackQualityPage', params: { network: 'internal' } });
+    })
+  }
+
+  @Builder
+  ExternalQualityRow() {
+    Row() {
+      Column() {
+        Text(t('settings.externalPlaybackQuality'))
+          .fontSize(17)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.theme.colors.text)
+          .margin({ bottom: 4 })
+        Text(t('settings.externalPlaybackQualityDescription'))
+          .fontSize(13)
+          .fontColor(this.theme.colors.textSecondary)
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+      .margin({ right: 20 })
+
+      Row() {
+        Text(this.getQualityLabel(this.externalQuality))
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.theme.colors.textSecondary)
+          .margin({ right: 6 })
+        Text('›')
+          .fontSize(20)
+          .fontColor(this.theme.colors.textSecondary)
+      }
+    }
+    .width('100%')
+    .padding({ top: 15, bottom: 15 })
+    .borderWidth({ bottom: 0.5 })
+    .borderColor(this.theme.colors.border)
+    .onClick((): void => {
+      AppStorage.setOrCreate('pendingPlaybackQuality', { network: 'external' });
+      router.pushUrl({ url: 'pages/PlaybackQualityPage', params: { network: 'external' } });
+    })
+  }
+
   build() {
     // 语言切换时重建整页：条件读取 langAtBuild 建立依赖（框架只追踪读取状态变量的表达式，
     // t() 是普通函数无法被追踪），语言变化使 if 分支切换，旧子树销毁、新子树重建，
@@ -689,29 +773,13 @@ struct SettingsPage {
             () => router.pushUrl({ url: 'pages/LanguagePage' }),
           )
 
-          // 内网播放品质
-          this.ActionRow(
-            t('settings.internalPlaybackQuality'),
-            t('settings.internalPlaybackQualityDescription'),
-            () => {
-              // 用 AppStorage 替代 router.getParams()：aboutToAppear 阶段 getParams 经常拿不到，
-              // 改为 PlaybackQualityPage 在 onPageShow 时从 AppStorage 读
-              AppStorage.setOrCreate('pendingPlaybackQuality', { network: 'internal' });
-              router.pushUrl({ url: 'pages/PlaybackQualityPage', params: { network: 'internal' } });
-            },
-            this.getQualityLabel(this.internalQuality),
-          )
+          // 内网播放品质（无参 @Builder：体内直接读 this.internalQuality 才会被
+          // 状态追踪；带参 ActionRow 是按值快照，首次渲染锁定后永远不刷新——
+          // 首帧 internalQuality='' → getQualityLabel 兜底低品质，之后选什么都不变）
+          this.InternalQualityRow()
 
           // 外网播放品质
-          this.ActionRow(
-            t('settings.externalPlaybackQuality'),
-            t('settings.externalPlaybackQualityDescription'),
-            () => {
-              AppStorage.setOrCreate('pendingPlaybackQuality', { network: 'external' });
-              router.pushUrl({ url: 'pages/PlaybackQualityPage', params: { network: 'external' } });
-            },
-            this.getQualityLabel(this.externalQuality),
-          )
+          this.ExternalQualityRow()
 
           // TTS 服务配置
           this.ActionRow(
