@@ -237,7 +237,7 @@ export class TrackService {
         options: [
           { quality: 'lossless', label: '无损', codec: probeCodec, bitrate: '原始' },
           { quality: 'high', label: '高品质', codec: 'AAC', bitrate: '256kbps' },
-          { quality: 'standard', label: '标准', codec: 'AAC', bitrate: '128kbps' },
+          { quality: 'standard', label: '低品质', codec: 'AAC', bitrate: '128kbps' },
         ],
       };
     }
@@ -260,7 +260,7 @@ export class TrackService {
         options: [
           rawOption,
           { quality: 'high', label: '高品质', codec: 'AAC', bitrate: '256kbps' },
-          { quality: 'standard', label: '标准', codec: 'AAC', bitrate: '128kbps' },
+          { quality: 'standard', label: '低品质', codec: 'AAC', bitrate: '128kbps' },
         ],
       };
     }
@@ -269,7 +269,7 @@ export class TrackService {
       defaultQuality: 'lossless',
       options: [
         rawOption,
-        { quality: 'standard', label: '标准', codec: 'AAC', bitrate: '128kbps' },
+        { quality: 'standard', label: '低品质', codec: 'AAC', bitrate: '128kbps' },
       ],
     };
   }

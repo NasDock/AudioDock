@@ -13,7 +13,7 @@ export type { LoginDto, RegisterDto, AuthMe, LoginResponse, CheckResponse, UserI
   from './src/main/ets/api';
 export type { AuthApi, UserApi } from './src/main/ets/api';
 export type {
-  TrackDto, LikedByUser, PlaybackQuality, TrackApi,
+  TrackDto, LikedByUser, PlaybackQualityOption, PlaybackQualityProfile, TrackApi,
   TrackLoadMoreParams, TrackSearchParams, TrackLatestParams,
 } from './src/main/ets/api';
 export type {

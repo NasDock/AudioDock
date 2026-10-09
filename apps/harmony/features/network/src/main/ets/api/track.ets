@@ -18,7 +18,13 @@ export interface TrackDto {
 
 export interface LikedByUser { userId: string }
 
-export interface PlaybackQuality { level: string; url: string; bitrate?: number }
+/**
+ * 音质档位（对齐后端 TrackPlaybackQualityOption + 其他端 AudioQualityOption）。
+ * 后端 GET /track/:id/playback-qualities 返回 { defaultQuality, options }。
+ */
+export interface PlaybackQualityOption { quality: string; label: string; codec: string; bitrate: string }
+
+export interface PlaybackQualityProfile { defaultQuality: string; options: PlaybackQualityOption[] }
 
 /** 注意：后端 track 的分页在裸路由 `/load-more` 上（@Controller() 空前缀）。 */
 export interface TrackLoadMoreParams {
@@ -49,7 +55,7 @@ export interface TrackApi {
   search(params: TrackSearchParams): Promise<TrackDto[]>;
   latest(params: TrackLatestParams): Promise<TrackDto[]>;
   recommend(params: TrackLatestParams): Promise<TrackDto[]>;
-  playbackQualities(id: string): Promise<PlaybackQuality[]>;
+  playbackQualities(id: string): Promise<PlaybackQualityProfile>;
   streamUrl(id: string, quality: string): string;
 }
 
@@ -100,8 +106,8 @@ class TrackApiImpl implements TrackApi {
     return httpClient.get<TrackDto[]>('/track/recommend', q);
   }
 
-  async playbackQualities(id: string): Promise<PlaybackQuality[]> {
-    return httpClient.get<PlaybackQuality[]>(`/track/${id}/playback-qualities`);
+  async playbackQualities(id: string): Promise<PlaybackQualityProfile> {
+    return httpClient.get<PlaybackQualityProfile>(`/track/${id}/playback-qualities`);
   }
 
   streamUrl(id: string, quality: string): string {
