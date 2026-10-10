@@ -1,8 +1,13 @@
 import router from '@ohos.router';
 import { buildTheme } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
+import { Logger } from 'audiodock_common';
+import { trackApi } from 'features_network';
+import type { PlaybackQualityOption, PlaybackQualityProfile } from 'features_network';
 import { playerStore } from '../context/PlayerStore';
 import type { PlayerStateView, Track } from '../context/PlayerStore';
+import { getCurrentQuality } from '../services/trackQuality';
+import type { Quality } from '../services/trackQuality';
 import { CoverImage } from './CoverImage';
 import { AppIcon } from './AppIcon';
 
@@ -23,6 +28,10 @@ export struct MiniPlayer {
   @StorageLink('themeMode') @Watch('onThemeModeChange') themeMode: ThemeMode = 'light';
   @StorageProp('appLang') appLang: string = 'zh-CN';
   @State theme: Theme = buildTheme('light');
+  // 音频品质徽标（对齐 mini MiniPlayer：艺术家右侧纯展示，不可点击；
+  // 选中口径与 PlayerPage 一致 = 设置页偏好档校验后回落 defaultQuality）
+  @State private qualityLabel: string = '';
+  private qualityTrackId: string = '';
   private unsub: () => void = () => {};
 
   onThemeModeChange(): void {
@@ -33,7 +42,9 @@ export struct MiniPlayer {
     this.theme = buildTheme(this.themeMode);
     this.unsub = playerStore.subscribe(() => {
       this.view = playerStore.view();
+      this.refreshQualityOnTrackChange();
     });
+    this.refreshQualityOnTrackChange();
   }
 
   aboutToDisappear(): void {
@@ -43,6 +54,36 @@ export struct MiniPlayer {
   private current(): Track | null {
     if (this.view.queue.length === 0) return null;
     return this.view.queue[this.view.currentIndex] ?? null;
+  }
+
+  /** 曲目变化时拉音质档位（对齐 PlayerPage.refreshQualityProfile 的口径与竞态处理） */
+  private refreshQualityOnTrackChange(): void {
+    const cur = this.current();
+    const curId: string = cur ? cur.id : '';
+    if (curId === this.qualityTrackId) return;
+    this.qualityTrackId = curId;
+    if (!cur || cur.contentType === 'AUDIOBOOK') {
+      this.qualityLabel = '';
+      return;
+    }
+    trackApi.playbackQualities(curId)
+      .then((profile: PlaybackQualityProfile) => {
+        return getCurrentQuality().then((preferred: Quality): void => {
+          if (this.qualityTrackId !== curId) return; // 慢响应覆盖新曲目状态
+          const options: PlaybackQualityOption[] = profile.options ?? [];
+          let selected: string = profile.defaultQuality;
+          if (options.some((o: PlaybackQualityOption): boolean => o.quality === preferred)) {
+            selected = preferred;
+          }
+          const opt = options.find((o: PlaybackQualityOption): boolean => o.quality === selected);
+          this.qualityLabel = opt ? opt.label : '无损';
+        });
+      })
+      .catch((e: Error): void => {
+        Logger.w('MiniPlayer', `refreshQuality failed: ${String(e)}`);
+        if (this.qualityTrackId !== curId) return;
+        this.qualityLabel = '无损'; // 兜底静态文案（对齐 PlayerPage）
+      });
   }
 
   build() {
@@ -62,11 +103,26 @@ export struct MiniPlayer {
             .fontColor(this.theme.colors.text)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(this.current()?.artist ?? '')
-            .fontSize(12)
-            .fontColor(this.theme.colors.textSecondary)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          // 艺术家 + 品质徽标（对齐 mini MiniPlayer mini-artist-row）
+          Row({ space: 6 }) {
+            Text(this.current()?.artist ?? '')
+              .fontSize(12)
+              .fontColor(this.theme.colors.textSecondary)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .flexShrink(1)
+            if (this.current()?.contentType !== 'AUDIOBOOK' && this.qualityLabel.length > 0) {
+              Row() {
+                Text(this.qualityLabel)
+                  .fontSize(10)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(this.theme.colors.textSecondary)
+              }
+              .padding({ left: 6, right: 6, top: 1, bottom: 1 })
+              .borderRadius(999)
+              .border({ width: 1, color: this.theme.colors.border })
+            }
+          }
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)

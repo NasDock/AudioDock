@@ -1,3 +1,5 @@
+pkg_modules/.ohpm/@tencent+wechat_open_sdk@1.0.19/pkg_modules/@tencent/wechat_open_sdk:pkg_modules/.ohpm/@tencent+wechat_open_sdk@1.0.19/pkg_modules/@tencent/wechat_open_sdk/Index
+pkg_modules@entry/@tencent/wechat_open_sdk:pkg_modules/.ohpm/@tencent+wechat_open_sdk@1.0.19/pkg_modules/@tencent/wechat_open_sdk
 @system.app:@native.system.app
 @ohos.app:@native.ohos.app
 @system.router:@native.system.router

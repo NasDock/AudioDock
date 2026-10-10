@@ -349,7 +349,9 @@ export class PlayerStore {
 
   async playPrevious(): Promise<void> {
     if (this.queue.length === 0) return;
-    if (this.currentMs > 3000) { await audioBackend.seek(0); return; }
+    // 对齐 mobile PlayerContext.playPrevious：点上一首恒切上一首。
+    // 移除了「播放 >3s 先 seek(0) 回开头」的分支——mobile 没有该行为，
+    // 且该分支 seek 后未同步 this.currentMs，连点两次才切歌，用户感知为 bug。
     const prev = this.computePrevIndex();
     if (prev < 0) return;
     this.currentIndex = prev;
