@@ -386,7 +386,7 @@ export struct LibraryTab {
   async playFrom(index: number): Promise<void> {
     try {
       // 秒播：先播 index 这首，完整队列后台并行补齐
-      await playQueueFast(this.tracks, index, false);
+      await playQueueFast(this.tracks, index);
       // 不再自动打开播放详情页：播放交给 MiniPlayer，用户点 MiniPlayer 再进详情
     } catch (e) {
       Logger.w('LibraryTab', `play failed: ${String(e)}`);

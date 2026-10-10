@@ -411,7 +411,7 @@ export struct SearchContent {
       }
       if (!target) return;
       // 秒播：队列只有一首，playQueueFast 等价于直接播，但行为与其他入口统一
-      await playQueueFast([target], 0, false);
+      await playQueueFast([target], 0);
       // 不再自动打开播放详情页：播放交给 MiniPlayer，用户点 MiniPlayer 再进详情
     } catch (e) {
       Logger.w('Search', `playTrack: ${String(e)}`);

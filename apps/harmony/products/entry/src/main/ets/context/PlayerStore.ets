@@ -267,6 +267,26 @@ export class PlayerStore {
     if (cur) this.broadcastSync('track_change', cur);
   }
 
+  /**
+   * 切换当前曲目音质：换 URL 重载当前曲目并恢复进度
+   * （对齐 mobile PlayerContext.cycleAudioQuality 的 forceReload + 恢复 position）。
+   * 注意刻意绕开 fileCache：用户手动切档就是要立刻听到目标音质，
+   * 命中的本地缓存是原音质文件，不能顶替转码档。
+   */
+  async reloadCurrentWithUrl(url: string, resumeMs: number): Promise<void> {
+    const cur = this.queue[this.currentIndex];
+    if (!cur) return;
+    // ArkTS 禁对象 spread（arkts-no-spread），手动拷贝字段
+    const updated: Track = {
+      id: cur.id, title: cur.title, artist: cur.artist, album: cur.album,
+      duration: cur.duration, url, ext: cur.ext, coverUrl: cur.coverUrl,
+      lyrics: cur.lyrics, contentType: cur.contentType,
+    };
+    this.queue[this.currentIndex] = updated;
+    this.persistState();
+    await this.loadCurrent(resumeMs);
+  }
+
   // ─── 修复 7：电台模式（对齐 mobile PlayerContext.tsx enter/exitRadioPlaybackContext） ───
 
   /**
@@ -329,7 +349,9 @@ export class PlayerStore {
 
   async playPrevious(): Promise<void> {
     if (this.queue.length === 0) return;
-    if (this.currentMs > 3000) { await audioBackend.seek(0); return; }
+    // 对齐 mobile PlayerContext.playPrevious：点上一首恒切上一首。
+    // 移除了「播放 >3s 先 seek(0) 回开头」的分支——mobile 没有该行为，
+    // 且该分支 seek 后未同步 this.currentMs，连点两次才切歌，用户感知为 bug。
     const prev = this.computePrevIndex();
     if (prev < 0) return;
     this.currentIndex = prev;

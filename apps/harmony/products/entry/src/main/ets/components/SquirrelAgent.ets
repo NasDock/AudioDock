@@ -205,7 +205,7 @@ export struct SquirrelAgent {
     const res = await searchAll(kw);
     if (res.tracks.length === 0) return;
     // 秒播：先播第 0 首，完整结果列表后台并行补齐
-    await playQueueFast(res.tracks, 0, false);
+    await playQueueFast(res.tracks, 0);
   }
 
   private showResult(text: string): void {

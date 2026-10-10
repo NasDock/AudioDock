@@ -436,7 +436,10 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
     //    available — playback has already started on the remote stream, so the
     //    user does not wait on this.
     if (cacheEnabled && isTauri()) {
-      resolveTrackUri(currentTrack, { cacheEnabled }).then((uri) => {
+      resolveTrackUri(currentTrack, {
+        cacheEnabled,
+        quality: currentAudioQuality,
+      }).then((uri) => {
         if (!uri || uri === initialUri) return;
         const state = usePlayerStore.getState();
         if (state.currentTrack?.id === currentTrack.id) {

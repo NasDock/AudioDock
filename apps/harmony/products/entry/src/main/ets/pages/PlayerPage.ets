@@ -6,7 +6,7 @@ import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { formatDuration, Logger } from 'audiodock_common';
 import { trackApi, playlistApi, artistApi, albumApi, miApi, plusApi, setPlusAuthToken, deviceApi, mvApi } from 'features_network';
-import type { PlaylistDto, ArtistDto, AlbumDto, MiDevice, TrackDto, OnlineDevice, MVDto } from 'features_network';
+import type { PlaylistDto, ArtistDto, AlbumDto, MiDevice, TrackDto, OnlineDevice, MVDto, PlaybackQualityOption, PlaybackQualityProfile } from 'features_network';
 import { kvStore } from 'features_storage';
 import type { LyricLine } from 'features_player';
 import { playerStore } from '../context/PlayerStore';
@@ -14,7 +14,8 @@ import type { PlayerStateView, Track } from '../context/PlayerStore';
 import { syncStore } from '../context/SyncStore';
 import type { SyncStateView } from '../context/SyncStore';
 import { resolveTrackToPlayer } from '../services/trackResolver';
-import { getInternalQuality } from '../services/trackQuality';
+import { getCurrentQuality } from '../services/trackQuality';
+import type { Quality } from '../services/trackQuality';
 import { getOrCreateDeviceId } from '../utils/device';
 import { socketService } from 'features_socket';
 import { likesHistory } from '../services/LikesHistoryService';
@@ -144,6 +145,11 @@ struct PlayerPage {
   // 当前曲目是否有 MV（对齐 mobile player.tsx hasMv / checkMvStatus）
   @State private hasMv: boolean = false;
   private mvDto: MVDto | null = null;
+  // 音频品质徽标（对齐 mobile player.tsx qualityButton：艺术家右侧胶囊，点击循环切档）
+  @State private qualityLabel: string = '';
+  @State private qualityOptionCount: number = 0;
+  private qualityOptions: PlaybackQualityOption[] = [];
+  private currentQuality: string = 'lossless';
   // 小爱音箱投放相关状态（对齐 mobile player.tsx 的 mi* 状态）
   @State private showMiCast: boolean = false;
   @State private miDevices: MiDevice[] = [];
@@ -226,6 +232,8 @@ struct PlayerPage {
         this.refreshDownloadStatus();
         // 曲目变化时刷新 MV 可用性（对齐 mobile checkMvStatus）
         this.refreshMvStatus();
+        // 曲目变化时刷新音质档位（对齐 mobile syncTrackQuality effect）
+        this.refreshQualityProfile();
       }
       // 横屏时右侧歌词常驻（对齐 mobile: isLandscape ? type !== AUDIOBOOK : showLyrics）
       const lyricsVisible = this.isLandscape || this.showLyrics;
@@ -261,6 +269,7 @@ struct PlayerPage {
     this.refreshLike();
     this.refreshDownloadStatus();
     this.refreshMvStatus();
+    this.refreshQualityProfile();
     this.loadVipStatus();
     // 播放流转：注册接收端监听 + 初始化本机 deviceId
     socketService.on('transfer_received', this.onTransferReceived);
@@ -620,7 +629,7 @@ struct PlayerPage {
     }
     this.miCasting = true;
     try {
-      const quality = await getInternalQuality();
+      const quality = await getCurrentQuality();
       const url = trackApi.streamUrl(cur.id, quality);
       const title = `${cur.title} - ${cur.artist ?? ''}`;
       await miApi.playByUrl(deviceId, url, title);
@@ -1239,11 +1248,31 @@ struct PlayerPage {
             .fontColor(this.theme.colors.text)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis });
-          Text(this.current()?.artist ?? '')
-            .fontSize(14)
-            .fontColor(this.theme.colors.textSecondary)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis });
+          // 艺术家 + 音频品质胶囊（对齐 mobile player.tsx trackMetaRow：
+          // 艺术家右侧 pill 按钮，显示当前档位 label，点击循环切档，仅一档/有声书禁用）
+          Row({ space: 8 }) {
+            Text(this.current()?.artist ?? '')
+              .fontSize(14)
+              .fontColor(this.theme.colors.textSecondary)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .flexShrink(1);
+            if (this.current()?.contentType !== 'AUDIOBOOK' && this.qualityLabel.length > 0) {
+              Row() {
+                Text(this.qualityLabel)
+                  .fontSize(11)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(this.theme.colors.text);
+              }
+              .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+              .borderRadius(999)
+              .border({ width: 1, color: this.theme.colors.border })
+              .backgroundColor(this.theme.colors.card)
+              .opacity(this.qualityOptionCount <= 1 ? 0.65 : 1)
+              .onClick((): void => this.handleCycleQuality());
+            }
+          }
+          .alignItems(VerticalAlign.Center);
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start);
@@ -2318,6 +2347,71 @@ struct PlayerPage {
     router.pushUrl({ url: 'pages/MVDetailPage', params: { id: mv.id } });
   }
 
+  /**
+   * 拉当前曲目的音质档位（对齐 mobile syncTrackQuality effect）：
+   * 选中值 = 设置页按当前内外网推导的偏好档，曲目无此档时回落 defaultQuality
+   * —— 与起播时 trackResolver 选 URL 的口径一致，徽标显示的就是实际在播的档位。
+   */
+  private refreshQualityProfile(): void {
+    const cur = this.current();
+    if (!cur || cur.contentType === 'AUDIOBOOK') {
+      this.qualityOptions = [];
+      this.qualityOptionCount = 0;
+      this.qualityLabel = '';
+      return;
+    }
+    const trackId: string = cur.id;
+    trackApi.playbackQualities(trackId)
+      .then((profile: PlaybackQualityProfile) => {
+        return getCurrentQuality().then((preferred: Quality): void => {
+          // 防止慢响应覆盖新曲目状态（对齐 refreshMvStatus 的竞态处理）
+          const now = this.current();
+          if (!now || now.id !== trackId) return;
+          const options: PlaybackQualityOption[] = profile.options ?? [];
+          this.qualityOptions = options;
+          this.qualityOptionCount = options.length;
+          let selected: string = profile.defaultQuality;
+          if (options.some((o: PlaybackQualityOption): boolean => o.quality === preferred)) {
+            selected = preferred;
+          }
+          this.currentQuality = selected;
+          const opt = options.find((o: PlaybackQualityOption): boolean => o.quality === selected);
+          this.qualityLabel = opt ? opt.label : '无损';
+        });
+      })
+      .catch((e: Error): void => {
+        Logger.w('PlayerPage', `refreshQualityProfile failed: ${String(e)}`);
+        const now = this.current();
+        if (!now || now.id !== trackId) return;
+        // 失败兜底：展示静态「无损」，禁用切档（对齐 mobile getFallbackAudioQualityProfile）
+        this.qualityOptions = [];
+        this.qualityOptionCount = 0;
+        this.qualityLabel = '无损';
+      });
+  }
+
+  /**
+   * 点击品质胶囊循环切档（对齐 mobile cycleAudioQuality）：
+   * 立即用新档位的 /track/stream URL 重载当前曲目并恢复进度。
+   */
+  private handleCycleQuality(): void {
+    const cur = this.current();
+    if (!cur || this.qualityOptions.length <= 1) return;
+    const idx: number = this.qualityOptions.findIndex(
+      (o: PlaybackQualityOption): boolean => o.quality === this.currentQuality);
+    const next: PlaybackQualityOption =
+      this.qualityOptions[(idx + 1) % this.qualityOptions.length];
+    this.currentQuality = next.quality;
+    this.qualityLabel = next.label;
+    const newUrl: string = trackApi.streamUrl(cur.id, next.quality);
+    const resumeMs: number = this.view.currentMs;
+    this.resetHideTimer();
+    playerStore.reloadCurrentWithUrl(newUrl, resumeMs)
+      .catch((e: Error): void => {
+        Logger.w('PlayerPage', `reloadCurrentWithUrl failed: ${String(e)}`);
+      });
+  }
+
   private refreshDownloadStatus(): void {
     const cur = this.current();
     if (!cur) {
@@ -2380,7 +2474,7 @@ struct PlayerPage {
 
   private loadSingle(trackId: string): void {
     trackApi.getById(trackId)
-      .then((dto) => resolveTrackToPlayer(dto, false))
+      .then((dto) => resolveTrackToPlayer(dto))
       .then((track) => playerStore.playTrack(track))
       .catch(() => undefined);
   }

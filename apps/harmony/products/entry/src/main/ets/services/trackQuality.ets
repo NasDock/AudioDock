@@ -1,5 +1,6 @@
 import { kvStore } from 'features_storage';
 import { trackApi } from 'features_network';
+import { isInternalNetwork } from '../utils/networkMode';
 
 export type Quality = 'lossless' | 'high' | 'standard';
 
@@ -20,12 +21,22 @@ function extractHost(url: string): string {
   return rest;
 }
 
+// 音质默认「原音质」（无损直连原始文件，服务端不转码）；
+// 用户可在设置里按内/外网分别降档省流量。
 export async function getInternalQuality(): Promise<Quality> {
-  return asQuality(await kvStore.get('internalPlaybackQuality'), 'high');
+  return asQuality(await kvStore.get('internalPlaybackQuality'), 'lossless');
 }
 
 export async function getExternalQuality(): Promise<Quality> {
-  return asQuality(await kvStore.get('externalPlaybackQuality'), 'standard');
+  return asQuality(await kvStore.get('externalPlaybackQuality'), 'lossless');
+}
+
+/**
+ * 按当前网络环境（isInternalNetwork 由 refreshNetworkMode 在服务器切换时刷新）
+ * 选出设置页对应的音质档位。播放入口统一走这里，不要直接调内/外网 getter。
+ */
+export async function getCurrentQuality(): Promise<Quality> {
+  return isInternalNetwork() ? getInternalQuality() : getExternalQuality();
 }
 
 export async function resolveTrackUrl(trackId: string, quality: Quality, path?: string): Promise<string> {

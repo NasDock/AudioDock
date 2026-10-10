@@ -18,7 +18,7 @@ export { scanLoginApi, subscribeScanLoginSession, reportScanLoginResultViaSocket
 export type { LoginDto, RegisterDto, AuthMe, LoginResponse, CheckResponse, AuthApi } from './auth';
 export type { UserItem, UserApi } from './user';
 export type {
-  TrackDto, LikedByUser, PlaybackQuality, TrackApi,
+  TrackDto, LikedByUser, PlaybackQualityOption, PlaybackQualityProfile, TrackApi,
   TrackLoadMoreParams, TrackSearchParams, TrackLatestParams,
 } from './track';
 export type {

@@ -39,7 +39,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     recommendationLikeRatio: 50,
     screenBottomInset: 0,
     experienceProgramEnabled: true,
-    externalPlaybackQuality: 'standard',
+    // 音质默认「原音质」（无损直连原始文件，服务端不转码），可在设置里降档省流量。
+    externalPlaybackQuality: 'lossless',
   });
   const [isLoading, setIsLoading] = useState(true);
 
