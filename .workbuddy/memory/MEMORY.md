@@ -29,6 +29,8 @@
 - **ArkUI 8 位 hex 颜色是 `#AARRGGBB`**（透明度在前，不是 CSS 的 RRGGBBAA）。
 - **每组件只能绑定一个 bindSheet**：挂第二个会顶掉第一个，每个 sheet 配一个不可见锚点 Column 分散绑定。
 - **宽屏（>=600vp，平板横屏）bindSheet 默认 preferType=popup 会贴边**：要居中须显式 `preferType: SheetType.CENTER`（竖屏 BOTTOM），不写就贴屏幕一侧。
+- **ArkUI Slider 轨道两端内缩半个滑块宽**（滑块始终在轨道内）：给 Slider 叠自绘底轨/缓存层时必须同步内缩（外套 padding = blockSize/2 的容器），且 blockSize/trackThickness 要显式写死否则 inset 不可预期。微信 Slider 同样规则（blockSize/2）；antd Slider 与 miblanchard react-native-slider 无 inset（前者 rail 铺满，后者 min track 从 x=0 起）。
+- **`HitTestMode.None` 只禁自身、不禁子组件**：要禁用整棵子树的触摸（如 opacity 隐藏的按钮组）须用 `HitTestMode.Block`（容器吃掉触摸并阻断子组件）；等价于 RN 的 `pointerEvents="none"`。
 
 ## hm 沉浸式状态栏方案（全屏 + 避让区 padding）
 

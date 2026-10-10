@@ -188,6 +188,7 @@ export function PlayerDetailView({
     resume,
     duration,
     position,
+    buffered,
     seekTo,
     trackList,
     playTrackList,
@@ -1586,32 +1587,50 @@ export function PlayerDetailView({
         <Text style={[styles.timeText, { color: colors.secondary }]}>
           {formatTime(position)}
         </Text>
-        <Slider
-          containerStyle={{ flex: 1, height: 40, marginHorizontal: 10 }}
-          minimumValue={0}
-          maximumValue={duration}
-          value={position}
-          onSlidingComplete={(value) => {
-            seekTo(Array.isArray(value) ? value[0] : value);
-            resetHideTimer();
-          }}
-          minimumTrackTintColor={colors.primary}
-          maximumTrackTintColor={colors.border}
-          thumbTintColor={colors.primary}
-          renderThumbComponent={() => (
-            <Animated.View
-              style={{
-                width: 15,
-                height: 15,
-                borderRadius: 8,
-                backgroundColor: colors.primary,
-                borderWidth: 2,
-                borderColor: "#fff",
-                transform: [{ scale: breatheAnim }],
-              }}
-            />
-          )}
-        />
+        <View style={styles.sliderWrapper}>
+          {/* 自定义底轨 + 缓存层：Slider 的 maximumTrack 设为透明，由这两层代替绘制 */}
+          <View
+            style={[styles.sliderRail, { backgroundColor: colors.border }]}
+          />
+          <View
+            style={[
+              styles.bufferedTrack,
+              {
+                width: `${
+                  duration > 0 ? Math.min((buffered / duration) * 100, 100) : 0
+                }%`,
+                backgroundColor: `${colors.primary}4D`,
+              },
+            ]}
+          />
+          <Slider
+            containerStyle={{ flex: 1, height: 40 }}
+            minimumValue={0}
+            maximumValue={duration}
+            value={position}
+            onSlidingComplete={(value) => {
+              seekTo(Array.isArray(value) ? value[0] : value);
+              resetHideTimer();
+            }}
+            trackStyle={{ height: 4, borderRadius: 2 }}
+            minimumTrackTintColor={colors.primary}
+            maximumTrackTintColor="transparent"
+            thumbTintColor={colors.primary}
+            renderThumbComponent={() => (
+              <Animated.View
+                style={{
+                  width: 15,
+                  height: 15,
+                  borderRadius: 8,
+                  backgroundColor: colors.primary,
+                  borderWidth: 2,
+                  borderColor: "#fff",
+                  transform: [{ scale: breatheAnim }],
+                }}
+              />
+            )}
+          />
+        </View>
         <Text style={[styles.timeText, { color: colors.secondary }]}>
           {formatTime(duration)}
         </Text>
@@ -1692,7 +1711,11 @@ export function PlayerDetailView({
       >
         <View style={styles.landscapeContainer}>
           <View style={[styles.landscapeLeft]}>
-            <View style={styles.landscapeBackBtn}>
+            {/* 顶部折叠/更多按钮随控制条一起显隐（横屏沉浸式） */}
+            <Animated.View
+              style={[styles.landscapeBackBtn, { opacity: controlsOpacity }]}
+              pointerEvents={controlsVisible ? "auto" : "none"}
+            >
               {!embedded && (
                 <TouchableOpacity
                   onPress={closePlayer}
@@ -1701,8 +1724,11 @@ export function PlayerDetailView({
                   <Ionicons name="chevron-down" size={30} color={colors.text} />
                 </TouchableOpacity>
               )}
-            </View>
-            <View style={styles.landscapeMoreBtn}>
+            </Animated.View>
+            <Animated.View
+              style={[styles.landscapeMoreBtn, { opacity: controlsOpacity }]}
+              pointerEvents={controlsVisible ? "auto" : "none"}
+            >
               {!embedded && (
                 <TouchableOpacity
                   onPress={handleOpenMore}
@@ -1711,7 +1737,7 @@ export function PlayerDetailView({
                   <Ionicons name="ellipsis-vertical" size={26} color={colors.text} />
                 </TouchableOpacity>
               )}
-            </View>
+            </Animated.View>
             {/* 修复：外层改为普通 View 承担布局，封面单独一个 TouchableOpacity，
                 跳过片头片尾按钮组移为兄弟节点（对齐竖屏结构）。
                 此前按钮组嵌在封面 TouchableOpacity 内部，父级拦截触摸导致横屏点击无反应。 */}
@@ -2152,6 +2178,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 20,
+  },
+  sliderWrapper: {
+    flex: 1,
+    height: 40,
+    marginHorizontal: 10,
+    justifyContent: "center",
+  },
+  // 自定义进度条底轨与缓存层（与 Slider trackStyle 的 4px 对齐）
+  sliderRail: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: 4,
+    borderRadius: 2,
+  },
+  bufferedTrack: {
+    position: "absolute",
+    left: 0,
+    height: 4,
+    borderRadius: 2,
   },
   timeText: {
     fontSize: 12,

@@ -310,9 +310,9 @@ struct PlayerPage {
   }
 
   // ─── 横屏控制条自动隐藏（对齐 mobile player.tsx resetHideTimer / needsAutoHide） ───
-  // 横屏封面尺寸（有声书加按钮组后缩小，避免挤掉悬浮控制条）
+  // 横屏封面尺寸：对齐 mobile（横竖屏统一 200，不再按内容类型区分）
   private landscapeCoverSize(): number {
-    return this.current()?.contentType === 'AUDIOBOOK' ? 200 : 250;
+    return 200;
   }
   // 左列封面区内容高度：封面 + （有声书时）按钮组约 80
   private landscapeContentHeight(): number {
@@ -323,11 +323,6 @@ struct PlayerPage {
   private needsAutoHide(): boolean {
     return this.isLandscape && this.controlsHeight > 0 &&
       this.landscapeContentHeight() + this.controlsHeight + 80 > this.containerHeight;
-  }
-
-  // 悬浮控制条顶部 y 坐标：对齐 mobile bottom:40（容器高 - 40 - 控制条自身高），不小于 0
-  private controlsTop(): number {
-    return Math.max(0, this.containerHeight - 40 - this.controlsHeight);
   }
 
   private resetHideTimer(): void {
@@ -343,10 +338,7 @@ struct PlayerPage {
     this.hideTimerId = setTimeout(() => {
       this.hideTimerId = -1;
       if (this.isLandscape && this.needsAutoHide()) {
-        this.controlsVisible = false;
-        animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
-          this.controlsOpacity = 0;
-        });
+        this.hideLandscapeControls();
       }
     }, 3000);
   }
@@ -355,6 +347,14 @@ struct PlayerPage {
     this.controlsVisible = true;
     animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
       this.controlsOpacity = 1;
+    });
+  }
+
+  /** 隐藏横屏控制条（+ 顶部按钮）。控制条是 Stack 悬浮层不占布局，封面位置不动。 */
+  private hideLandscapeControls(): void {
+    this.controlsVisible = false;
+    animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
+      this.controlsOpacity = 0;
     });
   }
 
@@ -918,15 +918,19 @@ struct PlayerPage {
 
   /**
    * 横屏布局（对齐 mobile player.tsx 的 landscape 分支）：
-   * 左列：返回/更多按钮绝对定位于左上/右上，封面 250×250 居中，
-   *       控制条悬浮叠在左列底部（bottom:40, left:10%），空间不足时 3s 无操作自动隐藏，点封面切换显隐；
+   * 左列：顶部返回/更多按钮在流内固定一行（随控制条一起显隐）；
+   *       封面区 Stack 占满剩余高度居中（200×200），控制条悬浮叠在底部不占布局，
+   *       空间不足时 3s 无操作自动隐藏，点封面/封面区空白/控制条原位可唤回；
    * 右列：歌词列表常驻居中滚动（有声书时显示播放列表）。
    */
   @Builder landscapeContent() {
     Row() {
-      // ── 左列（改为 Column 纵向流式布局，避免 Stack 绝对定位导致控制条位置不随内容变化） ──
+      // ── 左列（顶部按钮行流内 + Stack 悬浮控制条，对齐 mobile 绝对定位悬浮、封面位置不随显隐变化） ──
       Column() {
         // 顶部：关闭（左） + 更多（右），固定在左列顶部
+        // 随控制条一起显隐（横屏沉浸式，对齐 mobile 横屏顶部按钮行为）。
+        // 隐藏时用 HitTestMode.Block 而不是 None：None 只禁自身、子组件仍可点击，
+        // Block 由容器吃掉触摸并阻断子组件（隐藏后按钮不可再触发）。
         Row() {
           Row() {
             AppIcon({ name: 'chevron-down', iconSize: 26, color: this.theme.colors.text });
@@ -947,64 +951,82 @@ struct PlayerPage {
           .justifyContent(FlexAlign.Center)
           .onClick(() => { this.showMore = true; });
         }
-        .width('100%');
-
-        // 中部：封面 + 有声书操作按钮组，居中并上移，占满剩余空间
-        Column() {
-          CoverImage({
-            path: this.current()?.coverUrl ?? null,
-            imgWidth: this.landscapeCoverSize(),
-            imgHeight: this.landscapeCoverSize(),
-            radius: 15,
-            fallbackText: (this.current()?.title ?? '?').substring(0, 1),
-          })
-            .onClick(() => {
-              // 对齐 mobile: needsAutoHide 时点封面切换控制条显隐
-              if (this.needsAutoHide()) {
-                if (this.controlsVisible) {
-                  if (this.hideTimerId !== -1) {
-                    clearTimeout(this.hideTimerId);
-                    this.hideTimerId = -1;
-                  }
-                  this.controlsVisible = false;
-                  animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
-                    this.controlsOpacity = 0;
-                  });
-                } else {
-                  this.resetHideTimer();
-                }
-              }
-            });
-          // 横屏/平板模式：有声书封面下方置顶操作按钮组（与竖屏同一组）
-          if (this.current()?.contentType === 'AUDIOBOOK') {
-            this.audiobookQuickActions();
-          }
-        }
-        .alignItems(HorizontalAlign.Center)
-        .justifyContent(FlexAlign.Center)
-        .layoutWeight(1)
         .width('100%')
-        .translate({ y: -12 });
-
-        // 底部：悬浮控制条（随控制条显隐，固定在左列底部）
-        // 横屏同样应用控制组底部偏移（与竖屏 content() 一致，此前漏接导致横屏调不动）
-        Column() {
-          this.controls();
-        }
-        .width('100%')
-        .borderRadius(16)
-        .padding(10)
-        .margin({ bottom: this.controlBottomOffset })
-        .backgroundColor(this.theme.colors.background)
         .opacity(this.controlsOpacity)
-        .hitTestBehavior(this.controlsVisible ? HitTestMode.Default : HitTestMode.None)
-        .onAreaChange((oldVal: Area, newVal: Area) => {
-          const firstMeasure = this.controlsHeight <= 0;
-          this.controlsHeight = newVal.height as number;
-          if (firstMeasure && this.needsAutoHide()) {
-            this.resetHideTimer();
+        .hitTestBehavior(this.controlsVisible ? HitTestMode.Default : HitTestMode.Block);
+
+        // 中部 + 底部：Stack 悬浮结构（对齐 mobile：控制条绝对定位悬浮底部、不参与布局，
+        // 封面区始终占满剩余高度居中，控制条显隐不会改变封面位置）。
+        // alignContent Bottom 只对高度自适应的控制条生效；封面区 height 100% 填满不受影响。
+        Stack({ alignContent: Alignment.Bottom }) {
+          // 封面 + 有声书操作按钮组，居中，占满剩余空间
+          Column() {
+            CoverImage({
+              path: this.current()?.coverUrl ?? null,
+              imgWidth: this.landscapeCoverSize(),
+              imgHeight: this.landscapeCoverSize(),
+              radius: 15,
+              fallbackText: (this.current()?.title ?? '?').substring(0, 1),
+            })
+              .onClick(() => {
+                // 对齐 mobile: needsAutoHide 时点封面切换控制条显隐
+                if (this.needsAutoHide()) {
+                  if (this.controlsVisible) {
+                    if (this.hideTimerId !== -1) {
+                      clearTimeout(this.hideTimerId);
+                      this.hideTimerId = -1;
+                    }
+                    this.hideLandscapeControls();
+                  } else {
+                    this.resetHideTimer();
+                  }
+                }
+              });
+            // 横屏/平板模式：有声书封面下方置顶操作按钮组（与竖屏同一组）
+            if (this.current()?.contentType === 'AUDIOBOOK') {
+              this.audiobookQuickActions();
+            }
           }
-        });
+          .alignItems(HorizontalAlign.Center)
+          .justifyContent(FlexAlign.Center)
+          .width('100%')
+          .height('100%')
+          .onClick(() => {
+            // 对齐 mobile：隐藏后点击封面区任意位置（空白处）也能唤回控制组
+            if (!this.controlsVisible && this.needsAutoHide()) {
+              this.resetHideTimer();
+            }
+          });
+
+          // 悬浮控制条（随控制条显隐，悬浮在左列底部，不占布局）
+          // 横屏同样应用控制组底部偏移（与竖屏 content() 一致，此前漏接导致横屏调不动）。
+          // 隐藏时 hitTestBehavior 用 Block（None 只禁自身、按钮子组件仍可点），
+          // 容器吃掉触摸；同时点击该区域可唤回控制组（对齐 mobile 透传到封面的效果）。
+          Column() {
+            this.controls();
+          }
+          .width('100%')
+          .borderRadius(16)
+          .padding(10)
+          .margin({ bottom: this.controlBottomOffset })
+          .backgroundColor(this.theme.colors.background)
+          .opacity(this.controlsOpacity)
+          .hitTestBehavior(this.controlsVisible ? HitTestMode.Default : HitTestMode.Block)
+          .onClick(() => {
+            if (!this.controlsVisible && this.needsAutoHide()) {
+              this.resetHideTimer();
+            }
+          })
+          .onAreaChange((oldVal: Area, newVal: Area) => {
+            const firstMeasure = this.controlsHeight <= 0;
+            this.controlsHeight = newVal.height as number;
+            if (firstMeasure && this.needsAutoHide()) {
+              this.resetHideTimer();
+            }
+          });
+        }
+        .layoutWeight(1)
+        .width('100%');
       }
       .layoutWeight(1)
       .height('100%')
@@ -1349,21 +1371,45 @@ struct PlayerPage {
         Text(formatDuration(this.view.currentMs))
           .fontSize(12)
           .fontColor(this.theme.colors.textSecondary);
-        Slider({
-          value: this.view.currentMs,
-          min: 0,
-          max: Math.max(1, this.view.durationMs),
-        })
-          .layoutWeight(1)
-          .trackColor(this.theme.colors.border)
-          .selectedColor(this.theme.colors.primary)
-          .blockColor(this.theme.colors.primary)
-          .onChange((value: number, mode: SliderChangeMode) => {
-            // 对齐 mobile：松手/点击才 seek，拖动中不打断播放
-            if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
-              playerStore.seek(value).catch(() => undefined);
-            }
-          });
+        // 进度条三段式：底轨 + 缓存层自绘（Stack 垫底），Slider trackColor 设透明。
+        // 注意 ArkUI Slider 的轨道两端内缩半个滑块宽（滑块始终完整处于轨道内），
+        // 因此自定义层必须用 padding 内缩 8vp 对齐（blockSize 显式固定为 16 保持 inset 可预期）。
+        Stack() {
+          Stack() {
+            Row()
+              .width('100%')
+              .height(4)
+              .borderRadius(2)
+              .backgroundColor(this.theme.colors.border);
+            Row()
+              .width(`${this.view.bufferedPercent}%`)
+              .height(4)
+              .borderRadius(2)
+              .backgroundColor(`#4D${this.theme.colors.primary.substring(3)}`);
+          }
+          .width('100%')
+          .height(4)
+          .padding({ left: 8, right: 8 });
+          Slider({
+            value: this.view.currentMs,
+            min: 0,
+            max: Math.max(1, this.view.durationMs),
+          })
+            .width('100%')
+            .trackColor(Color.Transparent)
+            .trackThickness(4)
+            .blockSize({ width: 16, height: 16 })
+            .selectedColor(this.theme.colors.primary)
+            .blockColor(this.theme.colors.primary)
+            .onChange((value: number, mode: SliderChangeMode) => {
+              // 对齐 mobile：松手/点击才 seek，拖动中不打断播放
+              if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
+                playerStore.seek(value).catch(() => undefined);
+              }
+            });
+        }
+        .layoutWeight(1)
+        .alignContent(Alignment.Center);
         Text(formatDuration(this.view.durationMs))
           .fontSize(12)
           .fontColor(this.theme.colors.textSecondary);

@@ -82,6 +82,8 @@ interface PlayerContextType {
   currentTrack: Track | null;
   position: number;
   duration: number;
+  /** 缓存进度（秒）：进度条三段式的中间层，来自 TrackPlayer 的 buffered */
+  buffered: number;
   isLoading: boolean;
   playTrack: (
     track: Track,
@@ -135,6 +137,7 @@ const PlayerContext = createContext<PlayerContextType>({
   currentTrack: null,
   position: 0,
   duration: 0,
+  buffered: 0,
   isLoading: false,
   playTrack: async () => {},
   pause: async () => {},
@@ -217,7 +220,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const skipNextModeRestoreRef = useRef(false);
 
   // Hook for progress
-  const { position, duration } = useProgress();
+  const { position, duration, buffered } = useProgress();
 
   // Refs for accessing latest state in callbacks
   const playModeRef = React.useRef(playMode);
@@ -2466,6 +2469,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         currentTrack,
         position,
         duration,
+        buffered,
         isLoading,
         playTrack,
         pause,
