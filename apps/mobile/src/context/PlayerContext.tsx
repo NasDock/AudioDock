@@ -101,6 +101,8 @@ interface PlayerContextType {
   togglePlayMode: () => void;
   playNext: () => Promise<void>;
   playPrevious: () => Promise<void>;
+  /** 横屏封面轮播滑切/点按：直接播放队列指定索引（绕过 playMode） */
+  playAt: (index: number) => Promise<void>;
   insertTracksNext: (tracks: Track[]) => Promise<void>;
   isSynced: boolean;
   sessionId: string | null;
@@ -149,6 +151,7 @@ const PlayerContext = createContext<PlayerContextType>({
   togglePlayMode: () => {},
   playNext: async () => {},
   playPrevious: async () => {},
+  playAt: async () => {},
   insertTracksNext: async () => {},
   isSynced: false,
   sessionId: null,
@@ -1227,6 +1230,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     if (prevIndex !== -1) {
       await playTrack(list[prevIndex]);
     }
+  };
+
+  /** 横屏封面轮播滑切/点按：直接播放队列指定索引（绕过 playMode，对齐点列表直跳语义） */
+  const playAt = async (index: number) => {
+    const list = trackListRef.current;
+    if (index < 0 || index >= list.length) return;
+    const current = currentTrackRef.current;
+    if (current && list[index]?.id === current.id) return;
+    await playTrack(list[index]);
   };
 
   const getNextPlayMode = (current: PlayMode) => {
@@ -2481,6 +2493,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         togglePlayMode,
         playNext,
         playPrevious,
+        playAt,
         insertTracksNext,
         isSynced,
         sessionId,

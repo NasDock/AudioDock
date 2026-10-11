@@ -33,6 +33,7 @@ import {
   FlatList,
   Image,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -195,6 +196,7 @@ export function PlayerDetailView({
     playMode,
     playNext,
     playPrevious,
+    playAt,
     togglePlayMode,
     isSynced,
     handleDisconnect,
@@ -373,41 +375,47 @@ export function PlayerDetailView({
   const [controlsHeight, setControlsHeight] = useState(0);
   const controlsOpacity = useRef(new Animated.Value(1)).current;
 
-  const resetHideTimer = () => {
-    if (hideTimerRef.current) {
-      clearTimeout(hideTimerRef.current);
-    }
-
-    if (!needsAutoHide) {
-      setControlsVisible(true);
-      return;
-    }
-
-    setControlsVisible(true);
-    hideTimerRef.current = setTimeout(() => {
-      if (isLandscape && needsAutoHide) {
-        setControlsVisible(false);
-      }
-    }, 3000); // 3 seconds of inactivity as per previous requirements
-  };
-
   const needsAutoHide =
     isLandscape &&
     artworkHeight > 0 &&
     controlsHeight > 0 &&
     artworkHeight + controlsHeight + 80 > height; // 80 is estimated padding/gaps for landscape safe area and spacing
 
+  // 手机横屏判定：横屏且高度 < 500dp（手机横屏约 360~430，平板 600+）。
+  // 手机横屏无控制组：堆叠式封面轮播 + 中心播放键；chrome（顶部按钮 + 播放键）3s 自动隐藏
+  const isPhoneLandscape = isLandscape && height < 500;
+  const coverFlowMode = isPhoneLandscape && trackList.length > 1;
+  const autoHideChrome = isPhoneLandscape || needsAutoHide;
+
+  const resetHideTimer = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+    }
+
+    if (!autoHideChrome) {
+      setControlsVisible(true);
+      return;
+    }
+
+    setControlsVisible(true);
+    hideTimerRef.current = setTimeout(() => {
+      if (isLandscape && autoHideChrome) {
+        setControlsVisible(false);
+      }
+    }, 3000); // 3 seconds of inactivity as per previous requirements
+  };
+
   useEffect(() => {
-    if (isLandscape && needsAutoHide && controlsVisible) {
+    if (isLandscape && autoHideChrome && controlsVisible) {
       resetHideTimer();
-    } else if (!isLandscape || !needsAutoHide) {
+    } else if (!isLandscape || !autoHideChrome) {
       setControlsVisible(true);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     }
     return () => {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
-  }, [isLandscape, needsAutoHide, controlsVisible]);
+  }, [isLandscape, autoHideChrome, controlsVisible]);
 
   useEffect(() => {
     Animated.timing(controlsOpacity, {
@@ -416,6 +424,216 @@ export function PlayerDetailView({
       useNativeDriver: true,
     }).start();
   }, [controlsVisible]);
+
+  // ─── 手机横屏堆叠式封面轮播（1-2-3-2-1，对齐 hm PlayerPage） ───
+  // 锚点：尺寸 1:2:3（66.7/133.3/200），非当前封面只露 1/3；
+  // x 锚点 0/77.8/133.3 分段线性插值；effPos = (idx - currentIndex) + panX/77.8
+  const COVER_FLOW_STEP = 77.8;
+  const coverFlowCurrentIndex = trackList.findIndex(
+    (t) => t.id === currentTrack?.id,
+  );
+  const coverFlowPanX = useRef(new Animated.Value(0)).current;
+  const coverFlowAnimatingRef = useRef(false);
+  const [coverFlowWidth, setCoverFlowWidth] = useState(0);
+  // PanResponder 只创建一次，动态值经 ref 透传避免闭包过期
+  const coverFlowStateRef = useRef({
+    currentIndex: 0,
+    queueLength: 0,
+    width: 0,
+  });
+  coverFlowStateRef.current = {
+    currentIndex: coverFlowCurrentIndex,
+    queueLength: trackList.length,
+    width: coverFlowWidth,
+  };
+
+  const togglePlayPause = useCallback(() => {
+    if (isPlaying) {
+      pause().catch(() => {});
+    } else {
+      resume().catch(() => {});
+    }
+  }, [isPlaying, pause, resume]);
+  // 已有同语义函数 togglePlayback（L732+），轮播相关回调统一用 togglePlayPause
+
+  const reboundCoverFlow = useCallback(() => {
+    if (coverFlowAnimatingRef.current) return;
+    coverFlowAnimatingRef.current = true;
+    Animated.timing(coverFlowPanX, {
+      toValue: 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => {
+      coverFlowAnimatingRef.current = false;
+    });
+  }, [coverFlowPanX]);
+
+  const snapCoverFlow = useCallback(
+    (target: number) => {
+      const ci = coverFlowStateRef.current.currentIndex;
+      const step = target - ci;
+      if (coverFlowAnimatingRef.current) return;
+      if (
+        step === 0 ||
+        target < 0 ||
+        target >= coverFlowStateRef.current.queueLength
+      ) {
+        reboundCoverFlow();
+        return;
+      }
+      coverFlowAnimatingRef.current = true;
+      Animated.timing(coverFlowPanX, {
+        toValue: -step * COVER_FLOW_STEP,
+        duration: 180,
+        useNativeDriver: true,
+      }).start(() => {
+        // 滑出到位后切歌并无动画归零：原相邻项就位中心，视觉连续
+        playAt(target).catch(() => {});
+        coverFlowPanX.setValue(0);
+        coverFlowAnimatingRef.current = false;
+      });
+    },
+    [coverFlowPanX, playAt, reboundCoverFlow],
+  );
+
+  const handleCoverFlowTap = useCallback(
+    (x: number) => {
+      // 点击任意位置唤回 chrome（顶部按钮 + 中心播放键）并重置 3s 隐藏计时
+      resetHideTimer();
+      const { currentIndex: ci, width: w } = coverFlowStateRef.current;
+      const dx = x - w / 2;
+      const adx = Math.abs(dx);
+      if (adx <= 100) {
+        togglePlayPause();
+        return;
+      }
+      if (adx <= 166.7) {
+        const dir = dx > 0 ? 1 : -1;
+        const pos = adx <= 144.4 ? 1 : 2;
+        snapCoverFlow(ci + dir * pos);
+      }
+    },
+    [togglePlayPause, snapCoverFlow],
+  );
+
+  const snapCoverFlowRef = useRef(snapCoverFlow);
+  snapCoverFlowRef.current = snapCoverFlow;
+  const reboundCoverFlowRef = useRef(reboundCoverFlow);
+  reboundCoverFlowRef.current = reboundCoverFlow;
+  const handleCoverFlowTapRef = useRef(handleCoverFlowTap);
+  handleCoverFlowTapRef.current = handleCoverFlowTap;
+
+  const coverFlowPanResponder = useRef(
+    PanResponder.create({
+      // tap 也要拿 responder（否则 release 收不到），滑动由 move 阈值判定
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_e, g) =>
+        Math.abs(g.dx) > 5 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderMove: (_e, g) => {
+        if (coverFlowAnimatingRef.current) return;
+        const { currentIndex: ci, queueLength } = coverFlowStateRef.current;
+        let v = g.dx;
+        // 队列两端拖拽阻尼（30%）
+        if ((ci <= 0 && v > 0) || (ci >= queueLength - 1 && v < 0)) {
+          v = v * 0.3;
+        }
+        const max = COVER_FLOW_STEP * 1.5;
+        coverFlowPanX.setValue(Math.max(-max, Math.min(max, v)));
+      },
+      onPanResponderRelease: (e, g) => {
+        if (coverFlowAnimatingRef.current) return;
+        // 位移极小视为点击：按 x 坐标命中（中心播放/暂停、两侧跳曲、空白唤回）
+        if (Math.abs(g.dx) < 10 && Math.abs(g.dy) < 10) {
+          handleCoverFlowTapRef.current(e.nativeEvent.locationX);
+          return;
+        }
+        const progress = g.dx / COVER_FLOW_STEP;
+        let step = 0;
+        if (progress <= -0.3 || g.vx < -0.4) {
+          step = 1;
+        } else if (progress >= 0.3 || g.vx > 0.4) {
+          step = -1;
+        }
+        if (step === 0) {
+          reboundCoverFlowRef.current();
+          return;
+        }
+        snapCoverFlowRef.current(
+          coverFlowStateRef.current.currentIndex + step,
+        );
+      },
+      onPanResponderTerminate: () => {
+        reboundCoverFlowRef.current();
+      },
+      onShouldBlockNativeResponder: () => true,
+    }),
+  ).current;
+
+  // 堆叠式封面轮播渲染：前后各 2 首（越界跳过不循环），锚点分段线性插值，
+  // 每项 transform 由 effPos = (idx - currentIndex) + panX/77.8 驱动（动画值，不触发重渲染）
+  const renderCoverFlow = () => {
+    const cur = coverFlowCurrentIndex;
+    const entries: { idx: number; track: Track }[] = [];
+    for (let p = -2; p <= 2; p++) {
+      const idx = cur + p;
+      if (idx < 0 || idx >= trackList.length) continue;
+      entries.push({ idx, track: trackList[idx] });
+    }
+    return (
+      <View
+        style={styles.coverFlowContainer}
+        onLayout={(e) => setCoverFlowWidth(e.nativeEvent.layout.width)}
+        {...coverFlowPanResponder.panHandlers}
+      >
+        {entries.map(({ idx, track }) => {
+          const basePos = idx - cur;
+          const effPos = Animated.add(
+            basePos,
+            Animated.divide(coverFlowPanX, COVER_FLOW_STEP),
+          );
+          const tx = effPos.interpolate({
+            inputRange: [-2, -1, 0, 1, 2],
+            outputRange: [-133.3, -77.8, 0, 77.8, 133.3],
+            extrapolate: "clamp",
+          });
+          const sc = effPos.interpolate({
+            inputRange: [-2, -1, 0, 1, 2],
+            outputRange: [1 / 3, 2 / 3, 1, 2 / 3, 1 / 3],
+            extrapolate: "clamp",
+          });
+          const op = effPos.interpolate({
+            inputRange: [-2, -1, 0, 1, 2],
+            outputRange: [0.7, 0.85, 1, 0.85, 0.7],
+            extrapolate: "clamp",
+          });
+          return (
+            <Animated.View
+              key={idx}
+              style={[
+                styles.coverFlowItem,
+                {
+                  opacity: op,
+                  zIndex: 100 - Math.abs(basePos) * 10,
+                  transform: [{ translateX: tx }, { scale: sc }],
+                },
+              ]}
+            >
+              <Image
+                source={{
+                  uri: getImageUrl(
+                    track.cover,
+                    "https://picsum.photos/400",
+                    400,
+                  ),
+                }}
+                style={styles.coverFlowImage}
+              />
+            </Animated.View>
+          );
+        })}
+      </View>
+    );
+  };
 
   useEffect(() => {
     if (currentTrack && user) {
@@ -1741,55 +1959,85 @@ export function PlayerDetailView({
             {/* 修复：外层改为普通 View 承担布局，封面单独一个 TouchableOpacity，
                 跳过片头片尾按钮组移为兄弟节点（对齐竖屏结构）。
                 此前按钮组嵌在封面 TouchableOpacity 内部，父级拦截触摸导致横屏点击无反应。 */}
-            <View
-              style={[
-                styles.landscapeArtworkContainer,
-                !needsAutoHide && {
-                  justifyContent: "center",
-                  paddingBottom:
-                    isLandscape && controlsHeight > 0 ? controlsHeight + 20 : 0,
-                },
-              ]}
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  if (needsAutoHide) {
-                    setControlsVisible(!controlsVisible);
-                  }
-                }}
-                activeOpacity={1}
+            {coverFlowMode ? (
+              /* 手机横屏 + 队列>1：堆叠式封面轮播（无控制组） */
+              renderCoverFlow()
+            ) : (
+              <>
+                <View
+                  style={[
+                    styles.landscapeArtworkContainer,
+                    !needsAutoHide && {
+                      justifyContent: "center",
+                      paddingBottom:
+                        isLandscape && controlsHeight > 0 ? controlsHeight + 20 : 0,
+                    },
+                  ]}
+                >
+                  <TouchableOpacity
+                    onPress={() => {
+                      // 手机横屏无控制组：点封面 = 唤回 chrome + 播放/暂停
+                      if (isPhoneLandscape) {
+                        resetHideTimer();
+                        togglePlayPause();
+                        return;
+                      }
+                      if (needsAutoHide) {
+                        setControlsVisible(!controlsVisible);
+                      }
+                    }}
+                    activeOpacity={1}
+                  >
+                    <Image
+                      source={{
+                        uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
+                      }}
+                      onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
+                      style={[styles.artwork, { marginBottom: 0 }]}
+                    />
+                  </TouchableOpacity>
+                  {/* 横屏/平板模式：有声书封面下方置顶操作按钮组（与竖屏同一组） */}
+                  {currentTrack.type === TrackType.AUDIOBOOK &&
+                    renderAudiobookQuickActions()}
+                </View>
+                {/* 悬浮控制条：仅平板横屏渲染（手机横屏已完全移除控制组） */}
+                {!isPhoneLandscape && (
+                  <Animated.View
+                    style={[
+                      styles.landscapeControls,
+                      {
+                        opacity: controlsOpacity,
+                        backgroundColor: colors.background,
+                        borderRadius: 16,
+                        padding: 10,
+                        position: "absolute",
+                        bottom: 40,
+                        left: "10%",
+                        zIndex: 20,
+                      },
+                    ]}
+                    onLayout={(e) => setControlsHeight(e.nativeEvent.layout.height)}
+                    pointerEvents={controlsVisible ? "auto" : "none"}
+                  >
+                    {renderControls()}
+                  </Animated.View>
+                )}
+              </>
+            )}
+            {/* 手机横屏：封面中心播放/暂停按钮（半透明毛玻璃，纯展示 pointerEvents=none，
+                点击由下层轮播手势层/封面 Touchable 处理），随 chrome 显隐 */}
+            {isPhoneLandscape && (
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.centerPlayButton, { opacity: controlsOpacity }]}
               >
-                <Image
-                  source={{
-                    uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
-                  }}
-                  onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
-                  style={[styles.artwork, { marginBottom: 0 }]}
+                <Ionicons
+                  name={isPlaying ? "pause" : "play"}
+                  size={30}
+                  color="#fff"
                 />
-              </TouchableOpacity>
-              {/* 横屏/平板模式：有声书封面下方置顶操作按钮组（与竖屏同一组） */}
-              {currentTrack.type === TrackType.AUDIOBOOK &&
-                renderAudiobookQuickActions()}
-            </View>
-            <Animated.View
-              style={[
-                styles.landscapeControls,
-                {
-                  opacity: controlsOpacity,
-                  backgroundColor: colors.background,
-                  borderRadius: 16,
-                  padding: 10,
-                  position: "absolute",
-                  bottom: 40,
-                  left: "10%",
-                  zIndex: 20,
-                },
-              ]}
-              onLayout={(e) => setControlsHeight(e.nativeEvent.layout.height)}
-              pointerEvents={controlsVisible ? "auto" : "none"}
-            >
-              {renderControls()}
-            </Animated.View>
+              </Animated.View>
+            )}
           </View>
 
           <View style={styles.landscapeRight}>
@@ -2288,6 +2536,46 @@ const styles = StyleSheet.create({
     height: 250,
     borderRadius: 15,
     marginBottom: 20,
+  },
+  // 手机横屏堆叠式封面轮播（1-2-3-2-1）
+  coverFlowContainer: {
+    flex: 1,
+    width: "100%",
+  },
+  coverFlowItem: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    left: "50%",
+    marginLeft: -100,
+    top: "50%",
+    marginTop: -100,
+    borderRadius: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  coverFlowImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 15,
+  },
+  // 手机横屏封面中心播放/暂停按钮（半透明毛玻璃，pointerEvents=none 纯展示）
+  centerPlayButton: {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    marginLeft: -32,
+    marginTop: -32,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 110,
   },
   landscapeContent: {
     flex: 1,

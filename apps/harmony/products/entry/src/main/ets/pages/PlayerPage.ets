@@ -50,6 +50,12 @@ class TransferPlaylist {
   index: number = 0;
 }
 
+/** 横屏堆叠式封面轮播（1-2-3-2-1）的渲染项：队列绝对索引（ForEach key）+ 曲目 */
+class CoverFlowEntry {
+  idx: number = 0;
+  track: Track | null = null;
+}
+
 /** 播放流转 payload（ArkTS 严格模式要求显式 class，禁用未声明接口的对象字面量） */
 class TransferSessionPayload {
   targetDeviceId: string = '';
@@ -193,6 +199,13 @@ struct PlayerPage {
   @State private leftColumnWidth: number = 0;
   private controlsHeight: number = 0;
   private hideTimerId: number = -1;
+  // ─── 横屏伪 3D 封面轮播（coverflow）状态 ───
+  /** 拖拽中横向偏移（vp），松手动画结束或回弹后归 0 */
+  @State private coverFlowOffset: number = 0;
+  /** 松手吸附/回弹动画进行中，屏蔽重复触发 */
+  private coverFlowAnimating: boolean = false;
+  /** 轮播手势层宽度（onAreaChange 测量），用于点击命中间算 */
+  private coverFlowWidth: number = 0;
 
   onThemeModeChange(): void {
     this.theme = buildTheme(this.themeMode);
@@ -325,19 +338,207 @@ struct PlayerPage {
       this.landscapeContentHeight() + this.controlsHeight + 80 > this.containerHeight;
   }
 
+  // ─── 横屏堆叠式封面轮播（1-2-3-2-1） ───
+  /**
+   * 手机横屏判定：横屏且高度 < 500vp（手机横屏高度约 390~430vp，平板 600+）。
+   * 手机横屏下没有控制组（只有封面 + 中心播放/暂停按钮），不再依赖 controlsHeight 测量，
+   * 避免「不测控制条高度就进不了轮播模式」的循环依赖。
+   */
+  private isPhoneLandscape(): boolean {
+    return this.isLandscape && this.containerHeight > 0 && this.containerHeight < 500;
+  }
+
+  // 轮播模式：手机横屏 + 队列多于 1 首（单首队列退化为单封面 + 中心播放键）
+  private isCoverFlowMode(): boolean {
+    return this.isPhoneLandscape() && this.view.queue.length > 1;
+  }
+
+  /**
+   * 堆叠布局锚点（封面基准宽 200vp）：
+   * 尺寸 1:2:3 → 中心 200，相邻 133.3，最外 66.7；
+   * 非当前封面只露出 1/3，其余藏在更靠中心的封面后面。
+   * 推导：pos±1 可见条 = 133.3/3 ≈ 44.4（从中心封面边缘 100 起），封面中心 x = 100 − 88.9 + 66.7 ≈ 77.8；
+   *       pos±2 可见条 = 66.7/3 ≈ 22.2（从 pos±1 可见条边缘 144.4 起），封面中心 x ≈ 133.3。
+   */
+  private coverFlowAnchorX(step: number): number {
+    if (step <= 0) return 0;
+    if (step === 1) return 77.8;
+    return 133.3;
+  }
+
+  private coverFlowAnchorScale(step: number): number {
+    if (step <= 0) return 1;
+    if (step === 1) return 2 / 3;
+    return 1 / 3;
+  }
+
+  /** 拖拽一步的视觉位移（vp）：中心封面中心到相邻封面中心的距离 */
+  private coverFlowStep(): number {
+    return this.coverFlowAnchorX(1);
+  }
+
+  /** 参与渲染的项：当前曲目前后各 2 首（越界跳过，不循环） */
+  private coverFlowEntries(): CoverFlowEntry[] {
+    const list: CoverFlowEntry[] = [];
+    const cur = this.view.currentIndex;
+    for (let p = -2; p <= 2; p++) {
+      const idx = cur + p;
+      if (idx < 0 || idx >= this.view.queue.length) continue;
+      const e = new CoverFlowEntry();
+      e.idx = idx;
+      e.track = this.view.queue[idx];
+      list.push(e);
+    }
+    return list;
+  }
+
+  /**
+   * 某项的实时视觉位置（相对中心，拖拽中为小数）。
+   * 注意是 pos + offset/step：左滑 offset 为负 → effPos 减小 → 右侧（pos>0，下一首）
+   * 移向中心，封面跟随手指方向；写成 pos − offset/step 会导致视觉与切歌方向相反。
+   *
+   * 注意 2：pos 必须由 idx − this.view.currentIndex 现场算出（读 @State 建立订阅），
+   * 不能从 ForEach 构建时的闭包传 pos——key 稳定时 ForEach 复用子节点不重渲染，
+   * 闭包里的 pos 是旧值，切歌后封面位置/数量全乱（"刷新无规则"的根因）。
+   */
+  private coverFlowEffPos(idx: number): number {
+    return (idx - this.view.currentIndex) + this.coverFlowOffset / this.coverFlowStep();
+  }
+
+  /** 分段线性插值：整数位命中锚点，小数位在相邻锚点间过渡（拖拽跟手） */
+  private coverFlowX(idx: number): number {
+    const ep = Math.max(-2, Math.min(2, this.coverFlowEffPos(idx)));
+    const sign = ep >= 0 ? 1 : -1;
+    const a = Math.abs(ep);
+    const i0 = Math.floor(a);
+    const i1 = Math.min(2, i0 + 1);
+    const f = a - i0;
+    const v = this.coverFlowAnchorX(i0) +
+      (this.coverFlowAnchorX(i1) - this.coverFlowAnchorX(i0)) * f;
+    return sign * v;
+  }
+
+  private coverFlowScale(idx: number): number {
+    const ep = Math.max(-2, Math.min(2, this.coverFlowEffPos(idx)));
+    const a = Math.abs(ep);
+    const i0 = Math.floor(a);
+    const i1 = Math.min(2, i0 + 1);
+    const f = a - i0;
+    return this.coverFlowAnchorScale(i0) +
+      (this.coverFlowAnchorScale(i1) - this.coverFlowAnchorScale(i0)) * f;
+  }
+
+  private coverFlowOpacity(idx: number): number {
+    const a = Math.abs(this.coverFlowEffPos(idx));
+    return Math.max(0.7, 1 - a * 0.15);
+  }
+
+  private coverFlowZIndex(idx: number): number {
+    return 100 - Math.round(Math.abs(this.coverFlowEffPos(idx)) * 10);
+  }
+
+  /** 回弹到中心（未越过切换阈值/已到队列边界时） */
+  private coverFlowRebound(): void {
+    if (this.coverFlowAnimating) return;
+    this.coverFlowAnimating = true;
+    animateTo({
+      duration: 220,
+      curve: Curve.EaseOut,
+      onFinish: () => { this.coverFlowAnimating = false; },
+    }, () => {
+      this.coverFlowOffset = 0;
+    });
+  }
+
+  /**
+   * 吸附切换到目标索引：先动画滑出到位（offset → -step*step），
+   * onFinish 里切歌并无动画归零——切歌后原相邻项就位中心，视觉连续。
+   */
+  private coverFlowSnapTo(target: number): void {
+    const step = target - this.view.currentIndex;
+    if (this.coverFlowAnimating) return;
+    if (step === 0 || target < 0 || target >= this.view.queue.length) {
+      this.coverFlowRebound();
+      return;
+    }
+    this.coverFlowAnimating = true;
+    const stepPx = this.coverFlowStep();
+    animateTo({
+      duration: 180,
+      curve: Curve.EaseOut,
+      onFinish: () => {
+        playerStore.playAt(target).catch(() => undefined);
+        this.coverFlowOffset = 0;
+        this.coverFlowAnimating = false;
+      },
+    }, () => {
+      this.coverFlowOffset = -step * stepPx;
+    });
+  }
+
+  /** 松手结算：位移超 30% 或速度超阈值则切一首，否则回弹 */
+  private onCoverFlowSwipeEnd(offsetX: number, velocityX: number): void {
+    if (this.coverFlowAnimating) return;
+    const progress = offsetX / this.coverFlowStep();
+    let step = 0;
+    if (progress <= -0.3 || velocityX < -400) {
+      step = 1;
+    } else if (progress >= 0.3 || velocityX > 400) {
+      step = -1;
+    }
+    if (step === 0) {
+      this.coverFlowRebound();
+      return;
+    }
+    this.coverFlowSnapTo(this.view.currentIndex + step);
+  }
+
+  /** 点当前封面：播放/暂停切换（手机横屏无控制组，封面中心按钮是唯一播控） */
+  private onCoverFlowCenterTap(): void {
+    if (Math.abs(this.coverFlowOffset) > 4 || this.coverFlowAnimating) return;
+    playerStore.togglePlay().catch(() => undefined);
+  }
+
+  /**
+   * 轮播手势层点击命中间算（x 为相对手势层左上角的横坐标）：
+   * |dx|<=100 当前封面（±100 即中心封面半宽）→ 切换控制组显隐；
+   * 100<|dx|<=144.4 → 相邻封面（其可见 1/3 区域）；144.4<|dx|<=166.7 → 最外封面；
+   * 再往外是空白区 → 隐藏时唤回控制组。
+   */
+  private onCoverFlowTap(x: number): void {
+    if (Math.abs(this.coverFlowOffset) > 4 || this.coverFlowAnimating) return;
+    // 点击任意位置唤回 chrome（顶部按钮 + 中心播放键）并重置 3s 隐藏计时
+    this.resetHideTimer();
+    const dx = x - this.coverFlowWidth / 2;
+    const adx = Math.abs(dx);
+    if (adx <= 100) {
+      this.onCoverFlowCenterTap();
+      return;
+    }
+    if (adx <= 166.7) {
+      const dir = dx > 0 ? 1 : -1;
+      const pos = adx <= 144.4 ? 1 : 2;
+      this.coverFlowSnapTo(this.view.currentIndex + dir * pos);
+      return;
+    }
+    // 空白区点击：无操作（手机横屏无控制组可唤回）
+  }
+
   private resetHideTimer(): void {
     if (this.hideTimerId !== -1) {
       clearTimeout(this.hideTimerId);
       this.hideTimerId = -1;
     }
-    if (!this.needsAutoHide()) {
+    // 手机横屏：chrome = 顶部按钮行 + 中心播放键（无控制条）；平板横屏：chrome = 控制条（needsAutoHide 时才自动隐藏）
+    const autoHide = this.isPhoneLandscape() || this.needsAutoHide();
+    if (!autoHide) {
       this.showLandscapeControls();
       return;
     }
     this.showLandscapeControls();
     this.hideTimerId = setTimeout(() => {
       this.hideTimerId = -1;
-      if (this.isLandscape && this.needsAutoHide()) {
+      if (this.isPhoneLandscape() || (this.isLandscape && this.needsAutoHide())) {
         this.hideLandscapeControls();
       }
     }, 3000);
@@ -800,7 +1001,11 @@ struct PlayerPage {
         this.isLandscape = landscape;
         this.containerHeight = newVal.height as number;
         if (changed) {
-          if (this.needsAutoHide()) {
+          if (this.isPhoneLandscape()) {
+            // 手机横屏：chrome（顶部按钮 + 中心播放键）展示 3s 后自动隐藏，点击任意位置唤回
+            this.coverFlowOffset = 0;
+            this.resetHideTimer();
+          } else if (this.needsAutoHide()) {
             this.resetHideTimer();
           } else {
             if (this.hideTimerId !== -1) {
@@ -917,12 +1122,128 @@ struct PlayerPage {
   }
 
   /**
-   * 横屏布局（对齐 mobile player.tsx 的 landscape 分支）：
-   * 左列：顶部返回/更多按钮在流内固定一行（随控制条一起显隐）；
-   *       封面区 Stack 占满剩余高度居中（200×200），控制条悬浮叠在底部不占布局，
-   *       空间不足时 3s 无操作自动隐藏，点封面/封面区空白/控制条原位可唤回；
+   * 横屏布局：
+   * 手机横屏（高<500vp）：无控制组——队列>1 首为堆叠式封面轮播（滑动切歌），
+   *       单首为单封面；封面中心叠半透明虚化播放/暂停按钮（点封面=播放/暂停）；
+   * 平板横屏：单封面 + 底部悬浮控制条，空间不足时 3s 无操作自动隐藏，点封面切换显隐；
    * 右列：歌词列表常驻居中滚动（有声书时显示播放列表）。
    */
+  /**
+   * 手机横屏封面中心的播放/暂停按钮：半透明白底 + 背景虚化（毛玻璃）。
+   * 结构说明：wrapper 用 HitTestMode.None 永不吞触摸；内层 Stack 自带 onClick
+   * （单封面模式下点在按钮上也能播放/暂停）。轮播模式下本按钮位于手势层
+   * （zIndex 1000）之下，滑动/点击由手势层统一处理。
+   * 注意外层必须套 100%×100% 居中容器：外层 Stack 的 alignContent=Bottom 会把
+   * 高度自适应的子组件压到底部，填满高度的容器不受其影响，按钮才能保持在封面中心。
+   */
+  @Builder centerPlayButton() {
+    Column() {
+      Stack() {
+        AppIcon({
+          name: this.view.isPlaying ? 'pause' : 'play',
+          iconSize: 30,
+          color: '#FFFFFF',
+        });
+      }
+      .width(64)
+      .height(64)
+      .borderRadius(32)
+      .backgroundColor('#40FFFFFF')
+      .backgroundBlurStyle(BlurStyle.Regular)
+      .onClick(() => {
+        // chrome 隐藏时不可点（单封面模式下按钮在最上层）
+        if (!this.controlsVisible) return;
+        this.resetHideTimer();
+        playerStore.togglePlay().catch(() => undefined);
+      });
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    // 随 chrome 显隐（手机横屏 3s 自动隐藏，点击任意位置唤回）
+    .opacity(this.controlsOpacity)
+    .hitTestBehavior(HitTestMode.None)
+    .zIndex(110);
+  }
+
+  /**
+   * 横屏堆叠式封面轮播（1-2-3-2-1）：当前曲目居中最大，前后各 2 首依次缩小堆叠在两侧，
+   * 非当前封面只露出 1/3（其余藏在更靠中心的封面下）；左右滑动切歌
+   *（松手位移超 30% 或速度阈值触发），点当前封面切换控制组显隐，点两侧封面跳到该曲。
+   * 注意：封面项不挂任何手势，所有手势由末尾的透明手势层独占——否则子组件 onClick
+   * 会跟容器 PanGesture 竞争，导致滑动失效且松手误触点击（唤出控制组）。
+   */
+  @Builder coverFlow() {
+    Stack() {
+      ForEach(this.coverFlowEntries(), (entry: CoverFlowEntry) => {
+        Stack() {
+          CoverImage({
+            path: entry.track?.coverUrl ?? null,
+            imgWidth: 200,
+            imgHeight: 200,
+            radius: 15,
+            fallbackText: (entry.track?.title ?? '?').substring(0, 1),
+          });
+        }
+        .width(200)
+        .height(200)
+        .borderRadius(15)
+        .clip(true)
+        .shadow({ radius: 18, color: '#59000000', offsetX: 0, offsetY: 10 })
+        .scale({
+          x: this.coverFlowScale(entry.idx),
+          y: this.coverFlowScale(entry.idx),
+          centerX: '50%',
+          centerY: '50%',
+        })
+        .translate({ x: this.coverFlowX(entry.idx), y: 0 })
+        .opacity(this.coverFlowOpacity(entry.idx))
+        .zIndex(this.coverFlowZIndex(entry.idx));
+        // key 用队列绝对索引（不含 pos）：切歌后同一曲目节点复用不重建（避免封面重载闪烁）；
+        // pos 变化靠 transform 辅助方法里读 this.view.currentIndex 建立订阅来驱动更新
+      }, (entry: CoverFlowEntry) => `${entry.idx}`);
+
+      // 中心播放/暂停按钮（在封面之上、手势层之下）
+      this.centerPlayButton();
+
+      // 手势层：透明覆盖整个轮播区，独占滑动/点击手势。
+      // 必须 zIndex(1000) 提到最高层——封面项 zIndex 最高 100、按钮 110，
+      // Default 模式的普通容器也会吞掉下层触摸（封面区下半部滑不动的根因）。
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#00FFFFFF')
+        .zIndex(1000)
+        .onAreaChange((oldVal: Area, newVal: Area) => {
+          this.coverFlowWidth = newVal.width as number;
+        })
+        .gesture(
+          PanGesture({ direction: PanDirection.Horizontal, distance: 5 })
+            .onActionUpdate((e: GestureEvent) => {
+              if (this.coverFlowAnimating) return;
+              let v = e.offsetX;
+              // 队列两端拖拽阻尼（30%）
+              const cur = this.view.currentIndex;
+              if ((cur <= 0 && v > 0) || (cur >= this.view.queue.length - 1 && v < 0)) {
+                v = v * 0.3;
+              }
+              const max = this.coverFlowStep() * 1.5;
+              this.coverFlowOffset = Math.max(-max, Math.min(max, v));
+            })
+            .onActionEnd((e: GestureEvent) => {
+              this.onCoverFlowSwipeEnd(e.offsetX, e.velocityX);
+            })
+        )
+        .onClick((e: ClickEvent) => {
+          this.onCoverFlowTap(e.x);
+        });
+    }
+    .width('100%')
+    .height('100%')
+    .clip(true);
+  }
+
   @Builder landscapeContent() {
     Row() {
       // ── 左列（顶部按钮行流内 + Stack 悬浮控制条，对齐 mobile 绝对定位悬浮、封面位置不随显隐变化） ──
@@ -952,13 +1273,23 @@ struct PlayerPage {
           .onClick(() => { this.showMore = true; });
         }
         .width('100%')
+        // 顶部按钮行随 chrome 显隐：手机横屏 3s 自动隐藏（点击任意位置唤回），
+        // 平板横屏随控制条显隐；隐藏时 Block 吃掉触摸并支持点击唤回
         .opacity(this.controlsOpacity)
-        .hitTestBehavior(this.controlsVisible ? HitTestMode.Default : HitTestMode.Block);
+        .hitTestBehavior(this.controlsVisible ? HitTestMode.Default : HitTestMode.Block)
+        .onClick(() => {
+          if (!this.controlsVisible) {
+            this.resetHideTimer();
+          }
+        });
 
         // 中部 + 底部：Stack 悬浮结构（对齐 mobile：控制条绝对定位悬浮底部、不参与布局，
         // 封面区始终占满剩余高度居中，控制条显隐不会改变封面位置）。
         // alignContent Bottom 只对高度自适应的控制条生效；封面区 height 100% 填满不受影响。
         Stack({ alignContent: Alignment.Bottom }) {
+          if (this.isCoverFlowMode()) {
+            this.coverFlow();
+          } else {
           // 封面 + 有声书操作按钮组，居中，占满剩余空间
           Column() {
             CoverImage({
@@ -969,7 +1300,12 @@ struct PlayerPage {
               fallbackText: (this.current()?.title ?? '?').substring(0, 1),
             })
               .onClick(() => {
-                // 对齐 mobile: needsAutoHide 时点封面切换控制条显隐
+                // 手机横屏无控制组：点封面 = 播放/暂停（同时唤回 chrome）；平板横屏：点封面切换控制条显隐
+                if (this.isPhoneLandscape()) {
+                  this.resetHideTimer();
+                  playerStore.togglePlay().catch(() => undefined);
+                  return;
+                }
                 if (this.needsAutoHide()) {
                   if (this.controlsVisible) {
                     if (this.hideTimerId !== -1) {
@@ -992,38 +1328,52 @@ struct PlayerPage {
           .width('100%')
           .height('100%')
           .onClick(() => {
-            // 对齐 mobile：隐藏后点击封面区任意位置（空白处）也能唤回控制组
+            // 手机横屏：点封面区空白 = 唤回 chrome（并播放/暂停）；平板横屏：唤回控制组
+            if (this.isPhoneLandscape()) {
+              this.resetHideTimer();
+              playerStore.togglePlay().catch(() => undefined);
+              return;
+            }
             if (!this.controlsVisible && this.needsAutoHide()) {
               this.resetHideTimer();
             }
           });
-
-          // 悬浮控制条（随控制条显隐，悬浮在左列底部，不占布局）
-          // 横屏同样应用控制组底部偏移（与竖屏 content() 一致，此前漏接导致横屏调不动）。
-          // 隐藏时 hitTestBehavior 用 Block（None 只禁自身、按钮子组件仍可点），
-          // 容器吃掉触摸；同时点击该区域可唤回控制组（对齐 mobile 透传到封面的效果）。
-          Column() {
-            this.controls();
           }
-          .width('100%')
-          .borderRadius(16)
-          .padding(10)
-          .margin({ bottom: this.controlBottomOffset })
-          .backgroundColor(this.theme.colors.background)
-          .opacity(this.controlsOpacity)
-          .hitTestBehavior(this.controlsVisible ? HitTestMode.Default : HitTestMode.Block)
-          .onClick(() => {
-            if (!this.controlsVisible && this.needsAutoHide()) {
-              this.resetHideTimer();
+
+          // 手机横屏单封面（队列仅 1 首）：封面中心播放/暂停按钮
+          //（轮播模式的按钮在 coverFlow() 内部、手势层之下）
+          if (this.isPhoneLandscape() && !this.isCoverFlowMode()) {
+            this.centerPlayButton();
+          }
+
+          // 悬浮控制条（仅平板横屏；手机横屏已完全移除控制组）
+          // 横屏同样应用控制组底部偏移（与竖屏 content() 一致，此前漏接导致横屏调不动）。
+          // 隐藏用 Visibility.Hidden 而不是 opacity+hitTestBehavior：Hidden 不占命中测试
+          // （Block 会吃掉该区域全部触摸，挡住下层轮播的滑动手势——轮播滑动失效的根因；
+          //  None 只禁自身、按钮子组件仍可点）。Hidden 保留布局，controlsHeight 测量不受影响。
+          if (!this.isPhoneLandscape()) {
+            Column() {
+              this.controls();
             }
-          })
-          .onAreaChange((oldVal: Area, newVal: Area) => {
-            const firstMeasure = this.controlsHeight <= 0;
-            this.controlsHeight = newVal.height as number;
-            if (firstMeasure && this.needsAutoHide()) {
-              this.resetHideTimer();
-            }
-          });
+            .width('100%')
+            .borderRadius(16)
+            .padding(10)
+            .margin({ bottom: this.controlBottomOffset })
+            .backgroundColor(this.theme.colors.background)
+            .visibility(this.controlsVisible ? Visibility.Visible : Visibility.Hidden)
+            .onClick(() => {
+              if (!this.controlsVisible && this.needsAutoHide()) {
+                this.resetHideTimer();
+              }
+            })
+            .onAreaChange((oldVal: Area, newVal: Area) => {
+              const firstMeasure = this.controlsHeight <= 0;
+              this.controlsHeight = newVal.height as number;
+              if (firstMeasure && this.needsAutoHide()) {
+                this.resetHideTimer();
+              }
+            });
+          }
         }
         .layoutWeight(1)
         .width('100%');

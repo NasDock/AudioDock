@@ -30,7 +30,11 @@
 - **每组件只能绑定一个 bindSheet**：挂第二个会顶掉第一个，每个 sheet 配一个不可见锚点 Column 分散绑定。
 - **宽屏（>=600vp，平板横屏）bindSheet 默认 preferType=popup 会贴边**：要居中须显式 `preferType: SheetType.CENTER`（竖屏 BOTTOM），不写就贴屏幕一侧。
 - **ArkUI Slider 轨道两端内缩半个滑块宽**（滑块始终在轨道内）：给 Slider 叠自绘底轨/缓存层时必须同步内缩（外套 padding = blockSize/2 的容器），且 blockSize/trackThickness 要显式写死否则 inset 不可预期。微信 Slider 同样规则（blockSize/2）；antd Slider 与 miblanchard react-native-slider 无 inset（前者 rail 铺满，后者 min track 从 x=0 起）。
-- **`HitTestMode.None` 只禁自身、不禁子组件**：要禁用整棵子树的触摸（如 opacity 隐藏的按钮组）须用 `HitTestMode.Block`（容器吃掉触摸并阻断子组件）；等价于 RN 的 `pointerEvents="none"`。
+- **隐藏组件的触摸语义**：`HitTestMode.None` 只禁自身、子组件仍可点；`HitTestMode.Block` 容器吃掉触摸并阻断子组件**和下层级联兄弟**（Stack 悬浮场景会挡住下层手势，轮播滑动失效的根因）；要「不可见 + 整棵子树不响应 + 不挡下层 + 保留布局测量」用 **`Visibility.Hidden`**（Visibility.None 会移除布局，onAreaChange 不测量）。另：**无 onClick 的容器也会拦截触摸**——叠在手势层上方的纯视觉覆盖层必须显式 `hitTestBehavior(None)`。
+- **父容器 PanGesture + 子组件 onClick 会手势竞争失败**（滑动被子组件吞掉， priorityGesture 也可能在松手时误触 tap）：最稳方案是**透明手势层独占**——内容组件不挂手势，叠一个 100% 透明 Column 统一挂 PanGesture + onClick，点击用 e.x 自行命中。
+- **AnimateParam 支持 onFinish**，轮播「滑出动画→切歌→无动画归零」的视觉连续靠它；`rotate` 的 RotateOptions 有 perspective 参数（API 24 可用）。
+- **ArkUI 悬浮不占布局用 Stack 兄弟层**（alignContent 只对非 100% 尺寸子组件生效），不要在流式布局里用 translate/visibility 补偿居中。
+- **ForEach 内子项的动态属性必须读 @State 现场算（建立细粒度订阅），不能靠构建闭包传参**：key 稳定时保留项的构建闭包不重跑，闭包里的旧值会让 UI 错乱；key 含易变属性又会导致全量重建闪烁。key 只表达「同一项身份」（如队列绝对索引）。
 
 ## hm 沉浸式状态栏方案（全屏 + 避让区 padding）
 
@@ -97,6 +101,22 @@
 - 唤醒词 DB 优先（env VOICE_KEYWORDS 仅首启种子）；voice_listener 每 30s reload。
 - 管理 API 前缀 `/api`，前端走 `{服务器}/mi/api/*`。
 - docker-compose 需挂载 `auth.json`、`.mi.token`、`data/` 三路径防登录态丢失。
+
+## 四端缓冲进度条（三段式：已播/缓存/总时长）
+
+- **数据源**：desktop `audio.buffered`（取含 currentTime 的区间末端）；mobile `useProgress().buffered`；hm AVPlayer `bufferingUpdate`（0~100 百分比，本地 fdSrc 无事件、prepared 态补发 100）；mini `BackgroundAudioManager.buffered`（秒）。与「预下载前后 5 首到磁盘」无关——那是文件级缓存，命中后走本地文件播放，缓存条自然满格。
+- **统一手法**：各端 Slider 都不支持双层轨道 → 自带底轨设透明，下面自绘「底轨 + 缓存层」（缓存层 = 主题主色 30% 透明度；hm 用 `'#4D'+primary.substring(3)`）。涉及 desktop `Player/index.tsx`、mobile `app/player.tsx`、hm `PlayerPage.ets`/`EmbeddedPlayerPanel.ets`、mini `pages/player`。
+- hm 链路：`AVPlayerBackend` dispatch → `playbackService` 订阅 → `PlayerStore.bufferedPercent`（clamp、不变不 notify、clear/loadCurrent/resetToIdle 清零）→ view 透出。
+- 遗留：desktop Tauri MiniPlayer 独立小窗进度不走 currentTime IPC（player:update 只有 isPlaying/track，既有缺口），未加缓存层。
+- 对齐坑见「ArkTS 严格模式高频坑」的 Slider inset 条。
+
+## hm 手机横屏封面轮播（堆叠式 1-2-3-2-1，2026-10-11 收官，已移植 mobile）
+
+- **两端一致判定**：`isPhoneLandscape` = 横屏 && 高<500（hm vp / RN dp）；`isCoverFlowMode` = 手机横屏 && queue>1。手机横屏**无控制组**：轮播（或单封面）+ 封面中心 64×64 播放键（hm 毛玻璃 BlurStyle；mobile 无 blur 库用 rgba 白 0.25）。**chrome（顶部按钮行 + 播放键）3s 无操作自动隐藏**，点击任意位置唤回并重置计时。平板横屏保留单封面 + 控制条自动隐藏。
+- **布局**：锚点 1:2:3（66.7/133.3/200），非当前封面只露 1/3；x/scale 由锚点分段线性插值，x(0/1/2)=0/77.8/133.3，effPos = (idx − currentIndex) + offset/77.8（**pos+offset/step**，反号会方向颠倒）。
+- **手势**：hm = 手势层（透明 Column + zIndex(1000) 置顶）独占 PanGesture+onClick；mobile = 单容器 PanResponder（onStartShouldSet true 兼收 tap）+ Animated.Value（interpolate 驱动 transform，不重渲染）。点击按 x 命中（|dx|≤100 中心播停、100~144.4 相邻、144.4~166.7 最外跳曲）；松手 >30% 或速度阈值 → 滑出动画到位 → playAt + offset 归零；两端阻尼 30%。
+- **防闪烁**：hm ForEach key = 队列绝对索引 `${idx}`，transform 内部读 `this.view.currentIndex` 现场算 pos；mobile 用 Animated 值天然规避。mobile PanResponder 只建一次，回调经 ref 透传防闭包过期。
+- `playAt(index)`：hm PlayerStore / mobile PlayerContext 均已新增（绕过 playMode 直跳）。
 
 ## apps/desktop (React)
 

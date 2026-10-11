@@ -363,6 +363,14 @@ export class PlayerStore {
     await this.loadCurrent();
   }
 
+  /** 横屏封面轮播滑切/点按：直接切到队列指定索引（越界或当前索引则忽略），绕过 playMode 计算。 */
+  async playAt(index: number): Promise<void> {
+    if (index < 0 || index >= this.queue.length || index === this.currentIndex) return;
+    this.currentIndex = index;
+    this.persistState();
+    await this.loadCurrent();
+  }
+
   async togglePlay(): Promise<void> {
     const cur = this.queue[this.currentIndex];
     if (cur && this.loadedTrackId !== cur.id) {
