@@ -23,7 +23,7 @@ import { Slider } from "@miblanchard/react-native-slider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getMvByTrackId, plusGetMe, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
