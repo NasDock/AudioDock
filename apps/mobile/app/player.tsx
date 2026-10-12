@@ -102,6 +102,65 @@ export const parseLyrics = (lyrics: string): LyricLine[] => {
   return parsed.sort((a, b) => a.time - b.time);
 };
 
+/**
+ * 手机横屏堆叠式封面轮播的单个封面（React.memo 隔离重渲染）。
+ * 关键：动画节点（add/divide/interpolate）用 useMemo 按 basePos 固定——
+ * 若在父组件 renderCoverFlow 里现算现传，播放中 position 每秒刷新会重建全部动画节点，
+ * 新旧节点交接间隙原生端回落到未变换基准位置 → 封面持续闪烁（闪的是滑动过程的中间帧）。
+ */
+const CoverFlowItem = React.memo(function CoverFlowItem({
+  track,
+  basePos,
+  panX,
+  step,
+}: {
+  track: Track;
+  basePos: number;
+  panX: Animated.Value;
+  step: number;
+}) {
+  const anim = useMemo(() => {
+    const effPos = Animated.add(basePos, Animated.divide(panX, step));
+    return {
+      tx: effPos.interpolate({
+        inputRange: [-2, -1, 0, 1, 2],
+        outputRange: [-133.3, -77.8, 0, 77.8, 133.3],
+        extrapolate: "clamp" as const,
+      }),
+      sc: effPos.interpolate({
+        inputRange: [-2, -1, 0, 1, 2],
+        outputRange: [1 / 3, 2 / 3, 1, 2 / 3, 1 / 3],
+        extrapolate: "clamp" as const,
+      }),
+      op: effPos.interpolate({
+        inputRange: [-2, -1, 0, 1, 2],
+        outputRange: [0.7, 0.85, 1, 0.85, 0.7],
+        extrapolate: "clamp" as const,
+      }),
+    };
+  }, [basePos, panX, step]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.coverFlowItem,
+        {
+          opacity: anim.op,
+          zIndex: 100 - Math.abs(basePos) * 10,
+          transform: [{ translateX: anim.tx }, { scale: anim.sc }],
+        },
+      ]}
+    >
+      <Image
+        source={{
+          uri: getImageUrl(track.cover, "https://picsum.photos/400", 400),
+        }}
+        style={styles.coverFlowImage}
+      />
+    </Animated.View>
+  );
+});
+
 const AnimatedLyricLine = ({
   text,
   isActive,
@@ -569,8 +628,9 @@ export function PlayerDetailView({
     }),
   ).current;
 
-  // 堆叠式封面轮播渲染：前后各 2 首（越界跳过不循环），锚点分段线性插值，
-  // 每项 transform 由 effPos = (idx - currentIndex) + panX/77.8 驱动（动画值，不触发重渲染）
+  // 堆叠式封面轮播渲染：前后各 2 首（越界跳过不循环）；
+  // 单项是 React.memo 的 CoverFlowItem（动画节点 useMemo 固定），
+  // 播放中 position 刷新导致的父级重渲染不会波及封面 → 不闪烁
   const renderCoverFlow = () => {
     const cur = coverFlowCurrentIndex;
     const entries: { idx: number; track: Track }[] = [];
@@ -585,52 +645,15 @@ export function PlayerDetailView({
         onLayout={(e) => setCoverFlowWidth(e.nativeEvent.layout.width)}
         {...coverFlowPanResponder.panHandlers}
       >
-        {entries.map(({ idx, track }) => {
-          const basePos = idx - cur;
-          const effPos = Animated.add(
-            basePos,
-            Animated.divide(coverFlowPanX, COVER_FLOW_STEP),
-          );
-          const tx = effPos.interpolate({
-            inputRange: [-2, -1, 0, 1, 2],
-            outputRange: [-133.3, -77.8, 0, 77.8, 133.3],
-            extrapolate: "clamp",
-          });
-          const sc = effPos.interpolate({
-            inputRange: [-2, -1, 0, 1, 2],
-            outputRange: [1 / 3, 2 / 3, 1, 2 / 3, 1 / 3],
-            extrapolate: "clamp",
-          });
-          const op = effPos.interpolate({
-            inputRange: [-2, -1, 0, 1, 2],
-            outputRange: [0.7, 0.85, 1, 0.85, 0.7],
-            extrapolate: "clamp",
-          });
-          return (
-            <Animated.View
-              key={idx}
-              style={[
-                styles.coverFlowItem,
-                {
-                  opacity: op,
-                  zIndex: 100 - Math.abs(basePos) * 10,
-                  transform: [{ translateX: tx }, { scale: sc }],
-                },
-              ]}
-            >
-              <Image
-                source={{
-                  uri: getImageUrl(
-                    track.cover,
-                    "https://picsum.photos/400",
-                    400,
-                  ),
-                }}
-                style={styles.coverFlowImage}
-              />
-            </Animated.View>
-          );
-        })}
+        {entries.map(({ idx, track }) => (
+          <CoverFlowItem
+            key={idx}
+            track={track}
+            basePos={idx - cur}
+            panX={coverFlowPanX}
+            step={COVER_FLOW_STEP}
+          />
+        ))}
       </View>
     );
   };
@@ -2035,6 +2058,8 @@ export function PlayerDetailView({
                   name={isPlaying ? "pause" : "play"}
                   size={30}
                   color="#fff"
+                  // play 三角图标视觉重心偏左，右补 4px 对齐几何中心（同竖屏播放键 L1886 的补偿）
+                  style={{ marginLeft: isPlaying ? 0 : 4 }}
                 />
               </Animated.View>
             )}
