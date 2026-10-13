@@ -486,11 +486,38 @@ export function PlayerDetailView({
 
   // ─── 手机横屏堆叠式封面轮播（1-2-3-2-1，对齐 hm PlayerPage） ───
   // 锚点：尺寸 1:2:3（66.7/133.3/200），非当前封面只露 1/3；
-  // x 锚点 0/77.8/133.3 分段线性插值；effPos = (idx - currentIndex) + panX/77.8
+  // x 锚点 0/77.8/133.3 分段线性插值；effPos = (idx - visualIndex) + panX/77.8
   const COVER_FLOW_STEP = 77.8;
-  const coverFlowCurrentIndex = trackList.findIndex(
+  const coverFlowDerivedIndex = trackList.findIndex(
     (t) => t.id === currentTrack?.id,
   );
+  // 视觉中心索引与 currentTrack 派生索引解耦：snap 完成的同一帧内
+  // panX 归零 + visualIndex 切换（视觉连续）；playTrack 是重异步，
+  // 若等它更新 currentTrack，中间几十~几百 ms 旧封面会跳回中心（闪回）。
+  const [coverFlowVisualIndex, setCoverFlowVisualIndex] = useState(() =>
+    coverFlowDerivedIndex >= 0 ? coverFlowDerivedIndex : 0,
+  );
+  // 轮播发起的切歌目标（在途）：到达前外部派生索引不回写视觉索引，
+  // 防止连续快切时先到站的中间曲目把视觉索引拽回去
+  const coverFlowPendingRef = useRef<number | null>(null);
+
+  // 外部切歌（控制键/自动连播/流转等）同步视觉索引
+  useEffect(() => {
+    const pending = coverFlowPendingRef.current;
+    if (pending !== null) {
+      if (coverFlowDerivedIndex === pending) {
+        coverFlowPendingRef.current = null;
+      }
+      return;
+    }
+    if (
+      coverFlowDerivedIndex >= 0 &&
+      coverFlowDerivedIndex !== coverFlowVisualIndex
+    ) {
+      setCoverFlowVisualIndex(coverFlowDerivedIndex);
+    }
+  }, [coverFlowDerivedIndex, coverFlowVisualIndex]);
+
   const coverFlowPanX = useRef(new Animated.Value(0)).current;
   const coverFlowAnimatingRef = useRef(false);
   const [coverFlowWidth, setCoverFlowWidth] = useState(0);
@@ -501,7 +528,7 @@ export function PlayerDetailView({
     width: 0,
   });
   coverFlowStateRef.current = {
-    currentIndex: coverFlowCurrentIndex,
+    currentIndex: coverFlowVisualIndex,
     queueLength: trackList.length,
     width: coverFlowWidth,
   };
@@ -546,10 +573,17 @@ export function PlayerDetailView({
         duration: 180,
         useNativeDriver: true,
       }).start(() => {
-        // 滑出到位后切歌并无动画归零：原相邻项就位中心，视觉连续
-        playAt(target).catch(() => {});
+        // 滑出到位后：同一帧内切视觉索引 + panX 归零（视觉连续不闪回），
+        // playTrack 的异步 currentTrack 更新随后跟上（effect 里 pending 命中即清）
+        coverFlowPendingRef.current = target;
+        setCoverFlowVisualIndex(target);
         coverFlowPanX.setValue(0);
         coverFlowAnimatingRef.current = false;
+        playAt(target).catch(() => {
+          if (coverFlowPendingRef.current === target) {
+            coverFlowPendingRef.current = null;
+          }
+        });
       });
     },
     [coverFlowPanX, playAt, reboundCoverFlow],
@@ -632,7 +666,7 @@ export function PlayerDetailView({
   // 单项是 React.memo 的 CoverFlowItem（动画节点 useMemo 固定），
   // 播放中 position 刷新导致的父级重渲染不会波及封面 → 不闪烁
   const renderCoverFlow = () => {
-    const cur = coverFlowCurrentIndex;
+    const cur = coverFlowVisualIndex;
     const entries: { idx: number; track: Track }[] = [];
     for (let p = -2; p <= 2; p++) {
       const idx = cur + p;
@@ -2052,15 +2086,17 @@ export function PlayerDetailView({
             {isPhoneLandscape && (
               <Animated.View
                 pointerEvents="none"
-                style={[styles.centerPlayButton, { opacity: controlsOpacity }]}
+                style={[styles.centerPlayButtonOverlay, { opacity: controlsOpacity }]}
               >
-                <Ionicons
-                  name={isPlaying ? "pause" : "play"}
-                  size={30}
-                  color="#fff"
-                  // play 三角图标视觉重心偏左，右补 4px 对齐几何中心（同竖屏播放键 L1886 的补偿）
-                  style={{ marginLeft: isPlaying ? 0 : 4 }}
-                />
+                <View style={styles.centerPlayButton}>
+                  <Ionicons
+                    name={isPlaying ? "pause" : "play"}
+                    size={30}
+                    color="#fff"
+                    // play 三角图标视觉重心偏左，右补 4px 对齐几何中心（同竖屏播放键 L1886 的补偿）
+                    style={{ marginLeft: isPlaying ? 0 : 4 }}
+                  />
+                </View>
               </Animated.View>
             )}
           </View>
@@ -2588,19 +2624,21 @@ const styles = StyleSheet.create({
     borderRadius: 15,
   },
   // 手机横屏封面中心播放/暂停按钮（半透明毛玻璃，pointerEvents=none 纯展示）
+  // 外层 absoluteFill + flex 居中，保证按钮中心点 = 封面中心点
+  //（不用 left/top 50% + 负 margin：Yoga 对绝对定位节点的 margin 处理有偏差）
+  centerPlayButtonOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 110,
+  },
   centerPlayButton: {
-    position: "absolute",
-    left: "50%",
-    top: "50%",
-    marginLeft: -32,
-    marginTop: -32,
     width: 64,
     height: 64,
     borderRadius: 32,
     backgroundColor: "rgba(255,255,255,0.25)",
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 110,
   },
   landscapeContent: {
     flex: 1,
