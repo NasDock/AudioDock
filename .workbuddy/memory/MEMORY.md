@@ -116,7 +116,8 @@
 - **布局**：锚点 1:2:3（66.7/133.3/200），非当前封面只露 1/3；x/scale 由锚点分段线性插值，x(0/1/2)=0/77.8/133.3，effPos = (idx − currentIndex) + offset/77.8（**pos+offset/step**，反号会方向颠倒）。
 - **手势**：hm = 手势层（透明 Column + zIndex(1000) 置顶）独占 PanGesture+onClick；mobile = 单容器 PanResponder（onStartShouldSet true 兼收 tap）+ Animated.Value（interpolate 驱动 transform，不重渲染）。点击按 x 命中（|dx|≤100 中心播停、100~144.4 相邻、144.4~166.7 最外跳曲）；松手 >30% 或速度阈值 → 滑出动画到位 → playAt + offset 归零；两端阻尼 30%。
 - **防闪烁**：hm ForEach key = 队列绝对索引 `${idx}`，transform 内部读 `this.view.currentIndex` 现场算 pos；mobile 用 Animated 值天然规避。mobile PanResponder 只建一次，回调经 ref 透传防闭包过期。
-- **RN 坑：Animated 插值节点不能在 render 里现建**——播放进度等高频 state 刷新会重建节点，新旧交接间隙原生端回落基准位置 → 持续闪烁。必须 React.memo 子组件 + useMemo 按静态 props 固定（mobile CoverFlowItem）。Ionicons `play` 三角视觉偏左，居中的播放键要补 `marginLeft: isPlaying ? 0 : 4`。
+- **RN 坑：Animated 插值节点不能在 render 里现建**——播放进度等高频 state 刷新会重建节点，新旧交接间隙原生端回落基准位置 → 持续闪烁。必须 React.memo 子组件 + useMemo 按稳定引用固定（idx/动画值），连 basePos 都不能进依赖（切歌时重建会闪一帧基准位）；索引变化走 Animated.Value 镜像（coverFlowIndexAnim）setValue。Ionicons `play` 三角视觉偏左，居中的播放键要补 `marginLeft: isPlaying ? 0 : 4`。
+- **getImageUrl 宽度档位**：≤300 恒走 `/image/optimize` 压缩（webp），>300 的档**内网直连原图**（几 MB/张）——列表/轮播多图场景必须 ≤300 档，否则内网加载巨慢；轮播另配 Image.prefetch 预取前后各 3 首。
 - `playAt(index)`：hm PlayerStore / mobile PlayerContext 均已新增（绕过 playMode 直跳）。
 
 ## apps/desktop (React)

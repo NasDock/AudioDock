@@ -104,23 +104,32 @@ export const parseLyrics = (lyrics: string): LyricLine[] => {
 
 /**
  * 手机横屏堆叠式封面轮播的单个封面（React.memo 隔离重渲染）。
- * 关键：动画节点（add/divide/interpolate）用 useMemo 按 basePos 固定——
- * 若在父组件 renderCoverFlow 里现算现传，播放中 position 每秒刷新会重建全部动画节点，
- * 新旧节点交接间隙原生端回落到未变换基准位置 → 封面持续闪烁（闪的是滑动过程的中间帧）。
+ * 关键：动画节点（add/subtract/divide/interpolate）只依赖稳定引用（idx/indexAnim/panX/step），
+ * useMemo 后永不重建——切歌时只有 zIndex 随 basePos 重渲染，transform 全程由原生动画值驱动。
+ * 若依赖 basePos 建动画节点，切歌时新旧节点交接间隙原生端会回落基准位置（闪烁）；
+ * 若在父组件内联创建，播放中 position 高频刷新会让封面每帧都在闪。
  */
 const CoverFlowItem = React.memo(function CoverFlowItem({
   track,
+  idx,
   basePos,
   panX,
+  indexAnim,
   step,
 }: {
   track: Track;
+  idx: number;
   basePos: number;
   panX: Animated.Value;
+  indexAnim: Animated.Value;
   step: number;
 }) {
   const anim = useMemo(() => {
-    const effPos = Animated.add(basePos, Animated.divide(panX, step));
+    // effPos = (idx - currentIndex) + panX/step，currentIndex 也是动画值 → 切歌零重建
+    const effPos = Animated.add(
+      Animated.subtract(idx, indexAnim),
+      Animated.divide(panX, step),
+    );
     return {
       tx: effPos.interpolate({
         inputRange: [-2, -1, 0, 1, 2],
@@ -138,7 +147,7 @@ const CoverFlowItem = React.memo(function CoverFlowItem({
         extrapolate: "clamp" as const,
       }),
     };
-  }, [basePos, panX, step]);
+  }, [idx, indexAnim, panX, step]);
 
   return (
     <Animated.View
@@ -153,7 +162,8 @@ const CoverFlowItem = React.memo(function CoverFlowItem({
     >
       <Image
         source={{
-          uri: getImageUrl(track.cover, "https://picsum.photos/400", 400),
+          // 300 恒压缩档（webp 缩略图）：>300 的档位在内网会直连原图（几 MB），轮播加载慢
+          uri: getImageUrl(track.cover, "https://picsum.photos/400", 300),
         }}
         style={styles.coverFlowImage}
       />
@@ -501,6 +511,17 @@ export function PlayerDetailView({
   // 防止连续快切时先到站的中间曲目把视觉索引拽回去
   const coverFlowPendingRef = useRef<number | null>(null);
 
+  const coverFlowPanX = useRef(new Animated.Value(0)).current;
+  // 视觉中心索引的动画值镜像：CoverFlowItem 的 transform 全程由它 + panX 驱动，
+  // 切歌时 setValue 即可，动画节点不重建（防闪烁的关键）
+  const coverFlowIndexAnim = useRef(
+    new Animated.Value(
+      coverFlowDerivedIndex >= 0 ? coverFlowDerivedIndex : 0,
+    ),
+  ).current;
+  const coverFlowAnimatingRef = useRef(false);
+  const [coverFlowWidth, setCoverFlowWidth] = useState(0);
+
   // 外部切歌（控制键/自动连播/流转等）同步视觉索引
   useEffect(() => {
     const pending = coverFlowPendingRef.current;
@@ -515,12 +536,25 @@ export function PlayerDetailView({
       coverFlowDerivedIndex !== coverFlowVisualIndex
     ) {
       setCoverFlowVisualIndex(coverFlowDerivedIndex);
+      coverFlowIndexAnim.setValue(coverFlowDerivedIndex);
     }
   }, [coverFlowDerivedIndex, coverFlowVisualIndex]);
 
-  const coverFlowPanX = useRef(new Animated.Value(0)).current;
-  const coverFlowAnimatingRef = useRef(false);
-  const [coverFlowWidth, setCoverFlowWidth] = useState(0);
+  // 预取轮播窗口前后各 3 首封面（300 档缩略图），快速连滑时边缘新项秒出
+  useEffect(() => {
+    if (trackList.length === 0) return;
+    for (let p = -3; p <= 3; p++) {
+      const idx = coverFlowVisualIndex + p;
+      if (idx < 0 || idx >= trackList.length) continue;
+      const cover = trackList[idx]?.cover;
+      if (cover) {
+        Image.prefetch(getImageUrl(cover, "https://picsum.photos/400", 300)).catch(
+          () => {},
+        );
+      }
+    }
+  }, [coverFlowVisualIndex, trackList]);
+
   // PanResponder 只创建一次，动态值经 ref 透传避免闭包过期
   const coverFlowStateRef = useRef({
     currentIndex: 0,
@@ -573,11 +607,12 @@ export function PlayerDetailView({
         duration: 180,
         useNativeDriver: true,
       }).start(() => {
-        // 滑出到位后：同一帧内切视觉索引 + panX 归零（视觉连续不闪回），
+        // 滑出到位后：同一帧内切视觉索引（state + 动画值镜像）+ panX 归零（视觉连续不闪回），
         // playTrack 的异步 currentTrack 更新随后跟上（effect 里 pending 命中即清）
         coverFlowPendingRef.current = target;
-        setCoverFlowVisualIndex(target);
+        coverFlowIndexAnim.setValue(target);
         coverFlowPanX.setValue(0);
+        setCoverFlowVisualIndex(target);
         coverFlowAnimatingRef.current = false;
         playAt(target).catch(() => {
           if (coverFlowPendingRef.current === target) {
@@ -586,7 +621,7 @@ export function PlayerDetailView({
         });
       });
     },
-    [coverFlowPanX, playAt, reboundCoverFlow],
+    [coverFlowPanX, coverFlowIndexAnim, playAt, reboundCoverFlow],
   );
 
   const handleCoverFlowTap = useCallback(
@@ -683,8 +718,10 @@ export function PlayerDetailView({
           <CoverFlowItem
             key={idx}
             track={track}
+            idx={idx}
             basePos={idx - cur}
             panX={coverFlowPanX}
+            indexAnim={coverFlowIndexAnim}
             step={COVER_FLOW_STEP}
           />
         ))}
