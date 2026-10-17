@@ -149,22 +149,46 @@ const CoverFlowItem = React.memo(function CoverFlowItem({
     };
   }, [idx, indexAnim, panX, step]);
 
+  // 层级处理分平台：iOS 用 zIndex；
+  // Android 上 style zIndex 与 elevation 并存时行为不可靠（RN 会同时调 setZ 与
+  // setElevation，实际顺序由 add order 决定），所以 Android 统一用 elevation 表达
+  // 层级（中心最高、向两侧递减）——否则全部 elevation=8 时旁侧封面会盖住中心封面。
+  const zOrder =
+    Platform.OS === "ios"
+      ? { zIndex: 100 - Math.abs(basePos) * 10 }
+      : { elevation: 30 - Math.abs(basePos) * 6 };
+
   return (
     <Animated.View
       style={[
         styles.coverFlowItem,
         {
           opacity: anim.op,
-          zIndex: 100 - Math.abs(basePos) * 10,
+          ...zOrder,
           transform: [{ translateX: anim.tx }, { scale: anim.sc }],
         },
       ]}
     >
+      {/* iOS 假阴影：layer shadow（shadowOpacity + 圆角、无 shadowPath）在滑动时
+          每帧都要离屏重绘 → 5 个封面同时重算阴影，直接掉帧卡顿。
+          改用静态深色扩散层（外层大而淡 + 内层小而深，叠加逼近
+          shadowOffset y:10 / shadowRadius 18 / shadowOpacity 0.35 的视觉），
+          播放页深色背景下观感与真阴影几乎无差，但零离屏开销。
+          Android 靠 elevation 原生绘制阴影，不需要这层。 */}
+      {Platform.OS === "ios" && (
+        <>
+          <View style={styles.coverFlowShadowOuter} pointerEvents="none" />
+          <View style={styles.coverFlowShadowInner} pointerEvents="none" />
+        </>
+      )}
       <Image
         source={{
           // 300 恒压缩档（webp 缩略图）：>300 的档位在内网会直连原图（几 MB），轮播加载慢
           uri: getImageUrl(track.cover, "https://picsum.photos/400", 300),
         }}
+        // Android 默认 fadeDuration=300ms：新滑入的封面会"慢慢显形"，
+        // 快速切换时这就是"卡顿感"的来源之一；已有 prefetch 兜底，关掉淡入
+        fadeDuration={0}
         style={styles.coverFlowImage}
       />
     </Animated.View>
@@ -2649,11 +2673,29 @@ const styles = StyleSheet.create({
     top: "50%",
     marginTop: -100,
     borderRadius: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    elevation: 8,
+    // ⚠️ 不要再加 shadow*（iOS）/ elevation（Android）静态值：
+    // iOS 的 layer shadow 无 shadowPath，滑动时每帧离屏重绘阴影 → 卡顿（已拆到
+    // CoverFlowItem 内按平台处理：iOS 假阴影层 / Android elevation 动态层级）。
+  },
+  // iOS 假阴影层（外层大扩散低透明度）：替代 layer shadow，零离屏开销
+  coverFlowShadowOuter: {
+    position: "absolute",
+    left: -10,
+    right: -10,
+    top: -12,
+    bottom: -4,
+    borderRadius: 26,
+    backgroundColor: "rgba(0,0,0,0.20)",
+  },
+  // iOS 假阴影层（内层小扩散高透明度）：与外层叠加逼近高斯阴影视觉
+  coverFlowShadowInner: {
+    position: "absolute",
+    left: -5,
+    right: -5,
+    top: -6,
+    bottom: -2,
+    borderRadius: 21,
+    backgroundColor: "rgba(0,0,0,0.16)",
   },
   coverFlowImage: {
     width: 200,
