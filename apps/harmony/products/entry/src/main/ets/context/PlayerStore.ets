@@ -93,6 +93,8 @@ export interface PlayerStateView {
   currentIndex: number;
   currentMs: number;
   durationMs: number;
+  /** 缓存进度百分比 0~100（进度条三段式的中间层，来自 AVPlayer bufferingUpdate；本地文件恒 100） */
+  bufferedPercent: number;
   state: PlayerState;
   isPlaying: boolean;
   playMode: PlayMode;
@@ -118,6 +120,7 @@ export class PlayerStore {
   currentIndex: number = -1;
   currentMs: number = 0;
   durationMs: number = 0;
+  bufferedPercent: number = 0;
   state: PlayerState = 'idle';
   isPlaying: boolean = false;
   playMode: PlayMode = 'SEQUENCE';
@@ -160,6 +163,7 @@ export class PlayerStore {
     return {
       queue: this.queue, currentIndex: this.currentIndex,
       currentMs: this.currentMs, durationMs: this.durationMs,
+      bufferedPercent: this.bufferedPercent,
       state: this.state, isPlaying: this.isPlaying,
       playMode: this.playMode, speed: this.speed,
       shuffleSeed: this.shuffleSeed, radioMode: this.radioMode,
@@ -359,6 +363,14 @@ export class PlayerStore {
     await this.loadCurrent();
   }
 
+  /** 横屏封面轮播滑切/点按：直接切到队列指定索引（越界或当前索引则忽略），绕过 playMode 计算。 */
+  async playAt(index: number): Promise<void> {
+    if (index < 0 || index >= this.queue.length || index === this.currentIndex) return;
+    this.currentIndex = index;
+    this.persistState();
+    await this.loadCurrent();
+  }
+
   async togglePlay(): Promise<void> {
     const cur = this.queue[this.currentIndex];
     if (cur && this.loadedTrackId !== cur.id) {
@@ -439,7 +451,7 @@ export class PlayerStore {
 
   clear(): void {
     this.queue = []; this.currentIndex = -1;
-    this.currentMs = 0; this.durationMs = 0;
+    this.currentMs = 0; this.durationMs = 0; this.bufferedPercent = 0;
     this.state = 'idle'; this.isPlaying = false;
     this.lyrics = []; this.activeLyricIndex = -1; this.currentLyric = '';
     this.loadedTrackId = '';
@@ -452,6 +464,7 @@ export class PlayerStore {
     const t = this.queue[this.currentIndex];
     if (!t) return;
     this.state = 'preparing';
+    this.bufferedPercent = 0;
     this.notify();
     try {
       // contentType 透传给 AVPlayerBackend，用于设置 AVPlayer.audioRendererInfo.usage，
@@ -599,6 +612,14 @@ export class PlayerStore {
       }
     }
     this.maybeSkipOutro();
+    this.notify();
+  }
+
+  /** AVPlayer bufferingUpdate 回调：value 为缓存百分比 0~100，仅对网络流有意义。 */
+  onBufferingUpdate(percent: number): void {
+    const clamped = Math.max(0, Math.min(100, percent));
+    if (clamped === this.bufferedPercent) return;
+    this.bufferedPercent = clamped;
     this.notify();
   }
 
@@ -803,7 +824,7 @@ export class PlayerStore {
   /** 目标模式没有保存的播放状态时回到空态（MiniPlayer 随之隐藏），不触发持久化。 */
   private resetToIdle(): void {
     this.queue = []; this.currentIndex = -1;
-    this.currentMs = 0; this.durationMs = 0;
+    this.currentMs = 0; this.durationMs = 0; this.bufferedPercent = 0;
     this.state = 'idle'; this.isPlaying = false;
     this.lyrics = []; this.activeLyricIndex = -1; this.currentLyric = '';
     this.notify();

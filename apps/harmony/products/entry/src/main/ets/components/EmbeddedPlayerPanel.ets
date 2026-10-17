@@ -226,20 +226,44 @@ export struct EmbeddedPlayerPanel {
               .width(40)
               .textAlign(TextAlign.End)
 
-            Slider({
-              value: this.view.currentMs,
-              min: 0,
-              max: Math.max(1, this.view.durationMs),
-            })
-              .layoutWeight(1)
-              .trackColor(this.theme.colors.border)
-              .selectedColor(this.theme.colors.primary)
-              .blockColor(this.theme.colors.primary)
-              .onChange((value: number, mode: SliderChangeMode): void => {
-                if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
-                  playerStore.seek(value).catch((): void => undefined);
-                }
-              });
+            // 进度条三段式：底轨 + 缓存层自绘（Stack 垫底），Slider trackColor 设透明。
+            // ArkUI Slider 轨道两端内缩半个滑块宽，自定义层用 padding 内缩 8vp 对齐
+            //（blockSize 显式固定为 16 保持 inset 可预期）。
+            Stack() {
+              Stack() {
+                Row()
+                  .width('100%')
+                  .height(4)
+                  .borderRadius(2)
+                  .backgroundColor(this.theme.colors.border);
+                Row()
+                  .width(`${this.view.bufferedPercent}%`)
+                  .height(4)
+                  .borderRadius(2)
+                  .backgroundColor(`#4D${this.theme.colors.primary.substring(3)}`);
+              }
+              .width('100%')
+              .height(4)
+              .padding({ left: 8, right: 8 });
+              Slider({
+                value: this.view.currentMs,
+                min: 0,
+                max: Math.max(1, this.view.durationMs),
+              })
+                .width('100%')
+                .trackColor(Color.Transparent)
+                .trackThickness(4)
+                .blockSize({ width: 16, height: 16 })
+                .selectedColor(this.theme.colors.primary)
+                .blockColor(this.theme.colors.primary)
+                .onChange((value: number, mode: SliderChangeMode): void => {
+                  if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
+                    playerStore.seek(value).catch((): void => undefined);
+                  }
+                });
+            }
+            .layoutWeight(1)
+            .alignContent(Alignment.Center);
 
             Text(formatDuration(this.view.durationMs))
               .fontSize(11)

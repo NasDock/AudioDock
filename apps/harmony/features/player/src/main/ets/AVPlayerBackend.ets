@@ -237,6 +237,12 @@ export class AVPlayerBackend implements IAudioPlayer {
           Logger.e('AVPlayer', `prepare error: ${e.message}`);
         });
       } else if (s === 'prepared' && this.prepareResolve) {
+        // 本地 fdSrc 不产生 bufferingUpdate 事件，这里补发 100%，
+        // 让缓存进度条与网络流行为一致（desktop/mobile 本地文件同样视为全量缓冲）
+        if (!this.pendingSourceIsNetwork) {
+          const pl: BufferingPayload = { value: 100 };
+          this.dispatch('bufferingUpdate', pl);
+        }
         const r = this.prepareResolve;
         this.prepareResolve = null;
         this.prepareReject = null;

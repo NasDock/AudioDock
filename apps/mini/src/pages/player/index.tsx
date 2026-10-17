@@ -59,6 +59,7 @@ export default function Player() {
     playPrevious,
     duration,
     currentTime,
+    buffered,
     seek,
     trackList,
     setShowPlaylist,
@@ -532,16 +533,28 @@ const handleOpenMore = () => {
                 <View className='player-progress-area'>
                     <View className='player-time-container'>
                         <Text className='player-time-text'>{formatTime(currentTime)}</Text>
-                        <Slider 
-                            className='player-slider' 
-                            min={0} 
-                            max={duration} 
-                            value={currentTime} 
-                            onChange={handleSliderChange}
-                            activeColor='#333'
-                            backgroundColor='#eee'
-                            blockSize={12}
-                        />
+                        {/* 进度条三段式：底轨 + 缓存层自绘垫底，Slider 背景轨设透明。
+                            微信 Slider 轨道两端内缩半个滑块宽（blockSize 12px → 6px），
+                            自定义层用 trackbox 内缩 12rpx 对齐 */}
+                        <View className='player-slider-wrap'>
+                            <View className='player-slider-trackbox'>
+                                <View className='player-slider-rail' />
+                                <View
+                                    className='player-slider-buffered'
+                                    style={{ width: `${duration > 0 ? Math.min((buffered / duration) * 100, 100) : 0}%` }}
+                                />
+                            </View>
+                            <Slider
+                                className='player-slider'
+                                min={0}
+                                max={duration}
+                                value={currentTime}
+                                onChange={handleSliderChange}
+                                activeColor='#333'
+                                backgroundColor='transparent'
+                                blockSize={12}
+                            />
+                        </View>
                         <Text className='player-time-text'>{formatTime(duration)}</Text>
                     </View>
                 </View>

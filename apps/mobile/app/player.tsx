@@ -23,7 +23,7 @@ import { Slider } from "@miblanchard/react-native-slider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getMvByTrackId, plusGetMe, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -33,6 +33,7 @@ import {
   FlatList,
   Image,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -100,6 +101,109 @@ export const parseLyrics = (lyrics: string): LyricLine[] => {
   }
   return parsed.sort((a, b) => a.time - b.time);
 };
+
+/**
+ * 手机横屏堆叠式封面轮播的单个封面（React.memo 隔离重渲染）。
+ * 关键：动画节点（add/subtract/divide/interpolate）只依赖稳定引用（idx/indexAnim/panX/step），
+ * useMemo 后永不重建——切歌时只有 zOrder 随 basePos/lead 重渲染，transform 全程由原生动画值驱动。
+ * 若依赖 basePos 建动画节点，切歌时新旧节点交接间隙原生端会回落基准位置（闪烁）；
+ * 若在父组件内联创建，播放中 position 高频刷新会让封面每帧都在闪。
+ */
+const CoverFlowItem = React.memo(function CoverFlowItem({
+  track,
+  idx,
+  basePos,
+  lead,
+  panX,
+  indexAnim,
+  step,
+}: {
+  track: Track;
+  idx: number;
+  basePos: number;
+  /** 拖动中的领先项（视觉接管中的封面 basePos）：对齐 hm coverFlowZIndex 的实时
+   *  effPos 语义——拖过半程后下一首层级反超当前首（半程穿插） */
+  lead: number;
+  panX: Animated.Value;
+  indexAnim: Animated.Value;
+  step: number;
+}) {
+  const anim = useMemo(() => {
+    // effPos = (idx - currentIndex) + panX/step，currentIndex 也是动画值 → 切歌零重建
+    const effPos = Animated.add(
+      Animated.subtract(idx, indexAnim),
+      Animated.divide(panX, step),
+    );
+    return {
+      tx: effPos.interpolate({
+        inputRange: [-2, -1, 0, 1, 2],
+        outputRange: [-133.3, -77.8, 0, 77.8, 133.3],
+        extrapolate: "clamp" as const,
+      }),
+      sc: effPos.interpolate({
+        inputRange: [-2, -1, 0, 1, 2],
+        outputRange: [1 / 3, 2 / 3, 1, 2 / 3, 1 / 3],
+        extrapolate: "clamp" as const,
+      }),
+      op: effPos.interpolate({
+        inputRange: [-2, -1, 0, 1, 2],
+        outputRange: [0.7, 0.85, 1, 0.85, 0.7],
+        extrapolate: "clamp" as const,
+      }),
+    };
+  }, [idx, indexAnim, panX, step]);
+
+  // 层级处理分平台：iOS 用 zIndex；
+  // Android 上 style zIndex 与 elevation 并存时行为不可靠（RN 会同时调 setZ 与
+  // setElevation，实际顺序由 add order 决定），所以 Android 统一用 elevation 表达
+  // 层级（中心最高、向两侧递减）——否则全部 elevation=8 时旁侧封面会盖住中心封面。
+  //
+  // lead 反超：hm 的 coverFlowZIndex = 100 - round(|effPos|*10)，effPos 含 panX
+  // 小数 → 拖动过半程后目标封面 zIndex 连续反超当前封面（穿插通过）。RN 的
+  // Animated 驱动不了 zIndex（Android 要的是 elevation），用父组件下发的整数
+  // lead 近似：lead 项层级 +15(zIndex)/+10(elevation) 压过当前项（+100/+30），
+  // 同时保持低于中心播放按钮（zIndex 110）。
+  const zBoost = lead !== 0 && basePos === lead;
+  const zOrder =
+    Platform.OS === "ios"
+      ? { zIndex: 100 - Math.abs(basePos) * 10 + (zBoost ? 15 : 0) }
+      : { elevation: 30 - Math.abs(basePos) * 6 + (zBoost ? 10 : 0) };
+
+  return (
+    <Animated.View
+      style={[
+        styles.coverFlowItem,
+        {
+          opacity: anim.op,
+          ...zOrder,
+          transform: [{ translateX: anim.tx }, { scale: anim.sc }],
+        },
+      ]}
+    >
+      {/* 假阴影：hm 用 ArkUI 原生 shadow（radius 18 / offsetY 10 / #59000000）。
+          RN 侧两条路都走不通：
+          - iOS layer shadow（shadowOpacity + 圆角、无 shadowPath）滑动时每帧
+            离屏重绘 → 5 个封面同时重算阴影，直接掉帧卡顿；
+          - Android elevation 投影需要 view 有 outline，coverFlowItem 无背景色
+            → 实际画不出投影。
+          统一改用静态深色扩散层（外层大而淡 + 内层小而深，两层叠加逼近高斯的
+          视觉），深色播放页背景下观感接近原生阴影，且零离屏开销。
+          层级仍分平台表达：iOS zIndex / Android elevation（见 zOrder）。 */}
+      <View style={styles.coverFlowShadowOuter} pointerEvents="none" />
+      <View style={styles.coverFlowShadowInner} pointerEvents="none" />
+      <Image
+        source={{
+          // 300 恒压缩档（webp 缩略图）：>300 的档位在内网会直连原图（几 MB），轮播加载慢
+          uri: getImageUrl(track.cover, "https://picsum.photos/400", 300),
+        }}
+        // Android 默认 fadeDuration=300ms：新滑入的封面会"慢慢显形"，
+        // 快速切换时这就是"卡顿感"的来源之一；已有 prefetch 兜底，关掉淡入
+        fadeDuration={0}
+        style={styles.coverFlowImage}
+      />
+    </Animated.View>
+  );
+});
 
 const AnimatedLyricLine = ({
   text,
@@ -188,12 +292,14 @@ export function PlayerDetailView({
     resume,
     duration,
     position,
+    buffered,
     seekTo,
     trackList,
     playTrackList,
     playMode,
     playNext,
     playPrevious,
+    playAt,
     togglePlayMode,
     isSynced,
     handleDisconnect,
@@ -372,41 +478,47 @@ export function PlayerDetailView({
   const [controlsHeight, setControlsHeight] = useState(0);
   const controlsOpacity = useRef(new Animated.Value(1)).current;
 
-  const resetHideTimer = () => {
-    if (hideTimerRef.current) {
-      clearTimeout(hideTimerRef.current);
-    }
-
-    if (!needsAutoHide) {
-      setControlsVisible(true);
-      return;
-    }
-
-    setControlsVisible(true);
-    hideTimerRef.current = setTimeout(() => {
-      if (isLandscape && needsAutoHide) {
-        setControlsVisible(false);
-      }
-    }, 3000); // 3 seconds of inactivity as per previous requirements
-  };
-
   const needsAutoHide =
     isLandscape &&
     artworkHeight > 0 &&
     controlsHeight > 0 &&
     artworkHeight + controlsHeight + 80 > height; // 80 is estimated padding/gaps for landscape safe area and spacing
 
+  // 手机横屏判定：横屏且高度 < 500dp（手机横屏约 360~430，平板 600+）。
+  // 手机横屏无控制组：堆叠式封面轮播 + 中心播放键；chrome（顶部按钮 + 播放键）3s 自动隐藏
+  const isPhoneLandscape = isLandscape && height < 500;
+  const coverFlowMode = isPhoneLandscape && trackList.length > 1;
+  const autoHideChrome = isPhoneLandscape || needsAutoHide;
+
+  const resetHideTimer = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+    }
+
+    if (!autoHideChrome) {
+      setControlsVisible(true);
+      return;
+    }
+
+    setControlsVisible(true);
+    hideTimerRef.current = setTimeout(() => {
+      if (isLandscape && autoHideChrome) {
+        setControlsVisible(false);
+      }
+    }, 3000); // 3 seconds of inactivity as per previous requirements
+  };
+
   useEffect(() => {
-    if (isLandscape && needsAutoHide && controlsVisible) {
+    if (isLandscape && autoHideChrome && controlsVisible) {
       resetHideTimer();
-    } else if (!isLandscape || !needsAutoHide) {
+    } else if (!isLandscape || !autoHideChrome) {
       setControlsVisible(true);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     }
     return () => {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
-  }, [isLandscape, needsAutoHide, controlsVisible]);
+  }, [isLandscape, autoHideChrome, controlsVisible]);
 
   useEffect(() => {
     Animated.timing(controlsOpacity, {
@@ -415,6 +527,268 @@ export function PlayerDetailView({
       useNativeDriver: true,
     }).start();
   }, [controlsVisible]);
+
+  // ─── 手机横屏堆叠式封面轮播（1-2-3-2-1，对齐 hm PlayerPage） ───
+  // 锚点：尺寸 1:2:3（66.7/133.3/200），非当前封面只露 1/3；
+  // x 锚点 0/77.8/133.3 分段线性插值；effPos = (idx - visualIndex) + panX/77.8
+  const COVER_FLOW_STEP = 77.8;
+  const coverFlowDerivedIndex = trackList.findIndex(
+    (t) => t.id === currentTrack?.id,
+  );
+  // 视觉中心索引与 currentTrack 派生索引解耦：snap 完成的同一帧内
+  // panX 归零 + visualIndex 切换（视觉连续）；playTrack 是重异步，
+  // 若等它更新 currentTrack，中间几十~几百 ms 旧封面会跳回中心（闪回）。
+  const [coverFlowVisualIndex, setCoverFlowVisualIndex] = useState(() =>
+    coverFlowDerivedIndex >= 0 ? coverFlowDerivedIndex : 0,
+  );
+  // 轮播发起的切歌目标（在途）：到达前外部派生索引不回写视觉索引，
+  // 防止连续快切时先到站的中间曲目把视觉索引拽回去
+  const coverFlowPendingRef = useRef<number | null>(null);
+
+  // 拖动中的领先项（视觉接管中的封面 basePos，-1/0/+1）：
+  // 对齐 hm coverFlowZIndex 的实时 effPos 语义——位移跨过半步（step/2）时，
+  // 目标封面层级反超当前封面（半程穿插）；松手回弹/吸附完成/外部切歌后归零。
+  // RN 的 Animated 无法动画驱动 zIndex，用整数 lead 近似 + 层级 boost 实现。
+  const [coverFlowLead, setCoverFlowLead] = useState(0);
+  const coverFlowLeadRef = useRef(0);
+  const resetCoverFlowLead = useCallback(() => {
+    if (coverFlowLeadRef.current !== 0) {
+      coverFlowLeadRef.current = 0;
+      setCoverFlowLead(0);
+    }
+  }, []);
+
+  const coverFlowPanX = useRef(new Animated.Value(0)).current;
+  // 视觉中心索引的动画值镜像：CoverFlowItem 的 transform 全程由它 + panX 驱动，
+  // 切歌时 setValue 即可，动画节点不重建（防闪烁的关键）
+  const coverFlowIndexAnim = useRef(
+    new Animated.Value(
+      coverFlowDerivedIndex >= 0 ? coverFlowDerivedIndex : 0,
+    ),
+  ).current;
+  const coverFlowAnimatingRef = useRef(false);
+  const [coverFlowWidth, setCoverFlowWidth] = useState(0);
+
+  // 外部切歌（控制键/自动连播/流转等）同步视觉索引
+  useEffect(() => {
+    const pending = coverFlowPendingRef.current;
+    if (pending !== null) {
+      if (coverFlowDerivedIndex === pending) {
+        coverFlowPendingRef.current = null;
+      }
+      return;
+    }
+    if (
+      coverFlowDerivedIndex >= 0 &&
+      coverFlowDerivedIndex !== coverFlowVisualIndex
+    ) {
+      setCoverFlowVisualIndex(coverFlowDerivedIndex);
+      coverFlowIndexAnim.setValue(coverFlowDerivedIndex);
+      resetCoverFlowLead();
+    }
+  }, [coverFlowDerivedIndex, coverFlowVisualIndex, resetCoverFlowLead]);
+
+  // 预取轮播窗口前后各 3 首封面（300 档缩略图），快速连滑时边缘新项秒出
+  useEffect(() => {
+    if (trackList.length === 0) return;
+    for (let p = -3; p <= 3; p++) {
+      const idx = coverFlowVisualIndex + p;
+      if (idx < 0 || idx >= trackList.length) continue;
+      const cover = trackList[idx]?.cover;
+      if (cover) {
+        Image.prefetch(getImageUrl(cover, "https://picsum.photos/400", 300)).catch(
+          () => {},
+        );
+      }
+    }
+  }, [coverFlowVisualIndex, trackList]);
+
+  // PanResponder 只创建一次，动态值经 ref 透传避免闭包过期
+  const coverFlowStateRef = useRef({
+    currentIndex: 0,
+    queueLength: 0,
+    width: 0,
+  });
+  coverFlowStateRef.current = {
+    currentIndex: coverFlowVisualIndex,
+    queueLength: trackList.length,
+    width: coverFlowWidth,
+  };
+
+  const togglePlayPause = useCallback(() => {
+    if (isPlaying) {
+      pause().catch(() => {});
+    } else {
+      resume().catch(() => {});
+    }
+  }, [isPlaying, pause, resume]);
+  // 已有同语义函数 togglePlayback（L732+），轮播相关回调统一用 togglePlayPause
+
+  const reboundCoverFlow = useCallback(() => {
+    if (coverFlowAnimatingRef.current) return;
+    coverFlowAnimatingRef.current = true;
+    Animated.timing(coverFlowPanX, {
+      toValue: 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => {
+      coverFlowAnimatingRef.current = false;
+      resetCoverFlowLead();
+    });
+  }, [coverFlowPanX, resetCoverFlowLead]);
+
+  const snapCoverFlow = useCallback(
+    (target: number) => {
+      const ci = coverFlowStateRef.current.currentIndex;
+      const step = target - ci;
+      if (coverFlowAnimatingRef.current) return;
+      if (
+        step === 0 ||
+        target < 0 ||
+        target >= coverFlowStateRef.current.queueLength
+      ) {
+        reboundCoverFlow();
+        return;
+      }
+      coverFlowAnimatingRef.current = true;
+      Animated.timing(coverFlowPanX, {
+        toValue: -step * COVER_FLOW_STEP,
+        duration: 180,
+        useNativeDriver: true,
+      }).start(() => {
+        // 滑出到位后：同一帧内切视觉索引（state + 动画值镜像）+ panX 归零（视觉连续不闪回），
+        // playTrack 的异步 currentTrack 更新随后跟上（effect 里 pending 命中即清）
+        coverFlowPendingRef.current = target;
+        coverFlowIndexAnim.setValue(target);
+        coverFlowPanX.setValue(0);
+        setCoverFlowVisualIndex(target);
+        coverFlowAnimatingRef.current = false;
+        resetCoverFlowLead();
+        playAt(target).catch(() => {
+          if (coverFlowPendingRef.current === target) {
+            coverFlowPendingRef.current = null;
+          }
+        });
+      });
+    },
+    [coverFlowPanX, coverFlowIndexAnim, playAt, reboundCoverFlow, resetCoverFlowLead],
+  );
+
+  const handleCoverFlowTap = useCallback(
+    (x: number) => {
+      // 点击任意位置唤回 chrome（顶部按钮 + 中心播放键）并重置 3s 隐藏计时
+      resetHideTimer();
+      const { currentIndex: ci, width: w } = coverFlowStateRef.current;
+      const dx = x - w / 2;
+      const adx = Math.abs(dx);
+      if (adx <= 100) {
+        togglePlayPause();
+        return;
+      }
+      if (adx <= 166.7) {
+        const dir = dx > 0 ? 1 : -1;
+        const pos = adx <= 144.4 ? 1 : 2;
+        snapCoverFlow(ci + dir * pos);
+      }
+    },
+    [togglePlayPause, snapCoverFlow],
+  );
+
+  const snapCoverFlowRef = useRef(snapCoverFlow);
+  snapCoverFlowRef.current = snapCoverFlow;
+  const reboundCoverFlowRef = useRef(reboundCoverFlow);
+  reboundCoverFlowRef.current = reboundCoverFlow;
+  const handleCoverFlowTapRef = useRef(handleCoverFlowTap);
+  handleCoverFlowTapRef.current = handleCoverFlowTap;
+
+  const coverFlowPanResponder = useRef(
+    PanResponder.create({
+      // tap 也要拿 responder（否则 release 收不到），滑动由 move 阈值判定
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_e, g) =>
+        Math.abs(g.dx) > 5 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderMove: (_e, g) => {
+        if (coverFlowAnimatingRef.current) return;
+        const { currentIndex: ci, queueLength } = coverFlowStateRef.current;
+        let v = g.dx;
+        // 队列两端拖拽阻尼（30%）
+        if ((ci <= 0 && v > 0) || (ci >= queueLength - 1 && v < 0)) {
+          v = v * 0.3;
+        }
+        const max = COVER_FLOW_STEP * 1.5;
+        v = Math.max(-max, Math.min(max, v));
+        // 半程穿插（对齐 hm coverFlowZIndex 的实时 effPos 语义）：
+        // 位移跨过 ±step/2 时，被拖向中心的目标封面 layers 反超当前封面。
+        // RN 的 Animated 驱动不了 zIndex，这里切整数 lead 触发子项层级 boost。
+        const lead =
+          v <= -COVER_FLOW_STEP * 0.5 ? 1 : v >= COVER_FLOW_STEP * 0.5 ? -1 : 0;
+        if (lead !== coverFlowLeadRef.current) {
+          coverFlowLeadRef.current = lead;
+          setCoverFlowLead(lead);
+        }
+        coverFlowPanX.setValue(v);
+      },
+      onPanResponderRelease: (e, g) => {
+        if (coverFlowAnimatingRef.current) return;
+        // 位移极小视为点击：按 x 坐标命中（中心播放/暂停、两侧跳曲、空白唤回）
+        if (Math.abs(g.dx) < 10 && Math.abs(g.dy) < 10) {
+          handleCoverFlowTapRef.current(e.nativeEvent.locationX);
+          return;
+        }
+        const progress = g.dx / COVER_FLOW_STEP;
+        let step = 0;
+        if (progress <= -0.3 || g.vx < -0.4) {
+          step = 1;
+        } else if (progress >= 0.3 || g.vx > 0.4) {
+          step = -1;
+        }
+        if (step === 0) {
+          reboundCoverFlowRef.current();
+          return;
+        }
+        snapCoverFlowRef.current(
+          coverFlowStateRef.current.currentIndex + step,
+        );
+      },
+      onPanResponderTerminate: () => {
+        reboundCoverFlowRef.current();
+      },
+      onShouldBlockNativeResponder: () => true,
+    }),
+  ).current;
+
+  // 堆叠式封面轮播渲染：前后各 2 首（越界跳过不循环）；
+  // 单项是 React.memo 的 CoverFlowItem（动画节点 useMemo 固定），
+  // 播放中 position 刷新导致的父级重渲染不会波及封面 → 不闪烁
+  const renderCoverFlow = () => {
+    const cur = coverFlowVisualIndex;
+    const entries: { idx: number; track: Track }[] = [];
+    for (let p = -2; p <= 2; p++) {
+      const idx = cur + p;
+      if (idx < 0 || idx >= trackList.length) continue;
+      entries.push({ idx, track: trackList[idx] });
+    }
+    return (
+      <View
+        style={styles.coverFlowContainer}
+        onLayout={(e) => setCoverFlowWidth(e.nativeEvent.layout.width)}
+        {...coverFlowPanResponder.panHandlers}
+      >
+        {entries.map(({ idx, track }) => (
+          <CoverFlowItem
+            key={idx}
+            track={track}
+            idx={idx}
+            basePos={idx - cur}
+            lead={coverFlowLead}
+            panX={coverFlowPanX}
+            indexAnim={coverFlowIndexAnim}
+            step={COVER_FLOW_STEP}
+          />
+        ))}
+      </View>
+    );
+  };
 
   useEffect(() => {
     if (currentTrack && user) {
@@ -1586,32 +1960,50 @@ export function PlayerDetailView({
         <Text style={[styles.timeText, { color: colors.secondary }]}>
           {formatTime(position)}
         </Text>
-        <Slider
-          containerStyle={{ flex: 1, height: 40, marginHorizontal: 10 }}
-          minimumValue={0}
-          maximumValue={duration}
-          value={position}
-          onSlidingComplete={(value) => {
-            seekTo(Array.isArray(value) ? value[0] : value);
-            resetHideTimer();
-          }}
-          minimumTrackTintColor={colors.primary}
-          maximumTrackTintColor={colors.border}
-          thumbTintColor={colors.primary}
-          renderThumbComponent={() => (
-            <Animated.View
-              style={{
-                width: 15,
-                height: 15,
-                borderRadius: 8,
-                backgroundColor: colors.primary,
-                borderWidth: 2,
-                borderColor: "#fff",
-                transform: [{ scale: breatheAnim }],
-              }}
-            />
-          )}
-        />
+        <View style={styles.sliderWrapper}>
+          {/* 自定义底轨 + 缓存层：Slider 的 maximumTrack 设为透明，由这两层代替绘制 */}
+          <View
+            style={[styles.sliderRail, { backgroundColor: colors.border }]}
+          />
+          <View
+            style={[
+              styles.bufferedTrack,
+              {
+                width: `${
+                  duration > 0 ? Math.min((buffered / duration) * 100, 100) : 0
+                }%`,
+                backgroundColor: `${colors.primary}4D`,
+              },
+            ]}
+          />
+          <Slider
+            containerStyle={{ flex: 1, height: 40 }}
+            minimumValue={0}
+            maximumValue={duration}
+            value={position}
+            onSlidingComplete={(value) => {
+              seekTo(Array.isArray(value) ? value[0] : value);
+              resetHideTimer();
+            }}
+            trackStyle={{ height: 4, borderRadius: 2 }}
+            minimumTrackTintColor={colors.primary}
+            maximumTrackTintColor="transparent"
+            thumbTintColor={colors.primary}
+            renderThumbComponent={() => (
+              <Animated.View
+                style={{
+                  width: 15,
+                  height: 15,
+                  borderRadius: 8,
+                  backgroundColor: colors.primary,
+                  borderWidth: 2,
+                  borderColor: "#fff",
+                  transform: [{ scale: breatheAnim }],
+                }}
+              />
+            )}
+          />
+        </View>
         <Text style={[styles.timeText, { color: colors.secondary }]}>
           {formatTime(duration)}
         </Text>
@@ -1692,7 +2084,11 @@ export function PlayerDetailView({
       >
         <View style={styles.landscapeContainer}>
           <View style={[styles.landscapeLeft]}>
-            <View style={styles.landscapeBackBtn}>
+            {/* 顶部折叠/更多按钮随控制条一起显隐（横屏沉浸式） */}
+            <Animated.View
+              style={[styles.landscapeBackBtn, { opacity: controlsOpacity }]}
+              pointerEvents={controlsVisible ? "auto" : "none"}
+            >
               {!embedded && (
                 <TouchableOpacity
                   onPress={closePlayer}
@@ -1701,8 +2097,11 @@ export function PlayerDetailView({
                   <Ionicons name="chevron-down" size={30} color={colors.text} />
                 </TouchableOpacity>
               )}
-            </View>
-            <View style={styles.landscapeMoreBtn}>
+            </Animated.View>
+            <Animated.View
+              style={[styles.landscapeMoreBtn, { opacity: controlsOpacity }]}
+              pointerEvents={controlsVisible ? "auto" : "none"}
+            >
               {!embedded && (
                 <TouchableOpacity
                   onPress={handleOpenMore}
@@ -1711,59 +2110,93 @@ export function PlayerDetailView({
                   <Ionicons name="ellipsis-vertical" size={26} color={colors.text} />
                 </TouchableOpacity>
               )}
-            </View>
+            </Animated.View>
             {/* 修复：外层改为普通 View 承担布局，封面单独一个 TouchableOpacity，
                 跳过片头片尾按钮组移为兄弟节点（对齐竖屏结构）。
                 此前按钮组嵌在封面 TouchableOpacity 内部，父级拦截触摸导致横屏点击无反应。 */}
-            <View
-              style={[
-                styles.landscapeArtworkContainer,
-                !needsAutoHide && {
-                  justifyContent: "center",
-                  paddingBottom:
-                    isLandscape && controlsHeight > 0 ? controlsHeight + 20 : 0,
-                },
-              ]}
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  if (needsAutoHide) {
-                    setControlsVisible(!controlsVisible);
-                  }
-                }}
-                activeOpacity={1}
+            {coverFlowMode ? (
+              /* 手机横屏 + 队列>1：堆叠式封面轮播（无控制组） */
+              renderCoverFlow()
+            ) : (
+              <>
+                <View
+                  style={[
+                    styles.landscapeArtworkContainer,
+                    !needsAutoHide && {
+                      justifyContent: "center",
+                      paddingBottom:
+                        isLandscape && controlsHeight > 0 ? controlsHeight + 20 : 0,
+                    },
+                  ]}
+                >
+                  <TouchableOpacity
+                    onPress={() => {
+                      // 手机横屏无控制组：点封面 = 唤回 chrome + 播放/暂停
+                      if (isPhoneLandscape) {
+                        resetHideTimer();
+                        togglePlayPause();
+                        return;
+                      }
+                      if (needsAutoHide) {
+                        setControlsVisible(!controlsVisible);
+                      }
+                    }}
+                    activeOpacity={1}
+                  >
+                    <Image
+                      source={{
+                        uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
+                      }}
+                      onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
+                      style={[styles.artwork, { marginBottom: 0 }]}
+                    />
+                  </TouchableOpacity>
+                  {/* 横屏/平板模式：有声书封面下方置顶操作按钮组（与竖屏同一组） */}
+                  {currentTrack.type === TrackType.AUDIOBOOK &&
+                    renderAudiobookQuickActions()}
+                </View>
+                {/* 悬浮控制条：仅平板横屏渲染（手机横屏已完全移除控制组） */}
+                {!isPhoneLandscape && (
+                  <Animated.View
+                    style={[
+                      styles.landscapeControls,
+                      {
+                        opacity: controlsOpacity,
+                        backgroundColor: colors.background,
+                        borderRadius: 16,
+                        padding: 10,
+                        position: "absolute",
+                        bottom: 40,
+                        left: "10%",
+                        zIndex: 20,
+                      },
+                    ]}
+                    onLayout={(e) => setControlsHeight(e.nativeEvent.layout.height)}
+                    pointerEvents={controlsVisible ? "auto" : "none"}
+                  >
+                    {renderControls()}
+                  </Animated.View>
+                )}
+              </>
+            )}
+            {/* 手机横屏：封面中心播放/暂停按钮（半透明毛玻璃，纯展示 pointerEvents=none，
+                点击由下层轮播手势层/封面 Touchable 处理），随 chrome 显隐 */}
+            {isPhoneLandscape && (
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.centerPlayButtonOverlay, { opacity: controlsOpacity }]}
               >
-                <Image
-                  source={{
-                    uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
-                  }}
-                  onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
-                  style={[styles.artwork, { marginBottom: 0 }]}
-                />
-              </TouchableOpacity>
-              {/* 横屏/平板模式：有声书封面下方置顶操作按钮组（与竖屏同一组） */}
-              {currentTrack.type === TrackType.AUDIOBOOK &&
-                renderAudiobookQuickActions()}
-            </View>
-            <Animated.View
-              style={[
-                styles.landscapeControls,
-                {
-                  opacity: controlsOpacity,
-                  backgroundColor: colors.background,
-                  borderRadius: 16,
-                  padding: 10,
-                  position: "absolute",
-                  bottom: 40,
-                  left: "10%",
-                  zIndex: 20,
-                },
-              ]}
-              onLayout={(e) => setControlsHeight(e.nativeEvent.layout.height)}
-              pointerEvents={controlsVisible ? "auto" : "none"}
-            >
-              {renderControls()}
-            </Animated.View>
+                <View style={styles.centerPlayButton}>
+                  <Ionicons
+                    name={isPlaying ? "pause" : "play"}
+                    size={30}
+                    color="#fff"
+                    // play 三角图标视觉重心偏左，右补 4px 对齐几何中心（同竖屏播放键 L1886 的补偿）
+                    style={{ marginLeft: isPlaying ? 0 : 4 }}
+                  />
+                </View>
+              </Animated.View>
+            )}
           </View>
 
           <View style={styles.landscapeRight}>
@@ -2153,6 +2586,26 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 20,
   },
+  sliderWrapper: {
+    flex: 1,
+    height: 40,
+    marginHorizontal: 10,
+    justifyContent: "center",
+  },
+  // 自定义进度条底轨与缓存层（与 Slider trackStyle 的 4px 对齐）
+  sliderRail: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: 4,
+    borderRadius: 2,
+  },
+  bufferedTrack: {
+    position: "absolute",
+    left: 0,
+    height: 4,
+    borderRadius: 2,
+  },
   timeText: {
     fontSize: 12,
   },
@@ -2242,6 +2695,67 @@ const styles = StyleSheet.create({
     height: 250,
     borderRadius: 15,
     marginBottom: 20,
+  },
+  // 手机横屏堆叠式封面轮播（1-2-3-2-1）
+  coverFlowContainer: {
+    flex: 1,
+    width: "100%",
+  },
+  coverFlowItem: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    left: "50%",
+    marginLeft: -100,
+    top: "50%",
+    marginTop: -100,
+    borderRadius: 15,
+    // ⚠️ 不要再加 shadow*（iOS）/ elevation（Android）静态值：
+    // iOS 的 layer shadow 无 shadowPath，滑动时每帧离屏重绘阴影 → 卡顿；
+    // Android 的 elevation 无 outline 画不出投影（本项目无背景色封面框）。
+    // 阴影统一走子层假阴影（coverFlowShadowOuter/Inner），层级走 zOrder 动态值。
+  },
+  // iOS 假阴影层（外层大扩散低透明度）：替代 layer shadow，零离屏开销
+  coverFlowShadowOuter: {
+    position: "absolute",
+    left: -10,
+    right: -10,
+    top: -12,
+    bottom: -4,
+    borderRadius: 26,
+    backgroundColor: "rgba(0,0,0,0.20)",
+  },
+  // iOS 假阴影层（内层小扩散高透明度）：与外层叠加逼近高斯阴影视觉
+  coverFlowShadowInner: {
+    position: "absolute",
+    left: -5,
+    right: -5,
+    top: -6,
+    bottom: -2,
+    borderRadius: 21,
+    backgroundColor: "rgba(0,0,0,0.16)",
+  },
+  coverFlowImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 15,
+  },
+  // 手机横屏封面中心播放/暂停按钮（半透明毛玻璃，pointerEvents=none 纯展示）
+  // 外层 absoluteFill + flex 居中，保证按钮中心点 = 封面中心点
+  //（不用 left/top 50% + 负 margin：Yoga 对绝对定位节点的 margin 处理有偏差）
+  centerPlayButtonOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 110,
+  },
+  centerPlayButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   landscapeContent: {
     flex: 1,
