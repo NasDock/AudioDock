@@ -105,7 +105,7 @@ export const parseLyrics = (lyrics: string): LyricLine[] => {
 /**
  * 手机横屏堆叠式封面轮播的单个封面（React.memo 隔离重渲染）。
  * 关键：动画节点（add/subtract/divide/interpolate）只依赖稳定引用（idx/indexAnim/panX/step），
- * useMemo 后永不重建——切歌时只有 zIndex 随 basePos 重渲染，transform 全程由原生动画值驱动。
+ * useMemo 后永不重建——切歌时只有 zOrder 随 basePos/lead 重渲染，transform 全程由原生动画值驱动。
  * 若依赖 basePos 建动画节点，切歌时新旧节点交接间隙原生端会回落基准位置（闪烁）；
  * 若在父组件内联创建，播放中 position 高频刷新会让封面每帧都在闪。
  */
@@ -113,6 +113,7 @@ const CoverFlowItem = React.memo(function CoverFlowItem({
   track,
   idx,
   basePos,
+  lead,
   panX,
   indexAnim,
   step,
@@ -120,6 +121,9 @@ const CoverFlowItem = React.memo(function CoverFlowItem({
   track: Track;
   idx: number;
   basePos: number;
+  /** 拖动中的领先项（视觉接管中的封面 basePos）：对齐 hm coverFlowZIndex 的实时
+   *  effPos 语义——拖过半程后下一首层级反超当前首（半程穿插） */
+  lead: number;
   panX: Animated.Value;
   indexAnim: Animated.Value;
   step: number;
@@ -153,10 +157,17 @@ const CoverFlowItem = React.memo(function CoverFlowItem({
   // Android 上 style zIndex 与 elevation 并存时行为不可靠（RN 会同时调 setZ 与
   // setElevation，实际顺序由 add order 决定），所以 Android 统一用 elevation 表达
   // 层级（中心最高、向两侧递减）——否则全部 elevation=8 时旁侧封面会盖住中心封面。
+  //
+  // lead 反超：hm 的 coverFlowZIndex = 100 - round(|effPos|*10)，effPos 含 panX
+  // 小数 → 拖动过半程后目标封面 zIndex 连续反超当前封面（穿插通过）。RN 的
+  // Animated 驱动不了 zIndex（Android 要的是 elevation），用父组件下发的整数
+  // lead 近似：lead 项层级 +15(zIndex)/+10(elevation) 压过当前项（+100/+30），
+  // 同时保持低于中心播放按钮（zIndex 110）。
+  const zBoost = lead !== 0 && basePos === lead;
   const zOrder =
     Platform.OS === "ios"
-      ? { zIndex: 100 - Math.abs(basePos) * 10 }
-      : { elevation: 30 - Math.abs(basePos) * 6 };
+      ? { zIndex: 100 - Math.abs(basePos) * 10 + (zBoost ? 15 : 0) }
+      : { elevation: 30 - Math.abs(basePos) * 6 + (zBoost ? 10 : 0) };
 
   return (
     <Animated.View
@@ -169,18 +180,17 @@ const CoverFlowItem = React.memo(function CoverFlowItem({
         },
       ]}
     >
-      {/* iOS 假阴影：layer shadow（shadowOpacity + 圆角、无 shadowPath）在滑动时
-          每帧都要离屏重绘 → 5 个封面同时重算阴影，直接掉帧卡顿。
-          改用静态深色扩散层（外层大而淡 + 内层小而深，叠加逼近
-          shadowOffset y:10 / shadowRadius 18 / shadowOpacity 0.35 的视觉），
-          播放页深色背景下观感与真阴影几乎无差，但零离屏开销。
-          Android 靠 elevation 原生绘制阴影，不需要这层。 */}
-      {Platform.OS === "ios" && (
-        <>
-          <View style={styles.coverFlowShadowOuter} pointerEvents="none" />
-          <View style={styles.coverFlowShadowInner} pointerEvents="none" />
-        </>
-      )}
+      {/* 假阴影：hm 用 ArkUI 原生 shadow（radius 18 / offsetY 10 / #59000000）。
+          RN 侧两条路都走不通：
+          - iOS layer shadow（shadowOpacity + 圆角、无 shadowPath）滑动时每帧
+            离屏重绘 → 5 个封面同时重算阴影，直接掉帧卡顿；
+          - Android elevation 投影需要 view 有 outline，coverFlowItem 无背景色
+            → 实际画不出投影。
+          统一改用静态深色扩散层（外层大而淡 + 内层小而深，两层叠加逼近高斯的
+          视觉），深色播放页背景下观感接近原生阴影，且零离屏开销。
+          层级仍分平台表达：iOS zIndex / Android elevation（见 zOrder）。 */}
+      <View style={styles.coverFlowShadowOuter} pointerEvents="none" />
+      <View style={styles.coverFlowShadowInner} pointerEvents="none" />
       <Image
         source={{
           // 300 恒压缩档（webp 缩略图）：>300 的档位在内网会直连原图（几 MB），轮播加载慢
@@ -535,6 +545,19 @@ export function PlayerDetailView({
   // 防止连续快切时先到站的中间曲目把视觉索引拽回去
   const coverFlowPendingRef = useRef<number | null>(null);
 
+  // 拖动中的领先项（视觉接管中的封面 basePos，-1/0/+1）：
+  // 对齐 hm coverFlowZIndex 的实时 effPos 语义——位移跨过半步（step/2）时，
+  // 目标封面层级反超当前封面（半程穿插）；松手回弹/吸附完成/外部切歌后归零。
+  // RN 的 Animated 无法动画驱动 zIndex，用整数 lead 近似 + 层级 boost 实现。
+  const [coverFlowLead, setCoverFlowLead] = useState(0);
+  const coverFlowLeadRef = useRef(0);
+  const resetCoverFlowLead = useCallback(() => {
+    if (coverFlowLeadRef.current !== 0) {
+      coverFlowLeadRef.current = 0;
+      setCoverFlowLead(0);
+    }
+  }, []);
+
   const coverFlowPanX = useRef(new Animated.Value(0)).current;
   // 视觉中心索引的动画值镜像：CoverFlowItem 的 transform 全程由它 + panX 驱动，
   // 切歌时 setValue 即可，动画节点不重建（防闪烁的关键）
@@ -561,8 +584,9 @@ export function PlayerDetailView({
     ) {
       setCoverFlowVisualIndex(coverFlowDerivedIndex);
       coverFlowIndexAnim.setValue(coverFlowDerivedIndex);
+      resetCoverFlowLead();
     }
-  }, [coverFlowDerivedIndex, coverFlowVisualIndex]);
+  }, [coverFlowDerivedIndex, coverFlowVisualIndex, resetCoverFlowLead]);
 
   // 预取轮播窗口前后各 3 首封面（300 档缩略图），快速连滑时边缘新项秒出
   useEffect(() => {
@@ -609,8 +633,9 @@ export function PlayerDetailView({
       useNativeDriver: true,
     }).start(() => {
       coverFlowAnimatingRef.current = false;
+      resetCoverFlowLead();
     });
-  }, [coverFlowPanX]);
+  }, [coverFlowPanX, resetCoverFlowLead]);
 
   const snapCoverFlow = useCallback(
     (target: number) => {
@@ -638,6 +663,7 @@ export function PlayerDetailView({
         coverFlowPanX.setValue(0);
         setCoverFlowVisualIndex(target);
         coverFlowAnimatingRef.current = false;
+        resetCoverFlowLead();
         playAt(target).catch(() => {
           if (coverFlowPendingRef.current === target) {
             coverFlowPendingRef.current = null;
@@ -645,7 +671,7 @@ export function PlayerDetailView({
         });
       });
     },
-    [coverFlowPanX, coverFlowIndexAnim, playAt, reboundCoverFlow],
+    [coverFlowPanX, coverFlowIndexAnim, playAt, reboundCoverFlow, resetCoverFlowLead],
   );
 
   const handleCoverFlowTap = useCallback(
@@ -690,7 +716,17 @@ export function PlayerDetailView({
           v = v * 0.3;
         }
         const max = COVER_FLOW_STEP * 1.5;
-        coverFlowPanX.setValue(Math.max(-max, Math.min(max, v)));
+        v = Math.max(-max, Math.min(max, v));
+        // 半程穿插（对齐 hm coverFlowZIndex 的实时 effPos 语义）：
+        // 位移跨过 ±step/2 时，被拖向中心的目标封面 layers 反超当前封面。
+        // RN 的 Animated 驱动不了 zIndex，这里切整数 lead 触发子项层级 boost。
+        const lead =
+          v <= -COVER_FLOW_STEP * 0.5 ? 1 : v >= COVER_FLOW_STEP * 0.5 ? -1 : 0;
+        if (lead !== coverFlowLeadRef.current) {
+          coverFlowLeadRef.current = lead;
+          setCoverFlowLead(lead);
+        }
+        coverFlowPanX.setValue(v);
       },
       onPanResponderRelease: (e, g) => {
         if (coverFlowAnimatingRef.current) return;
@@ -744,6 +780,7 @@ export function PlayerDetailView({
             track={track}
             idx={idx}
             basePos={idx - cur}
+            lead={coverFlowLead}
             panX={coverFlowPanX}
             indexAnim={coverFlowIndexAnim}
             step={COVER_FLOW_STEP}
@@ -2674,8 +2711,9 @@ const styles = StyleSheet.create({
     marginTop: -100,
     borderRadius: 15,
     // ⚠️ 不要再加 shadow*（iOS）/ elevation（Android）静态值：
-    // iOS 的 layer shadow 无 shadowPath，滑动时每帧离屏重绘阴影 → 卡顿（已拆到
-    // CoverFlowItem 内按平台处理：iOS 假阴影层 / Android elevation 动态层级）。
+    // iOS 的 layer shadow 无 shadowPath，滑动时每帧离屏重绘阴影 → 卡顿；
+    // Android 的 elevation 无 outline 画不出投影（本项目无背景色封面框）。
+    // 阴影统一走子层假阴影（coverFlowShadowOuter/Inner），层级走 zOrder 动态值。
   },
   // iOS 假阴影层（外层大扩散低透明度）：替代 layer shadow，零离屏开销
   coverFlowShadowOuter: {
