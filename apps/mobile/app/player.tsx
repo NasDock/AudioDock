@@ -149,20 +149,17 @@ const CoverFlowItem = React.memo(function CoverFlowItem({
     };
   }, [idx, indexAnim, panX, step]);
 
-  // 层级：从左到右递增（数组书写顺序）——对齐 hm 真机实际呈现的堆叠顺序
-  // 1-2-3-4-5（越靠右的封面层级越高、盖住左侧）。
-  // 注：hm 代码里的 coverFlowZIndex 公式（100-|effPos|*10，中心最高）在真机上
-  // 被 ArkUI Stack「后书写覆盖先书写」的默认顺序盖过，实际呈现即右侧在上。
-  // 递增体系天然自带 hm 的半程穿插行为：左滑时下一首（右侧高位）盖当前封面、
-  // 右滑时上一首（左侧低位）被当前封面盖——无需额外 boost。
+  // 层级：1-2-3-2-1（中心最高，两侧对称递减）——静止态 5 张封面呈
+  // 金字塔堆叠，越靠边越在底层。zOrder = 12 - |basePos| * 2 → 8/10/12/10/8。
+  // zIndex/elevation 不是原生可动画属性，只能随 basePos（切歌时）离散跳变：
+  // 拖动中当前封面一直在最上，滑入的相邻封面从下方"钻"到中心，
+  // snap 完成的同一帧层级互换，视觉上无突兀感。
   // 分平台表达：iOS 用 zIndex；Android 上 style zIndex 与 elevation 并存时
   // 行为不可靠（RN 会同时调 setZ 与 setElevation），统一用 elevation。
-  // 基址 10 + basePos ∈ [8..12]（窗口 ±2 共 5 级），始终低于中心播放
-  // 按钮 overlay（zIndex 110）， Chrome 显隐不受影响。
+  // 档位 8~12 始终低于中心播放按钮 overlay（zIndex 110），Chrome 显隐不受影响。
+  const zLevel = 12 - Math.abs(basePos) * 2;
   const zOrder =
-    Platform.OS === "ios"
-      ? { zIndex: 10 + basePos }
-      : { elevation: 10 + basePos };
+    Platform.OS === "ios" ? { zIndex: zLevel } : { elevation: zLevel };
 
   return (
     <Animated.View
