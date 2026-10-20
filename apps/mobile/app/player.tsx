@@ -105,7 +105,7 @@ export const parseLyrics = (lyrics: string): LyricLine[] => {
 /**
  * 手机横屏堆叠式封面轮播的单个封面（React.memo 隔离重渲染）。
  * 关键：动画节点（add/subtract/divide/interpolate）只依赖稳定引用（idx/indexAnim/panX/step），
- * useMemo 后永不重建——切歌时只有 zOrder 随 basePos/lead 重渲染，transform 全程由原生动画值驱动。
+ * useMemo 后永不重建——切歌时只有 zOrder 随 basePos 重渲染，transform 全程由原生动画值驱动。
  * 若依赖 basePos 建动画节点，切歌时新旧节点交接间隙原生端会回落基准位置（闪烁）；
  * 若在父组件内联创建，播放中 position 高频刷新会让封面每帧都在闪。
  */
@@ -113,7 +113,6 @@ const CoverFlowItem = React.memo(function CoverFlowItem({
   track,
   idx,
   basePos,
-  lead,
   panX,
   indexAnim,
   step,
@@ -121,9 +120,6 @@ const CoverFlowItem = React.memo(function CoverFlowItem({
   track: Track;
   idx: number;
   basePos: number;
-  /** 拖动中的领先项（视觉接管中的封面 basePos）：对齐 hm coverFlowZIndex 的实时
-   *  effPos 语义——拖过半程后下一首层级反超当前首（半程穿插） */
-  lead: number;
   panX: Animated.Value;
   indexAnim: Animated.Value;
   step: number;
@@ -153,21 +149,20 @@ const CoverFlowItem = React.memo(function CoverFlowItem({
     };
   }, [idx, indexAnim, panX, step]);
 
-  // 层级处理分平台：iOS 用 zIndex；
-  // Android 上 style zIndex 与 elevation 并存时行为不可靠（RN 会同时调 setZ 与
-  // setElevation，实际顺序由 add order 决定），所以 Android 统一用 elevation 表达
-  // 层级（中心最高、向两侧递减）——否则全部 elevation=8 时旁侧封面会盖住中心封面。
-  //
-  // lead 反超：hm 的 coverFlowZIndex = 100 - round(|effPos|*10)，effPos 含 panX
-  // 小数 → 拖动过半程后目标封面 zIndex 连续反超当前封面（穿插通过）。RN 的
-  // Animated 驱动不了 zIndex（Android 要的是 elevation），用父组件下发的整数
-  // lead 近似：lead 项层级 +15(zIndex)/+10(elevation) 压过当前项（+100/+30），
-  // 同时保持低于中心播放按钮（zIndex 110）。
-  const zBoost = lead !== 0 && basePos === lead;
+  // 层级：从左到右递增（数组书写顺序）——对齐 hm 真机实际呈现的堆叠顺序
+  // 1-2-3-4-5（越靠右的封面层级越高、盖住左侧）。
+  // 注：hm 代码里的 coverFlowZIndex 公式（100-|effPos|*10，中心最高）在真机上
+  // 被 ArkUI Stack「后书写覆盖先书写」的默认顺序盖过，实际呈现即右侧在上。
+  // 递增体系天然自带 hm 的半程穿插行为：左滑时下一首（右侧高位）盖当前封面、
+  // 右滑时上一首（左侧低位）被当前封面盖——无需额外 boost。
+  // 分平台表达：iOS 用 zIndex；Android 上 style zIndex 与 elevation 并存时
+  // 行为不可靠（RN 会同时调 setZ 与 setElevation），统一用 elevation。
+  // 基址 10 + basePos ∈ [8..12]（窗口 ±2 共 5 级），始终低于中心播放
+  // 按钮 overlay（zIndex 110）， Chrome 显隐不受影响。
   const zOrder =
     Platform.OS === "ios"
-      ? { zIndex: 100 - Math.abs(basePos) * 10 + (zBoost ? 15 : 0) }
-      : { elevation: 30 - Math.abs(basePos) * 6 + (zBoost ? 10 : 0) };
+      ? { zIndex: 10 + basePos }
+      : { elevation: 10 + basePos };
 
   return (
     <Animated.View
@@ -545,19 +540,6 @@ export function PlayerDetailView({
   // 防止连续快切时先到站的中间曲目把视觉索引拽回去
   const coverFlowPendingRef = useRef<number | null>(null);
 
-  // 拖动中的领先项（视觉接管中的封面 basePos，-1/0/+1）：
-  // 对齐 hm coverFlowZIndex 的实时 effPos 语义——位移跨过半步（step/2）时，
-  // 目标封面层级反超当前封面（半程穿插）；松手回弹/吸附完成/外部切歌后归零。
-  // RN 的 Animated 无法动画驱动 zIndex，用整数 lead 近似 + 层级 boost 实现。
-  const [coverFlowLead, setCoverFlowLead] = useState(0);
-  const coverFlowLeadRef = useRef(0);
-  const resetCoverFlowLead = useCallback(() => {
-    if (coverFlowLeadRef.current !== 0) {
-      coverFlowLeadRef.current = 0;
-      setCoverFlowLead(0);
-    }
-  }, []);
-
   const coverFlowPanX = useRef(new Animated.Value(0)).current;
   // 视觉中心索引的动画值镜像：CoverFlowItem 的 transform 全程由它 + panX 驱动，
   // 切歌时 setValue 即可，动画节点不重建（防闪烁的关键）
@@ -584,9 +566,8 @@ export function PlayerDetailView({
     ) {
       setCoverFlowVisualIndex(coverFlowDerivedIndex);
       coverFlowIndexAnim.setValue(coverFlowDerivedIndex);
-      resetCoverFlowLead();
     }
-  }, [coverFlowDerivedIndex, coverFlowVisualIndex, resetCoverFlowLead]);
+  }, [coverFlowDerivedIndex, coverFlowVisualIndex]);
 
   // 预取轮播窗口前后各 3 首封面（300 档缩略图），快速连滑时边缘新项秒出
   useEffect(() => {
@@ -633,9 +614,8 @@ export function PlayerDetailView({
       useNativeDriver: true,
     }).start(() => {
       coverFlowAnimatingRef.current = false;
-      resetCoverFlowLead();
     });
-  }, [coverFlowPanX, resetCoverFlowLead]);
+  }, [coverFlowPanX]);
 
   const snapCoverFlow = useCallback(
     (target: number) => {
@@ -663,7 +643,6 @@ export function PlayerDetailView({
         coverFlowPanX.setValue(0);
         setCoverFlowVisualIndex(target);
         coverFlowAnimatingRef.current = false;
-        resetCoverFlowLead();
         playAt(target).catch(() => {
           if (coverFlowPendingRef.current === target) {
             coverFlowPendingRef.current = null;
@@ -671,7 +650,7 @@ export function PlayerDetailView({
         });
       });
     },
-    [coverFlowPanX, coverFlowIndexAnim, playAt, reboundCoverFlow, resetCoverFlowLead],
+    [coverFlowPanX, coverFlowIndexAnim, playAt, reboundCoverFlow],
   );
 
   const handleCoverFlowTap = useCallback(
@@ -716,17 +695,7 @@ export function PlayerDetailView({
           v = v * 0.3;
         }
         const max = COVER_FLOW_STEP * 1.5;
-        v = Math.max(-max, Math.min(max, v));
-        // 半程穿插（对齐 hm coverFlowZIndex 的实时 effPos 语义）：
-        // 位移跨过 ±step/2 时，被拖向中心的目标封面 layers 反超当前封面。
-        // RN 的 Animated 驱动不了 zIndex，这里切整数 lead 触发子项层级 boost。
-        const lead =
-          v <= -COVER_FLOW_STEP * 0.5 ? 1 : v >= COVER_FLOW_STEP * 0.5 ? -1 : 0;
-        if (lead !== coverFlowLeadRef.current) {
-          coverFlowLeadRef.current = lead;
-          setCoverFlowLead(lead);
-        }
-        coverFlowPanX.setValue(v);
+        coverFlowPanX.setValue(Math.max(-max, Math.min(max, v)));
       },
       onPanResponderRelease: (e, g) => {
         if (coverFlowAnimatingRef.current) return;
@@ -780,7 +749,6 @@ export function PlayerDetailView({
             track={track}
             idx={idx}
             basePos={idx - cur}
-            lead={coverFlowLead}
             panX={coverFlowPanX}
             indexAnim={coverFlowIndexAnim}
             step={COVER_FLOW_STEP}
