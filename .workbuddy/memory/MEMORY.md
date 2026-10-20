@@ -46,7 +46,7 @@
 ## 手机横屏封面轮播（堆叠式 1-2-3-2-1，hm + mobile 双端）
 - 判定：isPhoneLandscape = 横屏 && 高<500（vp/dp）；coverFlowMode = 手机横屏 && queue>1。手机横屏无控制组：轮播 + 封面中心 64×64 播放键（mobile 用 rgba 白 0.25 拟毛玻璃）；chrome 3s 无操作自动隐藏，点击唤回重置计时。平板横屏保留单封面+控制条自动隐藏。
 - 布局：锚点 1:2:3（66.7/133.3/200），非当前封面露 1/3；x(0/1/2)=0/77.8/133.3 分段插值；effPos = (idx − currentIndex) + panX/77.8。
-- **堆叠顺序 = 1-2-3-2-1（中心最高，对称递减）**：mobile zOrder = 12 − |basePos|×2（iOS zIndex / Android elevation，档位 8~12 低于中心播放键 zIndex 110）；zIndex 非原生可动画，随 basePos 切歌时离散跳变（拖动中当前封面恒在最上，snap 帧互换）。（2026-10-20 修正：此前 mobile 误用 10+basePos 递增 = 1-2-3-4-5）
+- **堆叠顺序 = 1-2-3-2-1（中心最高，对称递减）：靠渲染顺序表达，不靠 zIndex/elevation**。Android 上带 transform 的兄弟节点 z 排序实测不生效（设 zIndex/elevation 后仍是「数组靠后=图层靠上」的 1-2-3-4-5）；改为 renderCoverFlow 把 entries 按 |basePos| 降序排（±2 垫底 → 中心最后渲染=最顶层），key=队列绝对索引、React move 复用节点不重挂载。iOS/Android 一致。（2026-10-20 两次修正：先 10+basePos 递增=1-2-3-4-5，后 12-|basePos|×2 zIndex 仍无效，最终改渲染顺序）
 - 手势：hm 透明手势层独占 PanGesture+onClick；mobile 单容器 PanResponder + Animated.Value。点击按 x 命中（|dx|≤100 播停、100~144.4 相邻、144.4~166.7 跳曲）；松手 >30% 或速度阈值滑出→playAt→offset 归零；两端阻尼 30%。
 - 防闪烁：hm ForEach key = 队列绝对索引 + transform 内读 @State 现场算；mobile 动画节点 useMemo 固定（只依赖 idx/indexAnim/panX/step，连 basePos 都不能进依赖），索引变化走 coverFlowIndexAnim setValue；PanResponder 只建一次，回调经 ref 透传。Ionicons play 三角偏左，居中补 marginLeft: 4。
 - getImageUrl：≤300 恒走 /image/optimize（webp），>300 内网直连原图很慢 → 列表/轮播必须 ≤300 档 + prefetch 前后各 3 首。playAt(index) 两端均已加。

@@ -105,21 +105,20 @@ export const parseLyrics = (lyrics: string): LyricLine[] => {
 /**
  * 手机横屏堆叠式封面轮播的单个封面（React.memo 隔离重渲染）。
  * 关键：动画节点（add/subtract/divide/interpolate）只依赖稳定引用（idx/indexAnim/panX/step），
- * useMemo 后永不重建——切歌时只有 zOrder 随 basePos 重渲染，transform 全程由原生动画值驱动。
+ * useMemo 后永不重建——transform 全程由原生动画值驱动，切歌时本组件无需重渲染。
  * 若依赖 basePos 建动画节点，切歌时新旧节点交接间隙原生端会回落基准位置（闪烁）；
  * 若在父组件内联创建，播放中 position 高频刷新会让封面每帧都在闪。
+ * ⚠️ 堆叠层级不在此处表达（无 zIndex/elevation）：由父级渲染顺序决定（见 renderCoverFlow）。
  */
 const CoverFlowItem = React.memo(function CoverFlowItem({
   track,
   idx,
-  basePos,
   panX,
   indexAnim,
   step,
 }: {
   track: Track;
   idx: number;
-  basePos: number;
   panX: Animated.Value;
   indexAnim: Animated.Value;
   step: number;
@@ -149,17 +148,12 @@ const CoverFlowItem = React.memo(function CoverFlowItem({
     };
   }, [idx, indexAnim, panX, step]);
 
-  // 层级：1-2-3-2-1（中心最高，两侧对称递减）——静止态 5 张封面呈
-  // 金字塔堆叠，越靠边越在底层。zOrder = 12 - |basePos| * 2 → 8/10/12/10/8。
-  // zIndex/elevation 不是原生可动画属性，只能随 basePos（切歌时）离散跳变：
-  // 拖动中当前封面一直在最上，滑入的相邻封面从下方"钻"到中心，
-  // snap 完成的同一帧层级互换，视觉上无突兀感。
-  // 分平台表达：iOS 用 zIndex；Android 上 style zIndex 与 elevation 并存时
-  // 行为不可靠（RN 会同时调 setZ 与 setElevation），统一用 elevation。
-  // 档位 8~12 始终低于中心播放按钮 overlay（zIndex 110），Chrome 显隐不受影响。
-  const zLevel = 12 - Math.abs(basePos) * 2;
-  const zOrder =
-    Platform.OS === "ios" ? { zIndex: zLevel } : { elevation: zLevel };
+  // 层级：1-2-3-2-1（中心最高）——不在这里设 zIndex/elevation。
+  // 实测：Android 上带 transform 的兄弟节点 z 排序不可靠（setZ/elevation 常被
+  // 忽略，仍是「数组靠后 = 图层靠上」的 1-2-3-4-5）。
+  // 改用原生保证的绘制顺序：后渲染的兄弟节点盖住先渲染的——由父级
+  // renderCoverFlow 按 |basePos| 降序排 entries（中心项最后渲染 = 最顶层），
+  // 两端（iOS/Android）行为一致，与 z 机制完全解耦。
 
   return (
     <Animated.View
@@ -167,7 +161,6 @@ const CoverFlowItem = React.memo(function CoverFlowItem({
         styles.coverFlowItem,
         {
           opacity: anim.op,
-          ...zOrder,
           transform: [{ translateX: anim.tx }, { scale: anim.sc }],
         },
       ]}
@@ -179,8 +172,7 @@ const CoverFlowItem = React.memo(function CoverFlowItem({
           - Android elevation 投影需要 view 有 outline，coverFlowItem 无背景色
             → 实际画不出投影。
           统一改用静态深色扩散层（外层大而淡 + 内层小而深，两层叠加逼近高斯的
-          视觉），深色播放页背景下观感接近原生阴影，且零离屏开销。
-          层级仍分平台表达：iOS zIndex / Android elevation（见 zOrder）。 */}
+          视觉），深色播放页背景下观感接近原生阴影，且零离屏开销。 */}
       <View style={styles.coverFlowShadowOuter} pointerEvents="none" />
       <View style={styles.coverFlowShadowInner} pointerEvents="none" />
       <Image
@@ -725,7 +717,13 @@ export function PlayerDetailView({
 
   // 堆叠式封面轮播渲染：前后各 2 首（越界跳过不循环）；
   // 单项是 React.memo 的 CoverFlowItem（动画节点 useMemo 固定），
-  // 播放中 position 刷新导致的父级重渲染不会波及封面 → 不闪烁
+  // 播放中 position 刷新导致的父级重渲染不会波及封面 → 不闪烁。
+  // ★ 堆叠层级靠渲染顺序表达：原生「后渲染的兄弟节点在上层」是两端保证的行为，
+  //   不依赖 zIndex/elevation（Android 上带 transform 的兄弟节点 z 排序实测无效，
+  //   会出现层级恒为 1-2-3-4-5 的问题）。entries 按 |basePos| 降序排——
+  //   最外侧（±2）先渲染垫底，±1 次之，中心项最后渲染 = 最顶层 → 1-2-3-2-1。
+  //   排序只随 cur（切歌）变化；key 仍是队列绝对索引，React 以 move 复用
+  //   节点，不重挂载、不重建动画节点。
   const renderCoverFlow = () => {
     const cur = coverFlowVisualIndex;
     const entries: { idx: number; track: Track }[] = [];
@@ -734,6 +732,10 @@ export function PlayerDetailView({
       if (idx < 0 || idx >= trackList.length) continue;
       entries.push({ idx, track: trackList[idx] });
     }
+    entries.sort((a, b) => {
+      const d = Math.abs(b.idx - cur) - Math.abs(a.idx - cur);
+      return d !== 0 ? d : a.idx - b.idx;
+    });
     return (
       <View
         style={styles.coverFlowContainer}
@@ -745,7 +747,6 @@ export function PlayerDetailView({
             key={idx}
             track={track}
             idx={idx}
-            basePos={idx - cur}
             panX={coverFlowPanX}
             indexAnim={coverFlowIndexAnim}
             step={COVER_FLOW_STEP}
@@ -2678,7 +2679,8 @@ const styles = StyleSheet.create({
     // ⚠️ 不要再加 shadow*（iOS）/ elevation（Android）静态值：
     // iOS 的 layer shadow 无 shadowPath，滑动时每帧离屏重绘阴影 → 卡顿；
     // Android 的 elevation 无 outline 画不出投影（本项目无背景色封面框）。
-    // 阴影统一走子层假阴影（coverFlowShadowOuter/Inner），层级走 zOrder 动态值。
+    // 阴影统一走子层假阴影（coverFlowShadowOuter/Inner），
+    // 堆叠层级走渲染顺序（renderCoverFlow 按 |basePos| 降序排 children）。
   },
   // iOS 假阴影层（外层大扩散低透明度）：替代 layer shadow，零离屏开销
   coverFlowShadowOuter: {
