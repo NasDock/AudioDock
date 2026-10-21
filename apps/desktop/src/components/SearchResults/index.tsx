@@ -139,8 +139,8 @@ const SearchResults: React.FC<SearchResultsProps> = ({
           <LazyImage
             src={cover}
             alt={title}
-            width={"100%"}
-            height={"100%"}
+            width={48}
+            height={48}
             className={styles.cover}
           />
         )}

@@ -172,8 +172,8 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {
         <LazyImage
           src={getCoverUrl(currentTrack, 128)}
           alt={currentTrack?.name}
-          width={"100%"}
-          height={"100%"}
+          width={48}
+          height={48}
           className={styles.cover}
         />
         <div className={styles.infoText}>
