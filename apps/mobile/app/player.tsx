@@ -169,16 +169,6 @@ const CoverFlowItem = React.memo(
           },
         ]}
       >
-        {/* 假阴影：hm 用 ArkUI 原生 shadow（radius 18 / offsetY 10 / #59000000）。
-            RN 侧两条路都走不通：
-            - iOS layer shadow（shadowOpacity + 圆角、无 shadowPath）滑动时每帧
-              离屏重绘 → 5 个封面同时重算阴影，直接掉帧卡顿；
-            - Android elevation 投影需要 view 有 outline，coverFlowItem 无背景色
-              → 实际画不出投影。
-            统一改用静态深色扩散层（外层大而淡 + 内层小而深，两层叠加逼近高斯的
-            视觉），深色播放页背景下观感接近原生阴影，且零离屏开销。 */}
-        <View style={styles.coverFlowShadowOuter} pointerEvents="none" />
-        <View style={styles.coverFlowShadowInner} pointerEvents="none" />
         <Image
           source={{
             // 300 恒压缩档（webp 缩略图）：>300 的档位在内网会直连原图（几 MB），轮播加载慢
@@ -2713,31 +2703,7 @@ const styles = StyleSheet.create({
     top: "50%",
     marginTop: -100,
     borderRadius: 15,
-    // ⚠️ 不要再加 shadow*（iOS）/ elevation（Android）静态值：
-    // iOS 的 layer shadow 无 shadowPath，滑动时每帧离屏重绘阴影 → 卡顿；
-    // Android 的 elevation 无 outline 画不出投影（本项目无背景色封面框）。
-    // 阴影统一走子层假阴影（coverFlowShadowOuter/Inner），
-    // 堆叠层级走渲染顺序（renderCoverFlow 按 |basePos| 降序排 children）。
-  },
-  // iOS 假阴影层（外层大扩散低透明度）：替代 layer shadow，零离屏开销
-  coverFlowShadowOuter: {
-    position: "absolute",
-    left: -10,
-    right: -10,
-    top: -12,
-    bottom: -4,
-    borderRadius: 26,
-    backgroundColor: "rgba(0,0,0,0.20)",
-  },
-  // iOS 假阴影层（内层小扩散高透明度）：与外层叠加逼近高斯阴影视觉
-  coverFlowShadowInner: {
-    position: "absolute",
-    left: -5,
-    right: -5,
-    top: -6,
-    bottom: -2,
-    borderRadius: 21,
-    backgroundColor: "rgba(0,0,0,0.16)",
+    // 堆叠层级走渲染顺序（renderCoverFlow 按 |idx-cur| 降序排 children）。
   },
   coverFlowImage: {
     width: 200,
