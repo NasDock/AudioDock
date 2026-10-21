@@ -68,6 +68,24 @@
 - 各端 Slider 不支持双层轨道 → 自带底轨透明，下叠自绘底轨+缓存层（主题主色 30% 透明；hm 用 '#4D'+primary.substring(3)）。hm 链路：AVPlayerBackend→playbackService→PlayerStore.bufferedPercent→view。
 - 遗留：desktop Tauri MiniPlayer 小窗进度不走 currentTime IPC，未加缓存层。
 
+- father 构建，入口指向 dist；**改 src/ 后必须 `cd packages/services && pnpm build`**，否则引用端拿旧 dist 报 `xxx is not a function`。
+- mini 会员支付：plusWechatMpSession → openid；下单 clientType:'miniprogram' + openId，返回 wechatPay 直接喂 Taro.requestPayment。
+
+## services/mi 小爱音箱管理
+
+- sqlite3（`services/mi/data/xiaoai.db`），DB 操作必须 asyncio.to_thread 包裹。
+- 唤醒词 DB 优先（env VOICE_KEYWORDS 仅首启种子）；voice_listener 每 30s reload。
+- 管理 API 前缀 `/api`，前端走 `{服务器}/mi/api/*`。
+- docker-compose 需挂载 `auth.json`、`.mi.token`、`data/` 三路径防登录态丢失。
+
+## apps/desktop (React)
+
+- **严禁在模块顶层（组件函数体外）调用任何 React hook**（如 `theme.useToken()`）→ Invalid hook call。token 需用时一律在组件函数体内取。
+- **backdrop-filter 会毁掉 position:fixed**：`.container` 这类带 `backdrop-filter` 的滚动容器会给 fixed 后代创建包含块，浮层会随内容滚动跑掉（Songs 页 floatingActions 踩过）。修法是把浮层移出该容器作兄弟节点，或去掉祖先的 backdrop-filter/transform/filter。
+
+## GitHub Actions (CI)
+
+- **Android job 不要用 `android-actions/setup-android@v3`**（强制安装已下线的 `tools` 包，ubuntu-24.04 必然失败）。ubuntu-latest 自带完整 Android SDK，直接删 setup action 即可。
 ## 其他
 - @soundx/services：father 构建入口指 dist，改 src/ 必须 `cd packages/services && pnpm build`。mini 会员支付：plusWechatMpSession→openid，下单 clientType:'miniprogram'+openId，返回 wechatPay 喂 Taro.requestPayment。
 - services/mi 小爱音箱：sqlite3（services/mi/data/xiaoai.db），DB 操作 asyncio.to_thread；唤醒词 DB 优先（env 仅种子），voice_listener 30s reload；API 前缀 /api；docker-compose 挂 auth.json/.mi.token/data/。
