@@ -63,6 +63,8 @@ interface PlayerContextType {
   playPrevious: () => void;
   duration: number;
   currentTime: number;
+  /** 缓存进度（秒）：进度条三段式的中间层，来自 BackgroundAudioManager.buffered */
+  buffered: number;
   seek: (position: number) => void;
   setTrackList: (list: Track[]) => void;
   playTrackList: (list: Track[], index: number, initialPosition?: number) => Promise<void>;
@@ -91,6 +93,7 @@ const PlayerContext = createContext<PlayerContextType>({
   isLoading: false,
   duration: 0,
   currentTime: 0,
+  buffered: 0,
   playTrack: async () => {},
   pause: () => {},
   resume: () => {},
@@ -129,6 +132,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [buffered, setBuffered] = useState(0);
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [playMode, setPlayMode] = useState<PlayMode>(PlayMode.SEQUENCE);
   const [sleepTimer, setSleepTimerState] = useState<number | null>(null);
@@ -181,6 +185,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     manager.onTimeUpdate(() => {
         if (manager.duration) setDuration(manager.duration);
         setCurrentTime(manager.currentTime);
+        // 缓存进度（秒），进度条三段式中间层
+        if (manager.buffered !== undefined) setBuffered(manager.buffered);
     });
 
     // Remote control events
@@ -443,6 +449,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         setCurrentTrack(track);
         setCurrentTime(0);
         setDuration(track.duration ?? 0);
+        setBuffered(0);
         setAvailableAudioQualities([]);
         setCurrentAudioQuality(initialQuality);
         const startPosition = initialPosition !== undefined
@@ -632,6 +639,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         isLoading,
         duration,
         currentTime,
+        buffered,
         playTrack,
         pause,
         resume,

@@ -274,6 +274,7 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         // Use slight threshold to be safe
         ignoreTimeUpdate.current = true;
       }
+      setBufferedTime(0);
     }
   }, [currentTrack?.id]);
 
@@ -289,6 +290,8 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
     return saved ? Number(saved) : 0;
   });
   const [activeTab, setActiveTab] = useState<"playlist" | "lyrics">("playlist");
+  // 缓存进度（秒）：进度条三段式的中间层，来自 audio.buffered
+  const [bufferedTime, setBufferedTime] = useState(0);
 
   // 监听插件写入的 --ad-detail-cover-style（"square" | "vinyl"），决定封面渲染样式
   const [coverStyle, setCoverStyle] = useState<"square" | "vinyl">("square");
@@ -995,6 +998,20 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
       const time = audioRef.current.currentTime;
       setCurrentTime(time);
 
+      // 更新缓存进度：优先取包含当前播放点的缓冲区间末端，否则取最后一段
+      const ranges = audioRef.current.buffered;
+      let bufferedEnd = 0;
+      for (let i = 0; i < ranges.length; i++) {
+        if (ranges.start(i) <= time && time <= ranges.end(i)) {
+          bufferedEnd = ranges.end(i);
+          break;
+        }
+      }
+      if (!bufferedEnd && ranges.length > 0) {
+        bufferedEnd = ranges.end(ranges.length - 1);
+      }
+      setBufferedTime(bufferedEnd);
+
       // IPC Broadcast for Mini Player (throttled ~250ms)
       const now = Date.now();
       if (isTauri() && now - lastTimeUpdateRef.current > 250) {
@@ -1443,6 +1460,18 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
             {formatDuration(currentTime)}
           </Text>
           <div className={styles.sliderContainer}>
+            {/* 自定义底轨 + 缓存层：antd Slider 的 rail 设为透明，由这两层代替绘制 */}
+            <div
+              className={styles.sliderRail}
+              style={{ backgroundColor: token.colorBorder }}
+            />
+            <div
+              className={styles.bufferedTrack}
+              style={{
+                width: `${duration > 0 ? Math.min((bufferedTime / duration) * 100, 100) : 0}%`,
+                backgroundColor: `${token.colorPrimary}4D`,
+              }}
+            />
             <Slider
               value={currentTime}
               max={duration || 100}
@@ -1450,7 +1479,7 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
               tooltip={{ open: false }}
               style={{ flex: 1, margin: 0 }}
               trackStyle={{ backgroundColor: token.colorPrimary }}
-              railStyle={{ backgroundColor: token.colorBorder }}
+              railStyle={{ backgroundColor: "transparent" }}
               handleStyle={{ display: "none" }}
             />
             {isLoading && (
