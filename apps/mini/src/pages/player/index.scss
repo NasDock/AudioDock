@@ -209,9 +209,48 @@
       text-align: center;
   }
 
-  .player-slider {
+  .player-slider-wrap {
       flex: 1;
       margin: 0 20rpx;
+      position: relative;
+      display: flex;
+      align-items: center;
+  }
+
+  // 自定义进度条轨道区：左右内缩 12rpx（= 半个 12px 滑块）与微信 Slider 轨道对齐
+  .player-slider-trackbox {
+      position: absolute;
+      left: 12rpx;
+      right: 12rpx;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 4rpx;
+      pointer-events: none;
+  }
+
+  // 自定义进度条底轨与缓存层（4rpx 与微信 Slider 轨道高度对齐）
+  .player-slider-rail,
+  .player-slider-buffered {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 4rpx;
+      border-radius: 2rpx;
+  }
+
+  .player-slider-rail {
+      right: 0;
+      background: #eee;
+  }
+
+  .player-slider-buffered {
+      background: #ccc;
+      transition: width 0.3s linear;
+  }
+
+  .player-slider {
+      width: 100%;
+      margin: 0;
   }
 
   .player-controls {

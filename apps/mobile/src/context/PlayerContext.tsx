@@ -82,6 +82,8 @@ interface PlayerContextType {
   currentTrack: Track | null;
   position: number;
   duration: number;
+  /** 缓存进度（秒）：进度条三段式的中间层，来自 TrackPlayer 的 buffered */
+  buffered: number;
   isLoading: boolean;
   playTrack: (
     track: Track,
@@ -99,6 +101,8 @@ interface PlayerContextType {
   togglePlayMode: () => void;
   playNext: () => Promise<void>;
   playPrevious: () => Promise<void>;
+  /** 横屏封面轮播滑切/点按：直接播放队列指定索引（绕过 playMode） */
+  playAt: (index: number) => Promise<void>;
   insertTracksNext: (tracks: Track[]) => Promise<void>;
   isSynced: boolean;
   sessionId: string | null;
@@ -135,6 +139,7 @@ const PlayerContext = createContext<PlayerContextType>({
   currentTrack: null,
   position: 0,
   duration: 0,
+  buffered: 0,
   isLoading: false,
   playTrack: async () => {},
   pause: async () => {},
@@ -146,6 +151,7 @@ const PlayerContext = createContext<PlayerContextType>({
   togglePlayMode: () => {},
   playNext: async () => {},
   playPrevious: async () => {},
+  playAt: async () => {},
   insertTracksNext: async () => {},
   isSynced: false,
   sessionId: null,
@@ -217,7 +223,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const skipNextModeRestoreRef = useRef(false);
 
   // Hook for progress
-  const { position, duration } = useProgress();
+  const { position, duration, buffered } = useProgress();
 
   // Refs for accessing latest state in callbacks
   const playModeRef = React.useRef(playMode);
@@ -1224,6 +1230,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     if (prevIndex !== -1) {
       await playTrack(list[prevIndex]);
     }
+  };
+
+  /** 横屏封面轮播滑切/点按：直接播放队列指定索引（绕过 playMode，对齐点列表直跳语义） */
+  const playAt = async (index: number) => {
+    const list = trackListRef.current;
+    if (index < 0 || index >= list.length) return;
+    const current = currentTrackRef.current;
+    if (current && list[index]?.id === current.id) return;
+    await playTrack(list[index]);
   };
 
   const getNextPlayMode = (current: PlayMode) => {
@@ -2466,6 +2481,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         currentTrack,
         position,
         duration,
+        buffered,
         isLoading,
         playTrack,
         pause,
@@ -2477,6 +2493,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         togglePlayMode,
         playNext,
         playPrevious,
+        playAt,
         insertTracksNext,
         isSynced,
         sessionId,

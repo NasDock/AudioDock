@@ -133,6 +133,26 @@
   position: relative;
 }
 
+// 自定义进度条底轨与缓存层：与 antd Slider rail（4px）对齐，叠在 Slider 下方
+.sliderRail,
+.bufferedTrack {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 4px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.sliderRail {
+  right: 0;
+}
+
+.bufferedTrack {
+  transition: width 0.3s linear;
+}
+
 .settings {
   display: flex;
   align-items: center;

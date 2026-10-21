@@ -1,6 +1,6 @@
 import { Logger } from 'audiodock_common';
 import { audioBackend } from 'features_player';
-import type { PlayerPayload, TimeUpdatePayload, StateChangePayload } from 'features_player';
+import type { PlayerPayload, TimeUpdatePayload, StateChangePayload, BufferingPayload } from 'features_player';
 import { playerStore } from '../context/PlayerStore';
 import type { PlayerState } from '../context/PlayerStore';
 
@@ -35,6 +35,11 @@ export function installPlaybackService(): void {
     if (mapped) playerStore.onStateChange(mapped);
   });
   audioBackend.on('ended', () => playerStore.onEndOfStream());
+  // 缓存进度（进度条三段式中间层）：AVPlayer bufferingUpdate 给 0~100 百分比
+  audioBackend.on('bufferingUpdate', (p: PlayerPayload) => {
+    const v = p as BufferingPayload;
+    playerStore.onBufferingUpdate(v.value);
+  });
   audioBackend.on('error', () => {
     Logger.e('Playback', 'player error');
     playerStore.onError();
