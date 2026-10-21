@@ -192,7 +192,10 @@ const Songs: React.FC = () => {
 
 
   return (
-    <div ref={scrollRef} className={styles.container}>
+    <>
+      {/* 浮动快捷按钮组必须渲染在滚动容器（.container）之外：
+          .container 上的 backdrop-filter 会为 position: fixed 后代创建包含块，
+          放在里面 fixed 会失效、随列表滚动被带走 */}
       {showFloatingActions && (
         <div className={styles.floatingActions}>
           <div
@@ -217,6 +220,21 @@ const Songs: React.FC = () => {
           >
             <AimOutlined />
           </div>
+          {mode === "MUSIC" && (
+            <div
+              className={styles.floatingButton}
+              style={{
+                backgroundColor: heartbeatModeActive
+                  ? token.colorPrimary
+                  : token.colorBgElevated,
+                color: heartbeatModeActive ? token.colorWhite : token.colorPrimary,
+              }}
+              onClick={toggleHeartbeatMode}
+              title={t("songs.heartbeatMode")}
+            >
+              {heartbeatModeActive ? <HeartFilled /> : <HeartOutlined />}
+            </div>
+          )}
           <div
             className={styles.floatingButton}
             style={{
@@ -230,6 +248,7 @@ const Songs: React.FC = () => {
         </div>
       )}
 
+      <div ref={scrollRef} className={styles.container}>
       <div className={styles.pageHeader}>
         <Title level={2} className={styles.title}>
             {t("songs.title")}
@@ -358,7 +377,8 @@ const Songs: React.FC = () => {
           <Empty description={t("songs.noSongs")} />
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 
