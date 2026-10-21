@@ -23,7 +23,7 @@ import { Slider } from "@miblanchard/react-native-slider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getMvByTrackId, plusGetMe, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -104,90 +104,102 @@ export const parseLyrics = (lyrics: string): LyricLine[] => {
 
 /**
  * 手机横屏堆叠式封面轮播的单个封面（React.memo 隔离重渲染）。
- * 关键：动画节点（add/subtract/divide/interpolate）只依赖稳定引用（idx/indexAnim/panX/step），
- * useMemo 后永不重建——transform 全程由原生动画值驱动，切歌时本组件无需重渲染。
- * 若依赖 basePos 建动画节点，切歌时新旧节点交接间隙原生端会回落基准位置（闪烁）；
+ *
+ * 位置由**单个** Animated.Value（posAnim，队列坐标系的视觉中心）驱动：
+ *   effPos = idx - posAnim
+ * 之所以合并成单值：旧方案 indexAnim + panX 两个值在切歌收尾时要连续 setValue，
+ * 两次原生指令不保证同帧生效——中间帧会闪回（旧封面回中心 / 下一首封面跳中心）。
+ * 单值方案切歌只是一次 Animated.timing 到目标值，收尾无需任何 setValue，零原子性风险。
+ *
+ * 动画节点 useMemo 只依赖 [idx, posAnim]，挂载后永不重建（切歌不重渲染本组件）。
+ * 若把基准位置写进依赖，切歌时新旧节点交接间隙原生端会回落基准位置（闪烁）；
  * 若在父组件内联创建，播放中 position 高频刷新会让封面每帧都在闪。
+ *
+ * interpolate 扩到 ±3 并在 ±3 处透明度归零：±3 项是「渲染窗口缓冲」，
+ * 即使父级窗口 state 落后视觉中心 1 位（React state 异步），±2 槽位也有人占位。
+ *
  * ⚠️ 堆叠层级不在此处表达（无 zIndex/elevation）：由父级渲染顺序决定（见 renderCoverFlow）。
  */
-const CoverFlowItem = React.memo(function CoverFlowItem({
-  track,
-  idx,
-  panX,
-  indexAnim,
-  step,
-}: {
-  track: Track;
-  idx: number;
-  panX: Animated.Value;
-  indexAnim: Animated.Value;
-  step: number;
-}) {
-  const anim = useMemo(() => {
-    // effPos = (idx - currentIndex) + panX/step，currentIndex 也是动画值 → 切歌零重建
-    const effPos = Animated.add(
-      Animated.subtract(idx, indexAnim),
-      Animated.divide(panX, step),
+const CoverFlowItem = React.memo(
+  function CoverFlowItem({
+    track,
+    idx,
+    posAnim,
+  }: {
+    track: Track;
+    idx: number;
+    posAnim: Animated.Value;
+  }) {
+    const anim = useMemo(() => {
+      // effPos = idx - posAnim（posAnim = 视觉中心的队列坐标，可为小数）
+      const effPos = Animated.subtract(idx, posAnim);
+      return {
+        tx: effPos.interpolate({
+          inputRange: [-3, -2, -1, 0, 1, 2, 3],
+          outputRange: [-166.7, -133.3, -77.8, 0, 77.8, 133.3, 166.7],
+          extrapolate: "clamp" as const,
+        }),
+        sc: effPos.interpolate({
+          inputRange: [-3, -2, -1, 0, 1, 2, 3],
+          outputRange: [0.2, 1 / 3, 2 / 3, 1, 2 / 3, 1 / 3, 0.2],
+          extrapolate: "clamp" as const,
+        }),
+        op: effPos.interpolate({
+          inputRange: [-3, -2, -1, 0, 1, 2, 3],
+          outputRange: [0, 0.7, 0.85, 1, 0.85, 0.7, 0],
+          extrapolate: "clamp" as const,
+        }),
+      };
+    }, [idx, posAnim]);
+
+    // 层级：1-2-3-2-1（中心最高）——不在这里设 zIndex/elevation。
+    // 实测：Android 上带 transform 的兄弟节点 z 排序不可靠（setZ/elevation 常被
+    // 忽略，仍是「数组靠后 = 图层靠上」的 1-2-3-4-5）。
+    // 改用原生保证的绘制顺序：后渲染的兄弟节点盖住先渲染的——由父级
+    // renderCoverFlow 按 |idx-cur| 降序排 entries（中心项最后渲染 = 最顶层），
+    // 两端（iOS/Android）行为一致，与 z 机制完全解耦。
+
+    return (
+      <Animated.View
+        style={[
+          styles.coverFlowItem,
+          {
+            opacity: anim.op,
+            transform: [{ translateX: anim.tx }, { scale: anim.sc }],
+          },
+        ]}
+      >
+        {/* 假阴影：hm 用 ArkUI 原生 shadow（radius 18 / offsetY 10 / #59000000）。
+            RN 侧两条路都走不通：
+            - iOS layer shadow（shadowOpacity + 圆角、无 shadowPath）滑动时每帧
+              离屏重绘 → 5 个封面同时重算阴影，直接掉帧卡顿；
+            - Android elevation 投影需要 view 有 outline，coverFlowItem 无背景色
+              → 实际画不出投影。
+            统一改用静态深色扩散层（外层大而淡 + 内层小而深，两层叠加逼近高斯的
+            视觉），深色播放页背景下观感接近原生阴影，且零离屏开销。 */}
+        <View style={styles.coverFlowShadowOuter} pointerEvents="none" />
+        <View style={styles.coverFlowShadowInner} pointerEvents="none" />
+        <Image
+          source={{
+            // 300 恒压缩档（webp 缩略图）：>300 的档位在内网会直连原图（几 MB），轮播加载慢
+            uri: getImageUrl(track.cover, "https://picsum.photos/seed/placeholder/300/300", 300),
+          }}
+          // Android 默认 fadeDuration=300ms：新滑入的封面会"慢慢显形"，
+          // 快速切换时这就是"卡顿感"的来源之一；已有 prefetch 兜底，关掉淡入
+          fadeDuration={0}
+          style={styles.coverFlowImage}
+        />
+      </Animated.View>
     );
-    return {
-      tx: effPos.interpolate({
-        inputRange: [-2, -1, 0, 1, 2],
-        outputRange: [-133.3, -77.8, 0, 77.8, 133.3],
-        extrapolate: "clamp" as const,
-      }),
-      sc: effPos.interpolate({
-        inputRange: [-2, -1, 0, 1, 2],
-        outputRange: [1 / 3, 2 / 3, 1, 2 / 3, 1 / 3],
-        extrapolate: "clamp" as const,
-      }),
-      op: effPos.interpolate({
-        inputRange: [-2, -1, 0, 1, 2],
-        outputRange: [0.7, 0.85, 1, 0.85, 0.7],
-        extrapolate: "clamp" as const,
-      }),
-    };
-  }, [idx, indexAnim, panX, step]);
-
-  // 层级：1-2-3-2-1（中心最高）——不在这里设 zIndex/elevation。
-  // 实测：Android 上带 transform 的兄弟节点 z 排序不可靠（setZ/elevation 常被
-  // 忽略，仍是「数组靠后 = 图层靠上」的 1-2-3-4-5）。
-  // 改用原生保证的绘制顺序：后渲染的兄弟节点盖住先渲染的——由父级
-  // renderCoverFlow 按 |basePos| 降序排 entries（中心项最后渲染 = 最顶层），
-  // 两端（iOS/Android）行为一致，与 z 机制完全解耦。
-
-  return (
-    <Animated.View
-      style={[
-        styles.coverFlowItem,
-        {
-          opacity: anim.op,
-          transform: [{ translateX: anim.tx }, { scale: anim.sc }],
-        },
-      ]}
-    >
-      {/* 假阴影：hm 用 ArkUI 原生 shadow（radius 18 / offsetY 10 / #59000000）。
-          RN 侧两条路都走不通：
-          - iOS layer shadow（shadowOpacity + 圆角、无 shadowPath）滑动时每帧
-            离屏重绘 → 5 个封面同时重算阴影，直接掉帧卡顿；
-          - Android elevation 投影需要 view 有 outline，coverFlowItem 无背景色
-            → 实际画不出投影。
-          统一改用静态深色扩散层（外层大而淡 + 内层小而深，两层叠加逼近高斯的
-          视觉），深色播放页背景下观感接近原生阴影，且零离屏开销。 */}
-      <View style={styles.coverFlowShadowOuter} pointerEvents="none" />
-      <View style={styles.coverFlowShadowInner} pointerEvents="none" />
-      <Image
-        source={{
-          // 300 恒压缩档（webp 缩略图）：>300 的档位在内网会直连原图（几 MB），轮播加载慢
-          uri: getImageUrl(track.cover, "https://picsum.photos/400", 300),
-        }}
-        // Android 默认 fadeDuration=300ms：新滑入的封面会"慢慢显形"，
-        // 快速切换时这就是"卡顿感"的来源之一；已有 prefetch 兜底，关掉淡入
-        fadeDuration={0}
-        style={styles.coverFlowImage}
-      />
-    </Animated.View>
-  );
-});
+  },
+  // 自定义比较：进度上报会 map 重建 track 对象（同 id 新引用），默认浅比较会误判
+  // 变化导致整排封面重渲染 + Image source 对象重建。只认 id/cover/idx/posAnim。
+  (prev, next) =>
+    prev.idx === next.idx &&
+    prev.posAnim === next.posAnim &&
+    prev.track.id === next.track.id &&
+    prev.track.cover === next.track.cover,
+);
 
 const AnimatedLyricLine = ({
   text,
@@ -514,13 +526,18 @@ export function PlayerDetailView({
 
   // ─── 手机横屏堆叠式封面轮播（1-2-3-2-1，对齐 hm PlayerPage） ───
   // 锚点：尺寸 1:2:3（66.7/133.3/200），非当前封面只露 1/3；
-  // x 锚点 0/77.8/133.3 分段线性插值；effPos = (idx - visualIndex) + panX/77.8
+  // x 锚点 0/77.8/133.3 分段线性插值；effPos = idx - posAnim
+  //
+  // ★ 时序设计（防闪烁的核心）：
+  //   posAnim 是「视觉中心的队列坐标」这**一个**动画值，切歌/拖拽/回弹全部只动它。
+  //   渲染窗口（coverFlowVisualIndex）在**过渡开始时**就切到目标（树先更新），
+  //   动画经 rAF 延后到 React 提交后启动（位置后动）——两者之间不再有
+  //   「位置已跳、窗口没跟上」的裸帧（那是闪回和 ±1 空位的共同根因）。
   const COVER_FLOW_STEP = 77.8;
   const coverFlowDerivedIndex = trackList.findIndex(
     (t) => t.id === currentTrack?.id,
   );
-  // 视觉中心索引与 currentTrack 派生索引解耦：snap 完成的同一帧内
-  // panX 归零 + visualIndex 切换（视觉连续）；playTrack 是重异步，
+  // 视觉中心索引与 currentTrack 派生索引解耦：playTrack 是重异步，
   // 若等它更新 currentTrack，中间几十~几百 ms 旧封面会跳回中心（闪回）。
   const [coverFlowVisualIndex, setCoverFlowVisualIndex] = useState(() =>
     coverFlowDerivedIndex >= 0 ? coverFlowDerivedIndex : 0,
@@ -529,18 +546,22 @@ export function PlayerDetailView({
   // 防止连续快切时先到站的中间曲目把视觉索引拽回去
   const coverFlowPendingRef = useRef<number | null>(null);
 
-  const coverFlowPanX = useRef(new Animated.Value(0)).current;
-  // 视觉中心索引的动画值镜像：CoverFlowItem 的 transform 全程由它 + panX 驱动，
-  // 切歌时 setValue 即可，动画节点不重建（防闪烁的关键）
-  const coverFlowIndexAnim = useRef(
+  // 唯一动画值：视觉中心的队列坐标（整数=停稳，小数=拖拽/滑动中）
+  const coverFlowPosAnim = useRef(
     new Animated.Value(
       coverFlowDerivedIndex >= 0 ? coverFlowDerivedIndex : 0,
     ),
   ).current;
+  // 停稳时的中心索引镜像（同步 ref，手势/排序用，不等 React state）
+  const coverFlowPosRef = useRef(
+    coverFlowDerivedIndex >= 0 ? coverFlowDerivedIndex : 0,
+  );
   const coverFlowAnimatingRef = useRef(false);
+  // 树先于位置：外部切歌时先 setState（窗口/层级），再在 useLayoutEffect 里 setValue
+  const coverFlowPendingJumpRef = useRef<number | null>(null);
   const [coverFlowWidth, setCoverFlowWidth] = useState(0);
 
-  // 外部切歌（控制键/自动连播/流转等）同步视觉索引
+  // 外部切歌（控制键/自动连播/流转等）同步视觉索引——树先更新，位置后跳
   useEffect(() => {
     const pending = coverFlowPendingRef.current;
     if (pending !== null) {
@@ -553,10 +574,21 @@ export function PlayerDetailView({
       coverFlowDerivedIndex >= 0 &&
       coverFlowDerivedIndex !== coverFlowVisualIndex
     ) {
+      coverFlowPosRef.current = coverFlowDerivedIndex;
+      coverFlowPendingJumpRef.current = coverFlowDerivedIndex;
       setCoverFlowVisualIndex(coverFlowDerivedIndex);
-      coverFlowIndexAnim.setValue(coverFlowDerivedIndex);
     }
   }, [coverFlowDerivedIndex, coverFlowVisualIndex]);
+
+  // React 提交后、绘制前把位置跳到目标：保证「窗口/层级」与「位置」同帧可见，
+  // 不再出现位置已跳而窗口没跟上的裸帧（闪回/空位的根因）
+  useLayoutEffect(() => {
+    const jump = coverFlowPendingJumpRef.current;
+    if (jump !== null) {
+      coverFlowPendingJumpRef.current = null;
+      coverFlowPosAnim.setValue(jump);
+    }
+  });
 
   // 预取轮播窗口前后各 3 首封面（300 档缩略图），快速连滑时边缘新项秒出
   useEffect(() => {
@@ -566,7 +598,7 @@ export function PlayerDetailView({
       if (idx < 0 || idx >= trackList.length) continue;
       const cover = trackList[idx]?.cover;
       if (cover) {
-        Image.prefetch(getImageUrl(cover, "https://picsum.photos/400", 300)).catch(
+        Image.prefetch(getImageUrl(cover, "https://picsum.photos/seed/placeholder/300/300", 300)).catch(
           () => {},
         );
       }
@@ -597,18 +629,18 @@ export function PlayerDetailView({
   const reboundCoverFlow = useCallback(() => {
     if (coverFlowAnimatingRef.current) return;
     coverFlowAnimatingRef.current = true;
-    Animated.timing(coverFlowPanX, {
-      toValue: 0,
+    Animated.timing(coverFlowPosAnim, {
+      toValue: coverFlowPosRef.current,
       duration: 220,
       useNativeDriver: true,
     }).start(() => {
       coverFlowAnimatingRef.current = false;
     });
-  }, [coverFlowPanX]);
+  }, [coverFlowPosAnim]);
 
   const snapCoverFlow = useCallback(
     (target: number) => {
-      const ci = coverFlowStateRef.current.currentIndex;
+      const ci = coverFlowPosRef.current;
       const step = target - ci;
       if (coverFlowAnimatingRef.current) return;
       if (
@@ -620,26 +652,29 @@ export function PlayerDetailView({
         return;
       }
       coverFlowAnimatingRef.current = true;
-      Animated.timing(coverFlowPanX, {
-        toValue: -step * COVER_FLOW_STEP,
-        duration: 180,
-        useNativeDriver: true,
-      }).start(() => {
-        // 滑出到位后：同一帧内切视觉索引（state + 动画值镜像）+ panX 归零（视觉连续不闪回），
-        // playTrack 的异步 currentTrack 更新随后跟上（effect 里 pending 命中即清）
-        coverFlowPendingRef.current = target;
-        coverFlowIndexAnim.setValue(target);
-        coverFlowPanX.setValue(0);
-        setCoverFlowVisualIndex(target);
-        coverFlowAnimatingRef.current = false;
-        playAt(target).catch(() => {
-          if (coverFlowPendingRef.current === target) {
-            coverFlowPendingRef.current = null;
+      // 树先更新：窗口/层级立刻切到目标（此时旧中心还在视觉中心，只是不再是最顶层；
+      // 滑动中新封面压在旧封面上方是合理的过场），动画等 React 提交后再启动
+      coverFlowPendingRef.current = target;
+      coverFlowPosRef.current = target;
+      setCoverFlowVisualIndex(target);
+      requestAnimationFrame(() => {
+        Animated.timing(coverFlowPosAnim, {
+          toValue: target,
+          duration: 180,
+          useNativeDriver: true,
+        }).start(({ finished }) => {
+          coverFlowAnimatingRef.current = false;
+          if (finished) {
+            playAt(target).catch(() => {
+              if (coverFlowPendingRef.current === target) {
+                coverFlowPendingRef.current = null;
+              }
+            });
           }
         });
       });
     },
-    [coverFlowPanX, coverFlowIndexAnim, playAt, reboundCoverFlow],
+    [coverFlowPosAnim, playAt, reboundCoverFlow],
   );
 
   const handleCoverFlowTap = useCallback(
@@ -684,7 +719,9 @@ export function PlayerDetailView({
           v = v * 0.3;
         }
         const max = COVER_FLOW_STEP * 1.5;
-        coverFlowPanX.setValue(Math.max(-max, Math.min(max, v)));
+        v = Math.max(-max, Math.min(max, v));
+        // 单值：视觉中心 = ci - dx/step（右拖 dx>0 → 中心左移 → 前一首）
+        coverFlowPosAnim.setValue(ci - v / COVER_FLOW_STEP);
       },
       onPanResponderRelease: (e, g) => {
         if (coverFlowAnimatingRef.current) return;
@@ -715,19 +752,21 @@ export function PlayerDetailView({
     }),
   ).current;
 
-  // 堆叠式封面轮播渲染：前后各 2 首（越界跳过不循环）；
+  // 堆叠式封面轮播渲染：前后各 3 首（±3 是缓冲槽，opacity=0 不可见）；
   // 单项是 React.memo 的 CoverFlowItem（动画节点 useMemo 固定），
   // 播放中 position 刷新导致的父级重渲染不会波及封面 → 不闪烁。
   // ★ 堆叠层级靠渲染顺序表达：原生「后渲染的兄弟节点在上层」是两端保证的行为，
   //   不依赖 zIndex/elevation（Android 上带 transform 的兄弟节点 z 排序实测无效，
-  //   会出现层级恒为 1-2-3-4-5 的问题）。entries 按 |basePos| 降序排——
-  //   最外侧（±2）先渲染垫底，±1 次之，中心项最后渲染 = 最顶层 → 1-2-3-2-1。
+  //   会出现层级恒为 1-2-3-4-5 的问题）。entries 按 |idx-cur| 降序排——
+  //   最外侧（±3/±2）先渲染垫底，±1 次之，中心项最后渲染 = 最顶层 → 1-2-3-2-1。
+  //   ±3 缓冲：即使 React state 窗口落后视觉中心 1 位（切歌收尾的异步间隙），
+  //   ±2 槽位也有挂载节点占位，不会空一格。
   //   排序只随 cur（切歌）变化；key 仍是队列绝对索引，React 以 move 复用
   //   节点，不重挂载、不重建动画节点。
   const renderCoverFlow = () => {
     const cur = coverFlowVisualIndex;
     const entries: { idx: number; track: Track }[] = [];
-    for (let p = -2; p <= 2; p++) {
+    for (let p = -3; p <= 3; p++) {
       const idx = cur + p;
       if (idx < 0 || idx >= trackList.length) continue;
       entries.push({ idx, track: trackList[idx] });
@@ -747,9 +786,7 @@ export function PlayerDetailView({
             key={idx}
             track={track}
             idx={idx}
-            panX={coverFlowPanX}
-            indexAnim={coverFlowIndexAnim}
-            step={COVER_FLOW_STEP}
+            posAnim={coverFlowPosAnim}
           />
         ))}
       </View>
