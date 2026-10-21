@@ -30,5 +30,19 @@ tauri-plugin-opener = "2"
 axum = "0.8"
 tokio-util = { version = "0.7", features = ["io"] }
 
+[target.'cfg(windows)'.dependencies]
+# 任务栏缩略图定制（ITaskbarList3 + DWM iconic thumbnail），见 src/taskbar_thumb.rs
+windows = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi",
+    "Win32_System_Com",
+    "Win32_System_Registry",
+    "Win32_UI_Controls",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+
 [features]
 custom-protocol = ["tauri/custom-protocol"]

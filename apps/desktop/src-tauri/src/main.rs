@@ -12,6 +12,8 @@ mod window;
 mod cache;
 mod protocol;
 mod media_server;
+#[cfg(target_os = "windows")]
+mod taskbar_thumb;
 
 use commands::{AppState, MinimizeToTrayFlag};
 use cache::CacheManager;
@@ -79,6 +81,12 @@ pub fn run() {
 
             // Setup tray (must be after state init)
             tray::setup_tray(app.handle())?;
+
+            // Windows: 任务栏缩略图 = 当前歌曲封面 + 上一首/播放暂停/下一首按钮
+            #[cfg(target_os = "windows")]
+            if let Some(window) = app.get_webview_window("main") {
+                taskbar_thumb::init(&window);
+            }
 
             // Register devtools toggle shortcuts (works in release builds
             // because the `devtools` cargo feature is enabled).

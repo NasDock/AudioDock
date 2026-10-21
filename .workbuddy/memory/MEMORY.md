@@ -71,6 +71,12 @@
 - father 构建，入口指向 dist；**改 src/ 后必须 `cd packages/services && pnpm build`**，否则引用端拿旧 dist 报 `xxx is not a function`。
 - mini 会员支付：plusWechatMpSession → openid；下单 clientType:'miniprogram' + openId，返回 wechatPay 直接喂 Taro.requestPayment。
 
+## Windows 任务栏缩略图（desktop，2026-10-21）
+- `apps/desktop/src-tauri/src/taskbar_thumb.rs`（#[cfg(windows)]）：悬停缩略图=歌曲封面（DWMWA_FORCE_ICONIC_REPRESENTATION + WM_DWMSENDICONICTHUMBNAIL→DwmSetIconicThumbnail）+ 3 播控按钮（ITaskbarList3 ThumbBar，WM_COMMAND 回 THBN_CLICKED=0x1800）。
+- 封面链路：前端 update_player_state 传 resolveArtworkUri(300px) → PlayerStateForTray.cover → Rust 下载/解码（image crate，media:// 走本地文件）→ invalidate。
+- Win32/COM 操作全部收敛窗口线程（SetWindowSubclass 在 windows crate 的 **UI::Shell**）；跨线程刷新用自定义 WM_APP 消息。
+- mac 可 `rustup target add x86_64-pc-windows-msvc` + `cargo check --target x86_64-pc-windows-msvc` 类型检查 Win32 代码（不链接）。
+
 ## services/mi 小爱音箱管理
 
 - sqlite3（`services/mi/data/xiaoai.db`），DB 操作必须 asyncio.to_thread 包裹。
