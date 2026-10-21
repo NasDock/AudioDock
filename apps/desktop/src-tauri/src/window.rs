@@ -86,6 +86,8 @@ impl<'a> WindowManager<'a> {
             let _ = existing.close();
         }
 
+        // window 仅在 macOS 分支使用（set_always_on_top），其它平台告警关闭
+        #[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
         let window =
             WebviewWindowBuilder::new(self.app, "mini", WebviewUrl::App("index.html#/mini".into()))
                 .title("Mini Player")

@@ -22,15 +22,15 @@ use std::sync::{Mutex, OnceLock};
 use image::RgbaImage;
 use tauri::{AppHandle, Manager, WebviewWindow};
 
-use windows::core::PCWSTR;
-use windows::Win32::Foundation::{BOOL, HBITMAP, HICON, HWND, LPARAM, LRESULT, WPARAM};
+use windows::core::{BOOL, PCWSTR};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::Graphics::Dwm::{
     DwmInvalidateIconicBitmaps, DwmSetIconicLivePreviewBitmap, DwmSetIconicThumbnail,
     DwmSetWindowAttribute, DWMWA_FORCE_ICONIC_REPRESENTATION,
 };
 use windows::Win32::Graphics::Gdi::{
     CreateBitmap, CreateDIBSection, DeleteObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
-    DIB_RGB_COLORS,
+    DIB_RGB_COLORS, HBITMAP,
 };
 use windows::Win32::System::Com::{
     CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
@@ -40,7 +40,7 @@ use windows::Win32::UI::Shell::{
     THBF_ENABLED, THB_FLAGS, THB_ICON, THB_TOOLTIP, THUMBBUTTON,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateIconIndirect, DestroyIcon, GetClientRect, SendMessageW, ICONINFO, WM_COMMAND,
+    CreateIconIndirect, DestroyIcon, GetClientRect, SendMessageW, HICON, ICONINFO, WM_COMMAND,
     WM_DESTROY, WM_SETTINGCHANGE,
 };
 
@@ -102,6 +102,13 @@ struct TaskbarState {
     thumb_requested: bool,
 }
 
+// HWND/HICON 是裸指针句柄、ITaskbarList3 是 COM 接口，windows-rs 均未实现 Send，
+// 而全局 static Mutex<TaskbarState> 要求 Send。文件头「线程模型」已约定：
+// 所有 Win32/COM 调用都收敛到窗口线程（subclass 过程 / setup）执行；
+// 其它线程只在锁内读写普通数据字段，再 SendMessageW 通知窗口线程刷新，
+// 不会跨线程触碰这些句柄/接口本身，故此处声明 Send 是安全的。
+unsafe impl Send for TaskbarState {}
+
 fn state() -> &'static Mutex<TaskbarState> {
     static STATE: OnceLock<Mutex<TaskbarState>> = OnceLock::new();
     STATE.get_or_init(|| {
@@ -160,7 +167,7 @@ pub fn init(window: &WebviewWindow) {
 
     unsafe {
         // 挂 subclass：接管 WM_COMMAND（按钮点击）与 DWM 缩略图回调。
-        SetWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID, 0);
+        let _ = SetWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID, 0);
 
         // 关掉实时窗口预览，改用我们提供的静态封面缩略图。
         let enable = BOOL(1);
@@ -310,7 +317,7 @@ unsafe extern "system" fn subclass_proc(
             DefSubclassProc(hwnd, msg, wparam, lparam)
         }
         WM_DESTROY => {
-            RemoveWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID);
+            let _ = RemoveWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID);
             {
                 let mut st = state().lock().unwrap();
                 if let Some(icons) = st.icons.take() {
