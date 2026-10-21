@@ -13,6 +13,9 @@ pub struct PlayerStateForTray {
     pub is_playing: bool,
     pub track_name: Option<String>,
     pub track_artist: Option<String>,
+    /// 当前歌曲封面 URL（Windows 任务栏缩略图用，其它端忽略）。
+    #[serde(default)]
+    pub cover: Option<String>,
 }
 
 // Global state so both update_player_state and update_tray_lyric can
@@ -288,6 +291,10 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
 pub fn update_player_state(app: &AppHandle, state: PlayerStateForTray) {
     *player_state_lock().lock().unwrap() = state.clone();
 
+    // Windows: 同步任务栏缩略图（封面 + 播控按钮）
+    #[cfg(target_os = "windows")]
+    crate::taskbar_thumb::sync(app, state.is_playing, state.cover.clone());
+
     // 1. Rebuild trayMain menu
     if let Ok(menu) = build_main_menu(app) {
         if let Some(tray) = app.tray_by_id("tray_main") {
@@ -347,7 +354,7 @@ fn show_main_window(app: &AppHandle) {
     }
 }
 
-fn emit_event(app: &AppHandle, event: &str) {
+pub(crate) fn emit_event(app: &AppHandle, event: &str) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.emit(event, ());
     }

@@ -134,6 +134,10 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
     loadMoreSourceTracks,
   } = usePlayerStore();
   const { mode: appMode } = usePlayMode();
+  // 任务栏缩略图封面（Windows）：300px 档恒走 /image/optimize，体积小、解码快
+  const coverUri = currentTrack
+    ? resolveArtworkUri(currentTrack, { width: 300 }) ?? currentTrack.cover ?? null
+    : null;
   const [hasMv, setHasMv] = useState(false);
   const [currentAudioQuality, setCurrentAudioQuality] =
     useState<AudioQuality>("lossless");
@@ -1020,6 +1024,7 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
             isPlaying: !audioRef.current.paused,
             trackName: currentTrack?.name ?? null,
             trackArtist: currentTrack?.artist ?? null,
+            cover: coverUri,
           },
         }).catch(console.error);
         lastTimeUpdateRef.current = now;
@@ -1190,10 +1195,11 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
           isPlaying,
           trackName: currentTrack?.name ?? null,
           trackArtist: currentTrack?.artist ?? null,
+          cover: coverUri,
         },
       }).catch(console.error);
     }
-  }, [currentTrack?.id, currentTrack?.name, currentTrack?.artist, isPlaying]);
+  }, [currentTrack?.id, currentTrack?.name, currentTrack?.artist, isPlaying, coverUri]);
 
   // Global Lyric Sync Logic
   const [parsedLyrics, setParsedLyrics] = useState<
@@ -1311,11 +1317,12 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         isPlaying,
         trackName: currentTrack?.name ?? null,
         trackArtist: currentTrack?.artist ?? null,
+        cover: coverUri,
       },
     }).catch(console.error);
     emitTo("mini", "player:update", payload).catch(console.error);
     emitTo("lyric", "player:update", payload).catch(console.error);
-  }, [isPlaying, currentTrack?.id, currentTrack?.name, currentTrack?.artist]);
+  }, [isPlaying, currentTrack?.id, currentTrack?.name, currentTrack?.artist, coverUri]);
 
   const togglePlay = () => {
     if (isPlaying) {
