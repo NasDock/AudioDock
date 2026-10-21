@@ -669,20 +669,35 @@ export function PlayerDetailView({
 
   const handleCoverFlowTap = useCallback(
     (x: number) => {
-      // 点击任意位置唤回 chrome（顶部按钮 + 中心播放键）并重置 3s 隐藏计时
       resetHideTimer();
-      const { currentIndex: ci, width: w } = coverFlowStateRef.current;
+      const { currentIndex: ci, width: w, queueLength } = coverFlowStateRef.current;
       const dx = x - w / 2;
+      // 封面视觉布局：中心封面 width=200（±100），±1 封面中心在 ±77.8、宽 133.3，
+      // ±2 封面中心在 ±133.3、宽 66.7。取每张封面的可见区域判定命中。
+      // 中心：|dx| <= 100 → 播放/暂停
+      // 左侧相邻（-1）：可见 [100, 144.45] → snap ci-1
+      // 右侧相邻（+1）：可见 [100, 144.45] → snap ci+1
+      // 左侧最外（-2）：可见 [144.45, 166.65] → snap ci-2
+      // 右侧最外（+2）：可见 [144.45, 166.65] → snap ci+2
       const adx = Math.abs(dx);
       if (adx <= 100) {
+        // 中心封面：播放/暂停
         togglePlayPause();
         return;
       }
-      if (adx <= 166.7) {
-        const dir = dx > 0 ? 1 : -1;
-        const pos = adx <= 144.4 ? 1 : 2;
-        snapCoverFlow(ci + dir * pos);
+      const dir = dx > 0 ? 1 : -1;
+      if (adx <= 144.45) {
+        // 相邻封面（±1）
+        const target = ci + dir;
+        if (target >= 0 && target < queueLength) snapCoverFlow(target);
+        return;
       }
+      if (adx <= 166.65) {
+        // 最外侧封面（±2）
+        const target = ci + dir * 2;
+        if (target >= 0 && target < queueLength) snapCoverFlow(target);
+      }
+      // 166.65 之外是空白，只唤回 chrome，不切歌
     },
     [togglePlayPause, snapCoverFlow],
   );
@@ -2709,6 +2724,10 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 15,
+    // 与竖屏 artwork 同款阴影（boxShadow 为 RN 0.76+ CSS 阴影，两端通用；
+    // Android 叠一层 elevation 兜底投影）
+    boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.3)",
+    elevation: 10,
   },
   // 手机横屏封面中心播放/暂停按钮（半透明毛玻璃，pointerEvents=none 纯展示）
   // 外层 absoluteFill + flex 居中，保证按钮中心点 = 封面中心点
