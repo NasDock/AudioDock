@@ -26,7 +26,7 @@ use windows::core::{BOOL, PCWSTR};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::Graphics::Dwm::{
     DwmInvalidateIconicBitmaps, DwmSetIconicLivePreviewBitmap, DwmSetIconicThumbnail,
-    DwmSetWindowAttribute, DWMWA_FORCE_ICONIC_REPRESENTATION,
+    DwmSetWindowAttribute, DWMWA_FORCE_ICONIC_REPRESENTATION, DWMWA_HAS_ICONIC_BITMAP,
 };
 use windows::Win32::Graphics::Gdi::{
     CreateBitmap, CreateDIBSection, DeleteObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
@@ -171,12 +171,27 @@ pub fn init(window: &WebviewWindow) {
 
         // 关掉实时窗口预览，改用我们提供的静态封面缩略图。
         let enable = BOOL(1);
-        let _ = DwmSetWindowAttribute(
+        let r1 = DwmSetWindowAttribute(
             hwnd,
             DWMWA_FORCE_ICONIC_REPRESENTATION,
             &enable as *const BOOL as *const _,
             size_of::<BOOL>() as u32,
         );
+        // 关键：必须同时声明 HAS_ICONIC_BITMAP，否则 DWM 不会向窗口发送
+        // WM_DWMSENDICONICTHUMBNAIL / WM_DWMSENDICONICLIVEPREVIEWBITMAP，
+        // 悬停缩略图会一直停留在「灰白底板 + 居中图标」的系统占位形态。
+        let r2 = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_HAS_ICONIC_BITMAP,
+            &enable as *const BOOL as *const _,
+            size_of::<BOOL>() as u32,
+        );
+        if let Err(e) = r1 {
+            eprintln!("[TaskbarThumb] FORCE_ICONIC_REPRESENTATION failed: {e}");
+        }
+        if let Err(e) = r2 {
+            eprintln!("[TaskbarThumb] HAS_ICONIC_BITMAP failed: {e}");
+        }
     }
 
     // 窗口线程上直接加按钮（ThumbBarAddButtons 只能加一次，之后只能 Update）。
@@ -641,12 +656,25 @@ async fn load_cover_image(app: &AppHandle, url: &str) -> Option<RgbaImage> {
         .timeout(std::time::Duration::from_secs(10))
         .build()
         .ok()?;
-    let resp = client.get(url).send().await.ok()?;
+    let resp = match client.get(url).send().await {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("[TaskbarThumb] cover fetch failed: {url} err={e}");
+            return None;
+        }
+    };
     if !resp.status().is_success() {
+        eprintln!("[TaskbarThumb] cover fetch status {}: {url}", resp.status());
         return None;
     }
     let bytes = resp.bytes().await.ok()?;
-    image::load_from_memory(&bytes).ok().map(|img| img.to_rgba8())
+    match image::load_from_memory(&bytes) {
+        Ok(img) => Some(img.to_rgba8()),
+        Err(_) => {
+            eprintln!("[TaskbarThumb] cover decode failed: {url}");
+            None
+        }
+    }
 }
 
 /// `media://cover/<file>` / `http://media.localhost/cover/<file>` → 本地文件读取。
