@@ -5,6 +5,7 @@ import { Button, Col, Row, Typography, theme } from "antd";
 import React, { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import Cover from "../../components/Cover/index";
+import { useAdaptiveCoverSize } from "../../hooks/useAdaptiveCoverSize";
 import type { Album } from "../../models";
 import { useAlbumListCache } from "../../store/category";
 import { useLibraryStore } from "../../store/library";
@@ -29,6 +30,13 @@ const Category: React.FC = () => {
   const { token } = theme.useToken();
   const { setList, listMap, loadCountMap, totalMap, scrollMap, setLoadCount, setTotal, setScroll } = useAlbumListCache();
   const key = `${CACHE_KEY}_${mode}_${heartbeatModeActive ? "heartbeat" : "default"}`;
+
+  // 与首页一致的封面自适应：空间够时自然尺寸 170；放不下 4 个/行时等比缩小，保证每行至少 4 个
+  const coverSize = useAdaptiveCoverSize(scrollRef, {
+    naturalSize: 170,
+    gap: 24,
+    minCount: 4,
+  });
 
   const loadMoreAlbums = async (d: Result | undefined): Promise<Result> => {
     const pageSize = 50;
@@ -147,14 +155,14 @@ const Category: React.FC = () => {
         <Row gutter={[24, 24]}>
           {data?.list?.map((item) => (
             <Col key={item.id}>
-              <Cover item={item} />
+              <Cover item={item} size={coverSize} />
             </Col>
           ))}
           {(loading || loadingMore) && (
             <>
               {Array.from({ length: 8 }).map((_, index) => (
                 <Col key={`skeleton-${index}`}>
-                  <Cover.Skeleton />
+                  <Cover.Skeleton size={coverSize} />
                 </Col>
               ))}
             </>

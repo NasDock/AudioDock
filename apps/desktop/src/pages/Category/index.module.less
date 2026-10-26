@@ -7,7 +7,7 @@
   padding: 0 30px;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 154px);
+  height: calc(100vh - 154px - var(--titlebar-height, 0px));
 }
 
 .pageHeader {
@@ -24,7 +24,7 @@
 .grid {
   padding-top: 16px;
   padding-bottom: 30px;
-  height: calc(100vh - 154px);
+  height: calc(100vh - 154px - var(--titlebar-height, 0px));
 }
 
 .noMore {

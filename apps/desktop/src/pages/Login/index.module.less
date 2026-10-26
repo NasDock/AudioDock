@@ -1,9 +1,9 @@
 .container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: calc(100vh - var(--titlebar-height, 0px));
+  min-height: calc(100vh - var(--titlebar-height, 0px));
+  min-height: calc(100dvh - var(--titlebar-height, 0px));
   width: 100vw;
   position: relative;
   justify-content: center;
@@ -118,9 +118,9 @@
 
 @media (max-width: 900px) {
   .container {
-    height: 100vh;
-    min-height: 100vh;
-    min-height: 100dvh;
+    height: calc(100vh - var(--titlebar-height, 0px));
+    min-height: calc(100vh - var(--titlebar-height, 0px));
+    min-height: calc(100dvh - var(--titlebar-height, 0px));
     justify-content: flex-start;
     align-items: stretch;
     padding: 76px 0 24px;

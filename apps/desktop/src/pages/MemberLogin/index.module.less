@@ -3,9 +3,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: calc(100vh - var(--titlebar-height, 0px));
+  min-height: calc(100vh - var(--titlebar-height, 0px));
+  min-height: calc(100dvh - var(--titlebar-height, 0px));
   width: 100%;
   padding: 20px;
   overflow-y: auto;
@@ -75,9 +75,9 @@
 
 @media (max-width: 780px) {
   .container {
-    height: 100vh;
-    min-height: 100vh;
-    min-height: 100dvh;
+    height: calc(100vh - var(--titlebar-height, 0px));
+    min-height: calc(100vh - var(--titlebar-height, 0px));
+    min-height: calc(100dvh - var(--titlebar-height, 0px));
     justify-content: flex-start;
     align-items: stretch;
     padding: 24px 16px;

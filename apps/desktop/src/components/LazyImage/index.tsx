@@ -49,10 +49,12 @@ export const LazyImage: React.FC<LazyImageProps> = ({
 }) => {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [shouldLoad, setShouldLoad] = useState(false);
+  // 实际展示的图片地址：src 变化时保持旧图显示，新图后台预载完成后无缝切换，
+  // 避免尺寸/缩放导致的 src 变化闪出占位符
+  const [displaySrc, setDisplaySrc] = useState<string | undefined>(undefined);
 
-  // src 变化时重置"加载中"状态，让新 src 重新走视口判定逻辑
+  // 视口判定只在挂载时执行一次；src 后续变化不重置（否则已展示的图片会闪回占位符）
   useEffect(() => {
-    setShouldLoad(false);
     if (!wrapperRef.current) return;
     if (typeof IntersectionObserver === "undefined") {
       // 极旧环境兜底：直接加载
@@ -73,7 +75,32 @@ export const LazyImage: React.FC<LazyImageProps> = ({
     );
     observer.observe(wrapperRef.current);
     return () => observer.disconnect();
-  }, [src, rootMargin]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rootMargin]);
+
+  // 进入视口后加载；src 变化时后台预载新图，加载完成再切换，切换前始终显示旧图
+  useEffect(() => {
+    if (!shouldLoad) return;
+    if (!src) {
+      setDisplaySrc(undefined);
+      return;
+    }
+    if (src === displaySrc) return;
+    let cancelled = false;
+    const preloader = new Image();
+    // 失败也切换，让 <img> 自身的 onError 链路正常触发
+    preloader.onload = () => {
+      if (!cancelled) setDisplaySrc(src);
+    };
+    preloader.onerror = () => {
+      if (!cancelled) setDisplaySrc(src);
+    };
+    preloader.src = src;
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src, shouldLoad, displaySrc]);
 
   const placeholder =
     renderPlaceholder?.({ width, height }) ??
@@ -103,9 +130,9 @@ export const LazyImage: React.FC<LazyImageProps> = ({
       }}
       className={className}
     >
-      {hasSrc && shouldLoad ? (
+      {displaySrc ? (
         <img
-          src={src}
+          src={displaySrc}
           alt={alt ?? ""}
           loading="lazy"
           decoding="async"

@@ -35,6 +35,7 @@ import { usePlayerStore } from "../../store/player";
 import { useSettingsStore } from "../../store/settings";
 import { cacheUtils } from "../../utils/cache";
 import { usePlayMode } from "../../utils/playMode";
+import { onHomeRefresh } from "../../utils/refreshHome";
 import styles from "./index.module.less";
 import SectionOrderModal from "./SectionOrderModal";
 import { useTranslation } from "react-i18next";
@@ -99,22 +100,23 @@ const Recommended: React.FC = () => {
     (s) => s.carMode?.columnWidths ?? {},
   );
 
-  // 记录上次拉取数据时使用的数量；resize 后数量没变（如缩放模式下数量固定、
-  // 只有封面尺寸变化）时跳过重拉，仅由 containerWidth 驱动封面缩放
+  // 记录上次拉取数据时使用的数量；resize 后只有「期望数量 > 已拉取数量」
+  // （宽度明显增加、现有数据不够展示）才重拉；
+  // 期望数量变小时直接从已有数据取前 N 个展示，仅期望数量不变时由 containerWidth
+  // 驱动封面缩放（放大均分剩余宽度 / 缩小保证最小展示数量）
   const fetchedSizeRef = React.useRef<{
     album: number;
     artist: number;
     track: number;
   } | null>(null);
 
-  // 数量与上次拉取一致时返回 false（无需重新加载）
   const shouldReloadForLayout = () => {
     const prev = fetchedSizeRef.current;
     if (!prev) return true;
     return (
-      prev.album !== getPageSize("album") ||
-      prev.artist !== getPageSize("artist") ||
-      prev.track !== getPageSize("track")
+      getDesiredCount("album") > prev.album ||
+      getDesiredCount("artist") > prev.artist ||
+      getDesiredCount("track") > prev.track
     );
   };
 
@@ -186,10 +188,22 @@ const Recommended: React.FC = () => {
   const MIN_ARTIST_COUNT = 5;
   // 缩放过小的下界，极端窄窗口（如车机模式）避免封面缩到不可用
   const MIN_COVER_SIZE = 60;
+  // 上新单曲卡片：自然宽 240、间距 16（与渲染一致），每行至少 3 个，不够时等比缩小
+  const TRACK_CARD_WIDTH = 240;
+  const TRACK_GRID_GAP = 16;
+  const MIN_TRACK_COUNT = 3;
+  const MIN_TRACK_CARD_WIDTH = 160;
+  // 均分放大（宽度增加但数量不变时封面填满整行）的上限：自然尺寸的 1.5 倍，
+  // 避免数据量过少的库在超宽窗口下封面被拉得过大
+  const MAX_COVER_SCALE = 1.5;
+  const MAX_TRACK_CARD_WIDTH = TRACK_CARD_WIDTH * MAX_COVER_SCALE;
 
   const getAvailableWidth = () => {
+    // 实测时（containerWidth > 0）容器本身已被车机媒体栏压缩（contentColumn flex 自适应），
+    // 无需再手动扣媒体栏；仅窗口估算 fallback 才需要手动扣
+    const measured = containerWidth > 0;
     let availableWidth: number;
-    if (containerWidth > 0) {
+    if (measured) {
       // clientWidth 含 padding、不含纵向滚动条；扣掉 padding 30*2 即内容区宽度
       availableWidth = containerWidth - 60;
     } else {
@@ -198,7 +212,7 @@ const Recommended: React.FC = () => {
     }
 
     // 车机模式：扣除封面/歌词媒体栏 + 分隔把手宽度（与 CarMode 组件布局保持一致）
-    if (carModeEnabled) {
+    if (carModeEnabled && !measured) {
       const MEDIA_PADDING = 40; // .mediaColumn padding 20*2
       const HANDLE = 3; // .resizeHandle
       if (carModeMerge) {
@@ -219,40 +233,66 @@ const Recommended: React.FC = () => {
     return availableWidth;
   };
 
-  // 计算某类型的展示数量与实际封面尺寸：
-  // 能自然放下 >= minCount 个 → 用现有算法（自然尺寸，数量=放下的个数）；
-  // 放不下 → 数量固定 minCount，封面等比缩小到刚好放下
-  const getSectionLayout = (type: "album" | "artist") => {
+  // 期望展示数量（拉取数据 / 判断是否重拉用）：
+  // 能自然放下 >= minCount 个按实际放下个数；放不下则固定 minCount（封面缩小兜底）
+  const getDesiredCount = (type: "album" | "artist" | "track") => {
     const availableWidth = getAvailableWidth();
+    if (type === "track") {
+      const fitPerRow = Math.floor(
+        availableWidth / (TRACK_CARD_WIDTH + TRACK_GRID_GAP),
+      );
+      // 2 rows, so multiply by 2
+      return Math.max(MIN_TRACK_COUNT, fitPerRow) * 2;
+    }
     const naturalCover =
       type === "artist" ? ARTIST_AVATAR_SIZE : ALBUM_COVER_SIZE;
     const minCount = type === "artist" ? MIN_ARTIST_COUNT : MIN_ALBUM_COUNT;
-    const naturalItemWidth = naturalCover + GRID_GAP;
-    const fitCount = Math.floor(availableWidth / naturalItemWidth);
+    const fitCount = Math.floor(availableWidth / (naturalCover + GRID_GAP));
+    return Math.max(minCount, fitCount);
+  };
 
-    if (fitCount >= minCount) {
-      return { count: fitCount, coverSize: naturalCover };
-    }
+  // 某 section 的实际展示数量与封面尺寸（渲染用）：
+  // - 数量 = min(期望数量, 已有数据量)：宽度变小时直接取已有数据的前 N 个，不重拉
+  // - 封面按展示数量均分剩余宽度：宽度增加但数量不变时封面放大填满整行；
+  //   宽度不足最小数量时等比缩小。上限自然尺寸 1.5 倍，下限 MIN_COVER_SIZE
+  const getSectionLayout = (type: "album" | "artist", itemCount: number) => {
+    const availableWidth = getAvailableWidth();
+    const naturalCover =
+      type === "artist" ? ARTIST_AVATAR_SIZE : ALBUM_COVER_SIZE;
+    const count = Math.min(getDesiredCount(type), itemCount);
+    if (count <= 0) return { count: 0, coverSize: naturalCover };
     // 减 1px 容差，避免亚像素渲染时刚好卡边界换行
-    const shrunkCover =
-      Math.floor((availableWidth - GRID_GAP * (minCount - 1)) / minCount) - 1;
+    const filled =
+      Math.floor((availableWidth - GRID_GAP * (count - 1)) / count) - 1;
     return {
-      count: minCount,
-      coverSize: Math.max(MIN_COVER_SIZE, Math.min(shrunkCover, naturalCover)),
+      count,
+      coverSize: Math.max(
+        MIN_COVER_SIZE,
+        Math.min(filled, naturalCover * MAX_COVER_SCALE),
+      ),
     };
   };
 
-  const getPageSize = (type: "album" | "artist" | "track") => {
-    if (type === "track") {
-      const availableWidth = getAvailableWidth();
-      // Track cards: 240px width + 12px gap
-      const itemWidth = 240 + 12;
-      const itemsPerRow = Math.floor(availableWidth / itemWidth);
-      // 2 rows, so multiply by 2
-      return Math.max(6, itemsPerRow * 2);
-    }
-    return getSectionLayout(type).count;
+  // 上新单曲：与封面同一套逻辑——数量取 min(期望, 已有)，卡片宽度按每行数量均分
+  const getTrackLayout = (itemCount: number) => {
+    const availableWidth = getAvailableWidth();
+    const count = Math.min(getDesiredCount("track"), itemCount);
+    if (count <= 0) return { count: 0, cardWidth: TRACK_CARD_WIDTH };
+    const perRow = Math.max(1, Math.ceil(count / 2));
+    // 减 1px 容差，避免亚像素渲染时刚好卡边界换行
+    const filled =
+      Math.floor((availableWidth - TRACK_GRID_GAP * (perRow - 1)) / perRow) - 1;
+    return {
+      count,
+      cardWidth: Math.max(
+        MIN_TRACK_CARD_WIDTH,
+        Math.min(filled, MAX_TRACK_CARD_WIDTH),
+      ),
+    };
   };
+
+  const getPageSize = (type: "album" | "artist" | "track") =>
+    getDesiredCount(type);
 
   const loadSections = async (forceRefresh = false) => {
     try {
@@ -436,6 +476,14 @@ const Recommended: React.FC = () => {
     }
   };
 
+  // Header 刷新按钮：重新请求首页所有板块内容（绕过缓存）。
+  // 用 ref 持有最新 loadSections，避免其每次渲染变更导致反复重订阅
+  const loadSectionsRef = React.useRef(loadSections);
+  loadSectionsRef.current = loadSections;
+  useEffect(() => {
+    return onHomeRefresh(() => loadSectionsRef.current(true));
+  }, []);
+
   const refreshSection = async (sectionId: string) => {
     try {
       setRefreshing(sectionId);
@@ -584,6 +632,13 @@ const Recommended: React.FC = () => {
           </div>
 
           {section.type === "track" ? (
+            (() => {
+              // 数量取 min(期望, 已有)：宽度变小时直接取前 N 个展示，不重拉
+              const { count: trackCount, cardWidth } = getTrackLayout(
+                section.items.length,
+              );
+              const displayItems = section.items.slice(0, trackCount);
+              return (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {/* Split tracks into 2 rows */}
               {[0, 1].map((rowIndex) => (
@@ -591,13 +646,14 @@ const Recommended: React.FC = () => {
                   key={rowIndex}
                   style={{ display: "flex", gap: 16, flexWrap: "wrap" }}
                 >
-                  {section.items
+                  {displayItems
                     .filter((_, index) => index % 2 === rowIndex)
                     .map((item: any) => (
                       <div
                         key={item.id}
                         style={{
-                          width: 240,
+                          width: cardWidth,
+                          flexShrink: 0,
                           display: "flex",
                           alignItems: "center",
                           gap: 10,
@@ -806,14 +862,19 @@ const Recommended: React.FC = () => {
                 </div>
               ))}
             </div>
+              );
+            })()
           ) : (
             <Row gutter={[24, 24]}>
               {(() => {
-                // 空间不足时封面等比缩小，保证至少展示 MIN_ALBUM_COUNT/MIN_ARTIST_COUNT 个
-                const { coverSize } = getSectionLayout(
+                // 数量取 min(期望, 已有)：宽度变小时直接取前 N 个展示，不重拉；
+                // 封面尺寸按展示数量均分剩余宽度（数量不变时放大填满整行，
+                // 空间不足时缩小保证最小展示数量）
+                const { count, coverSize } = getSectionLayout(
                   section.type === "artist" ? "artist" : "album",
+                  section.items.length,
                 );
-                return section.items.map((item: any) => (
+                return section.items.slice(0, count).map((item: any) => (
                   <Col key={item.id}>
                     {section.type === "artist" ? (
                       <Flex

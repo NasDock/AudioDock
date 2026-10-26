@@ -505,7 +505,7 @@ const MemberBenefits: React.FC = () => {
   return (
     <Layout
       style={{
-        height: "100vh",
+        height: "calc(100vh - var(--titlebar-height, 0px))",
         overflow: "hidden",
         background: token.colorBgLayout,
       }}
