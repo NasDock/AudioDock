@@ -171,3 +171,86 @@
     }
   }
 }
+
+.liked {
+  color: #ff4d4f !important;
+}
+
+/* 播放队列抽屉：getContainer=false 渲染在容器内，盖满小窗 */
+.queueDrawer {
+  position: absolute;
+
+  :global {
+    .ant-drawer-content {
+      background: var(--mini-bg, transparent);
+      backdrop-filter: blur(30px);
+    }
+    .ant-drawer-header {
+      padding: 8px 12px;
+    }
+    .ant-drawer-title {
+      font-size: 13px;
+      color: var(--mini-text);
+    }
+    .ant-drawer-close {
+      color: var(--mini-text-tertiary);
+    }
+    .ant-drawer-body {
+      padding: 4px 8px;
+      overflow-y: auto;
+    }
+  }
+}
+
+.queueList {
+  display: flex;
+  flex-direction: column;
+}
+
+.queueItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--mini-rail);
+  }
+}
+
+.queueItemActive {
+  .queueItemName {
+    color: var(--mini-primary);
+  }
+}
+
+.queueCover {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.queueItemText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.queueItemName {
+  font-size: 13px;
+  color: var(--mini-text);
+}
+
+.queueItemArtist {
+  font-size: 11px;
+}
+
+.queuePlayingIcon {
+  color: var(--mini-primary);
+  flex-shrink: 0;
+}
