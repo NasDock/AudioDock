@@ -27,8 +27,7 @@ interface MiniPlayerProps {
   onRestore?: () => void;
 }
 
-const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {
-  const { token } = theme.useToken();
+const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {  const { token } = theme.useToken();
   const { t } = useTranslation();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
@@ -134,6 +133,39 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {
     const s = Math.floor(time % 60);
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
+
+  // 播放按钮 icon 用反差色：主题色偏浅时用深色 icon，否则白色。
+  // 支持 #rgb/#rrggbb/#rrggbbaa 与 rgb()/rgba() 格式。
+  const getContrastColor = (bg: string): string => {
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    const s = bg.trim();
+    if (s.startsWith("#")) {
+      const h = s.slice(1);
+      const full =
+        h.length === 3
+          ? h
+              .split("")
+              .map((c) => c + c)
+              .join("")
+          : h.slice(0, 6);
+      r = parseInt(full.slice(0, 2), 16);
+      g = parseInt(full.slice(2, 4), 16);
+      b = parseInt(full.slice(4, 6), 16);
+    } else {
+      const m = s.match(/(\d+(\.\d+)?)/g);
+      if (m && m.length >= 3) {
+        r = Number(m[0]);
+        g = Number(m[1]);
+        b = Number(m[2]);
+      }
+    }
+    if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return "#fff";
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.55 ? "rgba(0, 0, 0, 0.88)" : "#fff";
+  };
+  const playIconColor = getContrastColor(token.colorPrimary);
 
   return (
     <div
@@ -242,9 +274,9 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {
             onClick={isPlaying ? pause : play}
           >
             {isPlaying ? (
-              <PauseOutlined style={{ color: "#fff" }} />
+              <PauseOutlined style={{ color: playIconColor }} />
             ) : (
-              <CaretRightFilled style={{ color: "#fff" }} />
+              <CaretRightFilled style={{ color: playIconColor }} />
             )}
           </div>
 

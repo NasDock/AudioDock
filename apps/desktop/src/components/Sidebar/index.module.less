@@ -106,6 +106,9 @@
   // 折叠/展开过渡期间标题不换行、溢出裁剪，避免挤压换行
   overflow: hidden;
   white-space: nowrap;
+  // 禁止被 flex 压缩：overflow:hidden 会让 automatic minimum size 失效，
+  // 窗口高度过低时 header 会被压成 0（标题和折叠按钮消失在 TitleBar 下）
+  flex-shrink: 0;
 }
 
 .menuGroup {
