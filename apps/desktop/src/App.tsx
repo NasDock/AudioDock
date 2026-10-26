@@ -5,6 +5,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import Header from "./components/Header/index";
 import Player from "./components/Player/index";
 import Sidebar from "./components/Sidebar/index";
+import TitleBar from "./components/TitleBar/index";
 import { getThemeConfig } from "./config/themeConfig";
 import { MessageProvider } from "./context/MessageContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
@@ -229,8 +230,28 @@ const AppContent = () => {
       <RootWrapper mode={mode}>
         {contextHolder}
         <MessageProvider messageApi={messageApi}>
-          <Suspense fallback={<Skeleton active />}>
-            <Routes>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              height: "100vh",
+              width: "100vw",
+              backgroundColor: "transparent",
+            }}
+          >
+            {/* Win/Linux 无边框窗口的自定义标题栏（macOS 不渲染），全局路由层，
+                登录/数据源管理等未认证页面同样可用 */}
+            <TitleBar />
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <Suspense fallback={<Skeleton active />}>
+                <Routes>
               <Route path="/member-login" element={<MemberLogin />} />
 
               <>
@@ -248,8 +269,8 @@ const AppContent = () => {
                         style={{
                           display: "flex",
                           flexDirection: "column",
-                          height: "100vh",
-                          width: "100vw",
+                          height: "100%",
+                          width: "100%",
                           backgroundColor: "transparent",
                         }}
                       >
@@ -330,8 +351,10 @@ const AppContent = () => {
                   />
                 )}
               </>
-            </Routes>
-          </Suspense>
+                </Routes>
+              </Suspense>
+            </div>
+          </div>
         </MessageProvider>
       </RootWrapper>
     </ConfigProvider>

@@ -264,7 +264,12 @@ const MemberLogin: React.FC = () => {
     : "";
 
   return (
-    <Layout style={{ minHeight: "100vh", background: token.colorBgLayout }}>
+    <Layout
+      style={{
+        minHeight: "calc(100vh - var(--titlebar-height, 0px))",
+        background: token.colorBgLayout,
+      }}
+    >
       <Content className={styles.container}>
         <div
           className={styles.card}

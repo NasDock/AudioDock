@@ -89,6 +89,8 @@
     "favorites": "Favorites",
     "listened": "Listened",
     "addPlaylist": "Add Playlist",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
     "home": "Home"
   },
   "settings": {

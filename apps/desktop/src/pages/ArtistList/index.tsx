@@ -15,6 +15,7 @@ import {
 import React, { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { useAdaptiveCoverSize } from "../../hooks/useAdaptiveCoverSize";
 import { type Artist } from "../../models";
 import { useArtistListCache } from "../../store/artist";
 import { useLibraryStore } from "../../store/library";
@@ -42,6 +43,13 @@ const ArtistList: React.FC = () => {
   const { listMap, loadCountMap, scrollMap, setList, setLoadCount, setScroll } =
     useArtistListCache();
   const key = `${CACHE_KEY}_${mode}_${heartbeatModeActive ? "heartbeat" : "default"}`;
+
+  // 与首页一致的封面自适应：空间够时自然尺寸 120；放不下 5 个/行时等比缩小，保证每行至少 5 个
+  const coverSize = useAdaptiveCoverSize(scrollRef, {
+    naturalSize: 120,
+    gap: 24,
+    minCount: 5,
+  });
 
   const loadMoreArtists = async (d: Result | undefined): Promise<Result> => {
     const current = d?.loadCount || d?.loadCount === 0 ? d?.loadCount + 1 : 0;
@@ -165,7 +173,7 @@ const ArtistList: React.FC = () => {
                 <div className={styles.coverContainer}>
                   <Avatar
                     src={getCoverUrl(artist.avatar, artist.id, 300)}
-                    size={120}
+                    size={coverSize}
                     shape="circle"
                     className={styles.avatar}
                     icon={!artist.avatar && artist.name[0]}
@@ -174,7 +182,7 @@ const ArtistList: React.FC = () => {
                 <Flex
                   vertical
                   style={{
-                    width: "100px",
+                    width: coverSize,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -189,11 +197,19 @@ const ArtistList: React.FC = () => {
           {loadingMore &&
             Array.from({ length: 6 }).map((_, index) => (
               <Col key={`skeleton-${index}`}>
-                <Flex vertical align="center" className={styles.skeletonCard}>
+                <Flex
+                  vertical
+                  align="center"
+                  className={styles.skeletonCard}
+                  style={{ width: coverSize }}
+                >
                   <div className={styles.coverContainer}>
-                    <Skeleton.Avatar active size={120} shape="circle" />
+                    <Skeleton.Avatar active size={coverSize} shape="circle" />
                   </div>
-                  <div className={styles.skeletonName}>
+                  <div
+                    className={styles.skeletonName}
+                    style={{ width: coverSize }}
+                  >
                     <Skeleton.Input active size="small" style={{ width: "100%" }} />
                   </div>
                 </Flex>

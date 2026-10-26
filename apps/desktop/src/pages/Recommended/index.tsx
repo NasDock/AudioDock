@@ -186,10 +186,18 @@ const Recommended: React.FC = () => {
   const MIN_ARTIST_COUNT = 5;
   // 缩放过小的下界，极端窄窗口（如车机模式）避免封面缩到不可用
   const MIN_COVER_SIZE = 60;
+  // 上新单曲卡片：自然宽 240、间距 16（与渲染一致），每行至少 3 个，不够时等比缩小
+  const TRACK_CARD_WIDTH = 240;
+  const TRACK_GRID_GAP = 16;
+  const MIN_TRACK_COUNT = 3;
+  const MIN_TRACK_CARD_WIDTH = 160;
 
   const getAvailableWidth = () => {
+    // 实测时（containerWidth > 0）容器本身已被车机媒体栏压缩（contentColumn flex 自适应），
+    // 无需再手动扣媒体栏；仅窗口估算 fallback 才需要手动扣
+    const measured = containerWidth > 0;
     let availableWidth: number;
-    if (containerWidth > 0) {
+    if (measured) {
       // clientWidth 含 padding、不含纵向滚动条；扣掉 padding 30*2 即内容区宽度
       availableWidth = containerWidth - 60;
     } else {
@@ -198,7 +206,7 @@ const Recommended: React.FC = () => {
     }
 
     // 车机模式：扣除封面/歌词媒体栏 + 分隔把手宽度（与 CarMode 组件布局保持一致）
-    if (carModeEnabled) {
+    if (carModeEnabled && !measured) {
       const MEDIA_PADDING = 40; // .mediaColumn padding 20*2
       const HANDLE = 3; // .resizeHandle
       if (carModeMerge) {
@@ -242,14 +250,35 @@ const Recommended: React.FC = () => {
     };
   };
 
+  // 上新单曲卡片宽度：与专辑/艺术家同一套阈值逻辑——
+  // 能自然放下 >= 3 个用 240，放不下则等比缩小保证每行 3 个
+  const getTrackCardWidth = () => {
+    const availableWidth = getAvailableWidth();
+    const fitCount = Math.floor(
+      availableWidth / (TRACK_CARD_WIDTH + TRACK_GRID_GAP),
+    );
+    if (fitCount >= MIN_TRACK_COUNT) return TRACK_CARD_WIDTH;
+    // 减 1px 容差，避免亚像素渲染时刚好卡边界换行
+    const shrunk =
+      Math.floor(
+        (availableWidth - TRACK_GRID_GAP * (MIN_TRACK_COUNT - 1)) /
+          MIN_TRACK_COUNT,
+      ) - 1;
+    return Math.max(
+      MIN_TRACK_CARD_WIDTH,
+      Math.min(shrunk, TRACK_CARD_WIDTH),
+    );
+  };
+
   const getPageSize = (type: "album" | "artist" | "track") => {
     if (type === "track") {
       const availableWidth = getAvailableWidth();
-      // Track cards: 240px width + 12px gap
-      const itemWidth = 240 + 12;
-      const itemsPerRow = Math.floor(availableWidth / itemWidth);
+      const itemsPerRow = Math.max(
+        MIN_TRACK_COUNT,
+        Math.floor(availableWidth / (TRACK_CARD_WIDTH + TRACK_GRID_GAP)),
+      );
       // 2 rows, so multiply by 2
-      return Math.max(6, itemsPerRow * 2);
+      return itemsPerRow * 2;
     }
     return getSectionLayout(type).count;
   };
@@ -532,6 +561,9 @@ const Recommended: React.FC = () => {
     }
   };
 
+  // 上新单曲卡片实际宽度（随容器宽度自适应，每行至少 3 个）
+  const trackCardWidth = getTrackCardWidth();
+
   return (
     <div className={styles.container} ref={containerRef}>
       {loading ? (
@@ -597,7 +629,8 @@ const Recommended: React.FC = () => {
                       <div
                         key={item.id}
                         style={{
-                          width: 240,
+                          width: trackCardWidth,
+                          flexShrink: 0,
                           display: "flex",
                           alignItems: "center",
                           gap: 10,

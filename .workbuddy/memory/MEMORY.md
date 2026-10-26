@@ -89,6 +89,7 @@
 - **严禁在模块顶层（组件函数体外）调用任何 React hook**（如 `theme.useToken()`）→ Invalid hook call。token 需用时一律在组件函数体内取。
 - **backdrop-filter 会毁掉 position:fixed**：`.container` 这类带 `backdrop-filter` 的滚动容器会给 fixed 后代创建包含块，浮层会随内容滚动跑掉（Songs 页 floatingActions 踩过）。修法是把浮层移出该容器作兄弟节点，或去掉祖先的 backdrop-filter/transform/filter。
 - **LazyImage 的 width/height 写成内联 style，会盖掉 less 类里的尺寸**（内联优先级 > 类）。给固定尺寸封面传 `width={"100%"}` + `className={.cover 48px}` 会被撑满整行（SearchResults/MiniPlayer 踩过）。固定尺寸一律传数字 px；要让类控制尺寸须 `!important`（CarMode 做法）。
+- **封面自适应缩放统一用 `hooks/useAdaptiveCoverSize.ts`**（首页/专辑列表/艺术家列表已接入）：ResizeObserver 实测容器 clientWidth，够 minCount 个用自然尺寸（专辑 170/4 个、艺术家 120/5 个、gap 24），不够则等比缩小。注意 CarMode 的 contentColumn 是 flex 自适应，车机模式下容器 clientWidth 已含媒体栏压缩，**不要再手动扣车机栏宽**（Recommended 曾因从 window 估算迁移到实测后仍保留扣减而双重扣宽）。
 
 ## GitHub Actions (CI)
 

@@ -3,12 +3,99 @@
   background-color: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  padding: 30px 20px 20px;
+  // Win/Linux：TitleBar 组件已占顶部 36px，变量存在 → 12px，标题上移；
+  // macOS：无 TitleBar，fallback 30px 为红绿灯按钮预留位置；web 同 fallback
+  padding: var(--sidebar-top-padding, 30px) 20px 20px;
   display: flex;
   flex-direction: column;
   height: 100%;
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   -webkit-app-region: drag; // Enable window dragging
+  transition:
+    width 0.2s ease,
+    padding 0.2s ease;
+
+  &.collapsed {
+    width: 64px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+
+.collapseBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: var(--ad-home-card-hover-bg, rgba(255, 255, 255, 0.1));
+  }
+}
+
+// 注意：必须比 .header 更高优先级（.header 定义在后会覆盖同优先级规则）
+.header.headerCollapsed {
+  justify-content: center;
+}
+
+.collapsedItem {
+  justify-content: center;
+  padding: 8px 0;
+  gap: 0;
+}
+
+// 折叠态下播放列表模块的侧边弹窗（下载/收藏/听过 + 歌单）
+.playlistPopup {
+  width: 200px;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+// 弹窗顶部快捷入口区（下载/收藏/听过）
+.playlistPopupQuick {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.playlistPopupDivider {
+  height: 1px;
+  margin: 8px 0;
+  background-color: var(--ad-home-card-hover-bg, rgba(255, 255, 255, 0.1));
+}
+
+.playlistPopupHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.playlistPopupList {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.playlistPopupItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: var(--ad-home-card-hover-bg, rgba(255, 255, 255, 0.1));
+  }
 }
 
 .header {
@@ -16,6 +103,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  // 折叠/展开过渡期间标题不换行、溢出裁剪，避免挤压换行
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .menuGroup {

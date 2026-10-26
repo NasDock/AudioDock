@@ -97,6 +97,8 @@
     "favorites": "收藏",
     "listened": "听过",
     "addPlaylist": "添加播放列表",
+    "collapse": "收起侧边栏",
+    "expand": "展开侧边栏",
     "home": "首页"
   },
   "settings": {

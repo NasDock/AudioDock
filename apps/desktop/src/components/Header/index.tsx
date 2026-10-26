@@ -1,8 +1,8 @@
 import {
   AppstoreOutlined,
   AudioOutlined,
-  BorderOutlined,
-  CloseOutlined,
+  // BorderOutlined, // 已随 winControls 迁移到 TitleBar
+  // CloseOutlined, // 已随 winControls 迁移到 TitleBar
   CrownFilled,
   CrownOutlined,
   CustomerServiceOutlined,
@@ -13,7 +13,7 @@ import {
   ImportOutlined,
   LeftOutlined,
   LogoutOutlined,
-  MinusOutlined,
+  // MinusOutlined, // 已随 winControls 迁移到 TitleBar
   MoonOutlined,
   PlusOutlined,
   ReadOutlined,
@@ -82,7 +82,8 @@ import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { useSettingsStore } from "../../store/settings";
 import { isEmbySource, isSubsonicSource } from "../../utils";
-import { isTauri, isWeb, isWindows, tauriCloseWindow, tauriMaximizeWindow, tauriMinimizeWindow, tauriOpenExternal } from "../../utils/platform";
+// isWindows/tauriMinimizeWindow/tauriMaximizeWindow/tauriCloseWindow 已随 winControls 迁移到 TitleBar
+import { isTauri, isWeb, tauriOpenExternal } from "../../utils/platform";
 import { usePlayMode } from "../../utils/playMode";
 import SearchResults from "../SearchResults";
 import styles from "./index.module.less";
@@ -1397,6 +1398,7 @@ const Header: React.FC = () => {
             </div>
           </Flex>
         </Popover>
+        {/* 窗口控制按钮已迁移到 Header 上方的 TitleBar 组件（components/TitleBar），此处注释保留以便恢复
         {isWindows() && (
           <Flex className={styles.winControls}>
             <div
@@ -1419,6 +1421,7 @@ const Header: React.FC = () => {
             </div>
           </Flex>
         )}
+        */}
       </div>
       {contextHolder}
       <Modal
