@@ -1,5 +1,9 @@
 # AudioDock 项目长期记忆
 
+## 版本更新弹窗平台过滤（2026-10-26）
+- Release body 用 conventional commit scope 标记目标端：无 scope=全端；`feat(mobile)`=仅 mobile；`feat(api)`=仅服务端。三端各自 `classifyRelease(body, platform)`：本端/无 scope→正常弹更新；仅服务端 scope→弹「服务端更新提醒」单按钮视图；仅其他端→不弹窗当已最新；body 无法识别→兜底按全端弹（保持旧行为）。产品动态页不过滤。
+- scope 别名表（改动需三端同步）：desktop/electron、mobile/android/ios、hm/harmony/harmonyos/ohos；服务端 api/server/backend/service/services。实现位置：desktop/mobile `hooks/useCheckUpdate.ts`，hm `services/updateService.ets`（ArkTS 版禁 Record 索引用 if/else）。
+
 ## 设备标识（deviceId）规范
 - deviceId 必须确定性：`computeDeviceId` = md5(clientType␟osName␟osVersion␟brand␟manufacturer␟model␟deviceName) 前12位+端前缀，算法在 `packages/ws/src/deviceId.ts`，改动五端同步。禁止 `xxx_${Date.now()}` 随机 ID（2026-09-21 流转 device_offline 根因）。
 - desktop：WS/Login 必用 async `computeStableDeviceId`；hm 用 cryptoFramework MD5+deviceInfo。

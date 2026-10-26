@@ -21,6 +21,36 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ visible, updateInfo, onCancel
   if (!updateInfo) return null;
   const isWebRuntime = isWeb();
 
+  // 仅服务端更新：简化提醒视图，单按钮关闭，无下载入口
+  if (updateInfo.serverOnly) {
+    return (
+      <Modal
+        title={t('updateModal.serverNoticeTitle')}
+        open={visible}
+        onCancel={onCancel}
+        footer={[
+          <Button key="ok" type="primary" onClick={onCancel}>
+            {t('common.ok')}
+          </Button>,
+        ]}
+      >
+        <Paragraph>
+          <Text type="secondary">
+            {t('updateModal.serverNoticeBody', { version: updateInfo.version })}
+          </Text>
+        </Paragraph>
+        <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '10px 0' }}>
+          <Paragraph>
+            <Text strong>{t('updateModal.updateContent')}</Text>
+          </Paragraph>
+          <div style={{ lineHeight: '1.6' }}>
+            <MarkdownContent>{updateInfo.body}</MarkdownContent>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
   const handleDownload = () => {
     if (updateInfo.downloadUrl) {
         if (isTauri()) {

@@ -14,7 +14,7 @@ import { getInternalQuality, getExternalQuality } from '../services/trackQuality
 import { applySystemBar } from '../services/systemBar';
 import { openInBrowser, jumpToAppMarket } from '../utils/browserUtils';
 import { plusApi, setPlusAuthToken } from 'features_network';
-import { getLatestVersion, fetchReleaseBody, compareVersions } from '../services/updateService';
+import { getLatestVersion, fetchReleaseBody, compareVersions, classifyRelease } from '../services/updateService';
 
 // 设置项开关行：独立子组件，刻意不用 @Builder。
 // 本页踩坑记录（提交 1c419826 起的四轮修复）证明：@Builder 按值内联展开后，
@@ -1281,6 +1281,24 @@ struct SettingsPage {
       if (compareVersions(latestTag, localVer) > 0) {
         const info = await fetchReleaseBody(latestTag);
         const body: string = info?.body ?? '';
+        // 按平台过滤 changelog：仅服务端更新时只弹提醒；与 hm 无关时当作"已是最新"
+        const target = classifyRelease(body, 'hm');
+        if (target === 'none') {
+          promptAction.showToast({ message: t('settings.upToDate') });
+          return;
+        }
+        if (target === 'server') {
+          promptAction.showDialog({
+            title: t('settings.serverUpdateTitle'),
+            message: t('settings.serverUpdateMessage', [['version', latestTag]]),
+            buttons: [
+              { text: t('common.close'), color: this.theme.colors.primary },
+            ],
+          }).catch((e: Error): void => {
+            Logger.w('SettingsPage', `server update dialog failed: ${String(e)}`);
+          });
+          return;
+        }
         promptAction.showDialog({
           title: t('settings.updateAvailable', [['version', latestTag]]),
           message: body.length > 0 ? body : latestTag,

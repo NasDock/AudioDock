@@ -1053,7 +1053,9 @@
     "updateLater": "Update later",
     "goToDownload": "Go to download",
     "webUpdateNote": "For Web version, please update via Docker image update service. Desktop client does not need to download installation package.",
-    "updateContent": "Update content:"
+    "updateContent": "Update content:",
+    "serverNoticeTitle": "Server Update Notice",
+    "serverNoticeBody": "A new server version {{version}} has been released. This release only updates the server; no client upgrade is required. Please update your server to get the latest features and fixes."
   },
   "sourceManage": {
     "selectType": "Select data source type",
@@ -1693,7 +1695,10 @@
     "later": "Later",
     "checking": "Checking for updates...",
     "checkUpdate": "Check for Updates",
-    "checkUpdateDescription": "Check if a new version is available"
+    "checkUpdateDescription": "Check if a new version is available",
+    "serverNoticeTitle": "Server Update Notice",
+    "serverNoticeBody": "A new server version has been released. This release only updates the server; no client upgrade is required. Please update your server to get the latest features and fixes.",
+    "serverNoticeConfirm": "Got it"
   },
   "playerMore": {
     "moreOptions": "More Options",

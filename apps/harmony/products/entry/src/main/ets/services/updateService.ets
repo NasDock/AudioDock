@@ -21,6 +21,66 @@ export interface UpdateInfo {
   htmlUrl: string;
 }
 
+/** 更新目标分类：app=当前端有更新；server=仅服务端更新；none=与当前端无关 */
+export type ReleaseTarget = 'app' | 'server' | 'none';
+
+/** 服务端 scope：命中且当前端无更新时只弹「服务端更新提醒」 */
+const SERVER_SCOPES: string[] = ['api', 'server', 'backend', 'service', 'services'];
+
+/** 各端在 conventional commit scope 中的别名（避免 Record 索引访问，ArkTS strict 限制） */
+function platformScopes(platform: string): string[] {
+  if (platform === 'desktop') {
+    return ['desktop', 'electron'];
+  }
+  if (platform === 'mobile') {
+    return ['mobile', 'android', 'ios'];
+  }
+  return ['hm', 'harmony', 'harmonyos', 'ohos'];
+}
+
+/**
+ * 按 conventional commit scope 过滤 Release body，判断该版本与当前端的关系：
+ * - 无 scope（如 `feat: xxx`）视为全端更新 → app
+ * - 命中当前端 scope（如 `feat(hm): xxx`）→ app
+ * - 仅命中服务端 scope（如 `feat(api): xxx`）→ server
+ * - 仅命中其他端 scope → none（当前端不弹窗）
+ * - body 完全不符合该格式（无法识别）→ 兜底按 app 处理，保持旧行为
+ */
+export function classifyRelease(body: string, platform: string): ReleaseTarget {
+  const lineRe = new RegExp('^\\s*[-*]?\\s*(feat|fix|perf|refactor|revert|chore|docs|style|test|build|ci)(?:\\(([^)]*)\\))?\\s*[:：]', 'i');
+  const aliases: string[] = platformScopes(platform);
+  let matched = false;
+  let hasUnscoped = false;
+  let hasPlatform = false;
+  let hasServer = false;
+  const lines: string[] = body.split('\n');
+  for (const line of lines) {
+    const m: RegExpMatchArray | null = line.match(lineRe);
+    if (!m) {
+      continue;
+    }
+    matched = true;
+    const scope: string = m[2] ? m[2].trim().toLowerCase() : '';
+    if (scope.length === 0) {
+      hasUnscoped = true;
+    } else if (aliases.includes(scope)) {
+      hasPlatform = true;
+    } else if (SERVER_SCOPES.includes(scope)) {
+      hasServer = true;
+    }
+  }
+  if (!matched) {
+    return 'app';
+  }
+  if (hasUnscoped || hasPlatform) {
+    return 'app';
+  }
+  if (hasServer) {
+    return 'server';
+  }
+  return 'none';
+}
+
 /** fetchRaw 内部返回结构：HTTP status code + 响应原始文本。 */
 interface FetchRawResp {
   status: number;

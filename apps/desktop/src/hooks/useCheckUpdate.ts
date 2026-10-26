@@ -10,6 +10,54 @@ export interface UpdateInfo {
   body: string;
   downloadUrl: string;
   assets: any[];
+  /** true = 本次发布仅服务端（api）更新，客户端无需升级，只弹提醒 */
+  serverOnly?: boolean;
+}
+
+/** 更新目标分类：app=当前端有更新；server=仅服务端更新；none=与当前端无关 */
+export type ReleaseTarget = 'app' | 'server' | 'none';
+
+/** 各端在 conventional commit scope 中的别名 */
+const PLATFORM_SCOPES: Record<string, string[]> = {
+  desktop: ['desktop', 'electron'],
+  mobile: ['mobile', 'android', 'ios'],
+  hm: ['hm', 'harmony', 'harmonyos', 'ohos'],
+};
+/** 服务端 scope：命中且当前端无更新时只弹「服务端更新提醒」 */
+const SERVER_SCOPES = ['api', 'server', 'backend', 'service', 'services'];
+
+/**
+ * 按 conventional commit scope 过滤 Release body，判断该版本与当前端的关系：
+ * - 无 scope（如 `feat: xxx`）视为全端更新 → app
+ * - 命中当前端 scope（如 `feat(desktop): xxx`）→ app
+ * - 仅命中服务端 scope（如 `feat(api): xxx`）→ server
+ * - 仅命中其他端 scope → none（当前端不弹窗）
+ * - body 完全不符合该格式（无法识别）→ 兜底按 app 处理，保持旧行为
+ */
+export function classifyRelease(body: string, platform: 'desktop' | 'mobile' | 'hm'): ReleaseTarget {
+  const lineRe = /^\s*[-*]?\s*(feat|fix|perf|refactor|revert|chore|docs|style|test|build|ci)(?:\(([^)]*)\))?\s*[:：]/i;
+  let matched = false;
+  let hasUnscoped = false;
+  let hasPlatform = false;
+  let hasServer = false;
+  const aliases = PLATFORM_SCOPES[platform] || [];
+  for (const line of body.split('\n')) {
+    const m = line.match(lineRe);
+    if (!m) continue;
+    matched = true;
+    const scope = m[2] ? m[2].trim().toLowerCase() : '';
+    if (!scope) {
+      hasUnscoped = true;
+    } else if (aliases.includes(scope)) {
+      hasPlatform = true;
+    } else if (SERVER_SCOPES.includes(scope)) {
+      hasServer = true;
+    }
+  }
+  if (!matched) return 'app';
+  if (hasUnscoped || hasPlatform) return 'app';
+  if (hasServer) return 'server';
+  return 'none';
 }
 
 export const useCheckUpdate = () => {
@@ -25,6 +73,23 @@ export const useCheckUpdate = () => {
       const localVersion = pkg.version;
 
       if (remoteVersion && compareVersions(remoteVersion, localVersion) > 0) {
+        // 按平台过滤 changelog：仅服务端更新时只弹提醒；与当前端无关时不弹窗
+        const target = classifyRelease(data.body || '', 'desktop');
+        if (target === 'none') {
+          console.log(`Version ${remoteVersion} has no desktop-related changes, skip popup`);
+          return;
+        }
+        if (target === 'server') {
+          setUpdateInfo({
+            version: remoteVersion,
+            body: data.body || '',
+            downloadUrl: "",
+            assets: [],
+            serverOnly: true,
+          });
+          return;
+        }
+
         if (isWeb()) {
           setUpdateInfo({
             version: remoteVersion,

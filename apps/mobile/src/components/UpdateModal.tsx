@@ -100,6 +100,38 @@ export const UpdateModal = ({
                 </Text>
               </TouchableOpacity>
             </>
+          ) : updateInfo?.serverOnly ? (
+            <>
+              <Text style={[styles.title, { color: colors.text }]}>
+                {t('update.serverNoticeTitle')}
+              </Text>
+
+              <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+                <Text style={[styles.serverNoticeBody, { color: colors.secondary }]}>
+                  {t('update.serverNoticeBody')}
+                </Text>
+                <MarkdownContent
+                  style={{
+                    body: { color: colors.text, fontSize: 14, lineHeight: 22 },
+                    bullet_list: { marginVertical: 6 },
+                    list_item: { marginVertical: 2 },
+                    link: { color: colors.primary },
+                  }}
+                >
+                  {updateInfo.body}
+                </MarkdownContent>
+              </ScrollView>
+
+              <TouchableOpacity
+                style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+                activeOpacity={0.8}
+                onPress={onIgnore}
+              >
+                <Text style={[styles.primaryButtonText, { color: colors.background }]}>
+                  {t('update.serverNoticeConfirm')}
+                </Text>
+              </TouchableOpacity>
+            </>
           ) : updateInfo ? (
             <>
               <Text style={[styles.title, { color: colors.text }]}>
@@ -212,6 +244,11 @@ const styles = StyleSheet.create({
   body: {
     maxHeight: 360,
     marginBottom: 20,
+  },
+  serverNoticeBody: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 10,
   },
   progressContainer: {
     marginBottom: 12,
