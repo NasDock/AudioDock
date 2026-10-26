@@ -640,11 +640,11 @@ const Recommended: React.FC = () => {
               const displayItems = section.items.slice(0, trackCount);
               return (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {/* Split tracks into 2 rows */}
+              {/* Split tracks into 2 rows：nowrap 禁止换行，宽度由 getTrackLayout 均分好 */}
               {[0, 1].map((rowIndex) => (
                 <div
                   key={rowIndex}
-                  style={{ display: "flex", gap: 16, flexWrap: "wrap" }}
+                  style={{ display: "flex", gap: 16, flexWrap: "nowrap" }}
                 >
                   {displayItems
                     .filter((_, index) => index % 2 === rowIndex)
@@ -653,6 +653,9 @@ const Recommended: React.FC = () => {
                         key={item.id}
                         style={{
                           width: cardWidth,
+                          // 关键：ant 没有全局 border-box reset，默认 content-box 会让
+                          // 实际宽度 = cardWidth + padding*2，整行溢出导致换行
+                          boxSizing: "border-box",
                           flexShrink: 0,
                           display: "flex",
                           alignItems: "center",
