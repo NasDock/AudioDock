@@ -18,7 +18,8 @@ import LazyImage from "../LazyImage";
 import { useTranslation } from "react-i18next";
 import type { Track } from "../../models";
 import { resolveArtworkUri } from "../../services/trackResolver";
-import { isTauri } from "../../utils/platform";
+import { isMac, isTauri } from "../../utils/platform";
+import { useSettingsStore } from "../../store/settings";
 import styles from "./index.module.less";
 
 const { Text } = Typography;
@@ -51,8 +52,9 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {  const { toke
         if (state) {
           setIsPlaying(state.isPlaying);
           setCurrentTrack(state.track);
-          if (state.currentTime !== undefined) setCurrentTime(state.currentTime);
-          if (state.duration !== undefined) setDuration(state.duration);
+          // 注意：Rust 侧 AppState.player_state 从未被写入，currentTime/duration
+          // 恒为 null，不能用（还会覆盖 request-state 回推的正确进度）。
+          // 进度由下方的 player:request-state 回推 + timeupdate 推送提供。
         }
       } catch (e) {
         console.error("Failed to get player state:", e);
@@ -63,6 +65,7 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {  const { toke
 
     let unlistenUpdate: (() => void) | undefined;
     let unlistenLyric: (() => void) | undefined;
+    let unlistenTheme: (() => void) | undefined;
 
     listen("player:update", (event: any) => {
       const payload = event.payload;
@@ -81,9 +84,22 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {  const { toke
       if (payload.currentLyric) setCurrentLyric(payload.currentLyric);
     }).then((fn) => { unlistenLyric = fn; });
 
+    // 主窗口切换主题时同步（settings 只在加载时从 localStorage 读一次，
+    // 运行中不跨窗口自动同步）
+    listen("theme:update", (event: any) => {
+      const nextTheme = event.payload?.theme;
+      if (nextTheme) {
+        useSettingsStore.getState().updateGeneral("theme", nextTheme);
+      }
+    }).then((fn) => { unlistenTheme = fn; });
+
+    // 主窗口暂停时不会推 timeupdate，主动请求一次全量状态（含进度）
+    emitTo("main", "player:request-state").catch(() => {});
+
     return () => {
       if (unlistenUpdate) unlistenUpdate();
       if (unlistenLyric) unlistenLyric();
+      if (unlistenTheme) unlistenTheme();
     };
   }, []);
 
@@ -134,12 +150,8 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {  const { toke
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  // 播放按钮 icon 用反差色：主题色偏浅时用深色 icon，否则白色。
-  // 支持 #rgb/#rrggbb/#rrggbbaa 与 rgb()/rgba() 格式。
-  const getContrastColor = (bg: string): string => {
-    let r = 0;
-    let g = 0;
-    let b = 0;
+  // 解析 #rgb/#rrggbb/#rrggbbaa 与 rgb()/rgba() 为 [r, g, b]。
+  const parseColor = (bg: string): [number, number, number] | null => {
     const s = bg.trim();
     if (s.startsWith("#")) {
       const h = s.slice(1);
@@ -150,27 +162,54 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {  const { toke
               .map((c) => c + c)
               .join("")
           : h.slice(0, 6);
-      r = parseInt(full.slice(0, 2), 16);
-      g = parseInt(full.slice(2, 4), 16);
-      b = parseInt(full.slice(4, 6), 16);
-    } else {
-      const m = s.match(/(\d+(\.\d+)?)/g);
-      if (m && m.length >= 3) {
-        r = Number(m[0]);
-        g = Number(m[1]);
-        b = Number(m[2]);
-      }
+      const r = parseInt(full.slice(0, 2), 16);
+      const g = parseInt(full.slice(2, 4), 16);
+      const b = parseInt(full.slice(4, 6), 16);
+      return [r, g, b];
     }
-    if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return "#fff";
+    const m = s.match(/(\d+(\.\d+)?)/g);
+    if (m && m.length >= 3) {
+      return [Number(m[0]), Number(m[1]), Number(m[2])];
+    }
+    return null;
+  };
+
+  // 播放按钮 icon 用反差色：主题色偏浅时用深色 icon，否则白色。
+  const getContrastColor = (bg: string): string => {
+    const rgb = parseColor(bg);
+    if (!rgb || rgb.some((n) => Number.isNaN(n))) return "#fff";
+    const [r, g, b] = rgb;
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     return luminance > 0.55 ? "rgba(0, 0, 0, 0.88)" : "#fff";
   };
+
+  // 主题色加透明度（播放按钮阴影用），解析失败时退回中性阴影。
+  const withAlpha = (bg: string, alpha: number): string => {
+    const rgb = parseColor(bg);
+    if (!rgb || rgb.some((n) => Number.isNaN(n))) return `rgba(0, 0, 0, ${alpha})`;
+    return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+  };
+
   const playIconColor = getContrastColor(token.colorPrimary);
 
   return (
     <div
       className={styles.container}
-      style={{ backgroundColor: token.colorBgContainer }}
+      // macOS 窗口带 popover 材质（毛玻璃），容器背景必须透明才能透出；
+      // Windows/Linux 为不透明窗口，用主题容器色填充（与主窗口背景一致）。
+      //
+      // 主题未启用 antd cssVar，less 里无法直接引用 --ant-* 变量，
+      // 这里把组件需要的主题 token 以 --mini-* CSS 变量注入，明暗主题自动适配。
+      style={
+        {
+          backgroundColor: isMac() ? "transparent" : token.colorBgContainer,
+          "--mini-text": token.colorText,
+          "--mini-text-tertiary": token.colorTextTertiary,
+          "--mini-primary": token.colorPrimary,
+          "--mini-primary-shadow": withAlpha(token.colorPrimary, 0.3),
+          "--mini-rail": token.colorFillSecondary,
+        } as React.CSSProperties
+      }
     >
       {/* Top Bar: Window Actions */}
       <div className={styles.topBar}>

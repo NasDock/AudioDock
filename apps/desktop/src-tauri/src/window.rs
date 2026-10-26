@@ -92,20 +92,40 @@ impl<'a> WindowManager<'a> {
             return Ok(());
         }
 
-        // 对齐 Electron createMiniPlayerWindow：frameless + transparent + 无阴影。
-        let window =
+        // 背景与主窗口对齐：
+        // - macOS：透明窗口 + popover 材质（毛玻璃），同主窗口 tauri.conf.json 的 windowEffects，
+        //   前端容器背景设为透明让 vibrancy 透出。
+        // - Windows/Linux：不透明纯色窗口（WebView2 透明 + 无装饰在 win 上会直接透视桌面），
+        //   背景色由前端 token.colorBgContainer 填充，与主窗口 transparent:false 行为一致。
+        let mut builder =
             WebviewWindowBuilder::new(self.app, "mini", WebviewUrl::App("index.html#/mini".into()))
                 .title("Mini Player")
                 .inner_size(360.0, 170.0)
                 .decorations(false)
-                .transparent(true)
-                .shadow(false)
                 .resizable(false)
                 .always_on_top(true)
                 .skip_taskbar(true)
-                .visible(true)
-                .build()
-                .map_err(|e| e.to_string())?;
+                .visible(true);
+
+        #[cfg(target_os = "macos")]
+        {
+            builder = builder
+                .transparent(true)
+                .shadow(false)
+                .effects(
+                    tauri::window::EffectsBuilder::new()
+                        .effect(tauri::window::Effect::Popover)
+                        .state(tauri::window::EffectState::Active)
+                        .build(),
+                );
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            builder = builder.transparent(false);
+        }
+
+        let window = builder.build().map_err(|e| e.to_string())?;
         let _ = window.set_focus();
 
         #[cfg(target_os = "macos")]

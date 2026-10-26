@@ -1027,6 +1027,12 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
             cover: coverUri,
           },
         }).catch(console.error);
+        // 同步进度给 mini 小窗（其进度条完全依赖 player:update 事件；
+        // mini 未打开时 emitTo 会 reject，静默忽略避免刷屏）。
+        emitTo("mini", "player:update", {
+          currentTime: time,
+          duration,
+        }).catch(() => {});
         lastTimeUpdateRef.current = now;
       }
 
@@ -1289,10 +1295,35 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
       unlistenPrev = fn;
     });
 
+    // mini 窗口打开时回推一次全量状态（含进度），弥补 get_player_state
+    // 的 Rust 侧 player_state 从未被写入、恒为默认值的问题。
+    let unlistenRequest: (() => void) | undefined;
+    listen("player:request-state", () => {
+      const s = usePlayerStore.getState();
+      const t = s.currentTrack;
+      emitTo("mini", "player:update", {
+        isPlaying: s.isPlaying,
+        currentTime: s.currentTime,
+        duration: s.duration,
+        track: t
+          ? {
+              id: t.id,
+              name: t.name,
+              artist: t.artist,
+              album: t.albumEntity?.name || t.album,
+              cover: t.cover,
+            }
+          : null,
+      }).catch(() => {});
+    }).then((fn) => {
+      unlistenRequest = fn;
+    });
+
     return () => {
       if (unlistenToggle) unlistenToggle();
       if (unlistenNext) unlistenNext();
       if (unlistenPrev) unlistenPrev();
+      if (unlistenRequest) unlistenRequest();
     };
   }, []); // 空依赖数组，只在组件挂载时注册一次
 
@@ -1300,8 +1331,12 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
   // the system tray (via Rust command) and to mini/lyric windows (via emitTo).
   useEffect(() => {
     if (!isTauri()) return;
+    // 进度取现场值（闭包里的 currentTime/duration 可能是上一首的）
+    const s = usePlayerStore.getState();
     const payload = {
       isPlaying,
+      currentTime: s.currentTime,
+      duration: s.duration,
       track: currentTrack
         ? {
             id: currentTrack.id,
