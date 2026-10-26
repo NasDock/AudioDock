@@ -85,6 +85,7 @@ import { isEmbySource, isSubsonicSource } from "../../utils";
 // isWindows/tauriMinimizeWindow/tauriMaximizeWindow/tauriCloseWindow 已随 winControls 迁移到 TitleBar
 import { isTauri, isWeb, tauriOpenExternal } from "../../utils/platform";
 import { usePlayMode } from "../../utils/playMode";
+import { requestHomeRefresh } from "../../utils/refreshHome";
 import SearchResults from "../SearchResults";
 import styles from "./index.module.less";
 
@@ -893,7 +894,7 @@ const Header: React.FC = () => {
           </Tooltip>
           <Tooltip title={t("header.refresh")}>
             <ReloadOutlined
-              onClick={() => window.location.reload()}
+              onClick={() => requestHomeRefresh()}
               className={styles.navIcon}
               style={iconStyle}
             />

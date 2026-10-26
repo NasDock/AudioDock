@@ -13,10 +13,16 @@ interface AdaptiveCoverOptions {
   minSize?: number;
 }
 
+/** 均分放大上限：自然尺寸的 1.5 倍，与首页（Recommended）MAX_COVER_SCALE 一致，
+ *  避免超宽窗口下封面被拉得过大 */
+const MAX_COVER_SCALE = 1.5;
+
 /**
  * 与首页（Recommended）一致的封面自适应缩放方案：
- * - 容器能自然放下 >= minCount 个时，用自然尺寸；
- * - 放不下时封面等比缩小，保证每行至少展示 minCount 个。
+ * - 每行展示数量 = max(能放下的个数, minCount)；
+ * - 放不下 minCount 个时封面等比缩小，保证每行至少展示 minCount 个；
+ * - 剩余空间不足以新增一个时，本行元素按数量均分剩余宽度（放大填满整行），
+ *   上限为自然尺寸的 1.5 倍。
  *
  * 宽度通过 ResizeObserver 实测容器 clientWidth（不含纵向滚动条，
  * 车机模式下容器本身会被压缩，无需再手动扣媒体栏宽度），
@@ -53,10 +59,13 @@ export function useAdaptiveCoverSize(
       : window.innerWidth - 200 - padding;
 
   const fitCount = Math.floor(availableWidth / (naturalSize + gap));
-  if (fitCount >= minCount) return naturalSize;
+  const count = Math.max(fitCount, minCount);
 
-  // 减 1px 容差，避免亚像素渲染时刚好卡边界换行
-  const shrunk =
-    Math.floor((availableWidth - gap * (minCount - 1)) / minCount) - 1;
-  return Math.max(minSize, Math.min(shrunk, naturalSize));
+  // 按每行数量均分剩余宽度；减 1px 容差，避免亚像素渲染时刚好卡边界换行
+  const filled =
+    Math.floor((availableWidth - gap * (count - 1)) / count) - 1;
+  return Math.max(
+    minSize,
+    Math.min(filled, Math.floor(naturalSize * MAX_COVER_SCALE)),
+  );
 }

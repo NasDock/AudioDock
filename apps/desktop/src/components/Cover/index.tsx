@@ -88,11 +88,17 @@ const Cover: CoverComponent = ({
     }
     return 170;
   }, [size]);
+  // 请求宽度 sticky 取历史最大值：缩放变小时不降级 URL（复用已缓存的大图，
+  // 显示尺寸由 CSS 控制），避免 src 变化引起图片重载；变大跨档时才升级请求
+  const [requestWidth, setRequestWidth] = useState(displayWidth);
+  useEffect(() => {
+    setRequestWidth((prev) => (displayWidth > prev ? displayWidth : prev));
+  }, [displayWidth]);
   const coverSrc = useMemo(
     () =>
-      resolveArtworkUri(item as any, { width: displayWidth, format: "webp", quality: 75 }) ||
-      `https://picsum.photos/seed/${item.id}/${displayWidth}/${displayWidth}`,
-    [item, displayWidth],
+      resolveArtworkUri(item as any, { width: requestWidth, format: "webp", quality: 75 }) ||
+      `https://picsum.photos/seed/${item.id}/${requestWidth}/${requestWidth}`,
+    [item, requestWidth],
   );
 
   useEffect(() => {
