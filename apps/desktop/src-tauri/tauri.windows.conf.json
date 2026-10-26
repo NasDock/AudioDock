@@ -3,7 +3,8 @@
     "windows": [
       {
         "decorations": false,
-        "titleBarStyle": "Visible"
+        "titleBarStyle": "Visible",
+        "transparent": false
       }
     ]
   }

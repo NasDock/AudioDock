@@ -284,14 +284,24 @@ pub fn get_player_state(state: State<'_, AppState>) -> Result<PlayerStatePayload
 
 #[tauri::command]
 pub fn show_main_window(app: AppHandle) {
+    // 对齐 Electron window:restore-main：mini 与主窗口始终二选一，
+    // 回到主窗口时先关闭 mini。
+    if let Some(mini) = app.get_webview_window("mini") {
+        let _ = mini.close();
+    }
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
+        let _ = window.unminimize();
         let _ = window.set_focus();
     }
 }
 
+// 注意：窗口创建命令必须是 async —— Tauri 的同步 command 在主线程的
+// WebView2 IPC 回调里直接执行，此时同步等待新 webview 初始化会卡死整个
+// 事件循环（症状：新窗口白屏 + 主窗口所有点击失效）。async command 在
+// 运行时线程池执行，build() 通过事件循环代理与主线程协作，不会死锁。
 #[tauri::command]
-pub fn create_lyric_window(
+pub async fn create_lyric_window(
     app: AppHandle,
     settings: Option<LyricSettingsPayload>,
 ) -> Result<(), String> {
@@ -300,9 +310,15 @@ pub fn create_lyric_window(
 }
 
 #[tauri::command]
-pub fn create_mini_window(app: AppHandle) -> Result<(), String> {
+pub async fn create_mini_window(app: AppHandle) -> Result<(), String> {
     let window_manager = WindowManager::new(&app);
-    window_manager.create_mini_window()
+    window_manager.create_mini_window()?;
+    // 对齐 Electron window:set-mini：mini 与主窗口始终二选一，
+    // mini 打开后隐藏主窗口。
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.hide();
+    }
+    Ok(())
 }
 
 #[tauri::command]

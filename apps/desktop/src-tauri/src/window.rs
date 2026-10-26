@@ -82,23 +82,31 @@ impl<'a> WindowManager<'a> {
     }
 
     pub fn create_mini_window(&self) -> Result<(), String> {
+        // 已存在就 show + focus 复用，不要 close 后立刻以同 label 重建 ——
+        // close 事件异步处理，重建会与之竞争（label 冲突 / 新 webview 加载异常）。
         if let Some(existing) = self.app.get_webview_window("mini") {
-            let _ = existing.close();
+            let _ = existing.show();
+            let _ = existing.set_focus();
+            let _ = existing.unminimize();
+            let _ = existing.set_always_on_top(true);
+            return Ok(());
         }
 
-        // window 仅在 macOS 分支使用（set_always_on_top），其它平台告警关闭
-        #[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
+        // 对齐 Electron createMiniPlayerWindow：frameless + transparent + 无阴影。
         let window =
             WebviewWindowBuilder::new(self.app, "mini", WebviewUrl::App("index.html#/mini".into()))
                 .title("Mini Player")
                 .inner_size(360.0, 170.0)
                 .decorations(false)
+                .transparent(true)
+                .shadow(false)
                 .resizable(false)
                 .always_on_top(true)
                 .skip_taskbar(true)
                 .visible(true)
                 .build()
                 .map_err(|e| e.to_string())?;
+        let _ = window.set_focus();
 
         #[cfg(target_os = "macos")]
         {

@@ -40,8 +40,8 @@ use windows::Win32::UI::Shell::{
     THBF_ENABLED, THB_FLAGS, THB_ICON, THB_TOOLTIP, THUMBBUTTON,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateIconIndirect, DestroyIcon, GetClientRect, SendMessageW, HICON, ICONINFO, WM_COMMAND,
-    WM_DESTROY, WM_SETTINGCHANGE,
+    CreateIconIndirect, DestroyIcon, GetClientRect, RegisterWindowMessageW, SendMessageW, HICON,
+    ICONINFO, WM_COMMAND, WM_DESTROY, WM_SETTINGCHANGE,
 };
 
 use crate::tray;
@@ -64,6 +64,21 @@ const WM_DWMSENDICONICLIVEPREVIEWBITMAP: u32 = 0x0326;
 
 /// subclass id（本进程内唯一即可）。
 const SUBCLASS_ID: usize = 0x7462_0001;
+
+/// `RegisterWindowMessageW("TaskbarButtonCreated")` 的返回值：
+/// 资源管理器给窗口建好任务栏按钮后广播该消息，只有收到它之后
+/// `ThumbBarAddButtons` 才会成功（setup 阶段调用往往过早 → 静默失败）。
+/// Explorer 重启后会再次广播，需要重新 Add。
+fn taskbar_button_created_msg() -> u32 {
+    static MSG: OnceLock<u32> = OnceLock::new();
+    *MSG.get_or_init(|| unsafe {
+        let name: Vec<u16> = "TaskbarButtonCreated"
+            .encode_utf16()
+            .chain(std::iter::once(0))
+            .collect();
+        RegisterWindowMessageW(PCWSTR(name.as_ptr()))
+    })
+}
 
 /// 缩略图按钮点击通知码（winuser/commctrl 的 THBN_CLICKED）。
 const THBN_CLICKED: u32 = 0x1800;
@@ -100,6 +115,9 @@ struct TaskbarState {
     taskbar: Option<ITaskbarList3>,
     /// DWM 是否请求过缩略图（没有请求过就不必 invalidate）。
     thumb_requested: bool,
+    /// ThumbBarAddButtons 是否已成功（该接口在任务栏按钮创建前调用会失败，
+    /// 且每窗口只能成功调用一次，之后只能 ThumbBarUpdateButtons）。
+    buttons_added: bool,
 }
 
 // HWND/HICON 是裸指针句柄、ITaskbarList3 是 COM 接口，windows-rs 均未实现 Send，
@@ -126,6 +144,7 @@ fn state() -> &'static Mutex<TaskbarState> {
             icons: None,
             taskbar: None,
             thumb_requested: false,
+            buttons_added: false,
         })
     })
 }
@@ -194,8 +213,12 @@ pub fn init(window: &WebviewWindow) {
         }
     }
 
-    // 窗口线程上直接加按钮（ThumbBarAddButtons 只能加一次，之后只能 Update）。
+    // 窗口线程上尝试加按钮（此时任务栏按钮多半还没建好，大概率失败，
+    // 真正的兜底在 subclass 收到 TaskbarButtonCreated / 首次缩略图请求时重试）。
     add_thumb_buttons();
+
+    // 触发一次注册（幂等），确保消息 id 已就绪。
+    let _ = taskbar_button_created_msg();
 }
 
 /// 播放状态/封面变化时由 tray::update_player_state 调用（任意线程）。
@@ -264,6 +287,12 @@ unsafe extern "system" fn subclass_proc(
     _uidata: usize,
     _dwrefdata: usize,
 ) -> LRESULT {
+    // Explorer 建好（或重启后重建）任务栏按钮时广播：重置标记并重新 Add。
+    if msg == taskbar_button_created_msg() {
+        state().lock().unwrap().buttons_added = false;
+        add_thumb_buttons();
+        return DefSubclassProc(hwnd, msg, wparam, lparam);
+    }
     match msg {
         WM_APP_TASKBAR_REFRESH => {
             update_thumb_buttons();
@@ -286,6 +315,8 @@ unsafe extern "system" fn subclass_proc(
             LRESULT(0)
         }
         WM_DWMSENDICONICTHUMBNAIL => {
+            // 悬停触发缩略图请求时任务栏按钮必然已存在：兜底补加播控按钮。
+            add_thumb_buttons();
             // HIWORD(lParam)=宽, LOWORD(lParam)=高（请求的上限尺寸）。
             let w = ((lparam.0 >> 16) & 0xffff).max(1) as u32;
             let h = (lparam.0 & 0xffff).max(1) as u32;
@@ -390,23 +421,38 @@ fn tip(text: &str) -> [u16; 260] {
     buf
 }
 
-/// 窗口线程：把 3 个播控按钮加进缩略图（只可调用一次）。
+/// 窗口线程：把 3 个播控按钮加进缩略图。
+/// 只能成功一次（内部用 buttons_added 去重）；在任务栏按钮建好前调用会失败，
+/// 失败后保持 buttons_added=false，等 TaskbarButtonCreated / 下次刷新时重试。
 fn add_thumb_buttons() {
-    let st = state().lock().unwrap();
-    let (Some(icons), Some(tb), hwnd) = (&st.icons, &st.taskbar, st.hwnd) else {
-        return;
-    };
-    let buttons = thumb_buttons(icons, st.is_playing);
-    unsafe {
-        if let Err(e) = tb.ThumbBarAddButtons(hwnd, &buttons) {
-            eprintln!("[TaskbarThumb] ThumbBarAddButtons failed: {e}");
+    let result = {
+        let st = state().lock().unwrap();
+        if st.buttons_added || st.hwnd.0.is_null() {
+            return;
         }
+        match (&st.icons, &st.taskbar) {
+            (Some(icons), Some(tb)) => {
+                let buttons = thumb_buttons(icons, st.is_playing);
+                Some(unsafe { tb.ThumbBarAddButtons(st.hwnd, &buttons) })
+            }
+            _ => None,
+        }
+    };
+    match result {
+        Some(Ok(())) => state().lock().unwrap().buttons_added = true,
+        Some(Err(e)) => eprintln!("[TaskbarThumb] ThumbBarAddButtons failed: {e}"),
+        None => {}
     }
 }
 
 /// 窗口线程：播放/暂停图标与 tooltip 热更新。
+/// 若按钮还没加成功（setup 时任务栏按钮未建好），先补一次 Add。
 fn update_thumb_buttons() {
+    add_thumb_buttons();
     let st = state().lock().unwrap();
+    if !st.buttons_added {
+        return;
+    }
     let (Some(icons), Some(tb), hwnd) = (&st.icons, &st.taskbar, st.hwnd) else {
         return;
     };
