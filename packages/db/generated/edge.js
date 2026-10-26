@@ -394,7 +394,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/Users/ctjj/Documents/projects/AudioDock/packages/db/generated",
+      "value": "D:\\work\\soundX\\packages\\db\\generated",
       "fromEnvVar": null
     },
     "config": {
@@ -403,7 +403,7 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "darwin-arm64",
+        "value": "windows",
         "native": true
       },
       {
@@ -412,12 +412,11 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "/Users/ctjj/Documents/projects/AudioDock/packages/db/prisma/schema.prisma",
+    "sourceFilePath": "D:\\work\\soundX\\packages\\db\\prisma\\schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": null,
-    "schemaEnvPath": "../.env"
+    "rootEnvPath": null
   },
   "relativePath": "../prisma",
   "clientVersion": "6.8.2",

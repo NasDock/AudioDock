@@ -23,6 +23,15 @@ pub struct PlayerStateForTray {
 static PLAYER_STATE: OnceLock<Mutex<PlayerStateForTray>> = OnceLock::new();
 static CURRENT_LYRIC: OnceLock<Mutex<Option<String>>> = OnceLock::new();
 
+/// 托盘菜单内容签名（曲名|艺术家|播放态）。播放中前端每 ~250ms 都会推一次
+/// update_player_state，若每次都用 set_menu 重建菜单，弹出的右键菜单会被
+/// 瞬间销毁重建，点击根本落不上去 —— 只有签名变化时才重建。
+static MENU_SIGNATURE: OnceLock<Mutex<String>> = OnceLock::new();
+
+/// 主窗口标题去重（避免每次状态推送都 set_title）。
+#[cfg(target_os = "windows")]
+static WINDOW_TITLE: OnceLock<Mutex<String>> = OnceLock::new();
+
 fn player_state_lock() -> &'static Mutex<PlayerStateForTray> {
     PLAYER_STATE.get_or_init(|| Mutex::new(PlayerStateForTray::default()))
 }
@@ -295,10 +304,32 @@ pub fn update_player_state(app: &AppHandle, state: PlayerStateForTray) {
     #[cfg(target_os = "windows")]
     crate::taskbar_thumb::sync(app, state.is_playing, state.cover.clone());
 
-    // 1. Rebuild trayMain menu
-    if let Ok(menu) = build_main_menu(app) {
-        if let Some(tray) = app.tray_by_id("tray_main") {
-            let _ = tray.set_menu(Some(menu));
+    // Windows: 主窗口标题 =「歌名 - 艺术家」（任务栏悬停缩略图的标题栏文字用它）。
+    // 仅 Windows 设置：macOS 的 titleBarStyle=Overlay 会把标题文字画在标题栏区。
+    #[cfg(target_os = "windows")]
+    sync_window_title(app, &state);
+
+    // 1. Rebuild trayMain menu —— 仅在菜单内容（曲名/艺术家/播放态）变化时重建。
+    //    播放中 update_player_state 每 ~250ms 触发一次，无条件 set_menu 会把
+    //    已弹出的右键菜单不断销毁重建，导致「打开播放器 / 退出」点击无效。
+    let signature = menu_signature(&state);
+    let sig_changed = {
+        let mut sig_lock = MENU_SIGNATURE
+            .get_or_init(|| Mutex::new(String::new()))
+            .lock()
+            .unwrap();
+        if *sig_lock != signature {
+            *sig_lock = signature;
+            true
+        } else {
+            false
+        }
+    };
+    if sig_changed {
+        if let Ok(menu) = build_main_menu(app) {
+            if let Some(tray) = app.tray_by_id("tray_main") {
+                let _ = tray.set_menu(Some(menu));
+            }
         }
     }
 
@@ -346,6 +377,46 @@ pub fn update_tray_lyric(app: &AppHandle, text: Option<String>) {
 // ============================================================================
 // Helpers
 // ============================================================================
+
+/// 菜单内容签名：曲名 / 艺术家 / 播放态。封面变化不影响菜单。
+fn menu_signature(state: &PlayerStateForTray) -> String {
+    format!(
+        "{}|{}|{}",
+        state.track_name.as_deref().unwrap_or(""),
+        state.track_artist.as_deref().unwrap_or(""),
+        state.is_playing
+    )
+}
+
+/// Windows 主窗口标题 =「歌名 - 艺术家」，无播放时回落到产品名。
+/// 任务栏悬停缩略图的标题文字读的是窗口标题。
+#[cfg(target_os = "windows")]
+fn sync_window_title(app: &AppHandle, state: &PlayerStateForTray) {
+    let title = match (&state.track_name, &state.track_artist) {
+        (Some(name), Some(artist)) if !name.is_empty() && !artist.is_empty() => {
+            format!("{} - {}", name, artist)
+        }
+        (Some(name), _) if !name.is_empty() => name.clone(),
+        _ => "AudioDock".to_string(),
+    };
+    let changed = {
+        let mut last = WINDOW_TITLE
+            .get_or_init(|| Mutex::new(String::new()))
+            .lock()
+            .unwrap();
+        if *last != title {
+            *last = title.clone();
+            true
+        } else {
+            false
+        }
+    };
+    if changed {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.set_title(&title);
+        }
+    }
+}
 
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {

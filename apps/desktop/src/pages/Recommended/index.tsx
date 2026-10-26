@@ -63,6 +63,20 @@ const Recommended: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState<string | null>(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  // 容器实测宽度（clientWidth 不含纵向滚动条），由 ResizeObserver 持续同步；
+  // 不能用 ref 在渲染期读——loading 切换会卸载/重挂容器，渲染时 ref 可能还是 null
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => setContainerWidth(el.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Get current auth state
   const { user } = useAuthStore();
@@ -85,9 +99,29 @@ const Recommended: React.FC = () => {
     (s) => s.carMode?.columnWidths ?? {},
   );
 
+  // 记录上次拉取数据时使用的数量；resize 后数量没变（如缩放模式下数量固定、
+  // 只有封面尺寸变化）时跳过重拉，仅由 containerWidth 驱动封面缩放
+  const fetchedSizeRef = React.useRef<{
+    album: number;
+    artist: number;
+    track: number;
+  } | null>(null);
+
+  // 数量与上次拉取一致时返回 false（无需重新加载）
+  const shouldReloadForLayout = () => {
+    const prev = fetchedSizeRef.current;
+    if (!prev) return true;
+    return (
+      prev.album !== getPageSize("album") ||
+      prev.artist !== getPageSize("artist") ||
+      prev.track !== getPageSize("track")
+    );
+  };
+
   // Debounce resize to re-fetch data based on new width
   const { run: debouncedRefresh } = useDebounceFn(
     () => {
+      if (!shouldReloadForLayout()) return; // 仅封面缩放，不重拉数据
       loadSections(true); // Bypass cache on resize to get correct count
     },
     { wait: 500 },
@@ -96,6 +130,7 @@ const Recommended: React.FC = () => {
   // 车机模式下拖动栏宽不会触发 window resize，需要监听变化后重新拉取合适的数量
   const { run: debouncedRefreshForCarMode } = useDebounceFn(
     () => {
+      if (!shouldReloadForLayout()) return;
       loadSections(true);
     },
     { wait: 500 },
@@ -143,10 +178,24 @@ const Recommended: React.FC = () => {
     return sectionsToSort;
   };
 
-  const getPageSize = (type: "album" | "artist" | "track") => {
-    const width = window.innerWidth;
-    // Sidebar 200 + Padding 60 (30*2)
-    let availableWidth = width - 200 - 60;
+  // 封面自然尺寸与最小展示数量：空间不足时封面等比缩小，保证至少展示 N 个
+  const ALBUM_COVER_SIZE = 170;
+  const ARTIST_AVATAR_SIZE = 120;
+  const GRID_GAP = 24;
+  const MIN_ALBUM_COUNT = 4;
+  const MIN_ARTIST_COUNT = 5;
+  // 缩放过小的下界，极端窄窗口（如车机模式）避免封面缩到不可用
+  const MIN_COVER_SIZE = 60;
+
+  const getAvailableWidth = () => {
+    let availableWidth: number;
+    if (containerWidth > 0) {
+      // clientWidth 含 padding、不含纵向滚动条；扣掉 padding 30*2 即内容区宽度
+      availableWidth = containerWidth - 60;
+    } else {
+      // 首次渲染尚未测量，退回估算：窗口宽 - Sidebar 200 - Padding 60
+      availableWidth = window.innerWidth - 200 - 60;
+    }
 
     // 车机模式：扣除封面/歌词媒体栏 + 分隔把手宽度（与 CarMode 组件布局保持一致）
     if (carModeEnabled) {
@@ -167,24 +216,57 @@ const Recommended: React.FC = () => {
           HANDLE;
       }
     }
+    return availableWidth;
+  };
 
+  // 计算某类型的展示数量与实际封面尺寸：
+  // 能自然放下 >= minCount 个 → 用现有算法（自然尺寸，数量=放下的个数）；
+  // 放不下 → 数量固定 minCount，封面等比缩小到刚好放下
+  const getSectionLayout = (type: "album" | "artist") => {
+    const availableWidth = getAvailableWidth();
+    const naturalCover =
+      type === "artist" ? ARTIST_AVATAR_SIZE : ALBUM_COVER_SIZE;
+    const minCount = type === "artist" ? MIN_ARTIST_COUNT : MIN_ALBUM_COUNT;
+    const naturalItemWidth = naturalCover + GRID_GAP;
+    const fitCount = Math.floor(availableWidth / naturalItemWidth);
+
+    if (fitCount >= minCount) {
+      return { count: fitCount, coverSize: naturalCover };
+    }
+    // 减 1px 容差，避免亚像素渲染时刚好卡边界换行
+    const shrunkCover =
+      Math.floor((availableWidth - GRID_GAP * (minCount - 1)) / minCount) - 1;
+    return {
+      count: minCount,
+      coverSize: Math.max(MIN_COVER_SIZE, Math.min(shrunkCover, naturalCover)),
+    };
+  };
+
+  const getPageSize = (type: "album" | "artist" | "track") => {
     if (type === "track") {
+      const availableWidth = getAvailableWidth();
       // Track cards: 240px width + 12px gap
       const itemWidth = 240 + 12;
       const itemsPerRow = Math.floor(availableWidth / itemWidth);
       // 2 rows, so multiply by 2
       return Math.max(6, itemsPerRow * 2);
     }
-
-    // Album: 170 + 24 (gap) = 194
-    // Artist: Avatar 120 + name 一行 + Row gutter 24 → 实际占用 ~144
-    const itemWidth = type === "artist" ? 144 : 194;
-    return Math.max(4, Math.floor(availableWidth / itemWidth));
+    return getSectionLayout(type).count;
   };
 
   const loadSections = async (forceRefresh = false) => {
     try {
       setLoading(true);
+
+      // 本次拉取使用的数量，供 resize 后判断数量是否变化、是否需要重拉
+      const albumSize = getPageSize("album");
+      const artistSize = getPageSize("artist");
+      const trackSize = getPageSize("track");
+      fetchedSizeRef.current = {
+        album: albumSize,
+        artist: artistSize,
+        track: trackSize,
+      };
 
       let recommendedAlbums: Album[] = [];
       let recentAlbums: Album[] = [];
@@ -268,9 +350,6 @@ const Recommended: React.FC = () => {
 
       // Fetch from API with playMode as type parameter
       const type = playMode;
-      const albumSize = getPageSize("album");
-      const artistSize = getPageSize("artist");
-      const trackSize = getPageSize("track");
 
       const promises: Promise<any>[] = [
         getRecommendedAlbums(type, true, albumSize, recommendationLikeRatio),
@@ -365,6 +444,11 @@ const Recommended: React.FC = () => {
       const albumSize = getPageSize("album");
       const artistSize = getPageSize("artist");
       const trackSize = getPageSize("track");
+      fetchedSizeRef.current = {
+        album: albumSize,
+        artist: artistSize,
+        track: trackSize,
+      };
 
       if (sectionId === "recommended") {
         const res = await getRecommendedAlbums(
@@ -448,30 +532,28 @@ const Recommended: React.FC = () => {
     }
   };
 
-  // Show skeleton loading on initial load
-  if (loading) {
-    return (
-      <Flex gap={16} vertical className={styles.container}>
-        {[1, 2].map((sectionIndex) => (
-          <Flex key={sectionIndex} gap={16} vertical>
-            <Flex justify="space-between" align="center">
-              <Skeleton.Input />
-              <Skeleton.Input size="small" />
-            </Flex>
-            <Flex gap={16}>
-              {Array.from({ length: 4 }).map((_, index) => (
-                <Cover.Skeleton key={`skeleton-${sectionIndex}-${index}`} />
-              ))}
-            </Flex>
-          </Flex>
-        ))}
-      </Flex>
-    );
-  }
-
   return (
-    <div className={styles.container}>
-      {sections.map((section) => (
+    <div className={styles.container} ref={containerRef}>
+      {loading ? (
+        // 骨架屏渲染在常驻容器内，避免卸载容器导致宽度测量失效
+        <Flex gap={16} vertical>
+          {[1, 2].map((sectionIndex) => (
+            <Flex key={sectionIndex} gap={16} vertical>
+              <Flex justify="space-between" align="center">
+                <Skeleton.Input />
+                <Skeleton.Input size="small" />
+              </Flex>
+              <Flex gap={16}>
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <Cover.Skeleton key={`skeleton-${sectionIndex}-${index}`} />
+                ))}
+              </Flex>
+            </Flex>
+          ))}
+        </Flex>
+      ) : (
+        <>
+          {sections.map((section) => (
         <div key={section.id} className={styles.section}>
           <div className={styles.sectionHeader}>
             <Title level={3} className={styles.sectionTitle}>
@@ -726,38 +808,53 @@ const Recommended: React.FC = () => {
             </div>
           ) : (
             <Row gutter={[24, 24]}>
-              {section.items.map((item: any) => (
-                <Col key={item.id}>
-                  {section.type === "artist" ? (
-                    <Flex
-                      vertical
-                      align="center"
-                      gap={8}
-                      className={styles.artistCard}
-                      onClick={() => handleArtistClick(item.id)}
-                      style={{ cursor: "pointer", textAlign: "center" }}
-                    >
-                      <Avatar
-                        src={
-                          item.avatar
-                            ? item.avatar.startsWith("http")
-                              ? item.avatar
-                              : `${getBaseURL()}${item.avatar}`
-                            : `https://picsum.photos/seed/${item.id}/300/300`
-                        }
-                        size={120}
-                        style={{
-                          boxShadow: "0 8px 20px rgba(0, 0, 0, 0.3)",
-                        }}
-                        icon={!item.avatar && item.name[0]}
+              {(() => {
+                // 空间不足时封面等比缩小，保证至少展示 MIN_ALBUM_COUNT/MIN_ARTIST_COUNT 个
+                const { coverSize } = getSectionLayout(
+                  section.type === "artist" ? "artist" : "album",
+                );
+                return section.items.map((item: any) => (
+                  <Col key={item.id}>
+                    {section.type === "artist" ? (
+                      <Flex
+                        vertical
+                        align="center"
+                        gap={8}
+                        className={styles.artistCard}
+                        onClick={() => handleArtistClick(item.id)}
+                        style={{ cursor: "pointer", textAlign: "center" }}
+                      >
+                        <Avatar
+                          src={
+                            item.avatar
+                              ? item.avatar.startsWith("http")
+                                ? item.avatar
+                                : `${getBaseURL()}${item.avatar}`
+                              : `https://picsum.photos/seed/${item.id}/300/300`
+                          }
+                          size={coverSize}
+                          style={{
+                            boxShadow: "0 8px 20px rgba(0, 0, 0, 0.3)",
+                          }}
+                          icon={!item.avatar && item.name[0]}
+                        />
+                        <Typography.Text
+                          style={{ maxWidth: coverSize }}
+                          ellipsis
+                        >
+                          {item.name}
+                        </Typography.Text>
+                      </Flex>
+                    ) : (
+                      <Cover
+                        item={item}
+                        size={coverSize}
+                        isHistory={section.id === "history"}
                       />
-                      <Typography.Text>{item.name}</Typography.Text>
-                    </Flex>
-                  ) : (
-                    <Cover item={item} isHistory={section.id === "history"} />
-                  )}
-                </Col>
-              ))}
+                    )}
+                  </Col>
+                ));
+              })()}
             </Row>
           )}
         </div>
@@ -779,6 +876,8 @@ const Recommended: React.FC = () => {
         sections={sections.map((s) => ({ id: s.id, title: s.title }))}
         onSave={handleSaveOrder}
       />
+        </>
+      )}
     </div>
   );
 };
