@@ -1027,6 +1027,12 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
             cover: coverUri,
           },
         }).catch(console.error);
+        // 同步进度给 mini 小窗（其进度条完全依赖 player:update 事件；
+        // mini 未打开时 emitTo 会 reject，静默忽略避免刷屏）。
+        emitTo("mini", "player:update", {
+          currentTime: time,
+          duration,
+        }).catch(() => {});
         lastTimeUpdateRef.current = now;
       }
 
@@ -1289,10 +1295,86 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
       unlistenPrev = fn;
     });
 
+    // mini 窗口打开时回推一次全量状态（含进度），弥补 get_player_state
+    // 的 Rust 侧 player_state 从未被写入、恒为默认值的问题。
+    let unlistenRequest: (() => void) | undefined;
+    listen("player:request-state", () => {
+      const s = usePlayerStore.getState();
+      const t = s.currentTrack;
+      emitTo("mini", "player:update", {
+        isPlaying: s.isPlaying,
+        currentTime: s.currentTime,
+        duration: s.duration,
+        track: t
+          ? {
+              id: t.id,
+              name: t.name,
+              artist: t.artist,
+              album: t.albumEntity?.name || t.album,
+              cover: t.cover,
+              // mini 心形图标依赖它判断收藏态
+              likedByUsers: t.likedByUsers,
+            }
+          : null,
+      }).catch(() => {});
+    }).then((fn) => {
+      unlistenRequest = fn;
+    });
+
+    // mini 窗口的收藏/取消收藏指令：实际操作主窗口 store，
+    // toggleLike 更新 currentTrack.likedByUsers 后由下方 push effect 回推 mini。
+    let unlistenToggleLike: (() => void) | undefined;
+    listen("player:toggle-like", (event: any) => {
+      const { id, type } = event.payload || {};
+      if (id == null || (type !== "like" && type !== "unlike")) return;
+      usePlayerStore.getState().toggleLike(id, type);
+    }).then((fn) => {
+      unlistenToggleLike = fn;
+    });
+
+    // mini 窗口请求播放队列（精简字段，够列表渲染即可）
+    let unlistenRequestQueue: (() => void) | undefined;
+    listen("player:request-queue", () => {
+      const s = usePlayerStore.getState();
+      emitTo("mini", "player:queue", {
+        list: s.playlist.map((t) => ({
+          id: t.id,
+          name: t.name,
+          artist: t.artist,
+          album: t.albumEntity?.name || t.album,
+          cover: t.cover,
+          duration: t.duration,
+        })),
+      }).catch(() => {});
+    }).then((fn) => {
+      unlistenRequestQueue = fn;
+    });
+
+    // mini 队列里点歌：在主窗口 playlist 里找到完整 track 再播
+    // （有声书沿用 handlePlay 的断点续播逻辑）
+    let unlistenPlayTrack: (() => void) | undefined;
+    listen("player:play-track", (event: any) => {
+      const id = event.payload?.id;
+      const s = usePlayerStore.getState();
+      const track = s.playlist.find((t) => t.id === id);
+      if (!track) return;
+      const shouldResume =
+        getPlayMode() === TrackType.AUDIOBOOK &&
+        track.progress &&
+        track.progress > 0;
+      s.play(track, undefined, shouldResume ? track.progress : 0);
+    }).then((fn) => {
+      unlistenPlayTrack = fn;
+    });
+
     return () => {
       if (unlistenToggle) unlistenToggle();
       if (unlistenNext) unlistenNext();
       if (unlistenPrev) unlistenPrev();
+      if (unlistenRequest) unlistenRequest();
+      if (unlistenToggleLike) unlistenToggleLike();
+      if (unlistenRequestQueue) unlistenRequestQueue();
+      if (unlistenPlayTrack) unlistenPlayTrack();
     };
   }, []); // 空依赖数组，只在组件挂载时注册一次
 
@@ -1300,8 +1382,12 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
   // the system tray (via Rust command) and to mini/lyric windows (via emitTo).
   useEffect(() => {
     if (!isTauri()) return;
+    // 进度取现场值（闭包里的 currentTime/duration 可能是上一首的）
+    const s = usePlayerStore.getState();
     const payload = {
       isPlaying,
+      currentTime: s.currentTime,
+      duration: s.duration,
       track: currentTrack
         ? {
             id: currentTrack.id,
@@ -1309,6 +1395,8 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
             artist: currentTrack.artist,
             album: currentTrack.albumEntity?.name || currentTrack.album,
             cover: currentTrack.cover,
+            // mini 心形图标依赖它判断收藏态，必须跟随推送
+            likedByUsers: currentTrack.likedByUsers,
           }
         : null,
     };
@@ -1322,7 +1410,8 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
     }).catch(console.error);
     emitTo("mini", "player:update", payload).catch(console.error);
     emitTo("lyric", "player:update", payload).catch(console.error);
-  }, [isPlaying, currentTrack?.id, currentTrack?.name, currentTrack?.artist, coverUri]);
+    // likedByUsers 进依赖：mini/lyric 窗口的收藏图标靠这个 effect 实时同步
+  }, [isPlaying, currentTrack?.id, currentTrack?.name, currentTrack?.artist, currentTrack?.likedByUsers, coverUri]);
 
   const togglePlay = () => {
     if (isPlaying) {

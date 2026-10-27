@@ -34,6 +34,54 @@ export interface UpdateInfo {
   body: string;
   /** APK 直装 URL（来自后端 /download/latest files[platform=android]） */
   downloadUrl: string;
+  /** true = 本次发布仅服务端（api）更新，客户端无需升级，只弹提醒 */
+  serverOnly?: boolean;
+}
+
+/** 更新目标分类：app=当前端有更新；server=仅服务端更新；none=与当前端无关 */
+export type ReleaseTarget = 'app' | 'server' | 'none';
+
+/** 各端在 conventional commit scope 中的别名 */
+const PLATFORM_SCOPES: Record<string, string[]> = {
+  desktop: ['desktop', 'electron'],
+  mobile: ['mobile', 'android', 'ios'],
+  hm: ['hm', 'harmony', 'harmonyos', 'ohos'],
+};
+/** 服务端 scope：命中且当前端无更新时只弹「服务端更新提醒」 */
+const SERVER_SCOPES = ['api', 'server', 'backend', 'service', 'services'];
+
+/**
+ * 按 conventional commit scope 过滤 Release body，判断该版本与当前端的关系：
+ * - 无 scope（如 `feat: xxx`）视为全端更新 → app
+ * - 命中当前端 scope（如 `feat(mobile): xxx`）→ app
+ * - 仅命中服务端 scope（如 `feat(api): xxx`）→ server
+ * - 仅命中其他端 scope → none（当前端不弹窗）
+ * - body 完全不符合该格式（无法识别）→ 兜底按 app 处理，保持旧行为
+ */
+export function classifyRelease(body: string, platform: 'desktop' | 'mobile' | 'hm'): ReleaseTarget {
+  const lineRe = /^\s*[-*]?\s*(feat|fix|perf|refactor|revert|chore|docs|style|test|build|ci)(?:\(([^)]*)\))?\s*[:：]/i;
+  let matched = false;
+  let hasUnscoped = false;
+  let hasPlatform = false;
+  let hasServer = false;
+  const aliases = PLATFORM_SCOPES[platform] || [];
+  for (const line of body.split('\n')) {
+    const m = line.match(lineRe);
+    if (!m) continue;
+    matched = true;
+    const scope = m[2] ? m[2].trim().toLowerCase() : '';
+    if (!scope) {
+      hasUnscoped = true;
+    } else if (aliases.includes(scope)) {
+      hasPlatform = true;
+    } else if (SERVER_SCOPES.includes(scope)) {
+      hasServer = true;
+    }
+  }
+  if (!matched) return 'app';
+  if (hasUnscoped || hasPlatform) return 'app';
+  if (hasServer) return 'server';
+  return 'none';
 }
 
 /** Hook 内部状态 */
@@ -147,6 +195,18 @@ export const useCheckUpdate = () => {
       // 4. 拉 changelog
       const body = await fetchReleaseBody(remoteVersion);
 
+      // 4.5 按平台过滤 changelog：仅服务端更新时只弹提醒；与当前端无关时不弹窗
+      const target = classifyRelease(body, 'mobile');
+      if (target === 'none') {
+        console.log(`[useCheckUpdate] version ${remoteVersion} has no mobile-related changes, skip popup`);
+        return null;
+      }
+      if (target === 'server') {
+        const serverInfo: UpdateInfo = { version: remoteVersion, body, downloadUrl: '', serverOnly: true };
+        setState((s) => ({ ...s, updateInfo: serverInfo }));
+        return serverInfo;
+      }
+
       // 5. 统一从后端取 platform=android 的 APK URL（不再按设备品牌分流）
       const downloadUrl = pickAndroidApkUrl(files);
       if (!downloadUrl) {
@@ -180,7 +240,10 @@ export const useCheckUpdate = () => {
     // 弹窗已关，按钮不会渲染）
     setState((s) => ({ ...s, opening: true, updateInfo: null, progress: 0 }));
     try {
-      if (info?.downloadUrl) {
+      if (info?.serverOnly) {
+        // 服务端提醒视图没有「立即更新」入口，防御性 noop
+        console.warn('[useCheckUpdate] startUpdate called on serverOnly notice');
+      } else if (info?.downloadUrl) {
         await downloadAndInstallApk(info.downloadUrl, (p) => {
           // 弹窗已关，进度回调不影响 UI；保留调用以满足 updateUtils 接口
           setState((s) => ({ ...s, progress: p }));

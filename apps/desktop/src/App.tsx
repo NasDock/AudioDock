@@ -53,7 +53,7 @@ import { useAuthStore } from "./store/auth";
 import { useSettingsStore, type SettingsState } from "./store/settings";
 import { isTauri } from "./utils/platform";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { emitTo, listen } from "@tauri-apps/api/event";
 
 // Wrapper to provide consistent background and color based on theme tokens
 const RootWrapper = ({
@@ -165,6 +165,17 @@ const AppContent = () => {
 
   const isLyricWindow = window.location.hash.includes("/lyric");
   const isMiniPlayer = window.location.hash.includes("/mini");
+
+  // 主窗口切换主题时广播给 mini/lyric 窗口：各窗口的 settings store 只在
+  // 加载时从共享 localStorage 读一次，运行中切换主题不会跨窗口自动同步。
+  // 目标窗口不存在时 emitTo reject，静默忽略。
+  const themeSetting = settings.general.theme;
+  useEffect(() => {
+    if (!isTauri() || isLyricWindow || isMiniPlayer) return;
+    emitTo("mini", "theme:update", { theme: themeSetting }).catch(() => {});
+    emitTo("lyric", "theme:update", { theme: themeSetting }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [themeSetting]);
 
   if (isLyricWindow) {
     return (

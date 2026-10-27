@@ -130,21 +130,50 @@ const TrackList: React.FC<TrackListProps> = ({
   const [internalSelected, setInternalSelected] = useState<Array<
     number | string
   >>([]);
-  const isSelectionControlled =
+  // 两种受控方式：selectedIds/onSelectChange（直连），或 antd 风格 rowSelection
+  // （之前 rowSelection 只当开关用、状态不同步，导致 Songs 页已选数恒为 0）
+  const isDirectControlled =
     Array.isArray(selectedIds) && typeof onSelectChange === "function";
-  const effectiveSelected = isSelectionControlled
+  const isRowSelectionControlled =
+    !!rowSelection &&
+    Array.isArray(rowSelection.selectedRowKeys) &&
+    typeof rowSelection.onChange === "function";
+  const isSelectionControlled = isDirectControlled || isRowSelectionControlled;
+  const effectiveSelected: Array<number | string> = isDirectControlled
     ? (selectedIds as Array<number | string>)
-    : internalSelected;
+    : isRowSelectionControlled
+      ? rowSelection.selectedRowKeys
+      : internalSelected;
+
+  const applySelection = (next: Array<number | string>) => {
+    if (isDirectControlled) {
+      onSelectChange?.(next);
+    } else if (isRowSelectionControlled) {
+      rowSelection.onChange(next);
+    } else {
+      setInternalSelected(next);
+    }
+  };
 
   const toggleSelect = (id: number | string) => {
     const next = effectiveSelected.includes(id)
       ? effectiveSelected.filter((x) => x !== id)
       : [...effectiveSelected, id];
-    if (isSelectionControlled) {
-      onSelectChange?.(next);
-    } else {
-      setInternalSelected(next);
-    }
+    applySelection(next);
+  };
+
+  // 全选/取消全选（作用于当前已加载的 tracks；尊重 rowSelection.getCheckboxProps
+  // 的 disabled 行，如 TTS 页未生成的任务不可选）
+  const selectableIds = tracks
+    .filter((t) => !rowSelection?.getCheckboxProps?.(t)?.disabled)
+    .map((t) => t.id);
+  const allSelected =
+    selectableIds.length > 0 &&
+    selectableIds.every((id) => effectiveSelected.includes(id));
+  const partiallySelected =
+    !allSelected && selectableIds.some((id) => effectiveSelected.includes(id));
+  const toggleSelectAll = () => {
+    applySelection(allSelected ? [] : [...selectableIds]);
   };
 
   const handlePlayTrack = (track: Track) => {
@@ -478,7 +507,18 @@ const TrackList: React.FC<TrackListProps> = ({
           className={styles.headerRow}
           style={{ gridTemplateColumns: gridTemplate, height: ROW_HEIGHT }}
         >
-          {showSelect && <div className={styles.headerCell}></div>}
+          {showSelect && (
+            <div className={styles.headerCell}>
+              <Checkbox
+                checked={allSelected}
+                indeterminate={partiallySelected}
+                onChange={toggleSelectAll}
+                title={
+                  allSelected ? t("common.deselectAll") : t("common.selectAll")
+                }
+              />
+            </div>
+          )}
           {showIndex && <div className={styles.headerCell}>#</div>}
           {showCover && (
             <div className={styles.headerCell}>{t("trackList.cover")}</div>

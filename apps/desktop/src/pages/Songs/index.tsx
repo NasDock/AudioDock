@@ -19,6 +19,7 @@ import {
   message,
   Skeleton,
   theme,
+  Tooltip,
   Typography
 } from "antd";
 import React, { useRef, useState } from "react";
@@ -220,21 +221,7 @@ const Songs: React.FC = () => {
           >
             <AimOutlined />
           </div>
-          {mode === "MUSIC" && (
-            <div
-              className={styles.floatingButton}
-              style={{
-                backgroundColor: heartbeatModeActive
-                  ? token.colorPrimary
-                  : token.colorBgElevated,
-                color: heartbeatModeActive ? token.colorWhite : token.colorPrimary,
-              }}
-              onClick={toggleHeartbeatMode}
-              title={t("songs.heartbeatMode")}
-            >
-              {heartbeatModeActive ? <HeartFilled /> : <HeartOutlined />}
-            </div>
-          )}
+          {/* 心动模式已挪到页头按钮组最右侧，不再放贴边浮动栏 */}
           <div
             className={styles.floatingButton}
             style={{
@@ -255,60 +242,71 @@ const Songs: React.FC = () => {
           </Title>
         {isSelectionMode ? (
             <Flex gap={8}>
+              {/* 除心动模式外均为纯图标按钮，文字走 Tooltip 悬停展示 */}
+              <Tooltip title={t("songs.cancel")}>
+                <Button type="text" onClick={handleToggleSelectionMode} icon={<CloseOutlined />} />
+              </Tooltip>
+              <div style={{ marginRight: 8, alignSelf: 'center' }}>
+                {t("songs.selectedCount", { count: selectedRowKeys.length })}
+              </div>
+              <Tooltip title={t("songs.addTo")}>
+                <Button
+                  icon={<PlusOutlined />}
+                  disabled={!selectedRowKeys.length}
+                  onClick={() => setIsBatchAddModalOpen(true)}
+                />
+              </Tooltip>
+              <Tooltip title={t("songs.download")}>
+                <Button
+                  icon={<DownloadOutlined />}
+                  disabled={!selectedRowKeys.length}
+                  onClick={handleBatchDownload}
+                />
+              </Tooltip>
               {mode === "MUSIC" && (
                 <Button
                   type={heartbeatModeActive ? "primary" : "default"}
                   icon={heartbeatModeActive ? <HeartFilled /> : <HeartOutlined />}
                   onClick={toggleHeartbeatMode}
                 >
-                  心动模式
+                  {t("songs.heartbeatMode")}
                 </Button>
               )}
-              <Button type="text" onClick={handleToggleSelectionMode} icon={<CloseOutlined />}>
-                取消
-              </Button>
-              <div style={{ marginRight: 8, alignSelf: 'center' }}>
-                已选择 {selectedRowKeys.length} 项
-              </div>
-              <Button 
-                icon={<PlusOutlined />} 
-                disabled={!selectedRowKeys.length}
-                onClick={() => setIsBatchAddModalOpen(true)}
-              >
-                添加到...
-              </Button>
-              <Button 
-                icon={<DownloadOutlined />} 
-                disabled={!selectedRowKeys.length}
-                onClick={handleBatchDownload}
-              >
-                下载
-              </Button>
             </Flex>
         ) : (
             <Flex gap={8} align="center">
+              {/* 除心动模式外均为纯图标按钮，文字走 Tooltip 悬停展示 */}
+              {mode === "MUSIC" && (
+                <Tooltip title={t("player.castToMiSpeaker")}>
+                  <Button
+                    icon={<XiaoAiIcon style={{ width: 14, height: 14 }} />}
+                    onClick={() => setIsMiDeviceSelectorOpen(true)}
+                    disabled={!data?.list.length}
+                  />
+                </Tooltip>
+              )}
+              <Tooltip title={t("songs.playAll")}>
+                <Button
+                  icon={<PlayCircleOutlined />}
+                  onClick={handlePlayAll}
+                  disabled={!data?.list.length}
+                />
+              </Tooltip>
+              <Tooltip title={t("songs.batchActions")}>
+                <Button
+                  icon={<CheckSquareOutlined />}
+                  onClick={handleToggleSelectionMode}
+                />
+              </Tooltip>
               {mode === "MUSIC" && (
                 <Button
-                  icon={<XiaoAiIcon style={{ width: 14, height: 14 }} />}
-                  onClick={() => setIsMiDeviceSelectorOpen(true)}
-                  disabled={!data?.list.length}
+                  type={heartbeatModeActive ? "primary" : "default"}
+                  icon={heartbeatModeActive ? <HeartFilled /> : <HeartOutlined />}
+                  onClick={toggleHeartbeatMode}
                 >
-                  投放到音箱
+                  {t("songs.heartbeatMode")}
                 </Button>
               )}
-              <Button 
-                icon={<PlayCircleOutlined />} 
-                onClick={handlePlayAll}
-                disabled={!data?.list.length}
-              >
-                {t("songs.playAll")}
-              </Button>
-              <Button
-                icon={<CheckSquareOutlined />}
-                onClick={handleToggleSelectionMode}
-              >
-                {t("songs.batchActions")}
-              </Button>
             </Flex>
         )}
       </div>

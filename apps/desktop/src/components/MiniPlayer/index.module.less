@@ -29,14 +29,14 @@
   }
 
   .iconBtn {
-    color: var(--ant-color-text-tertiary);
+    color: var(--mini-text-tertiary);
     &:hover {
-      color: var(--ant-color-text);
+      color: var(--mini-text);
     }
   }
 
   .active {
-    color: var(--ant-color-primary) !important;
+    color: var(--mini-primary) !important;
   }
 }
 
@@ -90,7 +90,7 @@
   gap: 8px;
   .time {
     font-size: 12px;
-    color: var(--ant-color-text-tertiary);
+    color: var(--mini-text-tertiary);
     font-feature-settings: "tnum";
   }
 
@@ -100,7 +100,8 @@
       margin: 0;
     }
     .ant-slider-rail {
-      background-color: rgba(0, 0, 0, 0.04);
+      /* 硬编码浅色在暗色主题下不可见，用注入的主题填充色 */
+      background-color: var(--mini-rail);
       height: 3px;
     }
     .ant-slider-track {
@@ -126,7 +127,7 @@
   }
 
   .secondaryBtn {
-    color: var(--ant-color-text-tertiary);
+    color: var(--mini-text-tertiary);
   }
 
   .controlCenter {
@@ -138,14 +139,14 @@
   }
 
   .prevNextBtn {
-    color: var(--ant-color-primary);
+    color: var(--mini-primary);
     font-size: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
 
     &:hover {
-      color: var(--ant-color-primary);
+      color: var(--mini-primary);
       opacity: 0.8;
     }
   }
@@ -159,7 +160,7 @@
     justify-content: center;
     cursor: pointer;
     font-size: 20px;
-    box-shadow: 0 4px 10px rgba(var(--ant-primary-color-rgb), 0.3);
+    box-shadow: 0 4px 10px var(--mini-primary-shadow);
     transition: all 0.2s;
 
     &:hover {
@@ -169,4 +170,87 @@
       transform: scale(0.95);
     }
   }
+}
+
+.liked {
+  color: #ff4d4f !important;
+}
+
+/* 播放队列抽屉：getContainer=false 渲染在容器内，盖满小窗 */
+.queueDrawer {
+  position: absolute;
+
+  :global {
+    .ant-drawer-content {
+      background: var(--mini-bg, transparent);
+      backdrop-filter: blur(30px);
+    }
+    .ant-drawer-header {
+      padding: 8px 12px;
+    }
+    .ant-drawer-title {
+      font-size: 13px;
+      color: var(--mini-text);
+    }
+    .ant-drawer-close {
+      color: var(--mini-text-tertiary);
+    }
+    .ant-drawer-body {
+      padding: 4px 8px;
+      overflow-y: auto;
+    }
+  }
+}
+
+.queueList {
+  display: flex;
+  flex-direction: column;
+}
+
+.queueItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--mini-rail);
+  }
+}
+
+.queueItemActive {
+  .queueItemName {
+    color: var(--mini-primary);
+  }
+}
+
+.queueCover {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.queueItemText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.queueItemName {
+  font-size: 13px;
+  color: var(--mini-text);
+}
+
+.queueItemArtist {
+  font-size: 11px;
+}
+
+.queuePlayingIcon {
+  color: var(--mini-primary);
+  flex-shrink: 0;
 }

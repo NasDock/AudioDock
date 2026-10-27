@@ -16,11 +16,10 @@
         "title": "AudioDock",
         "width": 1020,
         "height": 700,
-        "minWidth": 1025,
-        "minHeight": 700,
         "transparent": true,
         "decorations": true,
         "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
         "center": true,
         "visible": true,
         "windowEffects": {

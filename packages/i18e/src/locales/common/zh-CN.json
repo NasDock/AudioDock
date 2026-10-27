@@ -1062,7 +1062,9 @@
     "updateLater": "暂不更新",
     "goToDownload": "去下载",
     "webUpdateNote": "Web 端请通过 Docker 镜像更新服务，客户端无需下载安装包。",
-    "updateContent": "更新内容："
+    "updateContent": "更新内容：",
+    "serverNoticeTitle": "服务端更新提醒",
+    "serverNoticeBody": "服务端已发布新版本 {{version}}，本次仅服务端更新，客户端无需升级。建议尽快更新服务端以获得最新功能与修复。"
   },
   "sourceManage": {
     "selectType": "选择数据源类型",
@@ -1700,7 +1702,10 @@
     "later": "稍后再说",
     "checking": "检查更新中...",
     "checkUpdate": "检查更新",
-    "checkUpdateDescription": "检测是否有新版本"
+    "checkUpdateDescription": "检测是否有新版本",
+    "serverNoticeTitle": "服务端更新提醒",
+    "serverNoticeBody": "服务端已发布新版本，本次仅服务端更新，客户端无需升级。建议尽快更新服务端以获得最新功能与修复。",
+    "serverNoticeConfirm": "知道了"
   },
   "playerMore": {
     "moreOptions": "更多选项",
