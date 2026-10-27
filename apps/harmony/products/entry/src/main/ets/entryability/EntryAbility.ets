@@ -13,6 +13,7 @@ import { type ThemeMode } from 'features_ui';
 import { installPlaybackService } from '../services/playbackService';
 import { installAVSessionService, releaseAVSessionService } from '../services/avSessionService';
 import { setSystemBarWindow, applySystemBar } from '../services/systemBar';
+import { showDesktopLyricWindow, hideDesktopLyricWindow } from '../services/desktopLyricService';
 import { themeAutoStore } from '../context/ThemeAutoStore';
 import { authStore } from '../context/AuthStore';
 import { refreshNetworkMode } from '../utils/networkMode';
@@ -173,6 +174,10 @@ export default class EntryAbility extends UIAbility {
     Logger.i(TAG, 'onDestroy');
     themeAutoStore.stop();
     releaseAVSessionService();
+    // 桌面歌词悬浮窗随主进程销毁，避免残留孤儿窗口
+    hideDesktopLyricWindow().catch((e: Error): void => {
+      Logger.w(TAG, `hideDesktopLyricWindow: ${e.message}`);
+    });
     // 注销卡片 call 事件（对齐官方示例 onDestroy）
     try {
       this.callee.off('widgetCommand');
@@ -206,6 +211,16 @@ export default class EntryAbility extends UIAbility {
       const mode: ThemeMode = AppStorage.get<ThemeMode>('themeMode') ?? 'light';
       applySystemBar(mode);
     }).catch((e: Error) => Logger.w(TAG, `getMainWindow: ${e.message}`));
+
+    // 桌面歌词：上次退出时若处于开启状态，启动后自动恢复悬浮窗。
+    // 失败（如悬浮窗权限被收回）仅告警，不回写设置——用户下次进设置页仍可手动重开。
+    if (AppStorage.get<boolean>('desktopLyricsEnabled') === true) {
+      showDesktopLyricWindow(this.context).then((ok: boolean): void => {
+        if (!ok) Logger.w(TAG, 'desktop lyric float window restore failed');
+      }).catch((e: Error): void => {
+        Logger.w(TAG, `desktop lyric restore rejected: ${e.message}`);
+      });
+    }
   }
 
   private async initialize(): Promise<void> {
@@ -261,6 +276,23 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate<boolean>('autoTheme', autoThemeRaw === 'true');
     themeAutoStore.init(ctx);
     themeAutoStore.restore();
+
+    // 恢复桌面歌词设置（对齐 mobile SettingsContext 的 5 个字段）。
+    // 开关与样式供 SettingsPage / DesktopLyricStylePage @StorageLink 读写；
+    // 'desktopLyricLine' 是当前歌词行，由 PlayerStore.onTimeUpdate 写入、悬浮窗订阅。
+    const dlEnabledRaw = await kvStore.get('desktopLyricsEnabled');
+    AppStorage.setOrCreate<boolean>('desktopLyricsEnabled', dlEnabledRaw === 'true');
+    const dlFontSizeRaw = await kvStore.get('desktopLyricsFontSize');
+    const dlFontSize = dlFontSizeRaw !== null ? Number(dlFontSizeRaw) : 18;
+    AppStorage.setOrCreate<number>('desktopLyricsFontSize', Number.isFinite(dlFontSize) ? dlFontSize : 18);
+    const dlTextColor = await kvStore.get('desktopLyricsTextColor');
+    AppStorage.setOrCreate<string>('desktopLyricsTextColor', dlTextColor ?? '#FFFFFF');
+    const dlStrokeColor = await kvStore.get('desktopLyricsStrokeColor');
+    AppStorage.setOrCreate<string>('desktopLyricsStrokeColor', dlStrokeColor ?? '#000000');
+    const dlStrokeWidthRaw = await kvStore.get('desktopLyricsStrokeWidth');
+    const dlStrokeWidth = dlStrokeWidthRaw !== null ? Number(dlStrokeWidthRaw) : 2;
+    AppStorage.setOrCreate<number>('desktopLyricsStrokeWidth', Number.isFinite(dlStrokeWidth) ? dlStrokeWidth : 2);
+    AppStorage.setOrCreate<string>('desktopLyricLine', '');
 
     // 恢复登录态（user/token），桌面小部件 syncVip 依赖 authStore.state_.user?.id，
     // 没这一步 syncVip 会因为 user=null 把 KV 写成 isVip=false，导致卡片被误锁定。

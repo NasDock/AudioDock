@@ -23,6 +23,10 @@
     {
       "name": "keep_bg_permission_reason",
       "value": "用于后台持续播放音乐，并在系统通知栏显示播控卡片，方便你随时控制播放进度"
+    },
+    {
+      "name": "float_window_permission_reason",
+      "value": "用于在桌面显示悬浮歌词窗口，退出应用后也能看到当前播放的歌词"
     }
   ]
 }

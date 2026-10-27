@@ -1,6 +1,7 @@
 import router from '@ohos.router';
 import promptAction from '@ohos.promptAction';
 import { window } from '@kit.ArkUI';
+import { common } from '@kit.AbilityKit';
 import { kvStore, fileCache } from 'features_storage';
 import { Logger, formatSize } from 'audiodock_common';
 import { authStore } from '../context/AuthStore';
@@ -12,6 +13,7 @@ import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { getInternalQuality, getExternalQuality } from '../services/trackQuality';
 import { applySystemBar } from '../services/systemBar';
+import { showDesktopLyricWindow, hideDesktopLyricWindow } from '../services/desktopLyricService';
 import { openInBrowser, jumpToAppMarket } from '../utils/browserUtils';
 import { plusApi, setPlusAuthToken } from 'features_network';
 import { getLatestVersion, fetchReleaseBody, compareVersions, classifyRelease } from '../services/updateService';
@@ -118,6 +120,9 @@ struct SettingsPage {
   @StorageLink('carModeEnabled') @Watch('onCarModeStorageChange') carModeEnabled: boolean = false;
   @StorageLink('carPanelsSwapped') carPanelsSwapped: boolean = false;
   @StorageLink('screenBottomInset') screenBottomInset: number = 0;
+  // 桌面歌词：启动值由 EntryAbility.initialize() 从 kvStore 恢复写入 AppStorage；
+  // 开关切换直接调 desktopLyricService 创建/销毁 TYPE_FLOAT 悬浮窗。
+  @StorageLink('desktopLyricsEnabled') desktopLyricsEnabled: boolean = false;
   @State acceptRelay: boolean = false;
   @State acceptSync: boolean = false;
   @State cacheEnabled: boolean = true;
@@ -237,6 +242,24 @@ struct SettingsPage {
 
   async updateBoolSetting(key: string, value: boolean) {
     await kvStore.set(key, value ? 'true' : 'false');
+  }
+
+  /**
+   * 桌面歌词开关：开启时先尝试创建 TYPE_FLOAT 悬浮窗（需 SYSTEM_FLOAT_WINDOW
+   * ACL 受限权限）；创建失败说明权限未授予，回弹开关并 toast 提示，不写存储。
+   */
+  private async handleDesktopLyricsChange(val: boolean): Promise<void> {
+    if (val) {
+      const ok = await showDesktopLyricWindow(getContext(this) as common.Context);
+      if (!ok) {
+        promptAction.showToast({ message: t('settings.desktopLyricsShowFailed') });
+        return;
+      }
+    } else {
+      await hideDesktopLyricWindow();
+    }
+    await this.updateBoolSetting('desktopLyricsEnabled', val);
+    AppStorage.setOrCreate<boolean>('desktopLyricsEnabled', val);
   }
 
   // ─── 开关交互说明 ───
@@ -807,6 +830,27 @@ struct SettingsPage {
               t('settings.screenInsetDescription'),
               () => this.openScreenInsetModal(),
               `${this.screenBottomInset}`,
+            )
+          }
+
+          // 桌面歌词（悬浮窗歌词，样式设置走独立页面——本页已有 bindSheet + bindContentCover
+          // 两个模态，每组件只能绑一个 bindSheet，不能再用弹窗承载样式设置）
+          SettingSwitchRow({
+            label: t('settings.desktopLyrics'),
+            description: t('settings.desktopLyricsDescription'),
+            value: this.desktopLyricsEnabled,
+            onChange: (val: boolean): void => {
+              this.handleDesktopLyricsChange(val).catch((e: Error): void => {
+                Logger.w('SettingsPage', `handleDesktopLyricsChange rejected: ${String(e)}`);
+              });
+            },
+          })
+
+          if (this.desktopLyricsEnabled) {
+            this.ActionRow(
+              t('settings.desktopLyricsStyle'),
+              t('settings.desktopLyricsStyleDescription'),
+              () => router.pushUrl({ url: 'pages/DesktopLyricStylePage' }),
             )
           }
 

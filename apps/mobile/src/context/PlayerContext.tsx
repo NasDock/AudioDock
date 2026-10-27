@@ -40,6 +40,12 @@ import {
   updateMediaControlBridgePlaybackState,
   updateMediaControlBridgeLyrics,
 } from "../services/mediaControlBridge";
+import {
+  showDesktopLyrics,
+  hideDesktopLyrics,
+  updateDesktopLyricsLine,
+  applyDesktopLyricsStyle,
+} from "../services/desktopLyrics";
 import { getActiveLyricLine } from "../utils/lyrics";
 import { socketService } from "../services/socket";
 import {
@@ -192,6 +198,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     recommendationLikeRatio,
     internalPlaybackQuality,
     externalPlaybackQuality,
+    desktopLyricsEnabled,
+    desktopLyricsFontSize,
+    desktopLyricsTextColor,
+    desktopLyricsStrokeColor,
+    desktopLyricsStrokeWidth,
   } = useSettings();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
@@ -694,6 +705,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       if (lastLyricRef.current !== "") {
         lastLyricRef.current = "";
         updateMediaControlBridgeLyrics("");
+        updateDesktopLyricsLine("");
       }
       return;
     }
@@ -701,8 +713,37 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     if (line !== lastLyricRef.current) {
       lastLyricRef.current = line;
       updateMediaControlBridgeLyrics(line);
+      updateDesktopLyricsLine(line);
     }
   }, [position, currentTrack]);
+
+  // ✨ 桌面歌词（Android 悬浮窗）：开关联动显示/隐藏，样式变化实时下发
+  useEffect(() => {
+    if (!desktopLyricsEnabled) {
+      hideDesktopLyrics();
+      return;
+    }
+    showDesktopLyrics();
+    return () => {
+      hideDesktopLyrics();
+    };
+  }, [desktopLyricsEnabled]);
+
+  useEffect(() => {
+    if (!desktopLyricsEnabled) return;
+    applyDesktopLyricsStyle({
+      fontSize: desktopLyricsFontSize,
+      textColor: desktopLyricsTextColor,
+      strokeColor: desktopLyricsStrokeColor,
+      strokeWidth: desktopLyricsStrokeWidth,
+    });
+  }, [
+    desktopLyricsEnabled,
+    desktopLyricsFontSize,
+    desktopLyricsTextColor,
+    desktopLyricsStrokeColor,
+    desktopLyricsStrokeWidth,
+  ]);
 
   const syncMediaControlCenterState = async () => {
     if (Platform.OS !== "android") return;

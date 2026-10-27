@@ -9,6 +9,7 @@ import {
   Alert,
   BackHandler,
   Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -26,6 +27,10 @@ import {
   clearSpecificCache,
   getDetailedCacheSize,
 } from "../src/services/cache";
+import {
+  checkDesktopLyricsPermission,
+  requestDesktopLyricsPermission,
+} from "../src/services/desktopLyrics";
 import { trackEvent } from "../src/services/tracking";
 import { goBackOrReplace } from "../src/utils/navigation";
 import { usePlayMode } from "../src/utils/playMode";
@@ -33,6 +38,26 @@ import { getLocalVersion } from "../src/utils/updateUtils";
 import { getCachedVipStatus } from "../src/utils/vipStatus";
 import { useCheckUpdate } from "../hooks/useCheckUpdate";
 import { UpdateModal } from "../src/components/UpdateModal";
+
+// 桌面歌词样式可选色板
+const LYRIC_TEXT_COLORS = [
+  "#FFFFFF",
+  "#FFD700",
+  "#FF6B6B",
+  "#4ECDC4",
+  "#45B7D1",
+  "#96CEB4",
+  "#F38181",
+  "#AA96DA",
+];
+const LYRIC_STROKE_COLORS = [
+  "#000000",
+  "#FFFFFF",
+  "#333333",
+  "#8B0000",
+  "#1E3A5F",
+  "#4A148C",
+];
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -76,10 +101,17 @@ export default function SettingsScreen() {
     experienceProgramEnabled,
     internalPlaybackQuality,
     externalPlaybackQuality,
+    desktopLyricsEnabled,
+    desktopLyricsFontSize,
+    desktopLyricsTextColor,
+    desktopLyricsStrokeColor,
+    desktopLyricsStrokeWidth,
     updateSetting,
   } = useSettings();
   const [isVip, setIsVip] = React.useState(false);
   const [screenInsetModalVisible, setScreenInsetModalVisible] =
+    React.useState(false);
+  const [lyricStyleModalVisible, setLyricStyleModalVisible] =
     React.useState(false);
   const [redeemingInternalTestCode, setRedeemingInternalTestCode] =
     React.useState(false);
@@ -296,6 +328,32 @@ export default function SettingsScreen() {
   };
 
   const carModeActive = carLayoutMode || carModeEnabled;
+
+  const handleToggleDesktopLyrics = async (val: boolean) => {
+    if (val && Platform.OS === "android") {
+      if (!checkDesktopLyricsPermission()) {
+        Alert.alert(
+          t("settings.desktopLyricsPermissionTitle"),
+          t("settings.desktopLyricsPermissionMessage"),
+          [
+            { text: t("common.cancel"), style: "cancel" },
+            {
+              text: t("settings.desktopLyricsGoToSettings"),
+              onPress: () => requestDesktopLyricsPermission(),
+            },
+          ],
+        );
+        return;
+      }
+    }
+    await updateSetting("desktopLyricsEnabled", val);
+    trackEvent({
+      feature: "settings",
+      eventName: val ? "desktop_lyrics_enable" : "desktop_lyrics_disable",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+    });
+  };
 
   const handleRedeemInternalTestCode = async () => {
     if (isVip) {
@@ -644,6 +702,23 @@ export default function SettingsScreen() {
               },
               `${Math.round(screenBottomInset)}`,
             )}
+
+          {Platform.OS === "android" && (
+            <>
+              {renderSettingRow(
+                t("settings.desktopLyrics"),
+                t("settings.desktopLyricsDescription"),
+                desktopLyricsEnabled,
+                handleToggleDesktopLyrics,
+              )}
+              {desktopLyricsEnabled &&
+                renderActionRow(
+                  t("settings.desktopLyricsStyle"),
+                  t("settings.desktopLyricsStyleDescription"),
+                  () => setLyricStyleModalVisible(true),
+                )}
+            </>
+          )}
 
           {renderSettingRow(
             t("settings.autoTheme"),
@@ -1018,6 +1093,179 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+      <Modal
+        isVisible={lyricStyleModalVisible}
+        onBackdropPress={() => setLyricStyleModalVisible(false)}
+        onBackButtonPress={() => setLyricStyleModalVisible(false)}
+        useNativeDriver
+        hideModalContentWhileAnimating
+        animationIn="fadeIn"
+        animationOut="fadeOut"
+        backdropTransitionOutTiming={0}
+        style={styles.centeredModal}
+        statusBarTranslucent
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              {t("settings.desktopLyricsStyle")}
+            </Text>
+            <Text
+              style={[styles.modalDescription, { color: colors.secondary }]}
+            >
+              {t("settings.desktopLyricsStyleDescription")}
+            </Text>
+
+            {/* 样式预览 */}
+            <View
+              style={[
+                styles.lyricPreview,
+                { backgroundColor: "rgba(150, 150, 150, 0.08)" },
+              ]}
+            >
+              <Text
+                style={{
+                  fontSize: desktopLyricsFontSize,
+                  color: desktopLyricsTextColor,
+                  textShadowColor: desktopLyricsStrokeColor,
+                  textShadowOffset: { width: 0, height: 0 },
+                  textShadowRadius: desktopLyricsStrokeWidth,
+                }}
+              >
+                {t("settings.desktopLyricsPreview")}
+              </Text>
+            </View>
+
+            {/* 字号 */}
+            <View
+              style={[
+                styles.sliderPanel,
+                { backgroundColor: "rgba(150, 150, 150, 0.08)" },
+              ]}
+            >
+              <View style={styles.sliderHeader}>
+                <Text style={[styles.sliderLabel, { color: colors.text }]}>
+                  {t("settings.desktopLyricsFontSize")}
+                </Text>
+                <Text style={[styles.sliderNumber, { color: colors.primary }]}>
+                  {Math.round(desktopLyricsFontSize)}
+                </Text>
+              </View>
+              <Slider
+                minimumValue={12}
+                maximumValue={36}
+                step={1}
+                value={[desktopLyricsFontSize]}
+                onValueChange={(val) =>
+                  void updateSetting(
+                    "desktopLyricsFontSize",
+                    Math.round(val[0] || 18),
+                  )
+                }
+                minimumTrackTintColor={colors.primary}
+                maximumTrackTintColor={colors.border}
+                thumbTintColor={colors.primary}
+              />
+            </View>
+
+            {/* 文字颜色 */}
+            <Text style={[styles.sliderLabel, { color: colors.text }]}>
+              {t("settings.desktopLyricsTextColor")}
+            </Text>
+            <View style={styles.swatchRow}>
+              {LYRIC_TEXT_COLORS.map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  style={[
+                    styles.colorSwatch,
+                    { backgroundColor: c, borderColor: colors.border },
+                    desktopLyricsTextColor === c && {
+                      borderColor: colors.primary,
+                      borderWidth: 3,
+                    },
+                  ]}
+                  onPress={() =>
+                    void updateSetting("desktopLyricsTextColor", c)
+                  }
+                />
+              ))}
+            </View>
+
+            {/* 描边颜色 */}
+            <Text style={[styles.sliderLabel, { color: colors.text }]}>
+              {t("settings.desktopLyricsStrokeColor")}
+            </Text>
+            <View style={styles.swatchRow}>
+              {LYRIC_STROKE_COLORS.map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  style={[
+                    styles.colorSwatch,
+                    { backgroundColor: c, borderColor: colors.border },
+                    desktopLyricsStrokeColor === c && {
+                      borderColor: colors.primary,
+                      borderWidth: 3,
+                    },
+                  ]}
+                  onPress={() =>
+                    void updateSetting("desktopLyricsStrokeColor", c)
+                  }
+                />
+              ))}
+            </View>
+
+            {/* 描边宽度 */}
+            <View
+              style={[
+                styles.sliderPanel,
+                { backgroundColor: "rgba(150, 150, 150, 0.08)" },
+              ]}
+            >
+              <View style={styles.sliderHeader}>
+                <Text style={[styles.sliderLabel, { color: colors.text }]}>
+                  {t("settings.desktopLyricsStrokeWidth")}
+                </Text>
+                <Text style={[styles.sliderNumber, { color: colors.primary }]}>
+                  {desktopLyricsStrokeWidth.toFixed(1)}
+                </Text>
+              </View>
+              <Slider
+                minimumValue={0}
+                maximumValue={8}
+                step={0.5}
+                value={[desktopLyricsStrokeWidth]}
+                onValueChange={(val) =>
+                  void updateSetting("desktopLyricsStrokeWidth", val[0] || 0)
+                }
+                minimumTrackTintColor={colors.primary}
+                maximumTrackTintColor={colors.border}
+                thumbTintColor={colors.primary}
+              />
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  styles.modalConfirmButton,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={() => setLyricStyleModalVisible(false)}
+              >
+                <Text style={styles.modalConfirmText}>{t("common.done")}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <UpdateModal
         visible={!!manualUpdateInfo}
         updateInfo={manualUpdateInfo}
@@ -1217,6 +1465,27 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "600",
+  },
+  lyricPreview: {
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    marginBottom: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  swatchRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 10,
+    marginBottom: 18,
+    gap: 10,
+  },
+  colorSwatch: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   versionText: {
     fontSize: 12,
