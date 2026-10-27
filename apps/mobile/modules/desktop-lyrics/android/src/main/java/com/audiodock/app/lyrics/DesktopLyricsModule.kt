@@ -116,7 +116,9 @@ class DesktopLyricsModule : Module() {
 
     val view = FloatingLyricView(appContext).apply {
       onDrag = { dx, dy ->
-        layoutParams?.let { lp ->
+        // 注意：apply 块内 `layoutParams` 会解析到 View.getLayoutParams()（ViewGroup.LayoutParams，
+        // 没有 x/y 字段），遮蔽模块属性，必须显式限定外层类
+        this@DesktopLyricsModule.layoutParams?.let { lp ->
           lp.x += dx.toInt()
           lp.y += dy.toInt()
           try {
