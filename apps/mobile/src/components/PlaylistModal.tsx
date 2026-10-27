@@ -56,6 +56,9 @@ export const PlaylistModal = () => {
   const [listData, setListData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const flatListRef = React.useRef<FlatList>(null);
+  // 每次打开弹窗/切回「当前播放」tab 时只允许自动滚动一次，
+  // 之后用户手动滚动不再被依赖变化（如 trackList 引用更新）打断
+  const hasAutoScrolledRef = React.useRef(false);
 
   const scrollToCurrent = () => {
     if (activeTab !== "current" || !currentTrack) return;
@@ -75,14 +78,22 @@ export const PlaylistModal = () => {
     }
   }, [sourceType, activeTab]);
 
+  // 弹窗关闭或离开「当前播放」tab 时重置标记，下次进入可再自动定位一次
+  useEffect(() => {
+    if (!showPlaylist || activeTab !== "current") {
+      hasAutoScrolledRef.current = false;
+    }
+  }, [showPlaylist, activeTab]);
+
   useEffect(() => {
     if (showPlaylist && user) {
       if (activeTab === "current") {
         setListData(trackList);
-        // Scroll to current track
-        if (currentTrack) {
+        // Scroll to current track（每次打开仅自动滚动一次）
+        if (currentTrack && !hasAutoScrolledRef.current) {
            const index = trackList.findIndex((t) => t.id === currentTrack.id);
            if (index !== -1) {
+             hasAutoScrolledRef.current = true;
              setTimeout(() => {
                flatListRef.current?.scrollToIndex({
                  index,
