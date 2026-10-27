@@ -27,6 +27,8 @@ export interface PlaylistSource {
     sort?: "asc" | "desc";
     keyword?: string;
     sortBy?: AlbumTrackSortBy;
+    /** 单曲列表（type: "tracks"）的排序方式，如心动模式 "heartbeat" */
+    trackSortBy?: string;
   };
 }
 
@@ -655,6 +657,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
             pageSize,
             loadCount: nextPage,
             type: activeMode,
+            sortBy: playlistSource.params?.trackSortBy,
           });
           if (res.code === 200 && res.data) {
             newTracks = res.data.list;
@@ -672,7 +675,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         }
 
         if (newTracks.length > 0) {
-          const updatedPlaylist = [...playlist, ...newTracks];
+          // 去重：页面侧的下拉加载也会通过 appendTracks 追加同一批数据，
+          // 两条路径竞争时避免队列出现重复曲目
+          const existingIds = new Set(playlist.map((t) => t.id));
+          const dedupedTracks = newTracks.filter((t) => !existingIds.has(t.id));
+          const updatedPlaylist =
+            dedupedTracks.length > 0 ? [...playlist, ...dedupedTracks] : playlist;
           const updatedSource = {
             ...playlistSource,
             currentPage: nextPage,
