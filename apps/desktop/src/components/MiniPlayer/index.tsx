@@ -22,6 +22,7 @@ import { resolveArtworkUri } from "../../services/trackResolver";
 import { isMac, isTauri } from "../../utils/platform";
 import { useAuthStore } from "../../store/auth";
 import { useSettingsStore } from "../../store/settings";
+import { useTheme } from "../../context/ThemeContext";
 import styles from "./index.module.less";
 
 const { Text } = Typography;
@@ -31,6 +32,7 @@ interface MiniPlayerProps {
 }
 
 const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {  const { token } = theme.useToken();
+  const { mode } = useTheme();
   const { t } = useTranslation();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
@@ -158,9 +160,9 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {  const { toke
   // 导致 isLiked 恒 false —— 收藏不变实心、取消收藏发不出去）。
   // 用户实际存在 `user_<serverAddress>`（JSON），auth store 模块加载时已解析好，
   // 优先取 store，store 未初始化时按同样规则兜底解析 localStorage。
-  const getUserId = (): number => {
+  const getUserId = (): number | string => {
     const fromStore = useAuthStore.getState().user?.id;
-    if (fromStore) return fromStore;
+    if (fromStore !== undefined && fromStore !== null) return fromStore;
     try {
       const addr =
         localStorage.getItem("serverAddress") || "http://localhost:3000";
@@ -249,18 +251,31 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {  const { toke
 
   const playIconColor = getContrastColor(token.colorPrimary);
 
+  // themeConfig 把 colorBgContainer 定义为半透明白（暗色 rgba(255,255,255,0.08)），
+  // 它在主窗口成立是因为 RootWrapper 在暗色下垫了纯黑底。
+  // mini 窗口在 Win/Linux 是不透明窗口，容器背后是 WebView2 默认白底，
+  // 直接用半透明色会在暗色主题下显示成白色（白底浅字）。
+  // 所以 Win/Linux 暗色用实色 colorBgBase（暗色算法下即 #000，与 RootWrapper 一致），
+  // 亮色沿用半透明容器色（白底下视觉等同白色，与主窗口一致）；mac 仍透明透出毛玻璃。
+  const isDark = mode === "dark";
+  const containerBg = isMac()
+    ? "transparent"
+    : isDark
+      ? token.colorBgBase
+      : token.colorBgContainer;
+
   return (
     <div
       className={styles.container}
       onMouseDown={handleDragMouseDown}
       // macOS 窗口带 popover 材质（毛玻璃），容器背景必须透明才能透出；
-      // Windows/Linux 为不透明窗口，用主题容器色填充（与主窗口背景一致）。
+      // Windows/Linux 为不透明窗口，暗色用实色 colorBgBase（见上方注释）。
       //
       // 主题未启用 antd cssVar，less 里无法直接引用 --ant-* 变量，
       // 这里把组件需要的主题 token 以 --mini-* CSS 变量注入，明暗主题自动适配。
       style={
         {
-          backgroundColor: isMac() ? "transparent" : token.colorBgContainer,
+          backgroundColor: containerBg,
           "--mini-text": token.colorText,
           "--mini-text-tertiary": token.colorTextTertiary,
           "--mini-primary": token.colorPrimary,

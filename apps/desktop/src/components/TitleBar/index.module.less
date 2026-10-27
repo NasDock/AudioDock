@@ -8,6 +8,10 @@
   user-select: none;
   -webkit-app-region: drag; // Enable window dragging
   z-index: 200;
+  // 与 Header 同源：背景/文字都读插件主题注入的 --ad-header-* 变量，
+  // fallback 与 Header 的默认值一致（插件未激活时两者观感相同）。
+  background-color: var(--ad-header-bg, rgba(255, 255, 255, 0.1));
+  color: var(--ad-header-text, inherit);
 }
 
 .titleInfo {
@@ -52,7 +56,7 @@
 
   &:hover {
     opacity: 1;
-    background-color: var(--ad-header-border, rgba(128, 128, 128, 0.25));
+    background-color: var(--ad-header-border, rgba(255, 255, 255, 0.1));
   }
 }
 

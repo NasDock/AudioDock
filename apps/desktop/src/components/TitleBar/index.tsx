@@ -72,7 +72,9 @@ const TitleBar: React.FC = () => {
   return (
     <div
       className={styles.titleBar}
-      style={{ color: token.colorText }}
+      // 文字色优先插件主题的 --ad-header-text（与 Header 图标同款写法），
+      // 未激活插件主题时回落到 antd 的 colorText token，明暗主题自动适配。
+      style={{ color: "var(--ad-header-text, " + token.colorText + ")" }}
       data-tauri-drag-region
       onDoubleClick={(e) => {
         // 双击空白区域切换最大化（按钮区域已拦截，见 controls 的 stopPropagation）

@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { getMvList } from "@soundx/services";
 import type { Mv } from "@soundx/services";
 import Cover from "../../components/Cover";
+import { useAdaptiveCoverSize } from "../../hooks/useAdaptiveCoverSize";
 import styles from "./index.module.less";
 import { useTranslation } from "react-i18next";
 import { useMvPlaylistStore } from "../../store/mvPlaylist";
@@ -22,6 +23,15 @@ const Mvs: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const PAGE_SIZE = 50;
+
+  // 与专辑列表（Category）一致的封面自适应；MV 为 16:9，自然宽取 195，
+  // pitch 215 ≈ 专辑 pitch(170+24=194) 的 n/(n-1)，使每行个数刚好比专辑列表少一个。
+  const coverSize = useAdaptiveCoverSize(scrollRef, {
+    naturalSize: 195,
+    gap: 20,
+    minCount: 2,
+    padding: 80, // container 左右各 40
+  });
 
   const loadData = async (pageNum: number) => {
     if (loading || !hasMore) return;
@@ -83,6 +93,7 @@ const Mvs: React.FC = () => {
               <Cover
                 item={mv as any}
                 type="mv"
+                size={coverSize}
                 aspectRatio={16 / 9}
                 onClick={() => {
                   setPlaylist(items, index);
