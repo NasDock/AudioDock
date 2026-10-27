@@ -3816,7 +3816,7 @@ dependencies = [
 
 [[package]]
 name = "sound-x"
-version = "1.2.6"
+version = "1.2.7"
 dependencies = [
  "axum",
  "dirs 5.0.1",
