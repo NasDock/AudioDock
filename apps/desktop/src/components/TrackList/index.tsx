@@ -59,6 +59,9 @@ export interface TrackListProps {
 const ROW_HEIGHT = 56;
 const COVER_WIDTH = 30;
 const COVER_HEIGHT = 30;
+// 标题列的最小可用宽度：窄窗口下优先保住标题，不够时依次隐藏专辑、艺术家列
+const TITLE_MIN_WIDTH = 200;
+const META_COL_MIN_WIDTH = 120;
 
 function buildGridTemplate(opts: {
   showIndex: boolean;
@@ -270,6 +273,64 @@ const TrackList: React.FC<TrackListProps> = ({
 
   const showSelect = isSelectionControlled || !!rowSelection;
 
+  // 监听容器宽度，窄窗口下按「专辑 → 艺术家」顺序隐藏列，避免标题列被挤没
+  const [containerWidth, setContainerWidth] = useState(0);
+  useEffect(() => {
+    const el = parentRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      setContainerWidth(entries[0].contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // 宽度不足时实际生效的列开关（containerWidth 为 0 表示尚未测量，先全量展示）
+  const { effShowArtist, effShowAlbum } = useMemo(() => {
+    let artist = showArtist;
+    let album = showAlbum;
+    if (containerWidth > 0) {
+      const fixedWidth =
+        (showSelect ? 36 : 0) +
+        (showIndex ? 50 : 0) +
+        (showCover ? 70 : 0) +
+        (showSource ? 90 : 0) +
+        (isAudiobook ? 70 : 0) +
+        (showDuration ? 80 : 0) +
+        (showActions ? 44 : 0);
+      // 先尝试隐藏专辑列
+      if (
+        album &&
+        containerWidth <
+          fixedWidth +
+            TITLE_MIN_WIDTH +
+            (artist ? META_COL_MIN_WIDTH : 0) +
+            META_COL_MIN_WIDTH
+      ) {
+        album = false;
+      }
+      // 仍不够再隐藏艺术家列
+      if (
+        artist &&
+        containerWidth < fixedWidth + TITLE_MIN_WIDTH + META_COL_MIN_WIDTH
+      ) {
+        artist = false;
+      }
+    }
+    return { effShowArtist: artist, effShowAlbum: album };
+  }, [
+    containerWidth,
+    showArtist,
+    showAlbum,
+    showSelect,
+    showIndex,
+    showCover,
+    showSource,
+    isAudiobook,
+    showDuration,
+    showActions,
+  ]);
+
   // 列模板（按 props 决定列宽）
   const gridTemplate = useMemo(
     () =>
@@ -277,8 +338,8 @@ const TrackList: React.FC<TrackListProps> = ({
         showIndex,
         showCover,
         showSelect,
-        showArtist,
-        showAlbum,
+        showArtist: effShowArtist,
+        showAlbum: effShowAlbum,
         showSource,
         isAudiobook,
         showDuration,
@@ -288,8 +349,8 @@ const TrackList: React.FC<TrackListProps> = ({
       showIndex,
       showCover,
       showSelect,
-      showArtist,
-      showAlbum,
+      effShowArtist,
+      effShowAlbum,
       showSource,
       isAudiobook,
       showDuration,
@@ -376,12 +437,12 @@ const TrackList: React.FC<TrackListProps> = ({
             {track.name}
           </Text>
         </div>
-        {showArtist && (
+        {effShowArtist && (
           <div className={styles.cellArtist}>
             <Text type="secondary">{track.artist}</Text>
           </div>
         )}
-        {showAlbum && (
+        {effShowAlbum && (
           <div className={styles.cellAlbum}>
             <Text type="secondary">
               {typeof track.album === "object"
@@ -524,10 +585,10 @@ const TrackList: React.FC<TrackListProps> = ({
             <div className={styles.headerCell}>{t("trackList.cover")}</div>
           )}
           <div className={styles.headerCell}>{t("trackList.title")}</div>
-          {showArtist && (
+          {effShowArtist && (
             <div className={styles.headerCell}>{t("trackList.artist")}</div>
           )}
-          {showAlbum && (
+          {effShowAlbum && (
             <div className={styles.headerCell}>{t("trackList.album")}</div>
           )}
           {showSource && (

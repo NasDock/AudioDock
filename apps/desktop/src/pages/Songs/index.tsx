@@ -339,6 +339,7 @@ const Songs: React.FC = () => {
           {contextHolder}
           <TrackList
             tracks={data?.list || []}
+            loading={loading}
             showIndex={true}
             showArtist={true}
             showAlbum={true}
