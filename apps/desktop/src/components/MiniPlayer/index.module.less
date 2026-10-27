@@ -179,6 +179,10 @@
 /* 播放队列抽屉：getContainer=false 渲染在容器内，盖满小窗 */
 .queueDrawer {
   position: absolute;
+  /* 容器整窗是 app-region: drag，Chromium/WebView2 的拖动区域会吞掉滚轮事件，
+     导致 win 上列表无法滚动；这里把抽屉整体挖出拖动区域（对内部所有后代生效）。
+     mac 的 WKWebView 不支持该 CSS 属性，此声明对它无影响。 */
+  -webkit-app-region: no-drag;
 
   :global {
     .ant-drawer-content {

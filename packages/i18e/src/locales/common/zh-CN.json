@@ -1041,6 +1041,7 @@
     "progress": "进度",
     "index": "#",
     "tracks": "首",
+    "empty": "暂无曲目",
     "getPlaylistsFailed": "获取播放列表失败",
     "getDeletionImpactFailed": "获取删除影响失败",
     "confirmDelete": "确定删除该音频文件吗?"

@@ -20,6 +20,35 @@ impl<'a> WindowManager<'a> {
         Self { app }
     }
 
+    // mini 窗口位置持久化文件（与 download_path.txt 同目录模式）
+    fn mini_position_path(&self) -> Option<std::path::PathBuf> {
+        self.app
+            .path()
+            .app_data_dir()
+            .ok()
+            .map(|d| d.join("mini_window_pos.json"))
+    }
+
+    // 读取上次保存的 mini 窗口位置（物理像素）。
+    // 校验左上角仍落在某个显示器内，防止拔掉外接屏/改分辨率后窗口恢复到不可见区域。
+    fn load_mini_position(&self) -> Option<tauri::PhysicalPosition<i32>> {
+        let data = std::fs::read_to_string(self.mini_position_path()?).ok()?;
+        let v: serde_json::Value = serde_json::from_str(&data).ok()?;
+        let x = v.get("x")?.as_i64()? as i32;
+        let y = v.get("y")?.as_i64()? as i32;
+        let monitors = self.app.available_monitors().ok()?;
+        let on_screen = monitors.iter().any(|m| {
+            let mp = m.position();
+            let ms = m.size();
+            x >= mp.x && y >= mp.y && x < mp.x + ms.width as i32 && y < mp.y + ms.height as i32
+        });
+        if on_screen {
+            Some(tauri::PhysicalPosition::new(x, y))
+        } else {
+            None
+        }
+    }
+
     pub fn create_lyric_window(&self, settings: Option<LyricSettingsPayload>) -> Result<(), String> {
         eprintln!("[tauri] create_lyric_window called, existing={}", self.app.get_webview_window("lyric").is_some());
 
@@ -92,6 +121,8 @@ impl<'a> WindowManager<'a> {
             return Ok(());
         }
 
+        let saved_pos = self.load_mini_position();
+
         // 背景与主窗口对齐：
         // - macOS：透明窗口 + popover 材质（毛玻璃），同主窗口 tauri.conf.json 的 windowEffects，
         //   前端容器背景设为透明让 vibrancy 透出。
@@ -126,6 +157,21 @@ impl<'a> WindowManager<'a> {
         }
 
         let window = builder.build().map_err(|e| e.to_string())?;
+
+        // 恢复上次关闭时的位置；存取都用物理坐标，避开 scale factor 换算误差
+        if let Some(pos) = saved_pos {
+            let _ = window.set_position(pos);
+        }
+
+        // 拖动后实时持久化位置，下次打开恢复
+        if let Some(path) = self.mini_position_path() {
+            window.on_window_event(move |event| {
+                if let tauri::WindowEvent::Moved(pos) = event {
+                    let _ = std::fs::write(&path, format!("{{\"x\":{},\"y\":{}}}", pos.x, pos.y));
+                }
+            });
+        }
+
         let _ = window.set_focus();
 
         #[cfg(target_os = "macos")]

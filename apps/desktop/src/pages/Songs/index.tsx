@@ -47,7 +47,7 @@ const Songs: React.FC = () => {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const { token } = theme.useToken();
-  const { play, setPlaylist, currentTrack } = usePlayerStore();
+  const { play, setPlaylist, appendTracks, playlistSource, currentTrack } = usePlayerStore();
   const [messageApi, contextHolder] = message.useMessage();
 
   // Selection Mode
@@ -64,6 +64,25 @@ const Songs: React.FC = () => {
   const { mode } = usePlayMode();
   const { heartbeatModeActive, toggleHeartbeatMode } = useLibraryStore();
 
+  // 单曲列表的排序方式（心动模式），播放队列续载时必须与之一致
+  const trackSortBy =
+    mode === "MUSIC" && heartbeatModeActive ? "heartbeat" : undefined;
+
+  // 当前播放队列是否就是本列表形成的（来源一致才允许加载更多时自动追加）
+  const isQueueFromThisList =
+    playlistSource?.type === "tracks" &&
+    playlistSource.params?.trackSortBy === trackSortBy;
+
+  // 点击播放时构建的播放队列来源描述，供播放中自动续载/追加使用
+  const buildPlaylistSource = () => ({
+    type: "tracks" as const,
+    pageSize: 50,
+    // nextLoadCount 是下一页的 loadCount，已加载的最后一页下标要 -1
+    currentPage: (data?.nextLoadCount ?? 1) - 1,
+    hasMore: data?.hasMore ?? true,
+    params: { trackSortBy },
+  });
+
   const loadMore = async (d: Result | undefined): Promise<Result> => {
     const currentLoadCount = d?.nextLoadCount ?? 0;
     const pageSize = 50;
@@ -73,8 +92,7 @@ const Songs: React.FC = () => {
         pageSize,
         loadCount: currentLoadCount,
         type: mode === "MUSIC" ? "MUSIC" : "AUDIOBOOK",
-        sortBy:
-          mode === "MUSIC" && heartbeatModeActive ? "heartbeat" : undefined,
+        sortBy: trackSortBy,
       });
       if (res.code === 200 && res.data) {
         const list = res.data.list || [];
@@ -83,6 +101,12 @@ const Songs: React.FC = () => {
           typeof res.data.hasMore === "boolean"
             ? res.data.hasMore
             : list.length === pageSize;
+
+        // 列表加载出新一页后，同步追加到由本列表形成的当前播放队列
+        // （appendTracks 内部去重；首次加载/已存在的曲目不会重复追加）
+        if (list.length > 0 && isQueueFromThisList) {
+          appendTracks(list, hasMore);
+        }
 
         return {
           list,
@@ -114,7 +138,7 @@ const Songs: React.FC = () => {
 
   const handlePlayAll = () => {
     if (data?.list.length) {
-      setPlaylist(data.list);
+      setPlaylist(data.list, buildPlaylistSource());
       play(data.list[0]);
     }
   };
@@ -315,13 +339,14 @@ const Songs: React.FC = () => {
           {contextHolder}
           <TrackList
             tracks={data?.list || []}
+            loading={loading}
             showIndex={true}
             showArtist={true}
             showAlbum={true}
             showSource={true}
             onPlay={(track, tracks) => {
               if (isSelectionMode) return;
-              setPlaylist(tracks);
+              setPlaylist(tracks, buildPlaylistSource());
               play(track, track.albumId);
             }}
             onRefresh={reload}
