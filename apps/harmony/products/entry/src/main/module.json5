@@ -115,19 +115,6 @@
           ],
           "when": "inuse"
         }
-      },
-      {
-        // 桌面歌词悬浮窗（TYPE_FLOAT 子窗口）。⚠️ 这是 ACL 受限权限：
-        // 普通三方应用上架需在 AppGallery Connect 申请 acl 白名单并在签名 profile 中声明，
-        // 未获授权时 createWindow(TYPE_FLOAT) 会抛错，代码侧已 try/catch 兜底（开关回弹 + toast）。
-        "name": "ohos.permission.SYSTEM_FLOAT_WINDOW",
-        "reason": "$string:float_window_permission_reason",
-        "usedScene": {
-          "abilities": [
-            "EntryAbility"
-          ],
-          "when": "always"
-        }
       }
     ],
     "metadata": [

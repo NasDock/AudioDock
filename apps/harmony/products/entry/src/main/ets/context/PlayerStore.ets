@@ -215,8 +215,6 @@ export class PlayerStore {
     this.lyrics = parseLRC(raw);
     this.activeLyricIndex = -1;
     this.currentLyric = '';
-    // 同步清空桌面歌词悬浮窗
-    AppStorage.setOrCreate<string>('desktopLyricLine', '');
     this.notify();
   }
 
@@ -611,8 +609,6 @@ export class PlayerStore {
       if (idx !== this.activeLyricIndex) {
         this.activeLyricIndex = idx;
         this.currentLyric = idx >= 0 ? this.lyrics[idx].text : '';
-        // 桌面歌词悬浮窗（DesktopLyricFloatPage @StorageLink 订阅，同进程共享）
-        AppStorage.setOrCreate<string>('desktopLyricLine', this.currentLyric);
       }
     }
     this.maybeSkipOutro();

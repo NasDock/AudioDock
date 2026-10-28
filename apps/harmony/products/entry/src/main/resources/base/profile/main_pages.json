@@ -21,8 +21,6 @@
     "pages/MiSpeakerPage",
     "pages/ScanPage",
     "pages/ScanConfirmPage",
-    "pages/ProductUpdatesPage",
-    "pages/DesktopLyricFloatPage",
-    "pages/DesktopLyricStylePage"
+    "pages/ProductUpdatesPage"
   ]
 }
