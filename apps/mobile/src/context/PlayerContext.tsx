@@ -45,6 +45,7 @@ import {
   hideDesktopLyrics,
   updateDesktopLyricsLine,
   applyDesktopLyricsStyle,
+  addDesktopLyricsEventListener,
 } from "../services/desktopLyrics";
 import { getActiveLyricLine } from "../utils/lyrics";
 import { socketService } from "../services/socket";
@@ -203,6 +204,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     desktopLyricsTextColor,
     desktopLyricsStrokeColor,
     desktopLyricsStrokeWidth,
+    updateSetting,
   } = useSettings();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
@@ -744,6 +746,22 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     desktopLyricsStrokeColor,
     desktopLyricsStrokeWidth,
   ]);
+
+  // 悬浮窗遮罩控制面板事件：样式调整回写设置持久化；「关闭歌词」联动关闭开关。
+  // applyStyle 由上面的 effect 幂等回灌原生层（原生 applyStyle 不发事件，无循环）。
+  useEffect(() => {
+    const sub = addDesktopLyricsEventListener((event) => {
+      if (event.action === "styleChanged") {
+        void updateSetting("desktopLyricsFontSize", event.fontSize);
+        void updateSetting("desktopLyricsTextColor", event.textColor);
+        void updateSetting("desktopLyricsStrokeColor", event.strokeColor);
+        void updateSetting("desktopLyricsStrokeWidth", event.strokeWidth);
+      } else if (event.action === "closeRequested") {
+        void updateSetting("desktopLyricsEnabled", false);
+      }
+    });
+    return () => sub.remove();
+  }, [updateSetting]);
 
   const syncMediaControlCenterState = async () => {
     if (Platform.OS !== "android") return;

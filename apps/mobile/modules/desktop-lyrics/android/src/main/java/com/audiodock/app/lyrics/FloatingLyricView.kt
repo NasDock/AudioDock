@@ -14,7 +14,7 @@ import kotlin.math.abs
  * 桌面歌词悬浮窗内容 View：
  * - Paint 双遍绘制实现文字描边（先 STROKE 后 FILL）
  * - 支持拖动（回调更新 WindowManager.LayoutParams）
- * - 单击拉起主 App
+ * - 单击切换遮罩控制面板（具体行为由模块侧接线）
  */
 class FloatingLyricView(context: Context) : View(context) {
 
@@ -59,7 +59,7 @@ class FloatingLyricView(context: Context) : View(context) {
   /** 拖动回调：dx/dy 为相对上次事件的位移（像素） */
   var onDrag: ((dx: Float, dy: Float) -> Unit)? = null
 
-  /** 单击回调：拉起主 App */
+  /** 单击回调：切换遮罩控制面板 */
   var onSingleTap: (() -> Unit)? = null
 
   private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {

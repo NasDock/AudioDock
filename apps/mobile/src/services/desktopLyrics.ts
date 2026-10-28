@@ -1,5 +1,5 @@
 import { Platform } from "react-native";
-import { requireNativeModule } from "expo-modules-core";
+import { EventEmitter, requireNativeModule } from "expo-modules-core";
 
 /**
  * 桌面歌词（悬浮窗歌词）—— Android-only。
@@ -21,13 +21,28 @@ interface DesktopLyricsNativeModule {
   ): boolean;
 }
 
+/** 原生遮罩控制面板回传的事件 */
+export type DesktopLyricsEvent =
+  | {
+      action: "styleChanged";
+      fontSize: number;
+      textColor: string;
+      strokeColor: string;
+      strokeWidth: number;
+    }
+  | { action: "closeRequested" };
+
 let nativeModule: DesktopLyricsNativeModule | null = null;
+let emitter: EventEmitter<{
+  DesktopLyricsEvent: (event: DesktopLyricsEvent) => void;
+}> | null = null;
 
 function getNative(): DesktopLyricsNativeModule | null {
   if (Platform.OS !== "android") return null;
   if (nativeModule) return nativeModule;
   try {
     nativeModule = requireNativeModule<DesktopLyricsNativeModule>("DesktopLyrics");
+    emitter = new EventEmitter(nativeModule);
     return nativeModule;
   } catch {
     return null;
@@ -109,5 +124,22 @@ export function applyDesktopLyricsStyle(style: DesktopLyricStyle): void {
     );
   } catch {
     // no-op
+  }
+}
+
+/**
+ * 订阅原生遮罩控制面板事件：
+ * - styleChanged：用户在悬浮窗遮罩上调整了样式（需回写应用内设置持久化）
+ * - closeRequested：用户在悬浮窗遮罩上点了「关闭歌词」（需关闭应用内开关）
+ */
+export function addDesktopLyricsEventListener(
+  callback: (event: DesktopLyricsEvent) => void
+): { remove: () => void } {
+  try {
+    getNative();
+    if (!emitter) return { remove: () => {} };
+    return emitter.addListener("DesktopLyricsEvent", callback);
+  } catch {
+    return { remove: () => {} };
   }
 }
