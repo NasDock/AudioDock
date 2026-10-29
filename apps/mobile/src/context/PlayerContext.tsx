@@ -45,6 +45,7 @@ import {
   hideDesktopLyrics,
   updateDesktopLyricsLine,
   applyDesktopLyricsStyle,
+  updateDesktopLyricsPlaybackState,
   addDesktopLyricsEventListener,
 } from "../services/desktopLyrics";
 import { getActiveLyricLine } from "../utils/lyrics";
@@ -695,6 +696,24 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     positionRef.current = position;
   }, [position]);
 
+  // 桌面歌词控制面板事件回调用的最新状态/动作引用
+  // （事件监听只需注册一次，通过 ref 读取最新值，避免因依赖变化反复订阅）
+  const isPlayingRef = React.useRef(false);
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+  const lyricActionsRef = React.useRef<{
+    playNext: () => Promise<void>;
+    playPrevious: () => Promise<void>;
+    pause: () => Promise<void>;
+    resume: () => Promise<void>;
+  }>({
+    playNext: async () => {},
+    playPrevious: async () => {},
+    pause: async () => {},
+    resume: async () => {},
+  });
+
   useEffect(() => {
     playbackRateRef.current = playbackRate;
   }, [playbackRate]);
@@ -747,7 +766,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     desktopLyricsStrokeWidth,
   ]);
 
-  // 悬浮窗遮罩控制面板事件：样式调整回写设置持久化；「关闭歌词」联动关闭开关。
+  // 悬浮窗一体式控制面板事件：样式调整回写设置持久化；「关闭歌词」联动关闭开关；
+  // 播放控制按钮（prev/next/togglePlay）经 ref 执行最新播放动作。
   // applyStyle 由上面的 effect 幂等回灌原生层（原生 applyStyle 不发事件，无循环）。
   useEffect(() => {
     const sub = addDesktopLyricsEventListener((event) => {
@@ -758,10 +778,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         void updateSetting("desktopLyricsStrokeWidth", event.strokeWidth);
       } else if (event.action === "closeRequested") {
         void updateSetting("desktopLyricsEnabled", false);
+      } else if (event.action === "prev") {
+        void lyricActionsRef.current.playPrevious();
+      } else if (event.action === "next") {
+        void lyricActionsRef.current.playNext();
+      } else if (event.action === "togglePlay") {
+        if (isPlayingRef.current) {
+          void lyricActionsRef.current.pause();
+        } else {
+          void lyricActionsRef.current.resume();
+        }
       }
     });
     return () => sub.remove();
   }, [updateSetting]);
+
+  // 桌面歌词：播放状态实时回推悬浮窗（切换播放/暂停图标）
+  useEffect(() => {
+    if (!desktopLyricsEnabled) return;
+    updateDesktopLyricsPlaybackState(isPlaying);
+  }, [desktopLyricsEnabled, isPlaying]);
 
   const syncMediaControlCenterState = async () => {
     if (Platform.OS !== "android") return;
@@ -1912,6 +1948,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     }
   };
+
+  // 桌面歌词控制面板事件回调引用最新播放动作（渲染期赋值，监听器无需重订阅）
+  lyricActionsRef.current = { playNext, playPrevious, pause, resume };
 
   const seekTo = async (pos: number) => {
     if (isSetup) {

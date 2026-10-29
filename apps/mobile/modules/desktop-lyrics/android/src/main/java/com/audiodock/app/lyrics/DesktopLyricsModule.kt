@@ -1,37 +1,45 @@
 package com.audiodock.app.lyrics
 
 import android.content.Context
+import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import android.util.TypedValue
 import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 /**
- * 桌面歌词模块：管理一个 TYPE_APPLICATION_OVERLAY 悬浮窗，
+ * 桌面歌词模块：管理单个 TYPE_APPLICATION_OVERLAY 悬浮窗（歌词 + 控制面板一体），
  * 使用 application context 挂载（依赖前台服务保活进程）。
  *
- * 交互：单击歌词 → 弹出全屏遮罩控制面板（样式设置 + 关闭歌词 + 打开应用）；
- * 点击遮罩空白处 → 收起面板。样式改动即时生效并持久化，同时发事件给 JS 同步应用内设置。
+ * 交互（参考网易云/鸿蒙系统歌词）：
+ * - 单击歌词 → 展开/收起内联控制栏（锁、上一首、播放暂停、下一首、设置）
+ * - 设置齿轮 → 展开样式区（文字颜色、描边颜色、字号、描边宽度），改动即时生效
+ * - ✕ → 关闭桌面歌词（发事件给 JS 联动设置页开关）
+ * - 播放控制按钮 → 发事件给 JS 执行实际播放操作；JS 侧通过 updatePlaybackState 回推播放状态
+ * - 展开后 6 秒无操作自动收起为纯歌词
+ * - 暂停播放时延迟隐藏悬浮窗（仅 GONE 不销毁，位置/歌词保留），恢复播放时立即重新显示
  */
 class DesktopLyricsModule : Module() {
 
   private val mainHandler = Handler(Looper.getMainLooper())
 
   private var windowManager: WindowManager? = null
-  private var floatView: FloatingLyricView? = null
+  private var windowView: DesktopLyricWindowView? = null
   private var layoutParams: WindowManager.LayoutParams? = null
+  private var configCallback: ComponentCallbacks2? = null
 
-  private var panelView: LyricControlPanel? = null
-  private var panelParams: WindowManager.LayoutParams? = null
+  /** 暂停后延迟隐藏悬浮窗的任务（容忍切歌缓冲的短暂非播放态，避免窗口闪烁） */
+  private val autoHideRunnable = Runnable { setOverlayVisible(false) }
 
   private val prefs: SharedPreferences?
     get() = appContext.reactContext?.applicationContext
@@ -76,27 +84,61 @@ class DesktopLyricsModule : Module() {
     }
 
     Function("isShowing") {
-      return@Function floatView != null
+      return@Function windowView != null
     }
 
     Function("updateLyric") { line: String ->
       mainHandler.post {
-        floatView?.lyricLine = line
-        panelView?.previewLine = line
+        val view = windowView
+        view?.lyricView?.lyricLine = line
+        // 折叠态下同步量出新歌词宽度，一次性 updateViewLayout 原子改窗口宽度：
+        // WRAP_CONTENT 的异步 relayout 会先把宽 buffer 画在旧窗口位置上，
+        // 视觉上表现为长歌词「从右边滑入」，这里显式定宽消除该中间帧。
+        // 窗口 gravity 为 CENTER_HORIZONTAL，宽度变化时中心保持不动。
+        if (view != null && !view.isExpanded) {
+          layoutParams?.let { lp ->
+            lp.width = view.lyricView.desiredWidthPx()
+            try {
+              windowManager?.updateViewLayout(view, lp)
+            } catch (e: Exception) {
+              // view 可能已 detach，忽略
+            }
+          }
+        }
       }
       return@Function true
     }
 
     Function("applyStyle") { fontSize: Double, textColor: String, strokeColor: String, strokeWidth: Double ->
       mainHandler.post {
-        val style = LyricControlPanel.Style(
+        val style = DesktopLyricWindowView.Style(
           fontSizeSp = fontSize.toFloat(),
           textColor = parseColorSafe(textColor, Color.WHITE),
           strokeColor = parseColorSafe(strokeColor, Color.BLACK),
           strokeWidthDp = strokeWidth.toFloat(),
         )
-        floatView?.let { view -> applyStyleToView(view, style) }
+        windowView?.bindStyle(style)
         saveStyle(style)
+      }
+      return@Function true
+    }
+
+    /**
+     * JS 侧回推播放状态：
+     * - 切换控制栏播放/暂停图标
+     * - 暂停时延迟隐藏悬浮窗（仅置 GONE，不销毁窗口，拖动位置与歌词内容保留）；
+     *   恢复播放时取消待执行的隐藏并立即重新显示。
+     *   JS 侧仅在桌面歌词开关开启时调用本方法，故恢复显示天然受开关状态约束。
+     */
+    Function("updatePlaybackState") { playing: Boolean ->
+      mainHandler.post {
+        windowView?.setPlaying(playing)
+        mainHandler.removeCallbacks(autoHideRunnable)
+        if (playing) {
+          setOverlayVisible(true)
+        } else if (windowView != null) {
+          mainHandler.postDelayed(autoHideRunnable, AUTO_HIDE_DELAY_MS)
+        }
       }
       return@Function true
     }
@@ -106,12 +148,12 @@ class DesktopLyricsModule : Module() {
     }
   }
 
-  // ---------- 歌词悬浮窗 ----------
+  // ---------- 悬浮窗管理 ----------
 
   private fun showOverlay() {
     val context = appContext.reactContext ?: return
     if (!Settings.canDrawOverlays(context)) return
-    if (floatView != null) return
+    if (windowView != null) return
 
     val appContext = context.applicationContext
     val wm = appContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -132,85 +174,55 @@ class DesktopLyricsModule : Module() {
     }
     layoutParams = params
 
-    val view = FloatingLyricView(appContext).apply {
-      onDrag = { dx, dy ->
-        // 注意：apply 块内 `layoutParams` 会解析到 View.getLayoutParams()（ViewGroup.LayoutParams，
-        // 没有 x/y 字段），遮蔽模块属性，必须显式限定外层类
-        this@DesktopLyricsModule.layoutParams?.let { lp ->
+    // 展开态宽度动态读取当前屏幕宽度（折叠屏开合后 displayMetrics 会更新）
+    val expandedWidth = {
+      appContext.resources.displayMetrics.widthPixels - dp(appContext, 32f).toInt()
+    }
+
+    val view = DesktopLyricWindowView(appContext)
+
+    // 拖动（锁定时禁用）；单击歌词切换控制栏
+    view.lyricView.onDrag = { dx, dy ->
+      if (!view.isLocked) {
+        layoutParams?.let { lp ->
           lp.x += dx.toInt()
           lp.y += dy.toInt()
           try {
-            windowManager?.updateViewLayout(this, lp)
+            windowManager?.updateViewLayout(view, lp)
           } catch (e: Exception) {
             // view 可能已 detach，忽略
           }
         }
       }
-      // 单击歌词：切换遮罩控制面板
-      onSingleTap = { togglePanel() }
     }
-    // 先恢复上次样式（JS 侧 applyStyle 随后会再覆盖为应用内设置值）
-    applyStyleToView(view, loadStyle())
+    view.lyricView.onSingleTap = { view.toggleExpanded() }
 
-    try {
-      wm.addView(view, params)
-      floatView = view
-    } catch (e: Exception) {
-      floatView = null
+    // 展开/收起后调整窗口宽度并触发重排
+    view.onLayoutChanged = {
+      layoutParams?.let { lp ->
+        lp.width = if (view.isExpanded) {
+          expandedWidth()
+        } else {
+          // 折叠态也用同步量宽（而非 WRAP_CONTENT），与 updateLyric 保持一致
+          view.lyricView.desiredWidthPx()
+        }
+        try {
+          windowManager?.updateViewLayout(view, lp)
+        } catch (e: Exception) {
+          // 忽略
+        }
+      }
     }
-  }
 
-  private fun hideOverlay() {
-    dismissPanel()
-    val view = floatView ?: return
-    try {
-      windowManager?.removeView(view)
-    } catch (e: Exception) {
-      // 已移除则忽略
+    // 面板回调
+    view.onClose = {
+      hideOverlay()
+      sendEvent("DesktopLyricsEvent", mapOf("action" to "closeRequested"))
     }
-    floatView = null
-    layoutParams = null
-    windowManager = null
-  }
-
-  // ---------- 遮罩控制面板 ----------
-
-  private fun togglePanel() {
-    if (panelView != null) {
-      dismissPanel()
-    } else {
-      showPanel()
-    }
-  }
-
-  private fun showPanel() {
-    val context = appContext.reactContext?.applicationContext ?: return
-    val wm = windowManager ?: return
-    val lyricView = floatView ?: return
-    if (!Settings.canDrawOverlays(context)) return
-    if (panelView != null) return
-
-    val params = WindowManager.LayoutParams(
-      WindowManager.LayoutParams.MATCH_PARENT,
-      WindowManager.LayoutParams.MATCH_PARENT,
-      WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-      WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-      PixelFormat.TRANSLUCENT
-    ).apply {
-      gravity = Gravity.TOP or Gravity.START
-      x = 0
-      y = 0
-    }
-    panelParams = params
-
-    val panel = LyricControlPanel(context)
-    // 面板避开歌词：放在歌词下方 12dp
-    val lyricBottom = (layoutParams?.y ?: 0) + lyricView.height
-    panel.panelTopMarginPx = lyricBottom + dp(context, 12f).toInt()
-
-    panel.onStyleChanged = { style ->
-      floatView?.let { applyStyleToView(it, style) }
+    view.onPrev = { sendEvent("DesktopLyricsEvent", mapOf("action" to "prev")) }
+    view.onNext = { sendEvent("DesktopLyricsEvent", mapOf("action" to "next")) }
+    view.onTogglePlay = { sendEvent("DesktopLyricsEvent", mapOf("action" to "togglePlay")) }
+    view.onStyleChanged = { style ->
       saveStyle(style)
       sendEvent(
         "DesktopLyricsEvent",
@@ -223,72 +235,85 @@ class DesktopLyricsModule : Module() {
         )
       )
     }
-    panel.onCloseLyrics = {
-      dismissPanel()
-      hideOverlay()
-      sendEvent("DesktopLyricsEvent", mapOf("action" to "closeRequested"))
-    }
-    panel.onOpenApp = {
-      launchMainApp(context)
-      dismissPanel()
-    }
-    panel.onDismiss = { dismissPanel() }
 
-    panel.bindStyle(currentStyle(), lyricView.lyricLine)
+    // 先恢复上次样式（JS 侧 applyStyle 随后会再覆盖为应用内设置值）
+    view.bindStyle(loadStyle())
 
     try {
-      wm.addView(panel, params)
-      panelView = panel
+      wm.addView(view, params)
+      windowView = view
+      // 监听屏幕配置变化（折叠屏开合、旋转）：动态调整窗口宽度并触发重测量，
+      // 避免折叠后悬浮窗仍保持展开态宽度而超出屏幕边界
+      val callback = object : ComponentCallbacks2 {
+        override fun onConfigurationChanged(newConfig: Configuration) {
+          mainHandler.post {
+            val v = windowView ?: return@post
+            val lp = layoutParams ?: return@post
+            // 折叠屏开合/旋转后 displayMetrics 更新，两种状态都按最新屏宽同步量宽，
+            // 避免折叠后悬浮窗仍保持旧宽度而超出屏幕边界
+            lp.width = if (v.isExpanded) {
+              expandedWidth()
+            } else {
+              v.lyricView.desiredWidthPx()
+            }
+            try {
+              windowManager?.updateViewLayout(v, lp)
+            } catch (e: Exception) {
+              // 忽略
+            }
+            v.requestLayout()
+          }
+        }
+
+        @Deprecated("ComponentCallbacks2 接口要求实现")
+        override fun onTrimMemory(level: Int) {}
+      }
+      appContext.registerComponentCallbacks(callback)
+      configCallback = callback
     } catch (e: Exception) {
-      panelView = null
+      windowView = null
     }
   }
 
-  private fun dismissPanel() {
-    val panel = panelView ?: return
+  private fun hideOverlay() {
+    mainHandler.removeCallbacks(autoHideRunnable)
+    val view = windowView ?: return
+    configCallback?.let {
+      try {
+        appContext.reactContext?.applicationContext?.unregisterComponentCallbacks(it)
+      } catch (e: Exception) {
+        // 忽略
+      }
+    }
+    configCallback = null
     try {
-      windowManager?.removeView(panel)
+      windowManager?.removeView(view)
     } catch (e: Exception) {
       // 已移除则忽略
     }
-    panelView = null
-    panelParams = null
+    windowView = null
+    layoutParams = null
+    windowManager = null
   }
 
-  private fun launchMainApp(context: Context) {
-    try {
-      val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-      launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-      context.startActivity(launchIntent)
-    } catch (e: Exception) {
-      // 忽略
-    }
+  /**
+   * 仅切换悬浮窗可见性，不销毁窗口：
+   * 暂停隐藏时保留拖动位置、展开状态与歌词内容，恢复播放时原样显示。
+   * 根视图 GONE 后 WRAP_CONTENT 窗口收缩为 0 尺寸，不会拦截触摸。
+   */
+  private fun setOverlayVisible(visible: Boolean) {
+    val view = windowView ?: return
+    view.visibility = if (visible) View.VISIBLE else View.GONE
   }
 
-  // ---------- 样式应用与持久化 ----------
+  // ---------- 样式持久化 ----------
 
-  private fun currentStyle(): LyricControlPanel.Style {
-    val view = floatView
-    return if (view != null) {
-      LyricControlPanel.Style(view.textSizeSp, view.textColor, view.strokeColor, view.strokeWidthDp)
-    } else {
-      loadStyle()
-    }
-  }
-
-  private fun applyStyleToView(view: FloatingLyricView, style: LyricControlPanel.Style) {
-    view.textSizeSp = style.fontSizeSp
-    view.textColor = style.textColor
-    view.strokeColor = style.strokeColor
-    view.strokeWidthDp = style.strokeWidthDp
-  }
-
-  private fun loadStyle(): LyricControlPanel.Style {
+  private fun loadStyle(): DesktopLyricWindowView.Style {
     val p = prefs
     return if (p == null) {
-      LyricControlPanel.Style(18f, Color.WHITE, Color.BLACK, 2f)
+      DesktopLyricWindowView.Style(18f, Color.WHITE, Color.BLACK, 2f)
     } else {
-      LyricControlPanel.Style(
+      DesktopLyricWindowView.Style(
         fontSizeSp = p.getFloat(KEY_FONT_SIZE, 18f),
         textColor = p.getInt(KEY_TEXT_COLOR, Color.WHITE),
         strokeColor = p.getInt(KEY_STROKE_COLOR, Color.BLACK),
@@ -297,7 +322,7 @@ class DesktopLyricsModule : Module() {
     }
   }
 
-  private fun saveStyle(style: LyricControlPanel.Style) {
+  private fun saveStyle(style: DesktopLyricWindowView.Style) {
     prefs?.edit()
       ?.putFloat(KEY_FONT_SIZE, style.fontSizeSp)
       ?.putInt(KEY_TEXT_COLOR, style.textColor)
@@ -310,8 +335,8 @@ class DesktopLyricsModule : Module() {
     String.format("#%06X", 0xFFFFFF and color)
 
   private fun dp(context: Context, value: Float): Float =
-    TypedValue.applyDimension(
-      TypedValue.COMPLEX_UNIT_DIP, value, context.resources.displayMetrics
+    android.util.TypedValue.applyDimension(
+      android.util.TypedValue.COMPLEX_UNIT_DIP, value, context.resources.displayMetrics
     )
 
   private fun parseColorSafe(color: String, fallback: Int): Int {
@@ -328,5 +353,7 @@ class DesktopLyricsModule : Module() {
     private const val KEY_TEXT_COLOR = "textColor"
     private const val KEY_STROKE_COLOR = "strokeColor"
     private const val KEY_STROKE_WIDTH = "strokeWidth"
+    /** 暂停后延迟隐藏悬浮窗的时间（毫秒），短于此时长的非播放态（如切歌缓冲）不触发隐藏 */
+    private const val AUTO_HIDE_DELAY_MS = 1000L
   }
 }

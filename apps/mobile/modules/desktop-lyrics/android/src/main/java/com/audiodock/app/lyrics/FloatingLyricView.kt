@@ -11,10 +11,10 @@ import android.view.WindowManager
 import kotlin.math.abs
 
 /**
- * 桌面歌词悬浮窗内容 View：
+ * 桌面歌词悬浮窗的歌词绘制 View：
  * - Paint 双遍绘制实现文字描边（先 STROKE 后 FILL）
  * - 支持拖动（回调更新 WindowManager.LayoutParams）
- * - 单击切换遮罩控制面板（具体行为由模块侧接线）
+ * - 单击切换一体式控制栏展开/收起（具体行为由模块侧接线）
  */
 class FloatingLyricView(context: Context) : View(context) {
 
@@ -22,6 +22,9 @@ class FloatingLyricView(context: Context) : View(context) {
     set(value) {
       if (field != value) {
         field = value
+        // 文本宽度变化 → 必须 requestLayout 触发重新测量，
+        // 否则 WRAP_CONTENT 窗口不会更新尺寸（表现为初始很窄、拖动后才变宽）
+        requestLayout()
         invalidate()
       }
     }
@@ -32,6 +35,7 @@ class FloatingLyricView(context: Context) : View(context) {
       val px = spToPx(value)
       fillPaint.textSize = px
       strokePaint.textSize = px
+      requestLayout()
       invalidate()
     }
 
@@ -53,6 +57,7 @@ class FloatingLyricView(context: Context) : View(context) {
     set(value) {
       field = value
       strokePaint.strokeWidth = dpToPx(value)
+      requestLayout()
       invalidate()
     }
 
@@ -88,17 +93,28 @@ class FloatingLyricView(context: Context) : View(context) {
 
   private val touchSlopPx = dpToPx(6f)
 
-  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+  /**
+   * 同步计算当前歌词行所需的视图宽度（与 onMeasure 逻辑一致）。
+   * 模块侧在歌词变更时用它一次性 updateViewLayout 设置窗口宽度，
+   * 避免 WRAP_CONTENT 异步 relayout 造成的「新歌词从右侧滑入」中间帧。
+   */
+  fun desiredWidthPx(): Int {
     val text = lyricLine.ifEmpty { " " }
     val textWidth = fillPaint.measureText(text)
+    val padH = dpToPx(20f)
+    val desiredW = (textWidth + padH * 2).toInt().coerceAtLeast(dpToPx(120f).toInt())
+    // 超长歌词行不超过屏宽 - 32dp，避免悬浮窗被撑出屏幕
+    val maxW = resources.displayMetrics.widthPixels - dpToPx(32f).toInt()
+    return desiredW.coerceAtMost(maxW)
+  }
+
+  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
     val fm = fillPaint.fontMetrics
     val textHeight = fm.descent - fm.ascent
-    val padH = dpToPx(20f)
     val padV = dpToPx(10f)
-    val desiredW = (textWidth + padH * 2).toInt().coerceAtLeast(dpToPx(120f).toInt())
     val desiredH = (textHeight + padV * 2).toInt().coerceAtLeast(dpToPx(40f).toInt())
     setMeasuredDimension(
-      resolveSize(desiredW, widthMeasureSpec),
+      resolveSize(desiredWidthPx(), widthMeasureSpec),
       resolveSize(desiredH, heightMeasureSpec)
     )
   }
