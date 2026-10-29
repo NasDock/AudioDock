@@ -1,8 +1,10 @@
 package com.audiodock.app.lyrics
 
 import android.content.Context
+import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.net.Uri
@@ -10,6 +12,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -24,6 +27,7 @@ import expo.modules.kotlin.modules.ModuleDefinition
  * - ✕ → 关闭桌面歌词（发事件给 JS 联动设置页开关）
  * - 播放控制按钮 → 发事件给 JS 执行实际播放操作；JS 侧通过 updatePlaybackState 回推播放状态
  * - 展开后 6 秒无操作自动收起为纯歌词
+ * - 暂停播放时延迟隐藏悬浮窗（仅 GONE 不销毁，位置/歌词保留），恢复播放时立即重新显示
  */
 class DesktopLyricsModule : Module() {
 
@@ -32,6 +36,10 @@ class DesktopLyricsModule : Module() {
   private var windowManager: WindowManager? = null
   private var windowView: DesktopLyricWindowView? = null
   private var layoutParams: WindowManager.LayoutParams? = null
+  private var configCallback: ComponentCallbacks2? = null
+
+  /** 暂停后延迟隐藏悬浮窗的任务（容忍切歌缓冲的短暂非播放态，避免窗口闪烁） */
+  private val autoHideRunnable = Runnable { setOverlayVisible(false) }
 
   private val prefs: SharedPreferences?
     get() = appContext.reactContext?.applicationContext
@@ -81,7 +89,22 @@ class DesktopLyricsModule : Module() {
 
     Function("updateLyric") { line: String ->
       mainHandler.post {
-        windowView?.lyricView?.lyricLine = line
+        val view = windowView
+        view?.lyricView?.lyricLine = line
+        // 折叠态下同步量出新歌词宽度，一次性 updateViewLayout 原子改窗口宽度：
+        // WRAP_CONTENT 的异步 relayout 会先把宽 buffer 画在旧窗口位置上，
+        // 视觉上表现为长歌词「从右边滑入」，这里显式定宽消除该中间帧。
+        // 窗口 gravity 为 CENTER_HORIZONTAL，宽度变化时中心保持不动。
+        if (view != null && !view.isExpanded) {
+          layoutParams?.let { lp ->
+            lp.width = view.lyricView.desiredWidthPx()
+            try {
+              windowManager?.updateViewLayout(view, lp)
+            } catch (e: Exception) {
+              // view 可能已 detach，忽略
+            }
+          }
+        }
       }
       return@Function true
     }
@@ -100,10 +123,22 @@ class DesktopLyricsModule : Module() {
       return@Function true
     }
 
-    /** JS 侧回推播放状态，用于切换播放/暂停图标 */
+    /**
+     * JS 侧回推播放状态：
+     * - 切换控制栏播放/暂停图标
+     * - 暂停时延迟隐藏悬浮窗（仅置 GONE，不销毁窗口，拖动位置与歌词内容保留）；
+     *   恢复播放时取消待执行的隐藏并立即重新显示。
+     *   JS 侧仅在桌面歌词开关开启时调用本方法，故恢复显示天然受开关状态约束。
+     */
     Function("updatePlaybackState") { playing: Boolean ->
       mainHandler.post {
         windowView?.setPlaying(playing)
+        mainHandler.removeCallbacks(autoHideRunnable)
+        if (playing) {
+          setOverlayVisible(true)
+        } else if (windowView != null) {
+          mainHandler.postDelayed(autoHideRunnable, AUTO_HIDE_DELAY_MS)
+        }
       }
       return@Function true
     }
@@ -139,8 +174,10 @@ class DesktopLyricsModule : Module() {
     }
     layoutParams = params
 
-    val screenWidth = appContext.resources.displayMetrics.widthPixels
-    val expandedWidth = screenWidth - dp(appContext, 32f).toInt()
+    // 展开态宽度动态读取当前屏幕宽度（折叠屏开合后 displayMetrics 会更新）
+    val expandedWidth = {
+      appContext.resources.displayMetrics.widthPixels - dp(appContext, 32f).toInt()
+    }
 
     val view = DesktopLyricWindowView(appContext)
 
@@ -164,9 +201,10 @@ class DesktopLyricsModule : Module() {
     view.onLayoutChanged = {
       layoutParams?.let { lp ->
         lp.width = if (view.isExpanded) {
-          expandedWidth
+          expandedWidth()
         } else {
-          WindowManager.LayoutParams.WRAP_CONTENT
+          // 折叠态也用同步量宽（而非 WRAP_CONTENT），与 updateLyric 保持一致
+          view.lyricView.desiredWidthPx()
         }
         try {
           windowManager?.updateViewLayout(view, lp)
@@ -204,13 +242,50 @@ class DesktopLyricsModule : Module() {
     try {
       wm.addView(view, params)
       windowView = view
+      // 监听屏幕配置变化（折叠屏开合、旋转）：动态调整窗口宽度并触发重测量，
+      // 避免折叠后悬浮窗仍保持展开态宽度而超出屏幕边界
+      val callback = object : ComponentCallbacks2 {
+        override fun onConfigurationChanged(newConfig: Configuration) {
+          mainHandler.post {
+            val v = windowView ?: return@post
+            val lp = layoutParams ?: return@post
+            // 折叠屏开合/旋转后 displayMetrics 更新，两种状态都按最新屏宽同步量宽，
+            // 避免折叠后悬浮窗仍保持旧宽度而超出屏幕边界
+            lp.width = if (v.isExpanded) {
+              expandedWidth()
+            } else {
+              v.lyricView.desiredWidthPx()
+            }
+            try {
+              windowManager?.updateViewLayout(v, lp)
+            } catch (e: Exception) {
+              // 忽略
+            }
+            v.requestLayout()
+          }
+        }
+
+        @Deprecated("ComponentCallbacks2 接口要求实现")
+        override fun onTrimMemory(level: Int) {}
+      }
+      appContext.registerComponentCallbacks(callback)
+      configCallback = callback
     } catch (e: Exception) {
       windowView = null
     }
   }
 
   private fun hideOverlay() {
+    mainHandler.removeCallbacks(autoHideRunnable)
     val view = windowView ?: return
+    configCallback?.let {
+      try {
+        appContext.reactContext?.applicationContext?.unregisterComponentCallbacks(it)
+      } catch (e: Exception) {
+        // 忽略
+      }
+    }
+    configCallback = null
     try {
       windowManager?.removeView(view)
     } catch (e: Exception) {
@@ -219,6 +294,16 @@ class DesktopLyricsModule : Module() {
     windowView = null
     layoutParams = null
     windowManager = null
+  }
+
+  /**
+   * 仅切换悬浮窗可见性，不销毁窗口：
+   * 暂停隐藏时保留拖动位置、展开状态与歌词内容，恢复播放时原样显示。
+   * 根视图 GONE 后 WRAP_CONTENT 窗口收缩为 0 尺寸，不会拦截触摸。
+   */
+  private fun setOverlayVisible(visible: Boolean) {
+    val view = windowView ?: return
+    view.visibility = if (visible) View.VISIBLE else View.GONE
   }
 
   // ---------- 样式持久化 ----------
@@ -268,5 +353,7 @@ class DesktopLyricsModule : Module() {
     private const val KEY_TEXT_COLOR = "textColor"
     private const val KEY_STROKE_COLOR = "strokeColor"
     private const val KEY_STROKE_WIDTH = "strokeWidth"
+    /** 暂停后延迟隐藏悬浮窗的时间（毫秒），短于此时长的非播放态（如切歌缓冲）不触发隐藏 */
+    private const val AUTO_HIDE_DELAY_MS = 1000L
   }
 }

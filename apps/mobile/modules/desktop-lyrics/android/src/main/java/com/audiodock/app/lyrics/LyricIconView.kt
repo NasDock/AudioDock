@@ -93,21 +93,22 @@ class LyricIconView(context: Context) : View(context) {
         canvas.drawRoundRect(rect, corner, corner, fillPaint)
       }
       Icon.PREV -> {
-        // 竖条 + 左向三角
+        // 竖条在左 + 左向三角（尖朝左）
         rect.set(cx - r, cy - r, cx - r * 0.6f, cy + r)
         canvas.drawRoundRect(rect, dp(1f), dp(1f), fillPaint)
         path.reset()
-        path.moveTo(cx - r * 0.25f, cy - r)
-        path.lineTo(cx - r * 0.25f, cy + r)
-        path.lineTo(cx + r, cy)
+        path.moveTo(cx + r, cy - r)
+        path.lineTo(cx + r, cy + r)
+        path.lineTo(cx - r * 0.25f, cy)
         path.close()
         canvas.drawPath(path, fillPaint)
       }
       Icon.NEXT -> {
+        // 右向三角（尖朝右）+ 竖条在右
         path.reset()
-        path.moveTo(cx + r * 0.25f, cy - r)
-        path.lineTo(cx + r * 0.25f, cy + r)
-        path.lineTo(cx - r, cy)
+        path.moveTo(cx - r, cy - r)
+        path.lineTo(cx - r, cy + r)
+        path.lineTo(cx + r * 0.25f, cy)
         path.close()
         canvas.drawPath(path, fillPaint)
         rect.set(cx + r * 0.6f, cy - r, cx + r, cy + r)

@@ -93,20 +93,28 @@ class FloatingLyricView(context: Context) : View(context) {
 
   private val touchSlopPx = dpToPx(6f)
 
-  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+  /**
+   * 同步计算当前歌词行所需的视图宽度（与 onMeasure 逻辑一致）。
+   * 模块侧在歌词变更时用它一次性 updateViewLayout 设置窗口宽度，
+   * 避免 WRAP_CONTENT 异步 relayout 造成的「新歌词从右侧滑入」中间帧。
+   */
+  fun desiredWidthPx(): Int {
     val text = lyricLine.ifEmpty { " " }
     val textWidth = fillPaint.measureText(text)
-    val fm = fillPaint.fontMetrics
-    val textHeight = fm.descent - fm.ascent
     val padH = dpToPx(20f)
-    val padV = dpToPx(10f)
     val desiredW = (textWidth + padH * 2).toInt().coerceAtLeast(dpToPx(120f).toInt())
     // 超长歌词行不超过屏宽 - 32dp，避免悬浮窗被撑出屏幕
     val maxW = resources.displayMetrics.widthPixels - dpToPx(32f).toInt()
-    val cappedW = desiredW.coerceAtMost(maxW)
+    return desiredW.coerceAtMost(maxW)
+  }
+
+  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    val fm = fillPaint.fontMetrics
+    val textHeight = fm.descent - fm.ascent
+    val padV = dpToPx(10f)
     val desiredH = (textHeight + padV * 2).toInt().coerceAtLeast(dpToPx(40f).toInt())
     setMeasuredDimension(
-      resolveSize(cappedW, widthMeasureSpec),
+      resolveSize(desiredWidthPx(), widthMeasureSpec),
       resolveSize(desiredH, heightMeasureSpec)
     )
   }
