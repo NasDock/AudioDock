@@ -1475,68 +1475,82 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             qualitySettingsRef.current,
           );
 
-          const shouldUseSingleTrackQueue = state.playMode === PlayMode.SHUFFLE;
-          if (shouldUseSingleTrackQueue) {
-            const uri =
-              await resolveTrackUri(activeTrack, {
-                cacheEnabled,
-                shouldDownload: true,
-                quality: restoreQuality,
+          // 原生队列恢复包一层独立 try：任何一步失败（网络不可达、
+          // TrackPlayer 异常等）只告警，绝不清掉上面已恢复的 UI 状态——
+          // 否则外层 catch 会把 currentTrack 置空，mini 播放器直接消失。
+          try {
+            // 与 playTrackList 同款同步 URL 计算：缓存内存索引命中给 file://，
+            // 未命中走远端。恢复路径不做逐曲异步解析——旧实现用 Promise.all
+            // 并发解析整列 URI/封面，任何一首失败都会整体抛错。
+            const buildSyncUri = (t: Track): string => {
+              const cached = cacheEnabled
+                ? getCachedTrackPathSync(t.id, t.path)
+                : null;
+              if (cached) return cached;
+              return t.type === TrackType.AUDIOBOOK
+                ? (t.path.startsWith("http")
+                    ? t.path
+                    : `${getBaseURL()}${t.path
+                        .split("/")
+                        .map(encodeURIComponent)
+                        .join("/")}`)
+                : buildTrackPlaybackUrl(t, restoreQuality);
+            };
+
+            const shouldUseSingleTrackQueue = state.playMode === PlayMode.SHUFFLE;
+            if (shouldUseSingleTrackQueue) {
+              await TrackPlayer.setQueue([
+                {
+                  id: String(activeTrack.id),
+                  url: buildSyncUri(activeTrack),
+                  title: activeTrack.name,
+                  artist: activeTrack.artist,
+                  album: activeTrack.album || "Unknown Album",
+                  artwork: resolveArtworkUri(activeTrack),
+                  duration: activeTrack.duration || 0,
+                  type: activeTrack.type,
+                } as any,
+              ]);
+              await TrackPlayer.skip(0);
+            } else {
+              const queue = list.map(
+                (track: Track) =>
+                  ({
+                    id: String(track.id),
+                    url: buildSyncUri(track),
+                    title: track.name,
+                    artist: track.artist,
+                    album: track.album || "Unknown Album",
+                    artwork: resolveArtworkUri(track),
+                    duration: track.duration || 0,
+                    type: track.type,
+                  }) as any,
+              );
+
+              await TrackPlayer.setQueue(queue);
+              await TrackPlayer.skip(activeIndex);
+            }
+
+            if (state.position) {
+              await TrackPlayer.seekTo(state.position);
+            }
+
+            await updatePlayerCapabilities(activeTrack);
+
+            // 后台缓存升级：仅当前/下一首，延迟 3s 不阻塞恢复（对齐 playTrackList）
+            const nearTracks = [list[activeIndex], list[activeIndex + 1]].filter(Boolean);
+            setTimeout(() => {
+              nearTracks.forEach((t) => {
+                resolveTrackUri(t, { cacheEnabled, shouldDownload: true }).catch(() => {});
+                resolveArtworkUriForPlayer(t, { shouldDownload: true }).catch(() => {});
               });
-            const artwork = await resolveArtworkUriForPlayer(activeTrack, {
-              shouldDownload: true,
-            });
-            await TrackPlayer.setQueue([
-              {
-                id: String(activeTrack.id),
-                url: uri,
-                title: activeTrack.name,
-                artist: activeTrack.artist,
-                album: activeTrack.album || "Unknown Album",
-                artwork,
-                duration: activeTrack.duration || 0,
-                type: activeTrack.type,
-              } as any,
-            ]);
-            await TrackPlayer.skip(0);
-          } else {
-            const queue = await Promise.all(
-              list.map(async (track: Track, i: number) => {
-                const isNearCurrent = i === activeIndex || i === activeIndex + 1;
-                // 秒播优化：音乐也走 resolveTrackUri，本地缓存命中直接 file:// 秒播；
-                // 未命中时后台下载（仅当前/下一首，fast 跳过其余曲目的磁盘检查）。
-                const uri = await resolveTrackUri(track, {
-                  cacheEnabled,
-                  shouldDownload: isNearCurrent,
-                  fast: !isNearCurrent,
-                  quality: restoreQuality,
-                });
-                const artwork = await resolveArtworkUriForPlayer(track, {
-                  shouldDownload: isNearCurrent,
-                  fast: !isNearCurrent,
-                });
-                return {
-                  id: String(track.id),
-                  url: uri,
-                  title: track.name,
-                  artist: track.artist,
-                  album: track.album || "Unknown Album",
-                  artwork,
-                  duration: track.duration || 0,
-                  type: track.type,
-                } as any;
-              })
+            }, 3000);
+          } catch (queueError) {
+            console.warn(
+              "[Player] Failed to restore native queue, keeping restored UI state",
+              queueError,
             );
-
-            await TrackPlayer.setQueue(queue);
-            await TrackPlayer.skip(activeIndex);
           }
-
-          if (state.position) {
-            await TrackPlayer.seekTo(state.position);
-          }
-
-          await updatePlayerCapabilities(activeTrack);
         } else {
           setCurrentTrackState(null);
           setTrackListState([]);
@@ -1941,6 +1955,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     if (isSetup) {
       try {
         userPausedRef.current = false;
+        // 兜底：原生队列被回收/恢复失败导致为空，但 UI 还有当前曲目时，
+        // play() 不会有任何效果——用当前曲目强制重建播放（跳过幂等检查）。
+        const queue = await TrackPlayer.getQueue();
+        if (queue.length === 0 && currentTrackRef.current) {
+          await playTrack(currentTrackRef.current, positionRef.current, false, true);
+          return;
+        }
         await TrackPlayer.play();
         savePlaybackState(mode);
       } catch (error) {

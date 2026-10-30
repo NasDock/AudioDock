@@ -102,6 +102,7 @@ function RootLayoutNav() {
       segmentName === "llm-config" ||
       segmentName === "tts-config" ||
       segmentName === "plugin-center" ||
+      segmentName === "player-theme" ||
       segmentName === "task-center" ||
       segmentName === "mi-speaker";
 
@@ -463,6 +464,7 @@ function RootLayoutNav() {
       <Stack.Screen name="llm-config" options={{ headerShown: false, animation: 'slide_from_right' }} />
       <Stack.Screen name="tts-config" options={{ headerShown: false, animation: 'slide_from_right' }} />
       <Stack.Screen name="plugin-center" options={{ headerShown: false, animation: 'slide_from_right' }} />
+      <Stack.Screen name="player-theme" options={{ headerShown: false, animation: 'slide_from_right' }} />
       <Stack.Screen name="task-center" options={{ headerShown: false, animation: 'slide_from_right' }} />
       <Stack.Screen name="mi-speaker" options={{ headerShown: false, animation: 'slide_from_right' }} />
     </Stack>
@@ -481,6 +483,7 @@ function RootLayoutNav() {
     rootSegment === "llm-config" ||
     rootSegment === "tts-config" ||
     rootSegment === "plugin-center" ||
+    rootSegment === "player-theme" ||
     rootSegment === "task-center" ||
     rootSegment === "mi-speaker" ||
     rootSegment === "player" ||
