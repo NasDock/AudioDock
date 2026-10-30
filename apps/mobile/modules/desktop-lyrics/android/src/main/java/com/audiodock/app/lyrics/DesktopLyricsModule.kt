@@ -267,6 +267,9 @@ class DesktopLyricsModule : Module() {
 
         @Deprecated("ComponentCallbacks2 接口要求实现")
         override fun onTrimMemory(level: Int) {}
+
+        @Deprecated("ComponentCallbacks 接口要求实现，ComponentCallbacks2 场景下不会回调")
+        override fun onLowMemory() {}
       }
       appContext.registerComponentCallbacks(callback)
       configCallback = callback
