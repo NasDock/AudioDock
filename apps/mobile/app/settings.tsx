@@ -9,6 +9,7 @@ import {
   Alert,
   BackHandler,
   Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -26,6 +27,10 @@ import {
   clearSpecificCache,
   getDetailedCacheSize,
 } from "../src/services/cache";
+import {
+  checkDesktopLyricsPermission,
+  requestDesktopLyricsPermission,
+} from "../src/services/desktopLyrics";
 import { trackEvent } from "../src/services/tracking";
 import { goBackOrReplace } from "../src/utils/navigation";
 import { usePlayMode } from "../src/utils/playMode";
@@ -33,6 +38,8 @@ import { getLocalVersion } from "../src/utils/updateUtils";
 import { getCachedVipStatus } from "../src/utils/vipStatus";
 import { useCheckUpdate } from "../hooks/useCheckUpdate";
 import { UpdateModal } from "../src/components/UpdateModal";
+
+// 桌面歌词样式已迁移到悬浮窗遮罩控制面板（点击桌面歌词即可调整），此处仅保留开关。
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -76,6 +83,7 @@ export default function SettingsScreen() {
     experienceProgramEnabled,
     internalPlaybackQuality,
     externalPlaybackQuality,
+    desktopLyricsEnabled,
     updateSetting,
   } = useSettings();
   const [isVip, setIsVip] = React.useState(false);
@@ -296,6 +304,32 @@ export default function SettingsScreen() {
   };
 
   const carModeActive = carLayoutMode || carModeEnabled;
+
+  const handleToggleDesktopLyrics = async (val: boolean) => {
+    if (val && Platform.OS === "android") {
+      if (!checkDesktopLyricsPermission()) {
+        Alert.alert(
+          t("settings.desktopLyricsPermissionTitle"),
+          t("settings.desktopLyricsPermissionMessage"),
+          [
+            { text: t("common.cancel"), style: "cancel" },
+            {
+              text: t("settings.desktopLyricsGoToSettings"),
+              onPress: () => requestDesktopLyricsPermission(),
+            },
+          ],
+        );
+        return;
+      }
+    }
+    await updateSetting("desktopLyricsEnabled", val);
+    trackEvent({
+      feature: "settings",
+      eventName: val ? "desktop_lyrics_enable" : "desktop_lyrics_disable",
+      userId: user?.id ? String(user.id) : undefined,
+      deviceId: device?.id ? String(device.id) : undefined,
+    });
+  };
 
   const handleRedeemInternalTestCode = async () => {
     if (isVip) {
@@ -643,6 +677,14 @@ export default function SettingsScreen() {
                 setScreenInsetModalVisible(true);
               },
               `${Math.round(screenBottomInset)}`,
+            )}
+
+          {Platform.OS === "android" &&
+            renderSettingRow(
+              t("settings.desktopLyrics"),
+              t("settings.desktopLyricsDescription"),
+              desktopLyricsEnabled,
+              handleToggleDesktopLyrics,
             )}
 
           {renderSettingRow(

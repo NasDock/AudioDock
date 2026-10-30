@@ -172,6 +172,7 @@ export default class EntryAbility extends UIAbility {
   onDestroy(): void {
     Logger.i(TAG, 'onDestroy');
     themeAutoStore.stop();
+    // 桌面歌词（系统歌词组件）随 AVSession 销毁自动退出，无需单独处理
     releaseAVSessionService();
     // 注销卡片 call 事件（对齐官方示例 onDestroy）
     try {
@@ -261,6 +262,12 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate<boolean>('autoTheme', autoThemeRaw === 'true');
     themeAutoStore.init(ctx);
     themeAutoStore.restore();
+
+    // 恢复桌面歌词开关（系统歌词组件，样式由系统管理故无样式项）。
+    // AppStorage 供 SettingsPage @StorageLink 回显；真正的使能恢复在
+    // installAVSessionService 内部的 initDesktopLyric（需要会话先创建）。
+    const dlEnabledRaw = await kvStore.get('desktopLyricsEnabled');
+    AppStorage.setOrCreate<boolean>('desktopLyricsEnabled', dlEnabledRaw === 'true');
 
     // 恢复登录态（user/token），桌面小部件 syncVip 依赖 authStore.state_.user?.id，
     // 没这一步 syncVip 会因为 user=null 把 KV 写成 isVip=false，导致卡片被误锁定。

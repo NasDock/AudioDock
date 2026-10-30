@@ -12,6 +12,7 @@ import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { getInternalQuality, getExternalQuality } from '../services/trackQuality';
 import { applySystemBar } from '../services/systemBar';
+import { isDesktopLyricSupported, setDesktopLyricEnabled } from '../services/avSessionService';
 import { openInBrowser, jumpToAppMarket } from '../utils/browserUtils';
 import { plusApi, setPlusAuthToken } from 'features_network';
 import { getLatestVersion, fetchReleaseBody, compareVersions, classifyRelease } from '../services/updateService';
@@ -118,6 +119,10 @@ struct SettingsPage {
   @StorageLink('carModeEnabled') @Watch('onCarModeStorageChange') carModeEnabled: boolean = false;
   @StorageLink('carPanelsSwapped') carPanelsSwapped: boolean = false;
   @StorageLink('screenBottomInset') screenBottomInset: number = 0;
+  // 桌面歌词（AVSession 系统歌词组件，API 23+）：启动值由 EntryAbility.initialize()
+  // 从 kvStore 恢复写入 AppStorage；系统侧关闭歌词时 avSessionService 的可见性监听
+  // 会回写本 key，开关自动跟随弹回。
+  @StorageLink('desktopLyricsEnabled') desktopLyricsEnabled: boolean = false;
   @State acceptRelay: boolean = false;
   @State acceptSync: boolean = false;
   @State cacheEnabled: boolean = true;
@@ -237,6 +242,29 @@ struct SettingsPage {
 
   async updateBoolSetting(key: string, value: boolean) {
     await kvStore.set(key, value ? 'true' : 'false');
+  }
+
+  /**
+   * 桌面歌词开关（AVSession 系统歌词组件，API 23+）：开启前先检测设备/系统
+   * 是否支持，不支持或使能失败则回弹开关并 toast，不写存储。
+   * 歌词样式由系统管理，故无样式设置入口（官方明确暂不支持自定义样式）。
+   */
+  private async handleDesktopLyricsChange(val: boolean): Promise<void> {
+    if (val) {
+      if (!(await isDesktopLyricSupported())) {
+        promptAction.showToast({ message: t('settings.desktopLyricsNotSupported') });
+        return;
+      }
+      const ok = await setDesktopLyricEnabled(true);
+      if (!ok) {
+        promptAction.showToast({ message: t('settings.desktopLyricsShowFailed') });
+        return;
+      }
+    } else {
+      await setDesktopLyricEnabled(false);
+    }
+    await this.updateBoolSetting('desktopLyricsEnabled', val);
+    AppStorage.setOrCreate<boolean>('desktopLyricsEnabled', val);
   }
 
   // ─── 开关交互说明 ───
@@ -809,6 +837,18 @@ struct SettingsPage {
               `${this.screenBottomInset}`,
             )
           }
+
+          // 桌面歌词（AVSession 系统歌词组件，API 23+；样式由系统管理，无自定义入口）
+          SettingSwitchRow({
+            label: t('settings.desktopLyrics'),
+            description: t('settings.desktopLyricsDescription'),
+            value: this.desktopLyricsEnabled,
+            onChange: (val: boolean): void => {
+              this.handleDesktopLyricsChange(val).catch((e: Error): void => {
+                Logger.w('SettingsPage', `handleDesktopLyricsChange rejected: ${String(e)}`);
+              });
+            },
+          })
 
           // 跟随系统主题
           SettingSwitchRow({

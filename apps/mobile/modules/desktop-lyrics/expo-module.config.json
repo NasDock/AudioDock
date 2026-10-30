@@ -1,0 +1,10 @@
+{
+  "platforms": [
+    "android"
+  ],
+  "android": {
+    "modules": [
+      "com.audiodock.app.lyrics.DesktopLyricsModule"
+    ]
+  }
+}

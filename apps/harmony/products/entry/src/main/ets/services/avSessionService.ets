@@ -5,6 +5,8 @@ import { image } from '@kit.ImageKit';
 import { http } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { Logger } from 'audiodock_common';
+import { kvStore } from 'features_storage';
+import { util } from '@kit.ArkTS';
 import { audioBackend } from 'features_player';
 import { playerStore } from '../context/PlayerStore';
 import type { Track, PlayMode } from '../context/PlayerStore';
@@ -16,6 +18,30 @@ import { getImageUrl } from '../utils/image';
 const SEEK_JUMP_THRESHOLD_MS = 1500;
 /** setAVPlaybackState 最小下发间隔（ms）：系统对高频上报做 isReportOverSize 限频直接拒绝。 */
 const MIN_STATE_REPORT_INTERVAL_MS = 500;
+/** AVMetadata.lyric 字节上限（官方约束 < 40960 字节），超出系统解析失败。 */
+const MAX_LYRIC_BYTES = 40960;
+
+/**
+ * 把 LRC 歌词裁剪到 AVMetadata.lyric 的字节上限内（按行边界截断，避免半行导致解析异常）。
+ * 系统只支持 Simple LRC（[mm:ss.xx] 时间标签 + 文本），原文一般远小于 40KB，此函数是防御性兜底。
+ */
+function clampLrcForMetadata(lrc: string): string {
+  if (!lrc) return '';
+  const encoder = util.TextEncoder.create('utf-8');
+  if (encoder.encodeInto(lrc).length < MAX_LYRIC_BYTES) return lrc;
+  // 超限时按行累计字节，保留尽可能多的完整行
+  const lines = lrc.split('\n');
+  let total = 0;
+  let end = 0;
+  for (let i = 0; i < lines.length; i++) {
+    // +1 是换行符本身的字节
+    total += encoder.encodeInto(lines[i]).length + 1;
+    if (total >= MAX_LYRIC_BYTES) break;
+    end = i + 1;
+  }
+  Logger.w('AVSession', `lyric exceeds ${MAX_LYRIC_BYTES}B, truncated to ${end}/${lines.length} lines`);
+  return lines.slice(0, end).join('\n');
+}
 
 let session: avSession.AVSession | null = null;
 let abilityContext: common.UIAbilityContext | null = null;
@@ -116,6 +142,12 @@ export async function installAVSessionService(context: common.UIAbilityContext):
   // 4. 配置点击通知栏播控卡片回跳 EntryAbility
   await bindLaunchWantAgent(context);
 
+  // 5. 桌面歌词（系统歌词组件，API 23+）：能力检测 + 状态监听 + 按设置恢复。
+  // 歌词本体走 pushMetadata 的 AVMetadata.lyric 下发，这里只管使能与可见性。
+  initDesktopLyric().catch((e: Error): void => {
+    Logger.w('AVSession', `initDesktopLyric: ${String(e)}`);
+  });
+
   Logger.i('AVSession', 'installed (session created, activate deferred to first play)');
 }
 
@@ -127,9 +159,17 @@ export function releaseAVSessionService(): void {
   }
   pendingState = null;
   if (session) {
+    // 桌面歌词监听随会话销毁自动失效，显式 off 一次兜底
+    try {
+      session.offDesktopLyricVisibilityChanged();
+      session.offDesktopLyricStateChanged();
+    } catch (e) { /* 低版本无桌面歌词 API，忽略 */ }
     session.destroy().catch(() => undefined);
     session = null;
   }
+  desktopLyricSupported = false;
+  desktopLyricSupportChecked = false;
+  pendingDesktopLyricRestore = false;
   abilityContext = null;
   sessionActivated = false;
   pendingMetadata = null;
@@ -237,6 +277,10 @@ function pushMetadata(track: Track | undefined, durationMs: number): void {
       artist: track?.artist ?? '',
       album: track?.album ?? '',
       duration: durationMs,
+      // 桌面歌词（系统歌词组件，API 23+）：歌词以 LRC 原文随元数据下发，
+      // 系统播控中心按 AVPlaybackState 进度自行解析并切换歌词行。
+      // 官方要求：元数据必须包含 lyric 字段，否则桌面歌词功能不生效。
+      lyric: clampLrcForMetadata(track?.lyrics ?? ''),
     };
     session.setAVMetadata(meta)
       .then((): void => {
@@ -279,6 +323,8 @@ function pushMetadata(track: Track | undefined, durationMs: number): void {
             artist: track?.artist ?? '',
             album: track?.album ?? '',
             duration: durationMs,
+            // 封面补发必须带上 lyric，否则同 assetId 的二次 setAVMetadata 会把歌词清掉
+            lyric: clampLrcForMetadata(track?.lyrics ?? ''),
             mediaImage: pm,
           };
           session.setAVMetadata(metaWithCover)
@@ -346,6 +392,13 @@ function pushPlaybackState(
         }
         // 补发一次播放态，确保系统拿到最新状态
         doPushPlaybackState(nextState, currentMs, durationMs, speed, nextLoopMode);
+        // 桌面歌词：install 阶段（会话未激活）恢复失败时，activate 后重试一次
+        if (pendingDesktopLyricRestore) {
+          pendingDesktopLyricRestore = false;
+          setDesktopLyricEnabled(true).then((ok: boolean): void => {
+            if (!ok) Logger.w('AVSession', 'desktop lyric restore retry after activate failed');
+          }).catch((): void => undefined);
+        }
       })
       .catch((e: Error): void => {
         Logger.w('AVSession', `activate/setBackgroundPlayMode: ${String(e)}`);
@@ -496,6 +549,102 @@ async function bindLaunchWantAgent(context: common.UIAbilityContext): Promise<vo
     await session.setLaunchAbility(wa);
   } catch (e) {
     Logger.w('AVSession', `setLaunchAbility: ${String(e)}`);
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// 桌面歌词（系统歌词组件，API 23+）
+// ────────────────────────────────────────────────────────────
+//
+// 正确姿势是接入 AVSession 系统歌词组件（官方指南 avsession-desktop-lyrics），
+// 而不是自建 TYPE_FLOAT 悬浮窗——系统组件无需 SYSTEM_FLOAT_WINDOW 权限，
+// 由系统播控中心承载窗口并按 AVPlaybackState 进度自动切换歌词行。
+// 接入三要素：
+//   1) AVMetadata.lyric 下发 LRC 原文（见 pushMetadata，官方要求必含 lyric 字段）；
+//   2) enableDesktopLyric(true) 使能 + setDesktopLyricVisible 控制显隐；
+//   3) 持续上报 AVPlaybackState（本项目已有），系统据此按进度切行。
+// 注意：系统组件暂不支持应用自定义样式（字号/颜色/描边由系统管理）。
+
+/** 能力检测结果缓存（仅检测一次，进程内不变）。 */
+let desktopLyricSupported: boolean = false;
+let desktopLyricSupportChecked: boolean = false;
+/** install 阶段会话未激活导致恢复失败时置位，activate 完成后重试。 */
+let pendingDesktopLyricRestore: boolean = false;
+
+/** 系统/设备是否支持桌面歌词组件（avSession 模块级 API，API 23+）。 */
+export async function isDesktopLyricSupported(): Promise<boolean> {
+  if (desktopLyricSupportChecked) return desktopLyricSupported;
+  try {
+    desktopLyricSupported = await avSession.isDesktopLyricSupported();
+  } catch (e) {
+    // API 23 以下的系统没有这个接口，调用直接抛错 → 视为不支持
+    desktopLyricSupported = false;
+    Logger.w('AVSession', `isDesktopLyricSupported: ${String(e)}`);
+  }
+  desktopLyricSupportChecked = true;
+  Logger.i('AVSession', `desktop lyric supported: ${desktopLyricSupported}`);
+  return desktopLyricSupported;
+}
+
+/**
+ * 使能/关闭桌面歌词并同步可见性。返回 false 表示失败（不支持 / 会话不存在 / 系统异常），
+ * 调用方（SettingsPage）据此回弹开关并 toast，不落盘设置。
+ */
+export async function setDesktopLyricEnabled(enabled: boolean): Promise<boolean> {
+  if (!session) return false;
+  if (enabled && !(await isDesktopLyricSupported())) return false;
+  try {
+    // 关闭时先隐藏再禁用；开启时先使能再显示（setDesktopLyricVisible 前置条件是已使能）
+    if (!enabled) {
+      await session.setDesktopLyricVisible(false).catch((): void => undefined);
+      await session.enableDesktopLyric(false);
+    } else {
+      await session.enableDesktopLyric(true);
+      await session.setDesktopLyricVisible(true);
+    }
+    Logger.i('AVSession', `desktop lyric enabled=${enabled}`);
+    return true;
+  } catch (e) {
+    Logger.w('AVSession', `setDesktopLyricEnabled(${enabled}): ${String(e)}`);
+    return false;
+  }
+}
+
+/**
+ * install 时初始化：能力检测 → 绑定系统侧状态监听 → 按用户设置恢复。
+ * AppStorage('desktopLyricsEnabled') 由 EntryAbility.initialize() 从 kvStore 恢复，
+ * 本函数在 installAVSessionService 末尾调用，时序上保证 AppStorage 已就绪。
+ */
+async function initDesktopLyric(): Promise<void> {
+  if (!(await isDesktopLyricSupported())) return;
+  bindDesktopLyricListeners();
+  if (AppStorage.get<boolean>('desktopLyricsEnabled') === true) {
+    const ok = await setDesktopLyricEnabled(true);
+    // 会话尚未 activate 时使能可能失败，置位等首次 activate 后重试
+    if (!ok) pendingDesktopLyricRestore = true;
+  }
+}
+
+/**
+ * 监听系统侧歌词组件状态变化，同步应用内开关（官方指南要求应用 UI 与系统状态一致）。
+ * 典型场景：用户在桌面歌词窗口上直接关闭/锁定歌词。
+ */
+function bindDesktopLyricListeners(): void {
+  if (!session) return;
+  try {
+    session.onDesktopLyricVisibilityChanged((visible: boolean): void => {
+      Logger.i('AVSession', `desktop lyric visibility changed: ${visible}`);
+      // 系统侧关闭视为用户意图，回写设置（AppStorage 驱动 SettingsPage 开关回弹，kvStore 落盘）。
+      // 应用自身调 setDesktopLyricVisible 也会触发本回调，写入同值，幂等无副作用。
+      AppStorage.setOrCreate<boolean>('desktopLyricsEnabled', visible);
+      kvStore.set('desktopLyricsEnabled', visible ? 'true' : 'false').catch((): void => undefined);
+    });
+    session.onDesktopLyricStateChanged((state: avSession.DesktopLyricState): void => {
+      // 锁定状态目前仅记录日志（系统组件上用户可自行锁定/解锁，应用侧无对应设置项）
+      Logger.i('AVSession', `desktop lyric locked: ${state.isLocked}`);
+    });
+  } catch (e) {
+    Logger.w('AVSession', `bindDesktopLyricListeners: ${String(e)}`);
   }
 }
 

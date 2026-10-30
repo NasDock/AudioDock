@@ -20,6 +20,11 @@ interface SettingsState {
   experienceProgramEnabled: boolean;
   internalPlaybackQuality: AudioQuality;
   externalPlaybackQuality: AudioQuality;
+  desktopLyricsEnabled: boolean;
+  desktopLyricsFontSize: number;
+  desktopLyricsTextColor: string;
+  desktopLyricsStrokeColor: string;
+  desktopLyricsStrokeWidth: number;
 }
 
 interface SettingsContextType extends SettingsState {
@@ -50,6 +55,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     // 音质默认「原音质」（无损直连原始文件）；用户可在设置里按内/外网分别降档省流量。
     internalPlaybackQuality: 'lossless',
     externalPlaybackQuality: 'lossless',
+    // 桌面歌词（Android 悬浮窗）：默认关闭；样式默认值与原生模块初始值保持一致。
+    desktopLyricsEnabled: false,
+    desktopLyricsFontSize: 18,
+    desktopLyricsTextColor: '#FFFFFF',
+    desktopLyricsStrokeColor: '#000000',
+    desktopLyricsStrokeWidth: 2,
   };
   const [settings, setSettings] = useState<SettingsState>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
