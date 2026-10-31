@@ -27,13 +27,7 @@ public class AppDelegate: ExpoAppDelegate {
     reactNativeFactory = factory
     bindReactNativeFactory(factory)
 
-#if os(iOS) || os(tvOS)
-    window = UIWindow(frame: UIScreen.main.bounds)
-    factory.startReactNative(
-      withModuleName: "main",
-      in: window,
-      launchOptions: launchOptions)
-#endif
+    // 窗口创建移至 PhoneSceneDelegate（Scene 生命周期，支持 CarPlay 双场景）
     WidgetCommandObserver.shared.start()
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)

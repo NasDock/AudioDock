@@ -50,6 +50,8 @@ import {
 } from "../services/desktopLyrics";
 import { getActiveLyricLine } from "../utils/lyrics";
 import { socketService } from "../services/socket";
+import { registerCarPlayController } from "../services/carplayBridge";
+import { initCarPlay } from "../services/carplay";
 import {
   resolveArtworkUriForPlayer,
   resolveTrackUri,
@@ -2592,6 +2594,49 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }, 1000);
     return () => clearInterval(checkTimer);
   }, [sleepTimer, isPlaying]);
+
+  // ─── CarPlay 桥接：把播控能力注册到模块级注册表，供 CarPlay 服务调用 ───
+  const carPlayApiRef = useRef({
+    playTrackList,
+    pause,
+    resume,
+    playNext,
+    playPrevious,
+    seekTo,
+    isPlaying,
+    userId: user?.id,
+  });
+  carPlayApiRef.current = {
+    playTrackList,
+    pause,
+    resume,
+    playNext,
+    playPrevious,
+    seekTo,
+    isPlaying,
+    userId: user?.id,
+  };
+
+  useEffect(() => {
+    registerCarPlayController({
+      playTrackList: (tracks, index) =>
+        carPlayApiRef.current.playTrackList(tracks, index),
+      togglePlay: async () => {
+        if (carPlayApiRef.current.isPlaying) {
+          await carPlayApiRef.current.pause();
+        } else {
+          await carPlayApiRef.current.resume();
+        }
+      },
+      playNext: () => carPlayApiRef.current.playNext(),
+      playPrevious: () => carPlayApiRef.current.playPrevious(),
+      seekTo: (seconds) => carPlayApiRef.current.seekTo(seconds),
+      getUserId: () => carPlayApiRef.current.userId ?? null,
+    });
+    initCarPlay();
+    return () => registerCarPlayController(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <PlayerContext.Provider
