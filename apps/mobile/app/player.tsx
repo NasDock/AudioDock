@@ -317,6 +317,8 @@ export function PlayerDetailView({
   const isLandscape = width > height;
   // 黑胶盘直径：对齐 desktop 方形220→圆盘320 的 1.45 倍关系（200 → 290），窄屏兜底
   const vinylSize = Math.min(width - 60, 290);
+  // 横屏受高度约束（手机横屏高 <500 也走到单封面分支时需收窄）
+  const landscapeVinylSize = Math.min(height * 0.72, vinylSize);
   const {
     currentTrack,
     isPlaying,
@@ -2206,17 +2208,30 @@ export function PlayerDetailView({
                     }}
                     activeOpacity={1}
                   >
-                    <Image
-                      source={{
-                        uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
-                      }}
-                      onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
-                      style={[
-                        styles.artwork,
-                        { marginBottom: 0 },
-                        coverRadius !== undefined && { borderRadius: coverRadius },
-                      ]}
-                    />
+                    {coverStyle === "vinyl" ? (
+                      <View
+                        onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
+                      >
+                        <VinylCover
+                          uri={getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900)}
+                          size={landscapeVinylSize}
+                          isPlaying={isPlaying}
+                          tonearm={tonearm}
+                        />
+                      </View>
+                    ) : (
+                      <Image
+                        source={{
+                          uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
+                        }}
+                        onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
+                        style={[
+                          styles.artwork,
+                          { marginBottom: 0 },
+                          coverRadius !== undefined && { borderRadius: coverRadius },
+                        ]}
+                      />
+                    )}
                   </TouchableOpacity>
                   {/* 横屏/平板模式：有声书封面下方置顶操作按钮组（与竖屏同一组） */}
                   {currentTrack.type === TrackType.AUDIOBOOK &&
