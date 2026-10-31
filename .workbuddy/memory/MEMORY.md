@@ -1,5 +1,16 @@
 # AudioDock 项目长期记忆
 
+## 仓库与提交约定
+- 远程仓库已迁移：`git@github.com:NasDock/AudioDock.git`（旧 mmdctjj/AudioDock 重定向）。
+- `.workbuddy/memory/` 工作日志需随代码一起提交入库（用户确认，2026-11-01）。
+
+## CarPlay（mobile iOS，2026-11-01）
+- 模板：根 CPListTemplate + 系统 CPNowPlayingTemplate（音频类唯一合规组合）；播控走 RNTP 已注册的 MPRemoteCommandCenter。
+- 依赖 react-native-carplay@2.4.1-beta.0（官方不支持 Expo，但 ios/ 已入库按裸 RN 集成）。
+- 原生双场景：PhoneSceneDelegate 负责 window 创建 + startReactNative（AppDelegate 只留 factory 初始化，规避 CarPlay 冷启动崩溃坑）；CarSceneDelegate 转发 RNCarPlay.connect/disconnect；新文件需手工注入 pbxproj（BuildFile/FileRef/Group/Sources 四处）。
+- JS：src/services/carplay.ts + carplayBridge.ts（PlayerContext ref 代理注册桥）。services 接口返回全是 {code,data}：history→data.list[].track，albumTracks→data.list。
+- 待验证：真机 CarPlay 冷启动路径（CarPlay 先于 App 启动）。
+
 ## 版本更新弹窗平台过滤（2026-10-26）
 - Release body 用 conventional commit scope 标记目标端：无 scope=全端；`feat(mobile)`=仅 mobile；`feat(api)`=仅服务端。三端各自 `classifyRelease(body, platform)`：本端/无 scope→正常弹更新；仅服务端 scope→弹「服务端更新提醒」单按钮视图；仅其他端→不弹窗当已最新；body 无法识别→兜底按全端弹（保持旧行为）。产品动态页不过滤。
 - scope 别名表（改动需三端同步）：desktop/electron、mobile/android/ios、hm/harmony/harmonyos/ohos；服务端 api/server/backend/service/services。实现位置：desktop/mobile `hooks/useCheckUpdate.ts`，hm `services/updateService.ets`（ArkTS 版禁 Record 索引用 if/else）。
