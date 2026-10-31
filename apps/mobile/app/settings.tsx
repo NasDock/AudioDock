@@ -642,6 +642,27 @@ export default function SettingsScreen() {
             />
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={[styles.settingRow, { borderBottomColor: colors.border }]}
+            onPress={() => router.push("/player-theme" as any)}
+          >
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                {t("settings.playerTheme")}
+              </Text>
+              <Text
+                style={[styles.settingDescription, { color: colors.secondary }]}
+              >
+                {t("settings.playerThemeDescription")}
+              </Text>
+            </View>
+            <Ionicons
+              name="color-palette-outline"
+              size={20}
+              color={colors.secondary}
+            />
+          </TouchableOpacity>
+
           {renderActionRow(
             t("settings.internalPlaybackQuality"),
             t("settings.internalPlaybackQualityDescription"),

@@ -1,5 +1,6 @@
 import MarqueeText from "@/src/components/MarqueeText";
 import PlayingIndicator from "@/src/components/PlayingIndicator";
+import VinylCover from "@/src/components/VinylCover";
 import { XiaoAiIcon } from "@/src/components/XiaoAiIcon";
 import { useAuth } from "@/src/context/AuthContext";
 import { PlayMode, usePlayer } from "@/src/context/PlayerContext";
@@ -50,6 +51,7 @@ import { FloatingActionButtons } from "../src/components/FloatingActionButtons";
 import SyncModal from "../src/components/SyncModal";
 import { isCached } from "../src/services/cache";
 import { useSettings } from "@/src/context/SettingsContext";
+import { usePlayerTheme } from "../src/hooks/usePlayerTheme";
 
 const { width } = Dimensions.get("window");
 
@@ -125,10 +127,13 @@ const CoverFlowItem = React.memo(
     track,
     idx,
     posAnim,
+    coverRadius,
   }: {
     track: Track;
     idx: number;
     posAnim: Animated.Value;
+    /** 播放器主题插件的封面圆角覆盖；undefined = 默认 15 */
+    coverRadius?: number;
   }) {
     const anim = useMemo(() => {
       // effPos = idx - posAnim（posAnim = 视觉中心的队列坐标，可为小数）
@@ -177,16 +182,20 @@ const CoverFlowItem = React.memo(
           // Android 默认 fadeDuration=300ms：新滑入的封面会"慢慢显形"，
           // 快速切换时这就是"卡顿感"的来源之一；已有 prefetch 兜底，关掉淡入
           fadeDuration={0}
-          style={styles.coverFlowImage}
+          style={[
+            styles.coverFlowImage,
+            coverRadius !== undefined && { borderRadius: coverRadius },
+          ]}
         />
       </Animated.View>
     );
   },
   // 自定义比较：进度上报会 map 重建 track 对象（同 id 新引用），默认浅比较会误判
-  // 变化导致整排封面重渲染 + Image source 对象重建。只认 id/cover/idx/posAnim。
+  // 变化导致整排封面重渲染 + Image source 对象重建。只认 id/cover/idx/posAnim/coverRadius。
   (prev, next) =>
     prev.idx === next.idx &&
     prev.posAnim === next.posAnim &&
+    prev.coverRadius === next.coverRadius &&
     prev.track.id === next.track.id &&
     prev.track.cover === next.track.cover,
 );
@@ -196,12 +205,21 @@ const AnimatedLyricLine = ({
   isActive,
   colors,
   lyricFontSize,
+  lyricsColor,
+  lyricsActiveColor,
+  lyricsAlign,
   onLayout,
 }: {
   text: string;
   isActive: boolean;
   colors: any;
   lyricFontSize: number;
+  /** 播放器主题插件覆盖：普通行颜色（默认 colors.text） */
+  lyricsColor?: string;
+  /** 播放器主题插件覆盖：当前行颜色（默认 colors.primary） */
+  lyricsActiveColor?: string;
+  /** 播放器主题插件覆盖：对齐（默认 center） */
+  lyricsAlign?: "left" | "center" | "right";
   onLayout?: (e: any) => void;
 }) => {
   const animatedValue = useRef(new Animated.Value(isActive ? 1 : 0)).current;
@@ -217,7 +235,7 @@ const AnimatedLyricLine = ({
 
   const color = animatedValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [colors.text, colors.primary],
+    outputRange: [lyricsColor ?? colors.text, lyricsActiveColor ?? colors.primary],
   });
 
   const scale = animatedValue.interpolate({
@@ -230,6 +248,9 @@ const AnimatedLyricLine = ({
     outputRange: [0.4, 1],
   });
 
+  const alignItems =
+    lyricsAlign === "left" ? "flex-start" : lyricsAlign === "right" ? "flex-end" : "center";
+
   return (
     <Animated.View
       onLayout={onLayout}
@@ -239,7 +260,7 @@ const AnimatedLyricLine = ({
         marginVertical: 4,
         paddingHorizontal: 20,
         width: "100%",
-        alignItems: "center",
+        alignItems,
       }}
     >
       <Animated.Text
@@ -251,6 +272,7 @@ const AnimatedLyricLine = ({
             lineHeight: lyricFontSize * 2,
             fontWeight: isActive ? "800" : "500",
             marginVertical: 0, // Remove margin to avoid extra spacing
+            textAlign: lyricsAlign ?? "center",
           },
         ]}
       >
@@ -265,12 +287,38 @@ export function PlayerDetailView({
   renderPlaylistModal = true,
 }: PlayerDetailViewProps) {
   const { colors } = useTheme();
+  // 播放器主题插件（VIP 专属）：null = 无主题/非会员，全部回退默认样式
+  const playerTheme = usePlayerTheme();
+  const themeBackground = playerTheme?.background ?? colors.background;
+  const headerIconColor = playerTheme?.headerIconColor ?? colors.text;
+  const titleColor = playerTheme?.titleColor ?? colors.text;
+  const artistColor = playerTheme?.artistColor ?? colors.secondary;
+  const coverRadius =
+    typeof playerTheme?.coverRadius === "number" ? playerTheme.coverRadius : undefined;
+  // 黑胶样式（对齐 desktop detail.coverStyle/tonearm）：vinyl 时忽略 coverRadius
+  const coverStyle = playerTheme?.coverStyle === "vinyl" ? "vinyl" : "square";
+  const tonearm = playerTheme?.tonearm === "basic";
+  const progressColor = playerTheme?.progressColor ?? colors.primary;
+  const controlColor = playerTheme?.controlColor ?? colors.text;
+  const lyricsColor = playerTheme?.lyricsColor;
+  const lyricsActiveColor = playerTheme?.lyricsActiveColor;
+  const lyricsAlign = playerTheme?.lyricsAlign;
+  const themeLyricFontSize =
+    typeof playerTheme?.lyricsFontSize === "number" ? playerTheme.lyricsFontSize : undefined;
+  // 缓冲层底色：仅十六进制色可拼 alpha 后缀，否则回退主题色
+  const bufferedColor = /^#[0-9a-f]{6}$/i.test(progressColor)
+    ? `${progressColor}4D`
+    : `${colors.primary}4D`;
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { carModeEnabled } = useSettings();
   const top = insets.top;
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
+  // 黑胶盘直径：对齐 desktop 方形220→圆盘320 的 1.45 倍关系（200 → 290），窄屏兜底
+  const vinylSize = Math.min(width - 60, 290);
+  // 横屏受高度约束（手机横屏高 <500 也走到单封面分支时需收窄）
+  const landscapeVinylSize = Math.min(height * 0.72, vinylSize);
   const {
     currentTrack,
     isPlaying,
@@ -448,6 +496,14 @@ export function PlayerDetailView({
       }
     });
   }, []);
+
+  // 主题插件的歌词字号：主题激活/切换时应用主题值；
+  // 用户随后在「更多」里手动调整会覆盖（跟随最后一次操作）
+  useEffect(() => {
+    if (themeLyricFontSize !== undefined) {
+      setLyricFontSize(themeLyricFontSize);
+    }
+  }, [themeLyricFontSize]);
 
   useEffect(() => {
     AsyncStorage.setItem(
@@ -792,6 +848,7 @@ export function PlayerDetailView({
             track={track}
             idx={idx}
             posAnim={coverFlowPosAnim}
+            coverRadius={coverRadius}
           />
         ))}
       </View>
@@ -970,15 +1027,15 @@ export function PlayerDetailView({
   const renderPlayModeIcon = (mode: PlayMode) => {
     switch (mode) {
       case PlayMode.SEQUENCE:
-        return <MaterialCommunityIcons name="playlist-music-outline" size={24} color={colors.secondary} />;
+        return <MaterialCommunityIcons name="playlist-music-outline" size={24} color={controlColor} />;
       case PlayMode.SHUFFLE:
-        return <Ionicons name="shuffle-outline" size={24} color={colors.secondary} />;
+        return <Ionicons name="shuffle-outline" size={24} color={controlColor} />;
       case PlayMode.LOOP_LIST:
-        return <Ionicons name="repeat-outline" size={24} color={colors.secondary} />;
+        return <Ionicons name="repeat-outline" size={24} color={controlColor} />;
       case PlayMode.LOOP_SINGLE:
-        return <MaterialCommunityIcons name="repeat-once" size={24} color={colors.secondary} />;
+        return <MaterialCommunityIcons name="repeat-once" size={24} color={controlColor} />;
       default:
-        return <Ionicons name="repeat-outline" size={24} color={colors.secondary} />;
+        return <Ionicons name="repeat-outline" size={24} color={controlColor} />;
     }
   };
 
@@ -1707,10 +1764,10 @@ export function PlayerDetailView({
         <View style={styles.textContainer}>
           <MarqueeText
             text={currentTrack.name}
-            style={[styles.trackTitle, { color: colors.text }]}
+            style={[styles.trackTitle, { color: titleColor }]}
           />
           <View style={styles.trackMetaRow}>
-            <Text style={[styles.trackArtist, { color: colors.secondary }]}>
+            <Text style={[styles.trackArtist, { color: artistColor }]}>
               {currentTrack.artist}
             </Text>
             {currentTrack.type !== TrackType.AUDIOBOOK && (
@@ -1980,7 +2037,7 @@ export function PlayerDetailView({
                 width: `${
                   duration > 0 ? Math.min((buffered / duration) * 100, 100) : 0
                 }%`,
-                backgroundColor: `${colors.primary}4D`,
+                backgroundColor: bufferedColor,
               },
             ]}
           />
@@ -1994,16 +2051,16 @@ export function PlayerDetailView({
               resetHideTimer();
             }}
             trackStyle={{ height: 4, borderRadius: 2 }}
-            minimumTrackTintColor={colors.primary}
+            minimumTrackTintColor={progressColor}
             maximumTrackTintColor="transparent"
-            thumbTintColor={colors.primary}
+            thumbTintColor={progressColor}
             renderThumbComponent={() => (
               <Animated.View
                 style={{
                   width: 15,
                   height: 15,
                   borderRadius: 8,
-                  backgroundColor: colors.primary,
+                  backgroundColor: progressColor,
                   borderWidth: 2,
                   borderColor: "#fff",
                   transform: [{ scale: breatheAnim }],
@@ -2036,7 +2093,7 @@ export function PlayerDetailView({
                 resetHideTimer();
               }}
             >
-              <Ionicons name="play-skip-back" size={35} color={colors.text} />
+              <Ionicons name="play-skip-back" size={35} color={controlColor} />
             </TouchableOpacity>
 
           <TouchableOpacity
@@ -2060,7 +2117,7 @@ export function PlayerDetailView({
               resetHideTimer();
             }}
           >
-            <Ionicons name="play-skip-forward" size={35} color={colors.text} />
+            <Ionicons name="play-skip-forward" size={35} color={controlColor} />
           </TouchableOpacity>
         </View>
 
@@ -2071,7 +2128,7 @@ export function PlayerDetailView({
               resetHideTimer();
             }}
           >
-            <Ionicons name="list" size={24} color={colors.secondary} />
+            <Ionicons name="list" size={24} color={controlColor} />
           </TouchableOpacity>
         )}
       </View>
@@ -2084,7 +2141,7 @@ export function PlayerDetailView({
         style={[
           styles.container,
           {
-            backgroundColor: colors.background,
+            backgroundColor: themeBackground,
             paddingLeft: insets.left,
             paddingRight: insets.right,
           },
@@ -2102,7 +2159,7 @@ export function PlayerDetailView({
                   onPress={closePlayer}
                   style={styles.landscapeBackBtn}
                 >
-                  <Ionicons name="chevron-down" size={30} color={colors.text} />
+                  <Ionicons name="chevron-down" size={30} color={headerIconColor} />
                 </TouchableOpacity>
               )}
             </Animated.View>
@@ -2115,7 +2172,7 @@ export function PlayerDetailView({
                   onPress={handleOpenMore}
                   style={styles.landscapeMoreBtn}
                 >
-                  <Ionicons name="ellipsis-vertical" size={26} color={colors.text} />
+                  <Ionicons name="ellipsis-vertical" size={26} color={headerIconColor} />
                 </TouchableOpacity>
               )}
             </Animated.View>
@@ -2151,13 +2208,30 @@ export function PlayerDetailView({
                     }}
                     activeOpacity={1}
                   >
-                    <Image
-                      source={{
-                        uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
-                      }}
-                      onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
-                      style={[styles.artwork, { marginBottom: 0 }]}
-                    />
+                    {coverStyle === "vinyl" ? (
+                      <View
+                        onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
+                      >
+                        <VinylCover
+                          uri={getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900)}
+                          size={landscapeVinylSize}
+                          isPlaying={isPlaying}
+                          tonearm={tonearm}
+                        />
+                      </View>
+                    ) : (
+                      <Image
+                        source={{
+                          uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
+                        }}
+                        onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
+                        style={[
+                          styles.artwork,
+                          { marginBottom: 0 },
+                          coverRadius !== undefined && { borderRadius: coverRadius },
+                        ]}
+                      />
+                    )}
                   </TouchableOpacity>
                   {/* 横屏/平板模式：有声书封面下方置顶操作按钮组（与竖屏同一组） */}
                   {currentTrack.type === TrackType.AUDIOBOOK &&
@@ -2170,7 +2244,7 @@ export function PlayerDetailView({
                       styles.landscapeControls,
                       {
                         opacity: controlsOpacity,
-                        backgroundColor: colors.background,
+                        backgroundColor: themeBackground,
                         borderRadius: 16,
                         padding: 10,
                         position: "absolute",
@@ -2243,6 +2317,9 @@ export function PlayerDetailView({
                           isActive={isActive}
                           colors={colors}
                           lyricFontSize={lyricFontSize}
+                          lyricsColor={lyricsColor}
+                          lyricsActiveColor={lyricsActiveColor}
+                          lyricsAlign={lyricsAlign}
                           onLayout={(e) => {
                             lineLayouts.current[index] = e.nativeEvent.layout;
                           }}
@@ -2273,7 +2350,7 @@ export function PlayerDetailView({
     <View
       style={[
         styles.container,
-        { backgroundColor: colors.background, paddingTop: insets.top },
+        { backgroundColor: themeBackground, paddingTop: insets.top },
       ]}
     >
       {!embedded && (
@@ -2282,14 +2359,14 @@ export function PlayerDetailView({
             onPress={closePlayer}
             style={styles.headerButton}
           >
-            <Ionicons name="chevron-down" size={30} color={colors.text} />
+            <Ionicons name="chevron-down" size={30} color={headerIconColor} />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.headerButton}
             onPress={handleOpenMore}
           >
-            <Ionicons name="ellipsis-vertical" size={24} color={colors.text} />
+            <Ionicons name="ellipsis-vertical" size={24} color={headerIconColor} />
           </TouchableOpacity>
         </View>
       )}
@@ -2345,6 +2422,9 @@ export function PlayerDetailView({
                               isActive={isActive}
                               colors={colors}
                               lyricFontSize={lyricFontSize}
+                              lyricsColor={lyricsColor}
+                              lyricsActiveColor={lyricsActiveColor}
+                              lyricsAlign={lyricsAlign}
                               onLayout={(e) => {
                                 lineLayouts.current[index] =
                                   e.nativeEvent.layout;
@@ -2375,12 +2455,24 @@ export function PlayerDetailView({
                   activeOpacity={0.9}
                   onPress={() => setShowLyrics(true)}
                 >
-                  <Image
-                    source={{
-                      uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
-                    }}
-                    style={styles.artwork}
-                  />
+                  {coverStyle === "vinyl" ? (
+                    <VinylCover
+                      uri={getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900)}
+                      size={vinylSize}
+                      isPlaying={isPlaying}
+                      tonearm={tonearm}
+                    />
+                  ) : (
+                    <Image
+                      source={{
+                        uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
+                      }}
+                      style={[
+                        styles.artwork,
+                        coverRadius !== undefined && { borderRadius: coverRadius },
+                      ]}
+                    />
+                  )}
                 </TouchableOpacity>
                 {/* 有声书模式：操作按钮组贴在封面正下方（与封面同在一个居中的容器内，
                     保证按钮组紧贴封面而非悬在中缝） */}
