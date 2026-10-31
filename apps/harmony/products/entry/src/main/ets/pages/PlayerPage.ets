@@ -29,6 +29,9 @@ import { PlayingIndicator } from '../components/PlayingIndicator';
 import { SyncInviteModal } from '../components/SyncInviteModal';
 import { SyncNotification } from '../components/SyncNotification';
 import { mvPlaylistStore } from '../store/MvPlaylistStore';
+import { playerThemeStore } from '../theme/playerThemeStore';
+import type { PlayerThemeTokens } from '../theme/playerThemeSchema';
+import { VinylCover } from '../components/VinylCover';
 
 class MoreOption {
   key: string = '';
@@ -181,6 +184,13 @@ struct PlayerPage {
   @StorageLink('themeMode') @Watch('onThemeModeChange') themeMode: ThemeMode = 'light';
   @State private langAtBuild: string = getLang();
   @State theme: Theme = buildTheme('light');
+  // ─── 播放器主题插件（对齐 mobile usePlayerTheme）───
+  // 激活主题 + VIP 时生效，全部 token 可选、缺省回退主题默认；festive 按 dark 段处理
+  @State private themeTokens: PlayerThemeTokens | null = null;
+  private unsubThemeStore: (() => void) | null = null;
+  // 歌词字号是否被用户手动改过（kv lyric_font_size 有值）：未改过时主题的 lyricsFontSize 生效，
+  // 改过后用户值优先（对齐 mobile「主题激活时生效，用户手调覆盖主题」）
+  private lyricSizeCustomized: boolean = false;
   // 沉浸式避让区高度（vp，services/systemBar publishAvoidArea 下发）
   @StorageProp('statusBarHeightVp') statusBarHeightVp: number = 0;
   @StorageProp('navBarHeightVp') navBarHeightVp: number = 0;
@@ -209,6 +219,95 @@ struct PlayerPage {
 
   onThemeModeChange(): void {
     this.theme = buildTheme(this.themeMode);
+    this.refreshPlayerTheme();
+  }
+
+  /** VIP + 激活主题时取当前模式 token，否则 null（对齐 mobile usePlayerTheme） */
+  private refreshPlayerTheme(): void {
+    if (!this.isPlusVip) {
+      this.themeTokens = null;
+      return;
+    }
+    const mode: 'light' | 'dark' = this.themeMode === 'light' ? 'light' : 'dark';
+    this.themeTokens = playerThemeStore.activeTokens(mode);
+  }
+
+  // ─── 主题 token 取值助手（缺省回退主题默认，对齐 mobile `token?.x ?? 默认值`）───
+  private ptBackground(): string {
+    return this.themeTokens?.background ?? this.theme.colors.background;
+  }
+
+  private ptHeaderIcon(): string {
+    return this.themeTokens?.headerIconColor ?? this.theme.colors.text;
+  }
+
+  private ptTitle(): string {
+    return this.themeTokens?.titleColor ?? this.theme.colors.text;
+  }
+
+  private ptArtist(): string {
+    return this.themeTokens?.artistColor ?? this.theme.colors.textSecondary;
+  }
+
+  private ptProgress(): string {
+    return this.themeTokens?.progressColor ?? this.theme.colors.primary;
+  }
+
+  /** 缓冲层底色：仅 #RRGGBB 可拼 alpha 后缀（对齐 mobile bufferedColor），否则回退主题色 */
+  private ptBuffered(): string {
+    const p = this.themeTokens?.progressColor;
+    if (p !== undefined && /^#[0-9a-f]{6}$/i.test(p)) return `#4D${p.substring(1)}`;
+    return `#4D${this.theme.colors.primary.substring(3)}`;
+  }
+
+  private ptControl(defaultColor: string): string {
+    return this.themeTokens?.controlColor ?? defaultColor;
+  }
+
+  private ptLyricActive(): string {
+    return this.themeTokens?.lyricsActiveColor ?? this.theme.colors.primary;
+  }
+
+  private ptLyric(): string {
+    return this.themeTokens?.lyricsColor ?? this.theme.colors.text;
+  }
+
+  private ptLyricAlign(): TextAlign {
+    const a = this.themeTokens?.lyricsAlign;
+    if (a === 'left') return TextAlign.Start;
+    if (a === 'right') return TextAlign.End;
+    return TextAlign.Center;
+  }
+
+  private ptLyricBase(): number {
+    const t = this.themeTokens?.lyricsFontSize;
+    if (!this.lyricSizeCustomized && t !== undefined && t >= 12 && t <= 40) return t;
+    return this.lyricFontSize;
+  }
+
+  private ptIsVinyl(): boolean {
+    return this.themeTokens?.coverStyle === 'vinyl';
+  }
+
+  private ptTonearm(): boolean {
+    return this.themeTokens?.tonearm === 'basic';
+  }
+
+  /** 方形封面圆角：主题 coverRadius 覆盖默认（vinyl 时忽略） */
+  private ptCoverRadius(fallback: number): number {
+    const r = this.themeTokens?.coverRadius;
+    return r !== undefined ? r : fallback;
+  }
+
+  /** 竖屏黑胶盘径：对齐 mobile min(width-60, 290)，hm 竖屏封面基准 200 → 290 */
+  private vinylSize(): number {
+    return 290;
+  }
+
+  /** 横屏黑胶盘径：受高度约束（对齐 mobile min(height*0.72, vinylSize)） */
+  private landscapeVinylSize(): number {
+    if (this.containerHeight > 0) return Math.min(this.containerHeight * 0.72, 290);
+    return 290;
   }
 
   aboutToAppear(): void {
@@ -217,7 +316,10 @@ struct PlayerPage {
     kvStore.get('lyric_font_size')
       .then((v: string | null): void => {
         const n: number = v !== null ? Number(v) : NaN;
-        if (!Number.isNaN(n) && n >= 12 && n <= 40) this.lyricFontSize = n;
+        if (!Number.isNaN(n) && n >= 12 && n <= 40) {
+          this.lyricFontSize = n;
+          this.lyricSizeCustomized = true;
+        }
       })
       .catch((e: Error): void => {
         Logger.w('PlayerPage', `read lyric_font_size failed: ${String(e)}`);
@@ -231,6 +333,11 @@ struct PlayerPage {
       .catch((e: Error): void => {
         Logger.w('PlayerPage', `read player_controls_bottom_offset failed: ${String(e)}`);
       });
+    // 播放器主题：水合 + 订阅变更（激活/编辑/删除主题即时生效；VIP 门槛在 refreshPlayerTheme 内）
+    this.unsubThemeStore = playerThemeStore.subscribe((): void => this.refreshPlayerTheme());
+    playerThemeStore.hydrate()
+      .then((): void => this.refreshPlayerTheme())
+      .catch(() => undefined);
     this.unsub = playerStore.subscribe(() => {
       this.view = playerStore.view();
       this.speed = this.view.speed;
@@ -303,6 +410,8 @@ struct PlayerPage {
         if (token) setPlusAuthToken(token);
         const profile = await plusApi.getMe(plusUserId);
         this.isPlusVip = !!profile.vipTier && profile.vipTier !== 'NONE';
+        // VIP 状态就位后刷新主题 token（对齐 mobile useLocalVipStatus 门架）
+        this.refreshPlayerTheme();
       }
     } catch (e) {
       Logger.w('PlayerPage', `loadVipStatus failed: ${String(e)}`);
@@ -314,6 +423,7 @@ struct PlayerPage {
     this.unsubLike();
     if (this.unsubSync) this.unsubSync();
     if (this.unsubPlayerLeft) this.unsubPlayerLeft();
+    if (this.unsubThemeStore) this.unsubThemeStore();
     socketService.off('transfer_received', this.onTransferReceived);
     if (this.hideTimerId !== -1) {
       clearTimeout(this.hideTimerId);
@@ -965,7 +1075,7 @@ struct PlayerPage {
       }
     }
     .width('100%').height('100%')
-    .backgroundColor(this.theme.colors.background)
+    .backgroundColor(this.ptBackground())
     .padding({ top: this.statusBarHeightVp, bottom: this.navBarHeightVp })
   }
 
@@ -1101,18 +1211,18 @@ struct PlayerPage {
         .hitTestBehavior(HitTestMode.Transparent);
     }
     .width('100%').height('100%')
-    .backgroundColor(this.theme.colors.background);
+    .backgroundColor(this.ptBackground());
   }
 
   @Builder header() {
     Row() {
-      AppIcon({ name: 'chevron-down', iconSize: 26, color: this.theme.colors.text })
+      AppIcon({ name: 'chevron-down', iconSize: 26, color: this.ptHeaderIcon() })
         .width(44).height(44)
         .onClick(() => router.back());
       Row().layoutWeight(1);
       Text('⋮')
         .fontSize(22)
-        .fontColor(this.theme.colors.text)
+        .fontColor(this.ptHeaderIcon())
         .width(44).height(44)
         .textAlign(TextAlign.Center)
         .onClick(() => { this.showMore = true; });
@@ -1292,32 +1402,26 @@ struct PlayerPage {
           } else {
           // 封面 + 有声书操作按钮组，居中，占满剩余空间
           Column() {
-            CoverImage({
-              path: this.current()?.coverUrl ?? null,
-              imgWidth: this.landscapeCoverSize(),
-              imgHeight: this.landscapeCoverSize(),
-              radius: 15,
-              fallbackText: (this.current()?.title ?? '?').substring(0, 1),
-            })
-              .onClick(() => {
-                // 手机横屏无控制组：点封面 = 播放/暂停（同时唤回 chrome）；平板横屏：点封面切换控制条显隐
-                if (this.isPhoneLandscape()) {
-                  this.resetHideTimer();
-                  playerStore.togglePlay().catch(() => undefined);
-                  return;
-                }
-                if (this.needsAutoHide()) {
-                  if (this.controlsVisible) {
-                    if (this.hideTimerId !== -1) {
-                      clearTimeout(this.hideTimerId);
-                      this.hideTimerId = -1;
-                    }
-                    this.hideLandscapeControls();
-                  } else {
-                    this.resetHideTimer();
-                  }
-                }
-              });
+            // 黑胶样式（主题 coverStyle=vinyl）或默认方形封面（coverRadius 可调）
+            if (this.ptIsVinyl()) {
+              VinylCover({
+                path: this.current()?.coverUrl ?? null,
+                discSize: this.landscapeVinylSize(),
+                fallbackText: (this.current()?.title ?? '?').substring(0, 1),
+                isPlaying: this.view.isPlaying,
+                tonearm: this.ptTonearm(),
+              })
+                .onClick((): void => this.handleLandscapeCoverClick());
+            } else {
+              CoverImage({
+                path: this.current()?.coverUrl ?? null,
+                imgWidth: this.landscapeCoverSize(),
+                imgHeight: this.landscapeCoverSize(),
+                radius: this.ptCoverRadius(15),
+                fallbackText: (this.current()?.title ?? '?').substring(0, 1),
+              })
+                .onClick((): void => this.handleLandscapeCoverClick());
+            }
             // 横屏/平板模式：有声书封面下方置顶操作按钮组（与竖屏同一组）
             if (this.current()?.contentType === 'AUDIOBOOK') {
               this.audiobookQuickActions();
@@ -1359,7 +1463,7 @@ struct PlayerPage {
             .borderRadius(16)
             .padding(10)
             .margin({ bottom: this.controlBottomOffset })
-            .backgroundColor(this.theme.colors.background)
+            .backgroundColor(this.ptBackground())
             .visibility(this.controlsVisible ? Visibility.Visible : Visibility.Hidden)
             .onClick(() => {
               if (!this.controlsVisible && this.needsAutoHide()) {
@@ -1397,6 +1501,26 @@ struct PlayerPage {
     }
     .width('100%')
     .layoutWeight(1);
+  }
+
+  /** 横屏封面点击：手机横屏无控制组=播放/暂停（同时唤回 chrome）；平板横屏=切换控制条显隐 */
+  private handleLandscapeCoverClick(): void {
+    if (this.isPhoneLandscape()) {
+      this.resetHideTimer();
+      playerStore.togglePlay().catch(() => undefined);
+      return;
+    }
+    if (this.needsAutoHide()) {
+      if (this.controlsVisible) {
+        if (this.hideTimerId !== -1) {
+          clearTimeout(this.hideTimerId);
+          this.hideTimerId = -1;
+        }
+        this.hideLandscapeControls();
+      } else {
+        this.resetHideTimer();
+      }
+    }
   }
 
   /** 横屏右列播放列表面板（对齐 mobile landscape 中 AUDIOBOOK 时的 renderPlaylist 内联列表）。 */
@@ -1461,14 +1585,26 @@ struct PlayerPage {
         if (this.showLyrics) {
           this.lyricsView();
         } else {
-          CoverImage({
-            path: this.current()?.coverUrl ?? null,
-            imgWidth: 200,
-            imgHeight: 200,
-            radius: 20,
-            fallbackText: (this.current()?.title ?? '?').substring(0, 1),
-          })
-            .onClick(() => { this.showLyrics = true; });
+          // 黑胶样式（主题 coverStyle=vinyl）或默认方形封面（coverRadius 可调）
+          if (this.ptIsVinyl()) {
+            VinylCover({
+              path: this.current()?.coverUrl ?? null,
+              discSize: this.vinylSize(),
+              fallbackText: (this.current()?.title ?? '?').substring(0, 1),
+              isPlaying: this.view.isPlaying,
+              tonearm: this.ptTonearm(),
+            })
+              .onClick(() => { this.showLyrics = true; });
+          } else {
+            CoverImage({
+              path: this.current()?.coverUrl ?? null,
+              imgWidth: 200,
+              imgHeight: 200,
+              radius: this.ptCoverRadius(20),
+              fallbackText: (this.current()?.title ?? '?').substring(0, 1),
+            })
+              .onClick(() => { this.showLyrics = true; });
+          }
           // 有声书模式：操作按钮组贴在封面正下方（与封面同在一个弹性 Column 内，
           // 随封面一起居中，保证按钮组紧贴封面而非悬在中缝）
           if (this.current()?.contentType === 'AUDIOBOOK') {
@@ -1587,14 +1723,14 @@ struct PlayerPage {
               // 修复：之前用硬编码 17/15，导致即使 lyricFontSize 已持久化、弹层里 +/- 也实际不会改变歌词大小
               // 现在以 lyricFontSize 为基线，活动行 +1、非活动行 -1，对齐 mobile player.tsx 的 ActiveLyricLine.fontSize 处理
               .fontSize(index === this.view.activeLyricIndex
-                ? this.lyricFontSize + 1
-                : this.lyricFontSize - 1)
+                ? this.ptLyricBase() + 1
+                : this.ptLyricBase() - 1)
               .fontWeight(index === this.view.activeLyricIndex ? FontWeight.Bold : FontWeight.Medium)
               .fontColor(index === this.view.activeLyricIndex
-                ? this.theme.colors.primary
-                : this.theme.colors.text)
+                ? this.ptLyricActive()
+                : this.ptLyric())
               .opacity(index === this.view.activeLyricIndex ? 1 : 0.4)
-              .textAlign(TextAlign.Center)
+              .textAlign(this.ptLyricAlign())
               .width('100%')
               .padding({ top: 10, bottom: 10, left: 20, right: 20 });
           }
@@ -1617,7 +1753,7 @@ struct PlayerPage {
           Text(this.current()?.title ?? '')
             .fontSize(20)
             .fontWeight(FontWeight.Bold)
-            .fontColor(this.theme.colors.text)
+            .fontColor(this.ptTitle())
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis });
           // 艺术家 + 音频品质胶囊（对齐 mobile player.tsx trackMetaRow：
@@ -1625,7 +1761,7 @@ struct PlayerPage {
           Row({ space: 8 }) {
             Text(this.current()?.artist ?? '')
               .fontSize(14)
-              .fontColor(this.theme.colors.textSecondary)
+              .fontColor(this.ptArtist())
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
               .flexShrink(1);
@@ -1735,7 +1871,7 @@ struct PlayerPage {
               .width(`${this.view.bufferedPercent}%`)
               .height(4)
               .borderRadius(2)
-              .backgroundColor(`#4D${this.theme.colors.primary.substring(3)}`);
+              .backgroundColor(this.ptBuffered());
           }
           .width('100%')
           .height(4)
@@ -1749,8 +1885,8 @@ struct PlayerPage {
             .trackColor(Color.Transparent)
             .trackThickness(4)
             .blockSize({ width: 16, height: 16 })
-            .selectedColor(this.theme.colors.primary)
-            .blockColor(this.theme.colors.primary)
+            .selectedColor(this.ptProgress())
+            .blockColor(this.ptProgress())
             .onChange((value: number, mode: SliderChangeMode) => {
               // 对齐 mobile：松手/点击才 seek，拖动中不打断播放
               if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
@@ -1770,12 +1906,12 @@ struct PlayerPage {
       // 控制行：模式 | 上一首 播放 下一首 | 播放列表
       Row() {
         if (!this.view.radioMode) {
-          AppIcon({ name: this.playModeIcon(), iconSize: 24, color: this.theme.colors.textSecondary })
+          AppIcon({ name: this.playModeIcon(), iconSize: 24, color: this.ptControl(this.theme.colors.textSecondary) })
             .onClick(() => playerStore.togglePlayMode());
         }
 
         Row({ space: 30 }) {
-          AppIcon({ name: 'skip-back', iconSize: 32, color: this.theme.colors.text })
+          AppIcon({ name: 'skip-back', iconSize: 32, color: this.ptControl(this.theme.colors.text) })
             .onClick(() => playerStore.playPrevious().catch(() => undefined));
           Stack() {
             AppIcon({
@@ -1788,13 +1924,13 @@ struct PlayerPage {
           .borderRadius(25)
           .backgroundColor(this.theme.colors.text)
           .onClick(() => playerStore.togglePlay().catch(() => undefined));
-          AppIcon({ name: 'skip-forward', iconSize: 32, color: this.theme.colors.text })
+          AppIcon({ name: 'skip-forward', iconSize: 32, color: this.ptControl(this.theme.colors.text) })
             .onClick(() => playerStore.playNext().catch(() => undefined));
         }
         .alignItems(VerticalAlign.Center);
 
         if (!this.view.radioMode) {
-          AppIcon({ name: 'list', iconSize: 24, color: this.theme.colors.textSecondary })
+          AppIcon({ name: 'list', iconSize: 24, color: this.ptControl(this.theme.colors.textSecondary) })
             .onClick(() => { this.showPlaylist = true; });
         }
       }
@@ -2693,6 +2829,7 @@ struct PlayerPage {
   }
 
   private saveLyricSize(): void {
+    this.lyricSizeCustomized = true;
     kvStore.set('lyric_font_size', String(this.lyricFontSize)).catch(() => undefined);
   }
 

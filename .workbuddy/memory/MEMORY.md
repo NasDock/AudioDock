@@ -18,6 +18,12 @@
 - 每组件只能绑一个 bindSheet；宽屏居中要 `preferType: SheetType.CENTER`。
 - 触摸：HitTestMode.None 只禁自身，Block 阻断下层；要「不响应+不挡下层」用 Visibility.Hidden；覆盖层须显式 hitTestBehavior(None)。
 - AnimateParam.onFinish 存在；悬浮用 Stack 兄弟层；ForEach 动态属性读 @State 现场算。
+- 判别联合 `!result.ok` 收窄不可靠，失败分支要显式 `as ValidationErr`；@Prop 命名禁与 CustomComponent 属性方法同名（如 size→discSize）。
+- Bash 工具 cwd 不跨命令持久：hvigorw 必须同一条命令内 `cd apps/harmony && ...`（或 zsh -c 子 shell）。
+
+## hm 播放器主题插件（与 mobile 对齐）
+- schema/store 在 products/entry/src/main/ets/theme/，JSON 与 mobile 完全通用（platform 接受 mobile/hm）；store key 同 mobile `soundx-player-themes`。
+- 消费：PlayerPage（VIP 门槛同 mobile），管理页 PlayerThemePage（设置页通用段入口）；黑胶组件 components/VinylCover.ets（interval 旋转，暂停停表不清角）。
 
 ## hm 沉浸式状态栏
 - setWindowLayoutFullScreen(true) + getWindowAvoidArea 换 vp 存 AppStorage('statusBarHeightVp'/'navBarHeightVp') + 监听 avoidAreaChange；每个 @Entry 根容器 @StorageProp 并 padding。没开全屏时 setWindowSystemBarProperties 不生效。
