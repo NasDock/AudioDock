@@ -3,3 +3,4 @@
 //
 #import <React/RCTBridgeModule.h>
 #import "WidgetCommandEmitter.h"
+#import "RNCarPlay.h"

@@ -19,6 +19,8 @@
 		63355FBCD351674D68A4728C /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A9ABFCA3E15919BB20B2A3D /* ExpoModulesProvider.swift */; };
 		6D4DAAF2EB374DC68CD867E4 /* AudioDockWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E89F43F0F724A41BBB71CAB /* AudioDockWidget.swift */; };
 		84CF6712F8FD2249A87E6427 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 27AD97A087BB945B53384A8E /* PrivacyInfo.xcprivacy */; };
+		A1F1E1D5CAA11A0000000001 /* PhoneSceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F1E1D5CAA21A0000000003 /* PhoneSceneDelegate.swift */; };
+		A1F1E1D5CAA11A0000000002 /* CarSceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F1E1D5CAA31A0000000004 /* CarSceneDelegate.swift */; };
 		A6A2580292E242C82446F83F /* libPods-AudioDock.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 41113687517B6319C4C04279 /* libPods-AudioDock.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		BCC2C8051E8C4B159F50FCD4 /* WidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BE2C3FC39E34876BE39DB52 /* WidgetBridge.swift */; };
@@ -58,6 +60,8 @@
 		94D7316243074F0CAB29E881 /* WidgetCommandEmitter.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = WidgetCommandEmitter.m; path = AudioDock/WidgetCommandEmitter.m; sourceTree = "<group>"; };
 		9593B26AEBAD4EB4987BBAB9 /* AudioDockWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDockWidget/AudioDockWidgetBundle.swift; sourceTree = "<group>"; };
 		9963079F7F8C43CAAB91726A /* AudioDockWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = AudioDockWidget/AudioDockWidget.entitlements; sourceTree = "<group>"; };
+		A1F1E1D5CAA21A0000000003 /* PhoneSceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PhoneSceneDelegate.swift; path = AudioDock/PhoneSceneDelegate.swift; sourceTree = "<group>"; };
+		A1F1E1D5CAA31A0000000004 /* CarSceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarSceneDelegate.swift; path = AudioDock/CarSceneDelegate.swift; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = AudioDock/SplashScreen.storyboard; sourceTree = "<group>"; };
 		ADD011114BE8400399854CF5 /* WidgetCommandEmitter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = WidgetCommandEmitter.h; path = AudioDock/WidgetCommandEmitter.h; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
@@ -92,6 +96,8 @@
 			isa = PBXGroup;
 			children = (
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
+				A1F1E1D5CAA21A0000000003 /* PhoneSceneDelegate.swift */,
+				A1F1E1D5CAA31A0000000004 /* CarSceneDelegate.swift */,
 				1BE2C3FC39E34876BE39DB52 /* WidgetBridge.swift */,
 				3B8C3A28D594467BBB735F3A /* WidgetBridge.m */,
 				94D7316243074F0CAB29E881 /* WidgetCommandEmitter.m */,
@@ -437,6 +443,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
+				A1F1E1D5CAA11A0000000001 /* PhoneSceneDelegate.swift in Sources */,
+				A1F1E1D5CAA11A0000000002 /* CarSceneDelegate.swift in Sources */,
 				BCC2C8051E8C4B159F50FCD4 /* WidgetBridge.swift in Sources */,
 				4CA432E294EE46F2AC2F683C /* WidgetBridge.m in Sources */,
 				3672991D2F634CC8ABB36E3E /* WidgetCommandEmitter.m in Sources */,
@@ -498,7 +506,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = com.audiodock.app;
-				PRODUCT_NAME = "AudioDock";
+				PRODUCT_NAME = AudioDock;
 				SWIFT_OBJC_BRIDGING_HEADER = "AudioDock/AudioDock-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -540,7 +548,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
 				PRODUCT_BUNDLE_IDENTIFIER = com.audiodock.app;
-				PRODUCT_NAME = "AudioDock";
+				PRODUCT_NAME = AudioDock;
 				SWIFT_OBJC_BRIDGING_HEADER = "AudioDock/AudioDock-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

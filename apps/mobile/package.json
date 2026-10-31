@@ -62,6 +62,7 @@
     "react-dom": "19.1.0",
     "react-i18next": "^17.0.3",
     "react-native": "0.81.5",
+    "react-native-carplay": "2.4.1-beta.0",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-iap": "^12.15.7",
     "react-native-markdown-display": "^7.0.2",
