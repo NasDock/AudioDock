@@ -1,5 +1,6 @@
 import MarqueeText from "@/src/components/MarqueeText";
 import PlayingIndicator from "@/src/components/PlayingIndicator";
+import VinylCover from "@/src/components/VinylCover";
 import { XiaoAiIcon } from "@/src/components/XiaoAiIcon";
 import { useAuth } from "@/src/context/AuthContext";
 import { PlayMode, usePlayer } from "@/src/context/PlayerContext";
@@ -294,6 +295,9 @@ export function PlayerDetailView({
   const artistColor = playerTheme?.artistColor ?? colors.secondary;
   const coverRadius =
     typeof playerTheme?.coverRadius === "number" ? playerTheme.coverRadius : undefined;
+  // 黑胶样式（对齐 desktop detail.coverStyle/tonearm）：vinyl 时忽略 coverRadius
+  const coverStyle = playerTheme?.coverStyle === "vinyl" ? "vinyl" : "square";
+  const tonearm = playerTheme?.tonearm === "basic";
   const progressColor = playerTheme?.progressColor ?? colors.primary;
   const controlColor = playerTheme?.controlColor ?? colors.text;
   const lyricsColor = playerTheme?.lyricsColor;
@@ -311,6 +315,8 @@ export function PlayerDetailView({
   const top = insets.top;
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
+  // 黑胶盘直径：对齐 desktop 方形220→圆盘320 的 1.45 倍关系（200 → 290），窄屏兜底
+  const vinylSize = Math.min(width - 60, 290);
   const {
     currentTrack,
     isPlaying,
@@ -2434,15 +2440,24 @@ export function PlayerDetailView({
                   activeOpacity={0.9}
                   onPress={() => setShowLyrics(true)}
                 >
-                  <Image
-                    source={{
-                      uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
-                    }}
-                    style={[
-                      styles.artwork,
-                      coverRadius !== undefined && { borderRadius: coverRadius },
-                    ]}
-                  />
+                  {coverStyle === "vinyl" ? (
+                    <VinylCover
+                      uri={getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900)}
+                      size={vinylSize}
+                      isPlaying={isPlaying}
+                      tonearm={tonearm}
+                    />
+                  ) : (
+                    <Image
+                      source={{
+                        uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
+                      }}
+                      style={[
+                        styles.artwork,
+                        coverRadius !== undefined && { borderRadius: coverRadius },
+                      ]}
+                    />
+                  )}
                 </TouchableOpacity>
                 {/* 有声书模式：操作按钮组贴在封面正下方（与封面同在一个居中的容器内，
                     保证按钮组紧贴封面而非悬在中缝） */}

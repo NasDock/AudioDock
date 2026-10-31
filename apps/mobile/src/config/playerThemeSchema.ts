@@ -35,8 +35,12 @@ export const PLAYER_KEYS: Record<string, KeySpec> = {
   titleColor: { type: "color" },
   /** 歌手/作者 */
   artistColor: { type: "color" },
-  /** 封面圆角（px，0=直角，size/2=圆形） */
+  /** 封面圆角（px，0=直角，size/2=圆形）；coverStyle=vinyl 时忽略 */
   coverRadius: { type: "px" },
+  /** 封面样式（对齐 desktop detail.coverStyle）：square=默认方形，vinyl=黑胶圆盘 */
+  coverStyle: { type: "enum", values: ["square", "vinyl"] },
+  /** 黑胶唱针装饰（对齐 desktop detail.tonearm，仅 coverStyle=vinyl 时生效） */
+  tonearm: { type: "enum", values: ["none", "basic"] },
   /** 普通行歌词 */
   lyricsColor: { type: "color" },
   /** 当前行歌词 */
@@ -58,6 +62,8 @@ export interface PlayerThemeTokens {
   titleColor?: string;
   artistColor?: string;
   coverRadius?: number;
+  coverStyle?: "square" | "vinyl";
+  tonearm?: "none" | "basic";
   lyricsColor?: string;
   lyricsActiveColor?: string;
   lyricsFontSize?: number;
