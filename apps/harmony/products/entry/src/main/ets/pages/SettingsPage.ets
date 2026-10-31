@@ -816,6 +816,13 @@ struct SettingsPage {
             () => router.pushUrl({ url: 'pages/TtsConfigPage' }),
           )
 
+          // 播放器主题（对齐 mobile 设置页入口）
+          this.ActionRow(
+            t('settings.playerTheme'),
+            t('settings.playerThemeDescription'),
+            () => router.pushUrl({ url: 'pages/PlayerThemePage' }),
+          )
+
           // 车机模式
           SettingSwitchRow({
             label: t('settings.carMode'),

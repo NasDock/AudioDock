@@ -4,6 +4,7 @@
     "pages/RootShellPage",
     "pages/MVDetailPage",
     "pages/SettingsPage",
+    "pages/PlayerThemePage",
     "pages/SourceManagePage",
     "pages/PlayerPage",
     "pages/SourceSelectPage",
