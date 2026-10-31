@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import {
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -55,6 +56,9 @@ export default function PlayerThemeScreen() {
   const isVip = useLocalVipStatus();
 
   const [jsonText, setJsonText] = useState("");
+  /** 编辑态：editingId 非空时展示全屏编辑页，editText 为预填的主题 JSON */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
 
   const handleImport = () => {
     const text = jsonText.trim();
@@ -81,6 +85,34 @@ export default function PlayerThemeScreen() {
       if (text) setJsonText(text);
     } catch (e) {
       console.warn("Failed to read clipboard", e);
+    }
+  };
+
+  const handleStartEdit = (id: string) => {
+    const theme = themes[id];
+    if (!theme) return;
+    setEditText(JSON.stringify(theme, null, 2));
+    setEditingId(id);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingId) return;
+    const text = editText.trim();
+    if (!text) return;
+    const result = playerThemeStore.updateTheme(editingId, text);
+    if (!result.ok) {
+      Alert.alert(t("common.error"), result.error);
+      return;
+    }
+    setEditingId(null);
+    setEditText("");
+    if (result.warnings.length > 0) {
+      Alert.alert(
+        t("settings.playerThemeImportWarnings"),
+        result.warnings.slice(0, 10).join("\n"),
+      );
+    } else {
+      Alert.alert(t("settings.playerThemeUpdateSuccess"));
     }
   };
 
@@ -200,6 +232,12 @@ export default function PlayerThemeScreen() {
                     </View>
                   </TouchableOpacity>
                   <TouchableOpacity
+                    onPress={() => handleStartEdit(id)}
+                    style={styles.deleteButton}
+                  >
+                    <Ionicons name="create-outline" size={20} color={colors.secondary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
                     onPress={() => handleDelete(id)}
                     style={styles.deleteButton}
                   >
@@ -264,6 +302,71 @@ export default function PlayerThemeScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* 编辑主题：全屏弹层，预填当前 JSON，保存走与导入同一套校验（原位更新，保留激活态） */}
+      <Modal
+        visible={editingId !== null}
+        animationType="slide"
+        onRequestClose={() => setEditingId(null)}
+      >
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+          <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+            <TouchableOpacity
+              onPress={() => setEditingId(null)}
+              style={styles.backButton}
+            >
+              <Ionicons name="close" size={26} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>
+              {t("settings.playerThemeEditTitle")}
+            </Text>
+            <View style={{ width: 40 }} />
+          </View>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={{ flex: 1 }}
+          >
+            <View style={styles.editBody}>
+              <TextInput
+                style={[
+                  styles.jsonInput,
+                  styles.editInput,
+                  { color: colors.text, borderColor: colors.border },
+                ]}
+                value={editText}
+                onChangeText={setEditText}
+                multiline
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <View style={styles.importActions}>
+                <TouchableOpacity
+                  onPress={() => setEditingId(null)}
+                  style={[styles.actionButton, { borderColor: colors.border }]}
+                >
+                  <Text style={[styles.actionButtonText, { color: colors.text }]}>
+                    {t("common.cancel")}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSaveEdit}
+                  style={[
+                    styles.actionButton,
+                    styles.importButton,
+                    { backgroundColor: colors.primary },
+                    !editText.trim() && { opacity: 0.4 },
+                  ]}
+                  disabled={!editText.trim()}
+                >
+                  <Text style={[styles.importButtonText, { color: colors.background }]}>
+                    {t("settings.playerThemeSave")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -349,6 +452,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
     textAlignVertical: "top",
+  },
+  editBody: {
+    flex: 1,
+    padding: 16,
+  },
+  editInput: {
+    flex: 1,
   },
   importActions: {
     flexDirection: "row",

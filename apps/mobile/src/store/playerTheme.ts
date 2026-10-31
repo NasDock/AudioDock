@@ -117,6 +117,29 @@ export const playerThemeStore = {
     return { ...result, id };
   },
 
+  /** 原位更新已有主题：保留 id / 顺序 / 激活态，仅替换校验后的内容 */
+  updateTheme: (id: string, jsonText: string): ValidationResult => {
+    if (!state.themes[id]) {
+      return { ok: false, error: "主题不存在或已被删除" };
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch (e) {
+      return { ok: false, error: `JSON 解析失败：${(e as Error).message}` };
+    }
+    const result = validatePlayerTheme(parsed);
+    if (!result.ok) return result;
+
+    state = {
+      ...state,
+      themes: { ...state.themes, [id]: result.plugin },
+    };
+    persist();
+    notify();
+    return result;
+  },
+
   removeTheme: (id: string) => {
     const { [id]: _, ...rest } = state.themes;
     void _;
