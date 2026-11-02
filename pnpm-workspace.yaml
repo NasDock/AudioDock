@@ -2,3 +2,6 @@ packages:
   - "apps/*"
   - "packages/*"
   - "services/*"
+
+patchedDependencies:
+  react-native-carplay@2.4.1-beta.0: patches/react-native-carplay@2.4.1-beta.0.patch

@@ -7,6 +7,11 @@ settings:
 overrides:
   esbuild: 0.21.4
 
+patchedDependencies:
+  react-native-carplay@2.4.1-beta.0:
+    hash: 8af880b50d727d868f764596f6605e811d39e705ee6f7d5f74189392fcdb6b05
+    path: patches/react-native-carplay@2.4.1-beta.0.patch
+
 importers:
 
   .:
@@ -403,7 +408,7 @@ importers:
         version: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
       react-native-carplay:
         specifier: 2.4.1-beta.0
-        version: 2.4.1-beta.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+        version: 2.4.1-beta.0(patch_hash=8af880b50d727d868f764596f6605e811d39e705ee6f7d5f74189392fcdb6b05)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-gesture-handler:
         specifier: ~2.28.0
         version: 2.28.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -16750,7 +16755,7 @@ snapshots:
       postcss: 8.4.49
       resolve-from: 5.0.0
     optionalDependencies:
-      expo: 54.0.33(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native-webview@13.6.4(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      expo: 54.0.33(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native-webview@13.6.4(react-native@0.81.5(@babel/core@7.28.5)(@types/react@18.3.27)(react@18.3.1))(react@18.3.1))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@18.3.27)(react@18.3.1))(react@18.3.1)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -16831,7 +16836,7 @@ snapshots:
       '@expo/json-file': 10.0.12
       '@react-native/normalize-colors': 0.81.5
       debug: 4.4.1
-      expo: 54.0.33(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native-webview@13.6.4(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      expo: 54.0.33(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native-webview@13.6.4(react-native@0.81.5(@babel/core@7.28.5)(@types/react@18.3.27)(react@18.3.1))(react@18.3.1))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@18.3.27)(react@18.3.1))(react@18.3.1)
       resolve-from: 5.0.0
       semver: 7.8.5
       xml2js: 0.6.0
@@ -21859,7 +21864,7 @@ snapshots:
       resolve-from: 5.0.0
     optionalDependencies:
       '@babel/runtime': 7.28.4
-      expo: 54.0.33(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native-webview@13.6.4(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      expo: 54.0.33(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native-webview@13.6.4(react-native@0.81.5(@babel/core@7.28.5)(@types/react@18.3.27)(react@18.3.1))(react@18.3.1))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@18.3.27)(react@18.3.1))(react@18.3.1)
     transitivePeerDependencies:
       - '@babel/core'
       - supports-color
@@ -30163,7 +30168,7 @@ snapshots:
     dependencies:
       prop-types: 15.8.1
 
-  react-native-carplay@2.4.1-beta.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+  react-native-carplay@2.4.1-beta.0(patch_hash=8af880b50d727d868f764596f6605e811d39e705ee6f7d5f74189392fcdb6b05)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
     optionalDependencies:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)

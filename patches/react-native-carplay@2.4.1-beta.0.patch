@@ -1,0 +1,146 @@
+diff --git a/android/src/main/java/org/birkir/carplay/CarPlayModule.kt b/android/src/main/java/org/birkir/carplay/CarPlayModule.kt
+index ef6aa04d265191c9c70d20fe8be5e233ffb049a2..57f8c5d54a145a7db31adb8ed309e17167dc82c4 100644
+--- a/android/src/main/java/org/birkir/carplay/CarPlayModule.kt
++++ b/android/src/main/java/org/birkir/carplay/CarPlayModule.kt
+@@ -215,7 +215,7 @@ class CarPlayModule internal constructor(private val reactContext: ReactApplicat
+         props.getMap("icon")?.let { setIcon(parser.parseCarIcon(it)) }
+         props.getArray("actions")?.let {
+           for (i in 0 until it.size()) {
+-            addAction(parser.parseAction(it.getMap(i)));
++            addAction(parser.parseAction(it.getMap(i)!!));
+           }
+         }
+       }.build()
+diff --git a/android/src/main/java/org/birkir/carplay/CarPlaySession.kt b/android/src/main/java/org/birkir/carplay/CarPlaySession.kt
+index 2235853bcecd7f4680f65bcf95f1069872bc1d05..85d4aab54d78f11ed0aeb493dc375b82e04df30f 100644
+--- a/android/src/main/java/org/birkir/carplay/CarPlaySession.kt
++++ b/android/src/main/java/org/birkir/carplay/CarPlaySession.kt
+@@ -19,7 +19,6 @@ import com.facebook.react.bridge.Arguments
+ import com.facebook.react.bridge.ReactContext
+ import com.facebook.react.bridge.WritableNativeMap
+ import com.facebook.react.modules.appregistry.AppRegistry
+-import com.facebook.react.modules.core.TimingModule
+ import com.facebook.react.modules.debug.DevSettingsModule
+ import org.birkir.carplay.screens.CarScreen
+ 
+@@ -77,15 +76,12 @@ class CarPlaySession(private val reactInstanceManager: ReactInstanceManager) : S
+       }
+ 
+       catalystInstance.getJSModule(AppRegistry::class.java)
+-        .runApplication(jsAppModuleName, appParams)
++        ?.runApplication(jsAppModuleName, appParams)
+ 
+-      val timingModule = reactContext.getNativeModule(
+-        TimingModule::class.java
+-      )
+       val carModule = reactInstanceManager
+         .currentReactContext?.getNativeModule(CarPlayModule::class.java)
+       carModule!!.setCarContext(carContext, screen)
+-      timingModule!!.onHostResume()
++      // 注：RN 0.81 的 TimingModule 已无 onHostResume，原 timingModule!!.onHostResume() 调用移除
+ 
+     } catch (e: Exception) {
+       e.printStackTrace()
+diff --git a/android/src/main/java/org/birkir/carplay/parser/RCTListTemplate.kt b/android/src/main/java/org/birkir/carplay/parser/RCTListTemplate.kt
+index f6f441aaa64526e3156600d36faae1f4f45a7f88..1071baf7311f061200ffe7e35485c9b18a9d4653 100644
+--- a/android/src/main/java/org/birkir/carplay/parser/RCTListTemplate.kt
++++ b/android/src/main/java/org/birkir/carplay/parser/RCTListTemplate.kt
+@@ -35,7 +35,7 @@ class RCTListTemplate(
+       // Sections
+       props.getArray("sections")?.let {
+         for (i in 0 until it.size()) {
+-          val section = it.getMap(i)
++          val section = it.getMap(i)!!
+           val header = section.getString("header")
+           addSectionedList(
+             SectionedItemList.create(
+diff --git a/android/src/main/java/org/birkir/carplay/parser/RCTTabTemplate.kt b/android/src/main/java/org/birkir/carplay/parser/RCTTabTemplate.kt
+index 11d8261cf31d46354bfe8d6b20c5db4d8e8ba3d5..ff879111885f5d326cab48abc751f8dbedf3cd4f 100644
+--- a/android/src/main/java/org/birkir/carplay/parser/RCTTabTemplate.kt
++++ b/android/src/main/java/org/birkir/carplay/parser/RCTTabTemplate.kt
+@@ -21,10 +21,10 @@ class RCTTabTemplate(
+       setLoading(props.isLoading())
+       props.getArray("templates")?.let {
+         for (i in 0 until it.size()) {
+-          addTab(parseTab(it.getMap(i)))
++          addTab(parseTab(it.getMap(i)!!))
+         }
+         // Apply and select first tab
+-        it.getMap(0).getString("id")?.let { it1 ->
++        it.getMap(0)!!.getString("id")?.let { it1 ->
+           setTabContents(parseTabContents(it1))
+           setActiveTabContentId(it1)
+         }
+diff --git a/android/src/main/java/org/birkir/carplay/parser/RCTTemplate.kt b/android/src/main/java/org/birkir/carplay/parser/RCTTemplate.kt
+index 01dbabd3fad7569d274aa0326d9df12898b0a7fd..a07ad3d62734d136940b8219b3fa7e794295885f 100644
+--- a/android/src/main/java/org/birkir/carplay/parser/RCTTemplate.kt
++++ b/android/src/main/java/org/birkir/carplay/parser/RCTTemplate.kt
+@@ -139,7 +139,7 @@ abstract class RCTTemplate(
+   protected fun parseActionStrip(actions: ReadableArray): ActionStrip {
+     val builder = ActionStrip.Builder()
+     for (i in 0 until actions.size()) {
+-      val actionMap = actions.getMap(i)
++      val actionMap = actions.getMap(i)!!
+       val action = parseAction(actionMap)
+       builder.addAction(action)
+     }
+@@ -153,9 +153,9 @@ abstract class RCTTemplate(
+     return ItemList.Builder().apply {
+       for (i in 0 until items!!.size()) {
+         if (type == "row") {
+-          addItem(parseRowItem(items.getMap(i), i))
++          addItem(parseRowItem(items.getMap(i)!!, i))
+         } else if (type == "grid") {
+-          addItem(parseGridItem(items.getMap(i), i))
++          addItem(parseGridItem(items.getMap(i)!!, i))
+         }
+       }
+     }.build()
+@@ -187,12 +187,12 @@ abstract class RCTTemplate(
+       if (titleVariants != null) {
+         if (titleVariants.size() > 0) {
+           setTitle(parseCarText(
+-            titleVariants.getString(0),
++            titleVariants.getString(0)!!,
+             metadata
+           ))
+         }
+         if (titleVariants.size() > 1) {
+-          setText(titleVariants.getString(1))
++          setText(titleVariants.getString(1)!!)
+         }
+       }
+       item.getMap("image")?.let { setImage(parseCarIcon(it)) }
+@@ -259,7 +259,7 @@ abstract class RCTTemplate(
+     )
+     props.getArray("texts")?.let {
+       for (i in 0 until it.size()) {
+-        builder.addText(it.getString(i))
++        builder.addText(it.getString(i)!!)
+       }
+     }
+     props.getMap("image")?.let {
+@@ -301,12 +301,12 @@ abstract class RCTTemplate(
+       }
+       item.getArray("actions")?.let {
+         for (i in 0 until it.size()) {
+-          addAction(parseAction(it.getMap(i)))
++          addAction(parseAction(it.getMap(i)!!))
+         }
+       }
+       item.getArray("items")?.let {
+         for (i in 0 until it.size()) {
+-          addRow(parseRowItem(it.getMap(i), i))
++          addRow(parseRowItem(it.getMap(i)!!, i))
+         }
+       }
+     }.build()
+@@ -318,7 +318,7 @@ abstract class RCTTemplate(
+       map.getMap("startAction")?.let { setStartHeaderAction(parseAction(it)) }
+       map.getArray("endActions")?.let {
+         for (i in 0 until it.size()) {
+-          addEndHeaderAction(parseAction(it.getMap(i)))
++          addEndHeaderAction(parseAction(it.getMap(i)!!))
+         }
+       }
+     }.build()
