@@ -35,6 +35,7 @@
 ## hm 播放器主题插件（与 mobile 对齐）
 - schema/store 在 products/entry/src/main/ets/theme/，JSON 与 mobile 完全通用（platform 接受 mobile/hm）；store key 同 mobile `soundx-player-themes`。
 - 消费：PlayerPage（VIP 门槛同 mobile），管理页 PlayerThemePage（设置页通用段入口）；黑胶组件 components/VinylCover.ets（interval 旋转，暂停停表不清角）。
+- mobile 黑胶组件 src/components/VinylCover.tsx。**Reanimated worklet 禁递归引用自身/同组件其他 worklet**（闭包序列化到 UI 线程为 undefined，动画回调触发即 TypeError 闪退，无 JS 错误边界，2026-11-02 踩坑）；无限循环动画一律 `withRepeat(..., -1, false)`，启动前把 value 归一化 %360 保证续播角度。
 
 ## hm 沉浸式状态栏
 - setWindowLayoutFullScreen(true) + getWindowAvoidArea 换 vp 存 AppStorage('statusBarHeightVp'/'navBarHeightVp') + 监听 avoidAreaChange；每个 @Entry 根容器 @StorageProp 并 padding。没开全屏时 setWindowSystemBarProperties 不生效。

@@ -18,6 +18,7 @@ import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
   withTiming,
 } from "react-native-reanimated";
 import Svg, {
@@ -59,21 +60,23 @@ const VinylCover: React.FC<VinylCoverProps> = ({ uri, size, isPlaying, tonearm =
   const grooves: number[] = [];
   for (let r = grooveStart; r <= grooveEnd; r += 4 * k) grooves.push(r);
 
-  // ─── 旋转：递归 withTiming 链，保证全程匀速；暂停 cancelAnimation 停在当前帧 ───
+  // ─── 旋转：withRepeat 无限循环，每圈 360° 匀速；暂停 cancelAnimation 停在当前帧，恢复从同一角度继续 ───
+  // 禁止「完成回调里递归调用自身 worklet」的写法：worklet 闭包在 UI 线程拿不到
+  // 组件内的 worklet 引用（为 undefined），动画完成时抛 TypeError 直接闪退（已踩坑）
   const rotation = useSharedValue(0);
-  const spin = () => {
-    "worklet";
-    rotation.value = withTiming(
-      rotation.value + 360,
-      { duration: SPIN_DURATION, easing: Easing.linear },
-      (finished) => {
-        if (finished) spin();
-      },
+  const startSpin = () => {
+    // 归一化到 [0,360)（视觉角度不变），withRepeat 每轮从 startValue 转满一圈
+    const current = ((rotation.value % 360) + 360) % 360;
+    rotation.value = current;
+    rotation.value = withRepeat(
+      withTiming(current + 360, { duration: SPIN_DURATION, easing: Easing.linear }),
+      -1, // 无限循环
+      false, // 不往返，保持单向匀速
     );
   };
   useEffect(() => {
     if (isPlaying) {
-      spin();
+      startSpin();
     } else {
       cancelAnimation(rotation);
     }
