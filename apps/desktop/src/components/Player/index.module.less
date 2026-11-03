@@ -12,6 +12,7 @@
   align-items: center;
   padding: 0 20px;
   justify-content: space-between;
+  position: relative; // 顶部边框式进度条的定位锚点
 }
 
 .songInfo {
@@ -94,7 +95,6 @@
   display: flex;
   align-items: center;
   gap: 20px;
-  margin-bottom: 5px;
 }
 
 .controlIcon {
@@ -119,38 +119,81 @@
   }
 }
 
-.progressWrapper {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 60%;
+// 顶部边框式进度条（参考 mini 播放器）：常驻 3px 细条贴播放器上边缘，
+// 悬停/拖动（active）时加粗到 8px，高度变化带过渡动画
+.topProgress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12px; // 透明热区，扩大可点/可拖范围
+  cursor: pointer;
+  z-index: 5;
+  touch-action: none;
+
+  &:focus-visible {
+    outline: none;
+  }
 }
 
-.sliderContainer {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  position: relative;
+.topProgressBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  transition: height 0.2s ease;
+
+  .topProgress:hover &,
+  .topProgressActive & {
+    height: 8px;
+  }
 }
 
-// 自定义进度条底轨与缓存层：与 antd Slider rail（4px）对齐，叠在 Slider 下方
-.sliderRail,
-.bufferedTrack {
+.topProgressRail,
+.topProgressBuffered,
+.topProgressPlayed {
   position: absolute;
   left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 4px;
-  border-radius: 2px;
+  top: 0;
+  bottom: 0;
   pointer-events: none;
 }
 
-.sliderRail {
+.topProgressRail {
   right: 0;
 }
 
-.bufferedTrack {
+.topProgressBuffered {
   transition: width 0.3s linear;
+}
+
+.topProgressPlayed {
+  transition: width 0.2s linear;
+}
+
+// 悬停/拖动时浮在当前播放位置的时间气泡：当前时间 / 总时间
+.topProgressBubble {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 4px;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+  font-feature-settings: "tnum";
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, left 0.2s linear;
+
+  .topProgress:hover &,
+  .topProgressActive & {
+    opacity: 1;
+  }
 }
 
 .settings {
@@ -564,9 +607,10 @@
 
 .loadingIndicator {
   position: absolute;
-  left: 0;
+  // left 由 JSX 按 currentTime/duration 百分比内联设置
   top: 50%;
   transform: translate(-50%, -50%);
+  transition: left 0.2s linear;
   width: 14px;
   height: 14px;
   border-radius: 50%;

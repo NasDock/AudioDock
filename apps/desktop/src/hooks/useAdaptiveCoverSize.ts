@@ -39,18 +39,23 @@ export function useAdaptiveCoverSize(
   }: AdaptiveCoverOptions,
 ): number {
   const [containerWidth, setContainerWidth] = useState(0);
+  const [observedEl, setObservedEl] = useState<HTMLElement | null>(null);
 
+  // 容器可能是条件渲染后挂载的（如详情页 loading 态先占位），
+  // 每次渲染后同步一次 ref.current，确保元素出现/替换后能进入观察
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
-    const update = () => setContainerWidth(el.clientWidth);
+    if (el && el !== observedEl) setObservedEl(el);
+  });
+
+  useEffect(() => {
+    if (!observedEl) return;
+    const update = () => setContainerWidth(observedEl.clientWidth);
     update();
     const ro = new ResizeObserver(update);
-    ro.observe(el);
+    ro.observe(observedEl);
     return () => ro.disconnect();
-    // containerRef 为稳定的 ref 对象，无需依赖
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [observedEl]);
 
   // 首次渲染尚未测量时退回估算：窗口宽 - Sidebar 200 - padding
   const availableWidth =

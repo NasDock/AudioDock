@@ -1172,6 +1172,50 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
     }
   };
 
+  // 顶部边框式进度条：自绘实现，pointer 事件拖动 seek
+  const progressBarRef = useRef<HTMLDivElement>(null);
+  const [isSeeking, setIsSeeking] = useState(false);
+
+  const seekFromClientX = (clientX: number) => {
+    const el = progressBarRef.current;
+    if (!el || !duration) return;
+    const rect = el.getBoundingClientRect();
+    const ratio = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
+    handleSeek(ratio * duration);
+  };
+
+  const handleProgressPointerDown = (
+    e: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    if (!duration) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    setIsSeeking(true);
+    seekFromClientX(e.clientX);
+  };
+
+  const handleProgressPointerMove = (
+    e: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    if (isSeeking) seekFromClientX(e.clientX);
+  };
+
+  const handleProgressPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isSeeking) return;
+    setIsSeeking(false);
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+  };
+
+  // 键盘可访问性：左右方向键 ±5s
+  const handleProgressKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!duration) return;
+    if (e.key === "ArrowLeft") {
+      handleSeek(Math.max(currentTime - 5, 0));
+    } else if (e.key === "ArrowRight") {
+      handleSeek(Math.min(currentTime + 5, duration));
+    }
+  };
+
   // 向车机模式暴露 seek 能力
   useEffect(() => {
     if (seekBridge) {
@@ -1423,6 +1467,81 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
 
   const renderMiniPlayer = (expandable: boolean) => (
     <>
+      {/* 顶部边框式进度条（参考 mini 播放器）：常驻细条贴播放器上边缘，
+          悬停/拖动时加粗，并在当前播放位置浮出 当前时间/总时间 */}
+      <div
+        ref={progressBarRef}
+        className={`${styles.topProgress} ${
+          isSeeking ? styles.topProgressActive : ""
+        }`}
+        role="slider"
+        aria-valuemin={0}
+        aria-valuemax={duration || 0}
+        aria-valuenow={Math.round(currentTime)}
+        tabIndex={0}
+        onPointerDown={handleProgressPointerDown}
+        onPointerMove={handleProgressPointerMove}
+        onPointerUp={handleProgressPointerUp}
+        onPointerCancel={handleProgressPointerUp}
+        onKeyDown={handleProgressKeyDown}
+      >
+        <div className={styles.topProgressBar}>
+          <div
+            className={styles.topProgressRail}
+            style={{ backgroundColor: token.colorBorder }}
+          />
+          <div
+            className={styles.topProgressBuffered}
+            style={{
+              width: `${
+                duration > 0
+                  ? Math.min((bufferedTime / duration) * 100, 100)
+                  : 0
+              }%`,
+              backgroundColor: `${token.colorPrimary}4D`,
+            }}
+          />
+          <div
+            className={styles.topProgressPlayed}
+            style={{
+              width: `${
+                duration > 0
+                  ? Math.min((currentTime / duration) * 100, 100)
+                  : 0
+              }%`,
+              backgroundColor: token.colorPrimary,
+            }}
+          />
+          {isLoading && (
+            <div
+              className={styles.loadingIndicator}
+              style={{
+                color: token.colorPrimary,
+                // 卡住缓冲时圆圈跟随当前播放位置，而不是固定在 0 点
+                left: `${
+                  duration > 0
+                    ? Math.min((currentTime / duration) * 100, 100)
+                    : 0
+                }%`,
+              }}
+              aria-hidden
+            />
+          )}
+        </div>
+        <div
+          className={styles.topProgressBubble}
+          style={{
+            // clamp 防止气泡在两端溢出窗口
+            left: `clamp(48px, ${
+              duration > 0
+                ? Math.min((currentTime / duration) * 100, 100)
+                : 0
+            }%, calc(100% - 48px))`,
+          }}
+        >
+          {formatDuration(currentTime)} / {formatDuration(duration)}
+        </div>
+      </div>
       <div
         className={styles.songInfo}
         onClick={() => expandable && setIsFullPlayerVisible(true)}
@@ -1550,45 +1669,23 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
             )}
           </div>
           <StepForwardOutlined className={styles.controlIcon} onClick={next} />
-        </div>
-        <div className={styles.progressWrapper}>
-          <Text type="secondary" style={{ fontSize: "10px" }}>
-            {formatDuration(currentTime)}
-          </Text>
-          <div className={styles.sliderContainer}>
-            {/* 自定义底轨 + 缓存层：antd Slider 的 rail 设为透明，由这两层代替绘制 */}
-            <div
-              className={styles.sliderRail}
-              style={{ backgroundColor: token.colorBorder }}
-            />
-            <div
-              className={styles.bufferedTrack}
-              style={{
-                width: `${duration > 0 ? Math.min((bufferedTime / duration) * 100, 100) : 0}%`,
-                backgroundColor: `${token.colorPrimary}4D`,
-              }}
-            />
-            <Slider
-              value={currentTime}
-              max={duration || 100}
-              onChange={handleSeek}
-              tooltip={{ open: false }}
-              style={{ flex: 1, margin: 0 }}
-              trackStyle={{ backgroundColor: token.colorPrimary }}
-              railStyle={{ backgroundColor: "transparent" }}
-              handleStyle={{ display: "none" }}
-            />
-            {isLoading && (
-              <div
-                className={styles.loadingIndicator}
-                style={{ color: token.colorPrimary }}
-                aria-hidden
+          {/* 收藏按钮：放在「下一首」右侧，与控制按钮同款尺寸/交互 */}
+          {appMode !== TrackType.AUDIOBOOK &&
+            currentTrack &&
+            (currentTrack.likedByUsers?.find(
+              (n) => n.userId === (user?.id || 0),
+            ) ? (
+              <HeartFilled
+                onClick={() => toggleLike(currentTrack.id, "unlike")}
+                className={styles.controlIcon}
+                style={{ color: token.colorError }}
               />
-            )}
-          </div>
-          <Text type="secondary" style={{ fontSize: "10px" }}>
-            {formatDuration(duration)}
-          </Text>
+            ) : (
+              <HeartOutlined
+                onClick={() => toggleLike(currentTrack.id, "like")}
+                className={styles.controlIcon}
+              />
+            ))}
         </div>
       </div>
       {/* Volume & Settings */}
@@ -1603,21 +1700,6 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
             style={{ fontSize: "18px" }}
           />
         )}
-        {appMode !== TrackType.AUDIOBOOK &&
-          currentTrack &&
-          (currentTrack.likedByUsers?.find(
-            (n) => n.userId === (user?.id || 0),
-          ) ? (
-            <HeartFilled
-              onClick={() => toggleLike(currentTrack.id, "unlike")}
-              className={styles.settingIcon}
-            />
-          ) : (
-            <HeartOutlined
-              onClick={() => toggleLike(currentTrack.id, "like")}
-              className={styles.settingIcon}
-            />
-          ))}
         {/* Play Order */}
         {renderPlayOrderButton()}
 
