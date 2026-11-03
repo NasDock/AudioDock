@@ -31,6 +31,10 @@ import { SyncNotification } from '../components/SyncNotification';
 import { mvPlaylistStore } from '../store/MvPlaylistStore';
 import { playerThemeStore } from '../theme/playerThemeStore';
 import type { PlayerThemeTokens } from '../theme/playerThemeSchema';
+import { playerSkinStore } from '../theme/playerSkinStore';
+import type { CoverStyle } from '../theme/playerSkinStore';
+import { fetchDominantColor, rgbToHex, alphaHex, shade } from '../utils/dominantColor';
+import type { Rgb } from '../utils/dominantColor';
 import { VinylCover } from '../components/VinylCover';
 
 class MoreOption {
@@ -140,6 +144,13 @@ struct PlayerPage {
   @State private showAddToPlaylist: boolean = false;
   @State private showLyricsSize: boolean = false;
   @State private showControlPos: boolean = false;
+  // 播放器样式选择半模态（内置皮肤层：默认/黑胶）
+  @State private showPlayerStyle: boolean = false;
+  // 本地皮肤设置（内置插件层，优先级低于 VIP 主题插件，见 theme/playerSkinStore）
+  @State private skinCoverStyle: CoverStyle = 'square';
+  // 封面主题色（服务端 /image/dominant-color）：背景渐变 + 进度条着色，取色失败为 null 回退默认
+  @State private coverColor: Rgb | null = null;
+  private unsubSkinStore: (() => void) | null = null;
   // 有声书：跳过片头/片尾设置半模态（对齐 mobile PlayerMoreModal skip modal）
   @State private showSkipSheet: boolean = false;
   @State private skipSheetType: 'intro' | 'outro' = 'intro';
@@ -250,13 +261,18 @@ struct PlayerPage {
   }
 
   private ptProgress(): string {
-    return this.themeTokens?.progressColor ?? this.theme.colors.primary;
+    const p = this.themeTokens?.progressColor;
+    if (p !== undefined) return p;
+    // 封面主题色（对齐 desktop/mobile：插件未定义进度色时用封面色）
+    if (this.coverColor !== null) return rgbToHex(this.coverColor);
+    return this.theme.colors.primary;
   }
 
   /** 缓冲层底色：仅 #RRGGBB 可拼 alpha 后缀（对齐 mobile bufferedColor），否则回退主题色 */
   private ptBuffered(): string {
     const p = this.themeTokens?.progressColor;
     if (p !== undefined && /^#[0-9a-f]{6}$/i.test(p)) return `#4D${p.substring(1)}`;
+    if (p === undefined && this.coverColor !== null) return alphaHex(this.coverColor, 0.3);
     return `#4D${this.theme.colors.primary.substring(3)}`;
   }
 
@@ -285,12 +301,28 @@ struct PlayerPage {
     return this.lyricFontSize;
   }
 
+  /** 黑胶样式：VIP 主题插件显式定义以插件为准（插件优先），否则用本地皮肤设置 */
   private ptIsVinyl(): boolean {
-    return this.themeTokens?.coverStyle === 'vinyl';
+    const pluginStyle = this.themeTokens?.coverStyle;
+    if (pluginStyle !== undefined) return pluginStyle === 'vinyl';
+    return this.skinCoverStyle === 'vinyl';
   }
 
+  /** 唱针：插件显式定义以插件为准；否则黑胶自带唱针（对齐 desktop 内置皮肤 vinyl→tonearm=basic） */
   private ptTonearm(): boolean {
-    return this.themeTokens?.tonearm === 'basic';
+    const arm = this.themeTokens?.tonearm;
+    if (arm !== undefined) return arm === 'basic';
+    return this.ptIsVinyl();
+  }
+
+  /** 封面主题色刷新（对齐 mobile useCoverDominantColor，异步不阻塞渲染） */
+  private refreshCoverColor(): void {
+    const cur = this.current();
+    fetchDominantColor(cur?.coverUrl ?? null)
+      .then((c: Rgb | null): void => {
+        this.coverColor = c;
+      })
+      .catch(() => undefined);
   }
 
   /** 方形封面圆角：主题 coverRadius 覆盖默认（vinyl 时忽略） */
@@ -338,6 +370,17 @@ struct PlayerPage {
     playerThemeStore.hydrate()
       .then((): void => this.refreshPlayerTheme())
       .catch(() => undefined);
+    // 本地皮肤设置：水合 + 订阅变更（播放器样式 默认/黑胶）
+    this.unsubSkinStore = playerSkinStore.subscribe((): void => {
+      this.skinCoverStyle = playerSkinStore.getCoverStyle();
+    });
+    playerSkinStore.hydrate()
+      .then((): void => {
+        this.skinCoverStyle = playerSkinStore.getCoverStyle();
+      })
+      .catch(() => undefined);
+    // 封面主题色：进入页面先取一次（后续切歌在 playerStore.subscribe 里刷新）
+    this.refreshCoverColor();
     this.unsub = playerStore.subscribe(() => {
       this.view = playerStore.view();
       this.speed = this.view.speed;
@@ -354,6 +397,8 @@ struct PlayerPage {
         this.refreshMvStatus();
         // 曲目变化时刷新音质档位（对齐 mobile syncTrackQuality effect）
         this.refreshQualityProfile();
+        // 曲目变化时刷新封面主题色（对齐 mobile useCoverDominantColor）
+        this.refreshCoverColor();
       }
       // 横屏时右侧歌词常驻（对齐 mobile: isLandscape ? type !== AUDIOBOOK : showLyrics）
       const lyricsVisible = this.isLandscape || this.showLyrics;
@@ -424,6 +469,7 @@ struct PlayerPage {
     if (this.unsubSync) this.unsubSync();
     if (this.unsubPlayerLeft) this.unsubPlayerLeft();
     if (this.unsubThemeStore) this.unsubThemeStore();
+    if (this.unsubSkinStore) this.unsubSkinStore();
     socketService.off('transfer_received', this.onTransferReceived);
     if (this.hideTimerId !== -1) {
       clearTimeout(this.hideTimerId);
@@ -1087,6 +1133,28 @@ struct PlayerPage {
     // 把整个 content 高度压扁成几乎 0，controls() 信息行/进度条/控制行全部被挤出屏幕外。
     // Stack 子元素之间不互相挤占空间，SyncNotification 作为顶层叠层不影响主 Column layout。
     Stack({ alignContent: Alignment.TopStart }) {
+      // 封面主题色渐变背景层（对齐 desktop/mobile 播放详情页）：
+      // 插件显式定义背景时不叠加（插件优先）；亮色模式低透明度染色保证黑字可读
+      if (this.themeTokens?.background === undefined && this.coverColor !== null) {
+        Column()
+          .width('100%')
+          .height('100%')
+          .linearGradient({
+            // ArkUI angle 70 ≈ CSS 160deg（偏右下的竖向渐变）
+            angle: 70,
+            colors: this.themeMode === 'light'
+              ? [
+                  [alphaHex(this.coverColor as Rgb, 0.3), 0.0],
+                  [alphaHex(shade(this.coverColor as Rgb, 0.7), 0.3), 1.0],
+                ]
+              : [
+                  [alphaHex(this.coverColor as Rgb, 0.5), 0.0],
+                  [alphaHex(shade(this.coverColor as Rgb, 0.22), 0.94), 1.0],
+                ],
+          })
+          // 覆盖层必须显式放行触摸，否则挡住下层所有交互
+          .hitTestBehavior(HitTestMode.None)
+      }
       // 主体内容（占满 Stack 100%×100%）
       Column() {
         if (this.view.queue.length === 0) {
@@ -1177,6 +1245,14 @@ struct PlayerPage {
           dragBar: true,
           backgroundColor: this.theme.colors.surface,
           // 宽屏（>=600vp，如平板横屏）下半模态默认 popup 贴边，显式指定：横屏居中、竖屏底部
+          preferType: this.isLandscape ? SheetType.CENTER : SheetType.BOTTOM,
+        })
+      // 播放器样式选择（内置皮肤层：默认/黑胶）
+      Column().width(0).height(0)
+        .bindSheet($$this.showPlayerStyle, this.playerStyleSheet(), {
+          height: 220,
+          dragBar: true,
+          backgroundColor: this.theme.colors.surface,
           preferType: this.isLandscape ? SheetType.CENTER : SheetType.BOTTOM,
         })
       // 有声书：跳过片头/片尾设置（对齐 mobile PlayerMoreModal skip modal）
@@ -2212,6 +2288,53 @@ struct PlayerPage {
     .padding({ left: 4, right: 4 });
   }
 
+  /** 播放器样式选择（内置皮肤层，VIP 主题插件优先级更高；对齐 mobile PlayerMoreModal playerStyle） */
+  @Builder playerStyleSheet() {
+    Column() {
+      Text(t('playerMore.playerStyle'))
+        .fontSize(16)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.theme.colors.text)
+        .margin({ top: 8, bottom: 8 });
+      // 默认（方形封面）
+      Row({ space: 16 }) {
+        AppIcon({ name: 'square-outline', iconSize: 22, color: this.theme.colors.text })
+        Text(t('playerMore.styleDefault'))
+          .fontSize(16)
+          .fontColor(this.theme.colors.text)
+          .layoutWeight(1)
+        if (this.skinCoverStyle === 'square') {
+          AppIcon({ name: 'checkbox', iconSize: 20, color: this.theme.colors.primary })
+        }
+      }
+      .width('100%')
+      .padding({ top: 16, bottom: 16, left: 20, right: 20 })
+      .onClick((): void => {
+        playerSkinStore.setCoverStyle('square');
+        this.showPlayerStyle = false;
+      });
+      // 黑胶（圆盘 + 唱针）
+      Row({ space: 16 }) {
+        AppIcon({ name: 'music-note', iconSize: 22, color: this.theme.colors.text })
+        Text(t('playerMore.styleVinyl'))
+          .fontSize(16)
+          .fontColor(this.theme.colors.text)
+          .layoutWeight(1)
+        if (this.skinCoverStyle === 'vinyl') {
+          AppIcon({ name: 'checkbox', iconSize: 20, color: this.theme.colors.primary })
+        }
+      }
+      .width('100%')
+      .padding({ top: 16, bottom: 16, left: 20, right: 20 })
+      .onClick((): void => {
+        playerSkinStore.setCoverStyle('vinyl');
+        this.showPlayerStyle = false;
+      });
+    }
+    .width('100%')
+    .padding({ left: 4, right: 4 });
+  }
+
   /**
    * 有声书控制组中间三键：图标 + 标签（对齐 mobile controlButton）。
    * icon 用 AppIcon；speed 档位的 key 传 'speedometer'。
@@ -2293,6 +2416,7 @@ struct PlayerPage {
         this.isDownloaded || this.isDownloading),
       new MoreOption('lyricsSize', t('playerMore.adjustLyricsSize'), 'text-outline'),
       new MoreOption('controlPosition', t('playerMore.controlPosition'), 'swap-vertical-outline'),
+      new MoreOption('playerStyle', t('playerMore.playerStyle'), 'settings-outline'),
     ];
     return opts;
   }
@@ -2329,6 +2453,8 @@ struct PlayerPage {
       setTimeout(() => { this.showLyricsSize = true; }, 150);
     } else if (key === 'controlPosition') {
       setTimeout(() => { this.showControlPos = true; }, 150);
+    } else if (key === 'playerStyle') {
+      setTimeout(() => { this.showPlayerStyle = true; }, 150);
     }
   }
 

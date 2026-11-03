@@ -6,6 +6,9 @@ import { useAuth } from "@/src/context/AuthContext";
 import { PlayMode, usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Track, TrackType, UserTrackLike } from "@/src/models";
+import { useCoverDominantColor } from "@/src/hooks/useCoverDominantColor";
+import { usePlayerSkin } from "@/src/store/playerSkin";
+import { rgba, shade } from "@/src/utils/dominantColor";
 import { getImageUrl } from "@/src/utils/image";
 import { getOrCreateDeviceId } from "@/src/utils/platform";
 import { trackEvent } from "@/src/services/tracking";
@@ -44,6 +47,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PlayerMoreModal } from "../src/components/PlayerMoreModal";
 import { PlaylistModal } from "../src/components/PlaylistModal";
@@ -286,29 +290,23 @@ export function PlayerDetailView({
   embedded = false,
   renderPlaylistModal = true,
 }: PlayerDetailViewProps) {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   // 播放器主题插件（VIP 专属）：null = 无主题/非会员，全部回退默认样式
   const playerTheme = usePlayerTheme();
+  // 本地皮肤设置（内置插件层）：优先级低于 VIP 主题插件，见 store/playerSkin
+  const { coverStyle: skinCoverStyle } = usePlayerSkin();
   const themeBackground = playerTheme?.background ?? colors.background;
   const headerIconColor = playerTheme?.headerIconColor ?? colors.text;
   const titleColor = playerTheme?.titleColor ?? colors.text;
   const artistColor = playerTheme?.artistColor ?? colors.secondary;
   const coverRadius =
     typeof playerTheme?.coverRadius === "number" ? playerTheme.coverRadius : undefined;
-  // 黑胶样式（对齐 desktop detail.coverStyle/tonearm）：vinyl 时忽略 coverRadius
-  const coverStyle = playerTheme?.coverStyle === "vinyl" ? "vinyl" : "square";
-  const tonearm = playerTheme?.tonearm === "basic";
-  const progressColor = playerTheme?.progressColor ?? colors.primary;
   const controlColor = playerTheme?.controlColor ?? colors.text;
   const lyricsColor = playerTheme?.lyricsColor;
   const lyricsActiveColor = playerTheme?.lyricsActiveColor;
   const lyricsAlign = playerTheme?.lyricsAlign;
   const themeLyricFontSize =
     typeof playerTheme?.lyricsFontSize === "number" ? playerTheme.lyricsFontSize : undefined;
-  // 缓冲层底色：仅十六进制色可拼 alpha 后缀，否则回退主题色
-  const bufferedColor = /^#[0-9a-f]{6}$/i.test(progressColor)
-    ? `${progressColor}4D`
-    : `${colors.primary}4D`;
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { carModeEnabled } = useSettings();
@@ -351,6 +349,49 @@ export function PlayerDetailView({
     skipOutroDuration,
     setSkipOutroDuration,
   } = usePlayer();
+  // 封面主题色（服务端 /image/dominant-color，算法同 desktop）：用于背景渐变 + 进度条着色
+  const coverColor = useCoverDominantColor(currentTrack?.cover);
+  const isDarkMode = theme === "dark" || theme === "festive";
+  // 黑胶样式（对齐 desktop detail.coverStyle/tonearm）：VIP 主题插件 > 本地皮肤设置；vinyl 时忽略 coverRadius
+  const coverStyle = playerTheme?.coverStyle === "vinyl" ? "vinyl" : skinCoverStyle;
+  // 唱针：插件显式定义以插件为准；否则黑胶自带唱针（对齐 desktop 内置皮肤 vinyl→tonearm=basic）
+  const tonearm =
+    playerTheme?.tonearm !== undefined
+      ? playerTheme.tonearm === "basic"
+      : coverStyle === "vinyl";
+  const progressColor =
+    playerTheme?.progressColor ??
+    (coverColor ? rgba(coverColor, 1) : undefined) ??
+    colors.primary;
+  // 缓冲层底色：仅十六进制色可拼 alpha 后缀；封面色路径用 rgba 0.3，否则回退主题色
+  const bufferedColor = /^#[0-9a-f]{6}$/i.test(progressColor)
+    ? `${progressColor}4D`
+    : coverColor && !playerTheme?.progressColor
+      ? rgba(coverColor, 0.3)
+      : `${colors.primary}4D`;
+  // 封面主题色渐变背景层（对齐 desktop 播放详情页）：插件显式定义背景时不叠加（插件优先）；
+  // 暗色模式压暗保证白字可读，亮色模式用低透明度 pastel 染色保证黑字可读
+  const coverTintLayer =
+    !playerTheme?.background && coverColor ? (
+      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Defs>
+          <LinearGradient id="coverTint" x1="0" y1="0" x2="0.35" y2="1">
+            <Stop
+              offset="0"
+              stopColor={rgba(coverColor, isDarkMode ? 0.5 : 0.3)}
+            />
+            <Stop
+              offset="1"
+              stopColor={rgba(
+                isDarkMode ? shade(coverColor, 0.22) : shade(coverColor, 0.7),
+                isDarkMode ? 0.94 : 0.3,
+              )}
+            />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#coverTint)" />
+      </Svg>
+    ) : null;
   // 流转接收端闭包用：保证 useEffect 里始终拿到最新引用（函数每次渲染重建，但内部依赖 ref 不旧）
   const switchContentModeRef = useRef(switchContentModeForIncomingTrack);
   switchContentModeRef.current = switchContentModeForIncomingTrack;
@@ -2147,6 +2188,7 @@ export function PlayerDetailView({
           },
         ]}
       >
+        {coverTintLayer}
         <View style={styles.landscapeContainer}>
           <View style={[styles.landscapeLeft]}>
             {/* 顶部折叠/更多按钮随控制条一起显隐（横屏沉浸式） */}
@@ -2353,6 +2395,7 @@ export function PlayerDetailView({
         { backgroundColor: themeBackground, paddingTop: insets.top },
       ]}
     >
+      {coverTintLayer}
       {!embedded && (
         <View style={[styles.header, { top }]}>
           <TouchableOpacity

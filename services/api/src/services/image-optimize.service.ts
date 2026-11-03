@@ -22,6 +22,12 @@ export interface OptimizedImage {
   cacheHit: boolean;
 }
 
+export interface DominantColor {
+  r: number;
+  g: number;
+  b: number;
+}
+
 export class ImageOptimizeError extends Error {
   code: 'OUT_OF_ALLOWLIST' | 'NOT_FOUND' | 'INVALID_SRC';
   constructor(code: 'OUT_OF_ALLOWLIST' | 'NOT_FOUND' | 'INVALID_SRC', message: string) {
@@ -158,6 +164,81 @@ export class ImageOptimizeService {
 
   private contentTypeFor(fmt: OutputFormat): string {
     return fmt === 'webp' ? 'image/webp' : 'image/jpeg';
+  }
+
+  /**
+   * 封面主题色提取（供各端播放页背景渐变/进度条着色）。
+   *
+   * 算法与 desktop useCoverDominantColor 对齐：缩小到 32px 后取平均色，
+   * 跳过死黑/死白/低饱和像素（让结果贴近"主色调"而非灰扑扑的全局平均）；
+   * 全灰阶封面退化为整体平均。
+   *
+   * 结果落盘缓存（${CACHE_DIR}/.optimized/<sha256>.color.json），后续请求 O(1)。
+   */
+  async dominantColor(rawSrc: string): Promise<DominantColor> {
+    const src = this.normalizeSrc(rawSrc);
+    const normalizedSrc = this.assertAllowlisted(src);
+
+    const cacheKey = crypto
+      .createHash('sha256')
+      .update(`${normalizedSrc}|dominant-color-v1`)
+      .digest('hex')
+      .slice(0, 32);
+    const cachePath = path.join(this.cacheRoot, `${cacheKey}.color.json`);
+    if (fs.existsSync(cachePath)) {
+      const raw = await fs.promises.readFile(cachePath, 'utf8');
+      return JSON.parse(raw) as DominantColor;
+    }
+
+    const sourcePath = this.resolveLocalSource(normalizedSrc);
+    if (!sourcePath || !fs.existsSync(sourcePath)) {
+      throw new ImageOptimizeError('NOT_FOUND', `source not found: ${normalizedSrc}`);
+    }
+
+    const { data, info } = await sharp(sourcePath, {
+      limitInputPixels: ImageOptimizeService.SHARP_INPUT_LIMIT_PIXELS,
+    })
+      .resize({ width: 32, withoutEnlargement: true })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const channels: number = info.channels; // 3=RGB 4=RGBA
+    let r = 0,
+      g = 0,
+      b = 0,
+      n = 0;
+    for (let i = 0; i + 2 < data.length; i += channels) {
+      const pr = data[i],
+        pg = data[i + 1],
+        pb = data[i + 2];
+      const max = Math.max(pr, pg, pb),
+        min = Math.min(pr, pg, pb);
+      if (max < 40 || min > 215) continue; // 跳过死黑/死白
+      if (max - min < 20) continue; // 跳过低饱和灰
+      r += pr;
+      g += pg;
+      b += pb;
+      n++;
+    }
+    if (n === 0) {
+      // 灰阶封面：退化为整体平均色
+      for (let i = 0; i + 2 < data.length; i += channels) {
+        r += data[i];
+        g += data[i + 1];
+        b += data[i + 2];
+        n++;
+      }
+    }
+    const color: DominantColor = {
+      r: Math.round(r / n),
+      g: Math.round(g / n),
+      b: Math.round(b / n),
+    };
+
+    const tmpPath = `${cachePath}.${process.pid}.${Date.now()}.tmp`;
+    await fs.promises.writeFile(tmpPath, JSON.stringify(color));
+    await fs.promises.rename(tmpPath, cachePath);
+    return color;
   }
 
   /**

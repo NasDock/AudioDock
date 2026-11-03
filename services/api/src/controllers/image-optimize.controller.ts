@@ -86,4 +86,29 @@ export class ImageOptimizeController {
     res.setHeader('X-Image-Optimize-Cache', result.cacheHit ? 'HIT' : 'MISS');
     res.status(200).end(result.buffer);
   }
+
+  /**
+   * 封面主题色提取：GET /image/dominant-color?src=/covers/xxx.jpg → { r, g, b }
+   * 供 mobile/hm 播放页背景渐变与进度条着色（desktop 用 canvas 本地提取，
+   * 移动端无 canvas，统一走服务端 sharp）。结果磁盘缓存 + 长缓存头。
+   */
+  @Public()
+  @Get('dominant-color')
+  async dominantColor(@Query('src') src: string, @Res() res: Response): Promise<void> {
+    if (!src || typeof src !== 'string') {
+      throw new BadRequestException('src is required');
+    }
+    try {
+      const color = await this.service.dominantColor(src);
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      res.status(200).json(color);
+    } catch (err: any) {
+      if (err?.code === 'OUT_OF_ALLOWLIST' || err?.code === 'NOT_FOUND' || err?.code === 'INVALID_SRC') {
+        this.logger.warn(`reject image/dominant-color: src=${src} err=${err.message}`);
+        throw new NotFoundException('source image not found');
+      }
+      this.logger.error(`image/dominant-color failed: src=${src} err=${(err as Error).stack || err}`);
+      throw new BadRequestException('failed to process image');
+    }
+  }
 }

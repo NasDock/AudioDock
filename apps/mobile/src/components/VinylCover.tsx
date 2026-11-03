@@ -105,7 +105,7 @@ const VinylCover: React.FC<VinylCoverProps> = ({ uri, size, isPlaying, tonearm =
 
   return (
     <View style={{ width: size, height: size }}>
-      {/* 底盘（静态）：径向渐变黑胶底 */}
+      {/* 底盘（静态）：径向渐变黑胶底 + 上下反光光泽层（静止不随盘转，对齐 desktop） */}
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
         <Defs>
           <RadialGradient id="vinylDisc" cx="50%" cy="50%" r="50%">
@@ -113,8 +113,17 @@ const VinylCover: React.FC<VinylCoverProps> = ({ uri, size, isPlaying, tonearm =
             <Stop offset="0.6" stopColor="#0a0a0a" />
             <Stop offset="1" stopColor="#000000" />
           </RadialGradient>
+          <LinearGradient id="vinylSheen" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#ffffff" stopOpacity={0.18} />
+            <Stop offset={0.18} stopColor="#ffffff" stopOpacity={0.05} />
+            <Stop offset={0.38} stopColor="#ffffff" stopOpacity={0} />
+            <Stop offset={0.62} stopColor="#ffffff" stopOpacity={0} />
+            <Stop offset={0.82} stopColor="#ffffff" stopOpacity={0.04} />
+            <Stop offset="1" stopColor="#ffffff" stopOpacity={0.14} />
+          </LinearGradient>
         </Defs>
         <Circle cx={c} cy={c} r={c} fill="url(#vinylDisc)" />
+        <Circle cx={c} cy={c} r={c} fill="url(#vinylSheen)" />
       </Svg>
 
       {/* 旋转层：沟纹 + 标签环 + 圆形封面 */}
@@ -126,7 +135,7 @@ const VinylCover: React.FC<VinylCoverProps> = ({ uri, size, isPlaying, tonearm =
               cx={c}
               cy={c}
               r={r}
-              stroke="rgba(255,255,255,0.05)"
+              stroke="rgba(255,255,255,0.09)"
               strokeWidth={Math.max(1, k)}
               fill="none"
             />
@@ -136,7 +145,7 @@ const VinylCover: React.FC<VinylCoverProps> = ({ uri, size, isPlaying, tonearm =
             cx={c}
             cy={c}
             r={labelR}
-            stroke="rgba(255,255,255,0.08)"
+            stroke="rgba(255,255,255,0.13)"
             strokeWidth={2 * k}
             fill="none"
           />

@@ -109,6 +109,24 @@ export struct VinylCover {
         })
         .shadow({ radius: 30 * this.k(), color: '#59000000', offsetX: 0, offsetY: 10 * this.k() })
 
+      // ─── 上下反光光泽层（静止不随盘转，对齐 desktop/mobile） ───
+      Column()
+        .width(this.discSize)
+        .height(this.discSize)
+        .borderRadius(this.discSize / 2)
+        .linearGradient({
+          // ArkUI angle 90 = 上→下
+          angle: 90,
+          colors: [
+            ['#2EFFFFFF', 0.0],
+            ['#0DFFFFFF', 0.18],
+            ['#00FFFFFF', 0.38],
+            ['#00FFFFFF', 0.62],
+            ['#0AFFFFFF', 0.82],
+            ['#24FFFFFF', 1.0],
+          ],
+        })
+
       // ─── 旋转层：沟纹 + 标签环 + 圆形封面 ───
       Stack() {
         ForEach(this.grooves, (r: number) => {
@@ -116,7 +134,7 @@ export struct VinylCover {
             .width(r * 2)
             .height(r * 2)
             .fillOpacity(0)
-            .stroke('rgba(255,255,255,0.05)')
+            .stroke('rgba(255,255,255,0.09)')
             .strokeWidth(Math.max(1, this.k()))
         }, (r: number) => r.toFixed(2))
 
@@ -125,7 +143,7 @@ export struct VinylCover {
           .width(this.labelR() * 2)
           .height(this.labelR() * 2)
           .fillOpacity(0)
-          .stroke('rgba(255,255,255,0.08)')
+          .stroke('rgba(255,255,255,0.13)')
           .strokeWidth(2 * this.k())
 
         CoverImage({
