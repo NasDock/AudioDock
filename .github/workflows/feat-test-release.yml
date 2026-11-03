@@ -193,6 +193,25 @@ jobs:
           ls "$ANDROID_HOME" | head
           sdkmanager --version || true
 
+      # RN 0.81 默认 ndkVersion=27.1.12297006。ubuntu-latest 镜像不一定预装该版本，
+      # 缺了会由 gradle 自动下载安装（无校验无重试），zip 损坏即报
+      # "Error on ZipFile unknown archive"（2026-11-03 踩坑），这里用 sdkmanager 预装并带重试。
+      - name: Install NDK 27.1.12297006
+        run: |
+          set -e
+          if [ -d "$ANDROID_HOME/ndk/27.1.12297006" ]; then
+            echo "NDK 27.1.12297006 already installed"
+            exit 0
+          fi
+          yes | sdkmanager --licenses > /dev/null || true
+          for i in 1 2 3; do
+            sdkmanager "ndk;27.1.12297006" && break
+            echo "NDK install attempt $i failed, cleaning up and retrying..."
+            rm -rf "$ANDROID_HOME/ndk/27.1.12297006" || true
+            sleep 10
+          done
+          ls "$ANDROID_HOME/ndk/27.1.12297006" > /dev/null
+
       - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:
