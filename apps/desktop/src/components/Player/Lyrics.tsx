@@ -120,9 +120,15 @@ const Lyrics: React.FC<LyricsProps> = ({ lyrics, currentTime, hideScrollbar }) =
 
       if (line) {
         // Removed IPC sync from here to support global sync in Player component
-        const containerHeight = container.clientHeight;
-        const lineHeight = line.clientHeight;
-        const offset = line.offsetTop - containerHeight / 2 + lineHeight / 2;
+        // 用 getBoundingClientRect 换算行在滚动内容中的位置：
+        // 容器自身没有 position，offsetTop 会锚到更上层的 .fullPlayerContent，
+        // 导致 active 行偏上、垂直不居中
+        const containerRect = container.getBoundingClientRect();
+        const lineRect = line.getBoundingClientRect();
+        const lineTopInContent =
+          lineRect.top - containerRect.top + container.scrollTop;
+        const offset =
+          lineTopInContent - container.clientHeight / 2 + lineRect.height / 2;
         autoScrollingRef.current = true;
         if (autoScrollResetTimerRef.current) {
           clearTimeout(autoScrollResetTimerRef.current);

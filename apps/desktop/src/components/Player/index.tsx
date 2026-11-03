@@ -63,6 +63,12 @@ import RandomOutlined from "../../assets/random.svg?react";
 import SinglecycleOutlined from "../../assets/singlecycle.svg?react";
 import XiaoAiOutlined from "../../assets/xiaoai.svg?react";
 import { useMessage } from "../../context/MessageContext";
+import {
+  rgba,
+  shade,
+  useCoverDominantColor,
+  type Rgb,
+} from "../../hooks/useCoverDominantColor";
 import { useMediaSession } from "../../hooks/useMediaSession";
 import { type Track, TrackType } from "../../models";
 import { socketService } from "../../services/socket";
@@ -88,7 +94,7 @@ import { useSettingsStore } from "../../store/settings";
 import LazyImage from "../LazyImage";
 import { useSyncStore } from "../../store/sync";
 import { formatDuration } from "../../utils/formatDuration";
-import { isTauri, tauriGetDeviceName, getOrCreateDeviceId, computeStableDeviceId } from "../../utils/platform";
+import { isTauri, tauriGetDeviceName, getOrCreateDeviceId, computeStableDeviceId, tauriMaximizeWindow } from "../../utils/platform";
 import { getCurrentPlaybackQualityPreference } from "../../utils/playbackQuality";
 import { getPlayMode, setPlayMode, usePlayMode } from "../../utils/playMode";
 import PlayingIndicator from "../PlayingIndicator";
@@ -96,6 +102,7 @@ import UserSelectModal from "../UserSelectModal";
 import styles from "./index.module.less";
 import Lyrics from "./Lyrics";
 import { QueueList, type QueueListRef } from "./QueueList";
+import SkinSettings from "./SkinSettings";
 
 const { Text, Title } = Typography;
 
@@ -138,6 +145,8 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
   const coverUri = currentTrack
     ? resolveArtworkUri(currentTrack, { width: 300 }) ?? currentTrack.cover ?? null
     : null;
+  // 播放详情页背景渐变 + 进度条着色：从当前封面提取主题色（跨源取色失败时为 null，回退主题色）
+  const coverColor = useCoverDominantColor(coverUri);
   const [hasMv, setHasMv] = useState(false);
   const [currentAudioQuality, setCurrentAudioQuality] =
     useState<AudioQuality>("lossless");
@@ -1465,7 +1474,13 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
     }
   };
 
-  const renderMiniPlayer = (expandable: boolean) => (
+  // progressRgb：播放详情页（全屏 Drawer）传入封面主题色，底栏不传则用全局主题色
+  const renderMiniPlayer = (expandable: boolean, progressRgb?: Rgb | null) => {
+    const playedColor = progressRgb ? rgba(progressRgb, 1) : token.colorPrimary;
+    const bufferedColor = progressRgb
+      ? rgba(progressRgb, 0.3)
+      : `${token.colorPrimary}4D`;
+    return (
     <>
       {/* 顶部边框式进度条（参考 mini 播放器）：常驻细条贴播放器上边缘，
           悬停/拖动时加粗，并在当前播放位置浮出 当前时间/总时间 */}
@@ -1498,7 +1513,7 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
                   ? Math.min((bufferedTime / duration) * 100, 100)
                   : 0
               }%`,
-              backgroundColor: `${token.colorPrimary}4D`,
+              backgroundColor: bufferedColor,
             }}
           />
           <div
@@ -1509,14 +1524,14 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
                   ? Math.min((currentTime / duration) * 100, 100)
                   : 0
               }%`,
-              backgroundColor: token.colorPrimary,
+              backgroundColor: playedColor,
             }}
           />
           {isLoading && (
             <div
               className={styles.loadingIndicator}
               style={{
-                color: token.colorPrimary,
+                color: playedColor,
                 // 卡住缓冲时圆圈跟随当前播放位置，而不是固定在 0 点
                 left: `${
                   duration > 0
@@ -2115,7 +2130,8 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         {renderPlaylistButton(styles.settingIcon)}
       </div>
     </>
-  );
+    );
+  };
 
   // Set sleep timer
   const setSleepTimer = () => {
@@ -2657,9 +2673,40 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         closeIcon={null}
         destroyOnClose={false}
       >
+        {/* 播放详情页背景：模糊放大封面打底 + 封面主题色渐变罩层
+            （取色失败时用中性暗渐变兜底，保证文字可读）。
+            模糊层 scale(1.2) 的 transform 会计入 scrollable overflow，
+            必须用裁剪容器包住，否则 Drawer body 会被撑出滚动条 */}
+        <div className={styles.fullPlayerBg}>
+          <div
+            className={styles.fullPlayerBgImage}
+            style={
+              coverUri ? { backgroundImage: `url(${coverUri})` } : undefined
+            }
+          />
+        </div>
+        <div
+          className={styles.fullPlayerBgTint}
+          style={{
+            background: coverColor
+              ? `linear-gradient(160deg, ${rgba(coverColor, 0.5)} 0%, ${rgba(
+                  shade(coverColor, 0.22),
+                  0.94,
+                )} 100%)`
+              : "linear-gradient(160deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.85) 100%)",
+          }}
+        />
+        {/* 顶部窗口拖动区：全屏 Drawer 盖住了 Header 的拖动区，
+            mac（Overlay 红绿灯）会无处可拖；双击与 TitleBar 一致切换最大化 */}
+        <div
+          className={styles.fullPlayerDragRegion}
+          data-tauri-drag-region
+          onDoubleClick={() => void tauriMaximizeWindow()}
+        />
         <div className={styles.fullPlayerContent}>
-          {/* Close Button */}
+          {/* Skin Settings + Close Button */}
           <div className={styles.fullPlayerClose}>
+            <SkinSettings className={styles.fullPlayerCloseIcon} />
             <DownOutlined
               onClick={() => setIsFullPlayerVisible(false)}
               className={styles.fullPlayerCloseIcon}
@@ -2687,9 +2734,11 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
                 <LazyImage
                   src={resolveArtworkUri(currentTrack, { width: 600, format: "webp", quality: 80 })}
                   alt="Current Cover"
-                  // 方形封面固定最大 220px；黑胶模式由 .fullPlayerCoverVinyl 容器(320px)控制尺寸，保持 100%
-                  width={coverStyle === "vinyl" ? "100%" : 220}
-                  height={coverStyle === "vinyl" ? "100%" : 220}
+                  // 方形封面固定最大 220px；黑胶模式是 130px 圆形中央标签
+                  // （LazyImage 的 className 落在外层 wrapper div 上，
+                  //   less 里对应选择器是 .fullPlayerCover 而非 img.fullPlayerCover）
+                  width={coverStyle === "vinyl" ? 130 : 220}
+                  height={coverStyle === "vinyl" ? 130 : 220}
                   style={coverStyle === "vinyl" ? undefined : { maxWidth: "100%" }}
                   className={styles.fullPlayerCover}
                 />
@@ -2905,7 +2954,9 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
             </div>
           </div>
         </div>
-        <div className={styles.miniPlayer}>{renderMiniPlayer(false)}</div>
+        <div className={styles.miniPlayer}>
+          {renderMiniPlayer(false, coverColor)}
+        </div>
       </Drawer>
 
       {modalContextHolder}
