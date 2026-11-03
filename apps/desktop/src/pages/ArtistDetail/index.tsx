@@ -38,6 +38,7 @@ import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import { MiDeviceSelector, XiaoAiIcon } from "../../components/MiDeviceSelector";
 import Cover from "../../components/Cover";
 import TrackList from "../../components/TrackList";
+import { useAdaptiveCoverSize } from "../../hooks/useAdaptiveCoverSize";
 import { useLoadMore } from "../../hooks/useLoadMore";
 import { type Album, type Artist, type Track, TrackType } from "../../models";
 import { downloadTracks } from "../../services/downloadManager";
@@ -101,6 +102,16 @@ const ArtistDetail: React.FC = () => {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const isAudioDockSource =
     (localStorage.getItem("selectedSourceType") || "AudioDock") === "AudioDock";
+
+  // 与专辑列表页（Category）一致的封面自适应：空间够时自然尺寸 170；
+  // 放不下 4 个/行时等比缩小，保证每行至少 4 个。本页容器 padding 为 24*2=48
+  const containerRef = useRef<HTMLDivElement>(null);
+  const coverSize = useAdaptiveCoverSize(containerRef, {
+    naturalSize: 170,
+    gap: 24,
+    minCount: 4,
+    padding: 48,
+  });
 
   // Mi Speaker cast state
   const [isMiDeviceSelectorOpen, setIsMiDeviceSelectorOpen] = useState(false);
@@ -266,7 +277,7 @@ const ArtistDetail: React.FC = () => {
 
   if (loading) {
     return (
-      <Flex vertical gap={24} className={styles.container}>
+      <Flex vertical gap={24} className={styles.container} ref={containerRef}>
         <Flex vertical align="center" gap={34}>
           <Skeleton.Avatar active size={200} />
           <Skeleton.Input active />
@@ -300,14 +311,14 @@ const ArtistDetail: React.FC = () => {
 
   if (!artist) {
     return (
-      <div className={styles.container}>
+      <div className={styles.container} ref={containerRef}>
         <Empty description="Artist not found" />
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} ref={containerRef}>
       <div className={styles.header}>
         {contextHolder}
         <div className={styles.avatarWrapper}>
@@ -348,7 +359,7 @@ const ArtistDetail: React.FC = () => {
           <Row gutter={[24, 24]}>
             {albums.map((album) => (
               <Col key={album.id}>
-                <Cover item={album} />
+                <Cover item={album} size={coverSize} />
               </Col>
             ))}
           </Row>
@@ -363,7 +374,7 @@ const ArtistDetail: React.FC = () => {
           <Row gutter={[24, 24]}>
             {collaborativeAlbums.map((album) => (
               <Col key={album.id}>
-                <Cover item={album} />
+                <Cover item={album} size={coverSize} />
               </Col>
             ))}
           </Row>

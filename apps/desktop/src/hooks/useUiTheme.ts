@@ -7,6 +7,7 @@ import {
   type UiThemePlugin,
 } from "../config/uiPluginSchema";
 import { useUiThemeStore } from "../store/uiTheme";
+import { usePlayerSkinStore } from "../store/playerSkin";
 import { useTheme } from "../context/ThemeContext";
 
 /**
@@ -131,23 +132,11 @@ const DERIVED_FN_VARS: Array<{
   },
 ];
 
-/** 把 components 段写到 :root 的 CSS 变量；mode/主题切换时自动重设 */
-const applyComponentCssVars = (tokens: ThemeTokens | undefined) => {
+/** 把 components 段写到 :root 的 CSS 变量（含派生变量） */
+const writeComponentTokens = (components: ThemeTokens["components"]) => {
   const root = document.documentElement;
-  // 先清除历史，避免主题被卸后残留旧值
-  for (const ns of Object.keys(COMPONENT_KEYS) as ComponentNamespace[]) {
-    const table = COMPONENT_KEYS[ns];
-    for (const spec of Object.values(table)) {
-      root.style.removeProperty(spec.cssVar);
-    }
-  }
-  for (const d of DERIVED_VARS) root.style.removeProperty(d.toVar);
-  for (const d of DERIVED_FN_VARS) {
-    for (const f of d.derived) root.style.removeProperty(f.toVar);
-  }
-
-  if (!tokens?.components) return;
-  for (const [ns, kvs] of Object.entries(tokens.components)) {
+  if (!components) return;
+  for (const [ns, kvs] of Object.entries(components)) {
     const table = (COMPONENT_KEYS as Record<string, Record<string, { cssVar: string; type?: string }>>)[ns];
     if (!table || !kvs) continue;
     for (const [k, v] of Object.entries(kvs)) {
@@ -173,6 +162,33 @@ const applyComponentCssVars = (tokens: ThemeTokens | undefined) => {
 };
 
 /**
+ * 把 components 段写到 :root 的 CSS 变量；mode/主题切换时自动重设。
+ * base 为内置皮肤设置（相当于内置插件），先写；override 为用户插件 tokens，
+ * 后写覆盖 —— 用户插件优先级高于内置皮肤。
+ */
+const applyComponentCssVars = (
+  override: ThemeTokens | undefined,
+  base?: ThemeTokens,
+) => {
+  const root = document.documentElement;
+  // 先清除历史，避免主题被卸后残留旧值
+  for (const ns of Object.keys(COMPONENT_KEYS) as ComponentNamespace[]) {
+    const table = COMPONENT_KEYS[ns];
+    for (const spec of Object.values(table)) {
+      root.style.removeProperty(spec.cssVar);
+    }
+  }
+  for (const d of DERIVED_VARS) root.style.removeProperty(d.toVar);
+  for (const d of DERIVED_FN_VARS) {
+    for (const f of d.derived) root.style.removeProperty(f.toVar);
+  }
+
+  // 底层：内置皮肤设置；上层：用户插件（覆盖同名键）
+  writeComponentTokens(base?.components);
+  writeComponentTokens(override?.components);
+};
+
+/**
  * 主题应用层。返回当前模式下的合并后 antd ThemeConfig + 副作用（注入 CSS 变量）。
  * 调用方只需把它给的 themeConfig 传给 antd ConfigProvider。
  */
@@ -181,21 +197,40 @@ export function useUiTheme() {
   const themes = useUiThemeStore((s) => s.themes);
   const activeId = useUiThemeStore((s) => s.activeId);
   const isPlusVip = useLocalVipStatus();
+  const skinCoverStyle = usePlayerSkinStore((s) => s.coverStyle);
+  const skinLyricsAlign = usePlayerSkinStore((s) => s.lyricsAlign);
+  const skinLyricsFontSize = usePlayerSkinStore((s) => s.lyricsFontSize);
 
   const plugin = useMemo(
     () => (isPlusVip ? activePluginFor(themes, activeId) : null),
     [themes, activeId, isPlusVip],
   );
 
-  // CSS 变量注入：mode / 主题 / VIP 状态任一变化都重新写
+  // 本地皮肤设置 → 与用户插件同构的 tokens（内置插件层，优先级低于用户插件）
+  const skinTokens = useMemo<ThemeTokens>(
+    () => ({
+      components: {
+        detail: {
+          coverStyle: skinCoverStyle,
+          // 黑胶样式带唱针装饰，方形无
+          tonearm: skinCoverStyle === "vinyl" ? "basic" : "none",
+          lyricsAlign: skinLyricsAlign,
+          lyricsFontSize: skinLyricsFontSize,
+        },
+      },
+    }),
+    [skinCoverStyle, skinLyricsAlign, skinLyricsFontSize],
+  );
+
+  // CSS 变量注入：mode / 主题 / VIP 状态 / 本地皮肤任一变化都重新写
   useEffect(() => {
     const tokens = plugin?.[mode];
-    applyComponentCssVars(tokens);
+    applyComponentCssVars(tokens, skinTokens);
     return () => {
       // 卸载再清一次，防止主题删除时残留
       applyComponentCssVars(undefined);
     };
-  }, [mode, plugin]);
+  }, [mode, plugin, skinTokens]);
 
   return { mode, plugin };
 }
