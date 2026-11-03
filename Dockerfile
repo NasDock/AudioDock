@@ -24,6 +24,9 @@ WORKDIR /app
 # ------------------------------------------
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
+# pnpm patchedDependencies 补丁（pnpm install 时必需）
+COPY patches/ ./patches/
+
 # ------------------------------------------
 # 2. 复制所有 workspace package.json
 # ------------------------------------------
@@ -103,6 +106,9 @@ WORKDIR /app
 # 1. Workspace 配置
 # ------------------------------------------
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# pnpm patchedDependencies 补丁（pnpm install 时必需）
+COPY patches/ ./patches/
 
 # ------------------------------------------
 # 2. Workspace package.json
@@ -193,6 +199,8 @@ ENV PORT=3000
 # ==========================================
 
 COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
+# pnpm patchedDependencies 补丁（pnpm install --prod 时同样会读取）
+COPY --from=builder /app/patches ./patches
 
 # packages/db
 COPY --from=builder /app/packages/db/dist ./packages/db/dist

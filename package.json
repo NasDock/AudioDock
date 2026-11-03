@@ -68,6 +68,9 @@
       "protobufjs@7.5.4",
       "swiper@6.8.0",
       "unrs-resolver@1.11.1"
-    ]
+    ],
+    "patchedDependencies": {
+      "react-native-carplay@2.4.1-beta.0": "patches/react-native-carplay@2.4.1-beta.0.patch"
+    }
   }
 }

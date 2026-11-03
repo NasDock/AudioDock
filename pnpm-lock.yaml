@@ -7,6 +7,11 @@ settings:
 overrides:
   esbuild: 0.21.4
 
+patchedDependencies:
+  react-native-carplay@2.4.1-beta.0:
+    hash: 8af880b50d727d868f764596f6605e811d39e705ee6f7d5f74189392fcdb6b05
+    path: patches/react-native-carplay@2.4.1-beta.0.patch
+
 importers:
 
   .:
@@ -403,7 +408,7 @@ importers:
         version: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
       react-native-carplay:
         specifier: 2.4.1-beta.0
-        version: 2.4.1-beta.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+        version: 2.4.1-beta.0(patch_hash=8af880b50d727d868f764596f6605e811d39e705ee6f7d5f74189392fcdb6b05)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-gesture-handler:
         specifier: ~2.28.0
         version: 2.28.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -30163,7 +30168,7 @@ snapshots:
     dependencies:
       prop-types: 15.8.1
 
-  react-native-carplay@2.4.1-beta.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+  react-native-carplay@2.4.1-beta.0(patch_hash=8af880b50d727d868f764596f6605e811d39e705ee6f7d5f74189392fcdb6b05)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
     optionalDependencies:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
