@@ -203,9 +203,13 @@ jobs:
             echo "NDK 27.1.12297006 already installed"
             exit 0
           fi
-          yes | sdkmanager --licenses > /dev/null || true
+          # sdkmanager 不在 PATH：ubuntu 镜像里位于 cmdline-tools/<版本>/bin/ 下
+          SDKMANAGER=$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | sort -V | tail -1)
+          [ -z "$SDKMANAGER" ] && SDKMANAGER="$ANDROID_HOME/tools/bin/sdkmanager"
+          echo "Using SDKMANAGER=$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
           for i in 1 2 3; do
-            sdkmanager "ndk;27.1.12297006" && break
+            "$SDKMANAGER" "ndk;27.1.12297006" && break
             echo "NDK install attempt $i failed, cleaning up and retrying..."
             rm -rf "$ANDROID_HOME/ndk/27.1.12297006" || true
             sleep 10
