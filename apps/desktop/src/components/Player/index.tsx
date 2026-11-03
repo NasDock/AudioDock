@@ -2703,16 +2703,18 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
           data-tauri-drag-region
           onDoubleClick={() => void tauriMaximizeWindow()}
         />
+        {/* Skin Settings + Close Button。
+            必须是 fullPlayerContent 的兄弟节点而非子节点：
+            content 自身 z-index:1 会形成层叠上下文，内部 z-index:10 也压不过
+            外层的拖动区（z-index:2），win 上按钮上半截会被挡住点不到 */}
+        <div className={styles.fullPlayerClose}>
+          <SkinSettings className={styles.fullPlayerCloseIcon} />
+          <DownOutlined
+            onClick={() => setIsFullPlayerVisible(false)}
+            className={styles.fullPlayerCloseIcon}
+          />
+        </div>
         <div className={styles.fullPlayerContent}>
-          {/* Skin Settings + Close Button */}
-          <div className={styles.fullPlayerClose}>
-            <SkinSettings className={styles.fullPlayerCloseIcon} />
-            <DownOutlined
-              onClick={() => setIsFullPlayerVisible(false)}
-              className={styles.fullPlayerCloseIcon}
-            />
-          </div>
-
           {/* Left Side - Cover (1/3) */}
           <div className={styles.fullPlayerLeft}>
             {/* Background Blur Effect */}

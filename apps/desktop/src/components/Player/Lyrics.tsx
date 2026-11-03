@@ -137,12 +137,31 @@ const Lyrics: React.FC<LyricsProps> = ({ lyrics, currentTime, hideScrollbar }) =
           top: offset,
           behavior: "smooth",
         });
+        // 保护期优先由 scrollend 精确结束（见下方监听）；
+        // 定时器仅作 scrollend 不支持时的兜底，给足平滑动画时长
         autoScrollResetTimerRef.current = setTimeout(() => {
           autoScrollingRef.current = false;
-        }, 500);
+        }, 800);
       }
     }
   }, [activeIndex]);
+
+  // 平滑滚动结束时精确解除「自动滚动中」标记：
+  // 500ms 固定保护期经常短于动画实际时长，尾部 scroll 事件会被误判为手动滚动，
+  // 触发手动滚动条显示（win 经典滚动条占宽 → 重排 → 再触发 scroll → 抽搐循环）
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const onScrollEnd = () => {
+      autoScrollingRef.current = false;
+      if (autoScrollResetTimerRef.current) {
+        clearTimeout(autoScrollResetTimerRef.current);
+        autoScrollResetTimerRef.current = null;
+      }
+    };
+    container.addEventListener("scrollend", onScrollEnd);
+    return () => container.removeEventListener("scrollend", onScrollEnd);
+  }, []);
 
   useEffect(() => {
     return () => {
