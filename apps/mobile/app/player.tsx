@@ -8,7 +8,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { Track, TrackType, UserTrackLike } from "@/src/models";
 import { useCoverDominantColor } from "@/src/hooks/useCoverDominantColor";
 import { usePlayerSkin } from "@/src/store/playerSkin";
-import { rgba, shade } from "@/src/utils/dominantColor";
+import { rgba, shade, tint } from "@/src/utils/dominantColor";
 import { getImageUrl } from "@/src/utils/image";
 import { getOrCreateDeviceId } from "@/src/utils/platform";
 import { trackEvent } from "@/src/services/tracking";
@@ -371,42 +371,58 @@ export function PlayerDetailView({
       ? rgba(coverColor, 0.3)
       : `${colors.primary}4D`;
   // 封面主题色背景（对齐 desktop 播放详情页，两层叠加）：
-  // ① 高斯模糊封面打底（expo-image blurRadius，放大 1.2 防边缘露底）
-  // ② 主题色渐变罩层（暗色压暗保证白字可读，亮色低透明度 pastel 染色保黑字可读）
+  // ① 高斯模糊封面打底（expo-image blurRadius，放大 1.2 防边缘露底）——只要当前曲目有封面
+  //    就渲染：外链封面/取色失败也有模糊质感（desktop 同款行为），不退回纯色白底
+  // ② 主题色渐变罩层（近不透明、主题色主导视觉；取色失败退中性遮罩兜底）：
+  //    暗色模式主题色渐变压暗保白字可读；亮色模式向白色混合成 pastel 保黑字可读
   // 插件显式定义背景时整体不渲染（插件优先）
+  const coverBlurUri = currentTrack?.cover
+    ? getImageUrl(currentTrack.cover, undefined, 300)
+    : undefined;
+  // 渐变两端色：主题色可用时由其推导，否则中性遮罩（对齐 desktop 取色失败回退）
+  const bgStopTop = coverColor
+    ? isDarkMode
+      ? rgba(coverColor, 0.88)
+      : rgba(tint(coverColor, 0.62), 0.92)
+    : isDarkMode
+      ? "rgba(0, 0, 0, 0.35)"
+      : "rgba(255, 255, 255, 0.55)";
+  const bgStopBottom = coverColor
+    ? isDarkMode
+      ? rgba(shade(coverColor, 0.28), 0.97)
+      : rgba(tint(coverColor, 0.38), 0.96)
+    : isDarkMode
+      ? "rgba(0, 0, 0, 0.85)"
+      : "rgba(255, 255, 255, 0.9)";
   const coverTintLayer =
-    !playerTheme?.background && coverColor ? (
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <ExpoImage
-          source={{
-            uri: getImageUrl(currentTrack?.cover, undefined, 300),
-          }}
-          style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.2 }] }]}
-          contentFit="cover"
-          blurRadius={70}
-        />
+    !playerTheme?.background && (coverBlurUri || coverColor) ? (
+      <View
+        style={[StyleSheet.absoluteFill, { overflow: "hidden" }]}
+        pointerEvents="none"
+      >
+        {coverBlurUri ? (
+          <ExpoImage
+            source={{ uri: coverBlurUri }}
+            style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.2 }] }]}
+            contentFit="cover"
+            blurRadius={70}
+          />
+        ) : null}
+        {/* Svg 必须显式像素尺寸：百分比尺寸（"100%"）在 Android 上实测不生效，
+            渐变整层不渲染（此前"纯色背景/白色块"的根因之一）；对齐 VinylCover 的可行写法 */}
         <Svg
-          width="100%"
-          height="100%"
+          width={width}
+          height={height}
           style={StyleSheet.absoluteFill}
           pointerEvents="none"
         >
           <Defs>
             <LinearGradient id="coverTint" x1="0" y1="0" x2="0.35" y2="1">
-              <Stop
-                offset="0"
-                stopColor={rgba(coverColor, isDarkMode ? 0.5 : 0.3)}
-              />
-              <Stop
-                offset="1"
-                stopColor={rgba(
-                  isDarkMode ? shade(coverColor, 0.22) : shade(coverColor, 0.7),
-                  isDarkMode ? 0.94 : 0.3,
-                )}
-              />
+              <Stop offset="0" stopColor={bgStopTop} />
+              <Stop offset="1" stopColor={bgStopBottom} />
             </LinearGradient>
           </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#coverTint)" />
+          <Rect x="0" y="0" width={width} height={height} fill="url(#coverTint)" />
         </Svg>
       </View>
     ) : null;
@@ -2304,7 +2320,9 @@ export function PlayerDetailView({
                       styles.landscapeControls,
                       {
                         opacity: controlsOpacity,
-                        backgroundColor: themeBackground,
+                        // 控制条不再垫不透明主题底色（亮色模式下是白块压住背景渐变）；
+                        // 仅插件主题显式定义背景时保留实底（插件优先）
+                        backgroundColor: playerTheme?.background,
                         borderRadius: 16,
                         padding: 10,
                         position: "absolute",

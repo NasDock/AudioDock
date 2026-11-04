@@ -25,6 +25,13 @@ export const shade = (c: Rgb, factor: number): Rgb => ({
   b: Math.round(c.b * factor),
 });
 
+/** 按比例向白色混合（factor 0~1），用于亮色模式由主题色推导浅色渐变（保黑字可读） */
+export const tint = (c: Rgb, factor: number): Rgb => ({
+  r: Math.round(c.r + (255 - c.r) * factor),
+  g: Math.round(c.g + (255 - c.g) * factor),
+  b: Math.round(c.b + (255 - c.b) * factor),
+});
+
 const cache = new Map<string, Rgb | null>();
 const inflight = new Map<string, Promise<Rgb | null>>();
 

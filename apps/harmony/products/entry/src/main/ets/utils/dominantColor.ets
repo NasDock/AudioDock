@@ -43,6 +43,15 @@ export function shade(c: Rgb, factor: number): Rgb {
   };
 }
 
+/** 按比例向白色混合（factor 0~1），用于亮色模式由主题色推导浅色渐变（保黑字可读） */
+export function tint(c: Rgb, factor: number): Rgb {
+  return {
+    r: Math.round(c.r + (255 - c.r) * factor),
+    g: Math.round(c.g + (255 - c.g) * factor),
+    b: Math.round(c.b + (255 - c.b) * factor),
+  };
+}
+
 const cache = new Map<string, Rgb | null>();
 
 /** 按封面路径取主题色；不支持的来源/失败一律 null */

@@ -34,7 +34,8 @@ import { playerThemeStore } from '../theme/playerThemeStore';
 import type { PlayerThemeTokens } from '../theme/playerThemeSchema';
 import { playerSkinStore } from '../theme/playerSkinStore';
 import type { CoverStyle } from '../theme/playerSkinStore';
-import { fetchDominantColor, rgbToHex, alphaHex, shade } from '../utils/dominantColor';
+import { fetchDominantColor, rgbToHex, alphaHex, shade, tint } from '../utils/dominantColor';
+import { applySystemBar, applyPlayerSystemBar } from '../services/systemBar';
 import type { Rgb } from '../utils/dominantColor';
 import { VinylCover } from '../components/VinylCover';
 
@@ -326,6 +327,44 @@ struct PlayerPage {
       .catch(() => undefined);
   }
 
+  // ─── 背景渐变三段色（顶/中/底）───
+  // 罩层带 backdropBlur 真磨砂，渐变透明度降到 0.5~0.9 让模糊封面透出来（磨砂质感），
+  // 三段拉开明度差保证渐变层次可见：暗色模式主题色→压暗保白字可读，
+  // 亮色模式向白色混合成 pastel 保黑字可读；取色失败退中性遮罩（对齐 desktop 回退）。
+
+  /** 背景渐变顶部色 */
+  private bgTintTop(): string {
+    if (this.coverColor === null) {
+      return this.themeMode === 'light' ? '#8CFFFFFF' : '#73000000';
+    }
+    if (this.themeMode === 'light') {
+      return alphaHex(tint(this.coverColor, 0.72), 0.55);
+    }
+    return alphaHex(this.coverColor, 0.6);
+  }
+
+  /** 背景渐变中部色 */
+  private bgTintMid(): string {
+    if (this.coverColor === null) {
+      return this.themeMode === 'light' ? '#B3FFFFFF' : '#A6000000';
+    }
+    if (this.themeMode === 'light') {
+      return alphaHex(tint(this.coverColor, 0.5), 0.72);
+    }
+    return alphaHex(shade(this.coverColor, 0.55), 0.78);
+  }
+
+  /** 背景渐变底部色 */
+  private bgTintBottom(): string {
+    if (this.coverColor === null) {
+      return this.themeMode === 'light' ? '#E6FFFFFF' : '#D9000000';
+    }
+    if (this.themeMode === 'light') {
+      return alphaHex(tint(this.coverColor, 0.28), 0.88);
+    }
+    return alphaHex(shade(this.coverColor, 0.22), 0.92);
+  }
+
   /** 方形封面圆角：主题 coverRadius 覆盖默认（vinyl 时忽略） */
   private ptCoverRadius(fallback: number): number {
     const r = this.themeTokens?.coverRadius;
@@ -465,6 +504,8 @@ struct PlayerPage {
   }
 
   aboutToDisappear(): void {
+    // 页面销毁兜底恢复系统栏（onPageHide 未触发的销毁路径）
+    applySystemBar(this.themeMode);
     this.unsub();
     this.unsubLike();
     if (this.unsubSync) this.unsubSync();
@@ -1101,6 +1142,8 @@ struct PlayerPage {
   }
 
   onPageShow(): void {
+    // 沉浸式系统栏：状态栏/小横条透明透出播放页全屏背景，图标按主题明暗取反差色
+    applyPlayerSystemBar(this.themeMode);
     // 语言可能在后台（语言页/系统设置）被修改：回显时若语言已变化，切换 if 分支重建整页。
     // 不能在隐藏时重建——@StorageProp 在后台更新触发的重建会导致路由页触摸失效，
     // 因此用 langAtBuild 把重建延迟到页面可见时。
@@ -1108,22 +1151,62 @@ struct PlayerPage {
     if (cur !== this.langAtBuild) this.langAtBuild = cur;
   }
 
+  onPageHide(): void {
+    // 离开播放页恢复全局系统栏配色（主题背景色 + 主题文字色图标）
+    applySystemBar(this.themeMode);
+  }
+
   build() {
     // 语言切换时重建整页：条件读取 langAtBuild 建立依赖（框架只追踪读取状态变量的表达式，
     // t() 是普通函数无法被追踪），语言变化使 if 分支切换，旧子树销毁、新子树重建，
     // 所有 t() 文案（含局部 @Builder 和 @Prop 传串的子组件）都按新语言重新求值。
-    // 沉浸式避让：全屏布局下页面从物理 y=0 排版，外层 Column padding 避开状态栏/小横条，
-    // padding 区域由本容器主题背景填充（状态栏区域与页面同色）。
-    Column() {
-      if (this.langAtBuild === 'zh-CN') {
-        this.LocalizedContent()
-      } else {
-        this.LocalizedContent()
+    // 沉浸式：背景层放在外层 Stack 全屏铺满（覆盖状态栏/小横条区域，配合 applyPlayerSystemBar
+    // 透明系统栏透出背景）；内容 Column 保留 padding 避让系统区。
+    Stack({ alignContent: Alignment.TopStart }) {
+      // 封面主题色背景（两层叠加，全屏含系统区）：
+      // ① 清晰封面放大打底（1.2 防 backdropBlur 边缘采样露底）——只要有封面就渲染：
+      //    外链封面/取色失败也有磨砂质感（desktop 同款行为），不退回纯色
+      // ② 磨砂渐变罩层：backdropBlur 实时高斯模糊（磨砂玻璃质感）+ 三段主题色渐变
+      // 插件显式定义背景时整体不渲染（插件优先）
+      if (this.themeTokens?.background === undefined &&
+        (this.current()?.coverUrl !== undefined || this.coverColor !== null)) {
+        if (this.current()?.coverUrl !== undefined) {
+          Image(getImageUrl(this.current()?.coverUrl, 300))
+            .width('100%')
+            .height('100%')
+            .objectFit(ImageFit.Cover)
+            .scale({ x: 1.2, y: 1.2 })
+            // 覆盖层必须显式放行触摸，否则挡住下层所有交互
+            .hitTestBehavior(HitTestMode.None)
+        }
+        Column()
+          .width('100%')
+          .height('100%')
+          .backdropBlur(80)
+          .linearGradient({
+            // ArkUI angle 70 ≈ CSS 160deg（偏右下的竖向渐变）
+            angle: 70,
+            colors: [
+              [this.bgTintTop(), 0.0],
+              [this.bgTintMid(), 0.5],
+              [this.bgTintBottom(), 1.0],
+            ],
+          })
+          // 覆盖层必须显式放行触摸，否则挡住下层所有交互
+          .hitTestBehavior(HitTestMode.None)
       }
+      Column() {
+        if (this.langAtBuild === 'zh-CN') {
+          this.LocalizedContent()
+        } else {
+          this.LocalizedContent()
+        }
+      }
+      .width('100%').height('100%')
+      .padding({ top: this.statusBarHeightVp, bottom: this.navBarHeightVp })
     }
     .width('100%').height('100%')
     .backgroundColor(this.ptBackground())
-    .padding({ top: this.statusBarHeightVp, bottom: this.navBarHeightVp })
   }
 
   @Builder
@@ -1134,37 +1217,7 @@ struct PlayerPage {
     // 把整个 content 高度压扁成几乎 0，controls() 信息行/进度条/控制行全部被挤出屏幕外。
     // Stack 子元素之间不互相挤占空间，SyncNotification 作为顶层叠层不影响主 Column layout。
     Stack({ alignContent: Alignment.TopStart }) {
-      // 封面主题色背景（对齐 desktop/mobile 播放详情页，两层叠加）：
-      // ① 高斯模糊封面打底（放大 1.2 防模糊边缘露底）② 主题色渐变罩层
-      // 插件显式定义背景时整体不渲染（插件优先）；亮色模式低透明度染色保黑字可读
-      if (this.themeTokens?.background === undefined && this.coverColor !== null) {
-        Image(getImageUrl(this.current()?.coverUrl, 300))
-          .width('100%')
-          .height('100%')
-          .objectFit(ImageFit.Cover)
-          .blur(70)
-          .scale({ x: 1.2, y: 1.2 })
-          // 覆盖层必须显式放行触摸，否则挡住下层所有交互
-          .hitTestBehavior(HitTestMode.None)
-        Column()
-          .width('100%')
-          .height('100%')
-          .linearGradient({
-            // ArkUI angle 70 ≈ CSS 160deg（偏右下的竖向渐变）
-            angle: 70,
-            colors: this.themeMode === 'light'
-              ? [
-                  [alphaHex(this.coverColor as Rgb, 0.3), 0.0],
-                  [alphaHex(shade(this.coverColor as Rgb, 0.7), 0.3), 1.0],
-                ]
-              : [
-                  [alphaHex(this.coverColor as Rgb, 0.5), 0.0],
-                  [alphaHex(shade(this.coverColor as Rgb, 0.22), 0.94), 1.0],
-                ],
-          })
-          // 覆盖层必须显式放行触摸，否则挡住下层所有交互
-          .hitTestBehavior(HitTestMode.None)
-      }
+      // 背景层已上移到 build() 外层 Stack（全屏铺满含系统区），此处不再重复渲染。
       // 主体内容（占满 Stack 100%×100%）
       Column() {
         if (this.view.queue.length === 0) {
@@ -1297,7 +1350,8 @@ struct PlayerPage {
         .hitTestBehavior(HitTestMode.Transparent);
     }
     .width('100%').height('100%')
-    .backgroundColor(this.ptBackground());
+    // 注意：本层不能带 backgroundColor——背景层已上移到 build() 外层 Stack 全屏铺满，
+    // 这里再画 ptBackground 会把中间内容区的磨砂渐变背景整个盖住（外层已有同款底色兜底）。
   }
 
   @Builder header() {
@@ -1549,7 +1603,11 @@ struct PlayerPage {
             .borderRadius(16)
             .padding(10)
             .margin({ bottom: this.controlBottomOffset })
-            .backgroundColor(this.ptBackground())
+            // 控制条不再垫不透明主题底色（亮色模式下是白块压住背景渐变）；
+            // 仅插件主题显式定义背景时保留实底（插件优先）
+            .backgroundColor(this.themeTokens !== null && this.themeTokens.background !== undefined
+              ? this.themeTokens.background
+              : '#00000000')
             .visibility(this.controlsVisible ? Visibility.Visible : Visibility.Hidden)
             .onClick(() => {
               if (!this.controlsVisible && this.needsAutoHide()) {

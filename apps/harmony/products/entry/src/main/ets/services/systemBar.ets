@@ -60,3 +60,23 @@ export function applySystemBar(mode: ThemeMode): void {
   // 窗口背景色同步到最底层，确保底部小横条（home indicator）区域也跟随主题
   mainWindow.setWindowBackgroundColor(theme.colors.background);
 }
+
+/**
+ * 播放页沉浸式系统栏：状态栏 / 底部小横条设透明，透出播放页全屏背景（封面磨砂+主题色渐变），
+ * 图标色按背景明暗取反差——亮色 pastel 渐变背景用黑图标，暗色渐变背景用白图标。
+ * 进入播放页时调用；退出播放页必须调用 applySystemBar 恢复全局主题色。
+ */
+export function applyPlayerSystemBar(mode: ThemeMode): void {
+  if (!mainWindow) {
+    return;
+  }
+  const content: string = mode === 'light' ? '#000000' : '#FFFFFF';
+  const props: window.SystemBarProperties = {
+    statusBarColor: '#00000000',
+    navigationBarColor: '#00000000',
+    statusBarContentColor: content,
+    navigationBarContentColor: content,
+  };
+  mainWindow.setWindowSystemBarProperties(props)
+    .catch((e: Error) => Logger.w('SystemBar', `applyPlayer failed: ${e.message}`));
+}
