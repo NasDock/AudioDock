@@ -23,6 +23,7 @@ import {
   playMiDeviceByUrl,
 } from "@soundx/services";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image as ExpoImage } from "expo-image";
 import { Slider } from "@miblanchard/react-native-slider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getMvByTrackId, plusGetMe, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
@@ -369,28 +370,45 @@ export function PlayerDetailView({
     : coverColor && !playerTheme?.progressColor
       ? rgba(coverColor, 0.3)
       : `${colors.primary}4D`;
-  // 封面主题色渐变背景层（对齐 desktop 播放详情页）：插件显式定义背景时不叠加（插件优先）；
-  // 暗色模式压暗保证白字可读，亮色模式用低透明度 pastel 染色保证黑字可读
+  // 封面主题色背景（对齐 desktop 播放详情页，两层叠加）：
+  // ① 高斯模糊封面打底（expo-image blurRadius，放大 1.2 防边缘露底）
+  // ② 主题色渐变罩层（暗色压暗保证白字可读，亮色低透明度 pastel 染色保黑字可读）
+  // 插件显式定义背景时整体不渲染（插件优先）
   const coverTintLayer =
     !playerTheme?.background && coverColor ? (
-      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Defs>
-          <LinearGradient id="coverTint" x1="0" y1="0" x2="0.35" y2="1">
-            <Stop
-              offset="0"
-              stopColor={rgba(coverColor, isDarkMode ? 0.5 : 0.3)}
-            />
-            <Stop
-              offset="1"
-              stopColor={rgba(
-                isDarkMode ? shade(coverColor, 0.22) : shade(coverColor, 0.7),
-                isDarkMode ? 0.94 : 0.3,
-              )}
-            />
-          </LinearGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#coverTint)" />
-      </Svg>
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <ExpoImage
+          source={{
+            uri: getImageUrl(currentTrack?.cover, undefined, 300),
+          }}
+          style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.2 }] }]}
+          contentFit="cover"
+          blurRadius={70}
+        />
+        <Svg
+          width="100%"
+          height="100%"
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        >
+          <Defs>
+            <LinearGradient id="coverTint" x1="0" y1="0" x2="0.35" y2="1">
+              <Stop
+                offset="0"
+                stopColor={rgba(coverColor, isDarkMode ? 0.5 : 0.3)}
+              />
+              <Stop
+                offset="1"
+                stopColor={rgba(
+                  isDarkMode ? shade(coverColor, 0.22) : shade(coverColor, 0.7),
+                  isDarkMode ? 0.94 : 0.3,
+                )}
+              />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#coverTint)" />
+        </Svg>
+      </View>
     ) : null;
   // 流转接收端闭包用：保证 useEffect 里始终拿到最新引用（函数每次渲染重建，但内部依赖 ref 不旧）
   const switchContentModeRef = useRef(switchContentModeForIncomingTrack);

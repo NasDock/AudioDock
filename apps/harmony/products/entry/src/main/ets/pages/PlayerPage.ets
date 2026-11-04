@@ -17,6 +17,7 @@ import { resolveTrackToPlayer } from '../services/trackResolver';
 import { getCurrentQuality } from '../services/trackQuality';
 import type { Quality } from '../services/trackQuality';
 import { getOrCreateDeviceId } from '../utils/device';
+import { getImageUrl } from '../utils/image';
 import { socketService } from 'features_socket';
 import { likesHistory } from '../services/LikesHistoryService';
 import { downloadTrack, isTrackDownloaded } from '../services/downloadService';
@@ -1133,9 +1134,18 @@ struct PlayerPage {
     // 把整个 content 高度压扁成几乎 0，controls() 信息行/进度条/控制行全部被挤出屏幕外。
     // Stack 子元素之间不互相挤占空间，SyncNotification 作为顶层叠层不影响主 Column layout。
     Stack({ alignContent: Alignment.TopStart }) {
-      // 封面主题色渐变背景层（对齐 desktop/mobile 播放详情页）：
-      // 插件显式定义背景时不叠加（插件优先）；亮色模式低透明度染色保证黑字可读
+      // 封面主题色背景（对齐 desktop/mobile 播放详情页，两层叠加）：
+      // ① 高斯模糊封面打底（放大 1.2 防模糊边缘露底）② 主题色渐变罩层
+      // 插件显式定义背景时整体不渲染（插件优先）；亮色模式低透明度染色保黑字可读
       if (this.themeTokens?.background === undefined && this.coverColor !== null) {
+        Image(getImageUrl(this.current()?.coverUrl, 300))
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Cover)
+          .blur(70)
+          .scale({ x: 1.2, y: 1.2 })
+          // 覆盖层必须显式放行触摸，否则挡住下层所有交互
+          .hitTestBehavior(HitTestMode.None)
         Column()
           .width('100%')
           .height('100%')
