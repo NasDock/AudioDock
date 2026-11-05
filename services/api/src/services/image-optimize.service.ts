@@ -169,11 +169,18 @@ export class ImageOptimizeService {
   /**
    * 封面主题色提取（供各端播放页背景渐变/进度条着色）。
    *
-   * 算法与 desktop useCoverDominantColor 对齐：缩小到 32px 后取平均色，
-   * 跳过死黑/死白/低饱和像素（让结果贴近"主色调"而非灰扑扑的全局平均）；
-   * 全灰阶封面退化为整体平均。
+   * 算法与 desktop useCoverDominantColor 完全对齐（canvas 行为逐项复刻）：
+   * - toColorspace('srgb')：浏览器解码统一转 sRGB；不转的话 CMYK JPEG 的 raw
+   *   输出是 C/M/Y/K 四通道，会被误读为 R/G/B（油墨值高=色深 → 误读为浅色 → 偏淡偏色）
+   * - flatten 黑底：canvas 透明区域合成到黑底（随后被 max<40 跳过）；
+   *   不合成的话 PNG 透明区的 RGB 是未乘 alpha 的残留值（常为白）→ 稀释偏淡
+   * - resize(32,32, fit:'fill') 强制拉伸正方形：对齐 canvas drawImage(img,0,0,32,32)
+   *   （保持宽高比会让非正方形封面的采样区域与 desktop 不一致）
+   * - 跳过死黑/死白/低饱和像素（让结果贴近"主色调"而非灰扑扑的全局平均）；
+   *   全灰阶封面退化为整体平均。
    *
    * 结果落盘缓存（${CACHE_DIR}/.optimized/<sha256>.color.json），后续请求 O(1)。
+   * 缓存 key 带算法版本号：算法变更必须 bump（v1 → v2：色彩空间/alpha/缩放修复）。
    */
   async dominantColor(rawSrc: string): Promise<DominantColor> {
     const src = this.normalizeSrc(rawSrc);
@@ -181,7 +188,7 @@ export class ImageOptimizeService {
 
     const cacheKey = crypto
       .createHash('sha256')
-      .update(`${normalizedSrc}|dominant-color-v1`)
+      .update(`${normalizedSrc}|dominant-color-v2`)
       .digest('hex')
       .slice(0, 32);
     const cachePath = path.join(this.cacheRoot, `${cacheKey}.color.json`);
@@ -198,11 +205,16 @@ export class ImageOptimizeService {
     const { data, info } = await sharp(sourcePath, {
       limitInputPixels: ImageOptimizeService.SHARP_INPUT_LIMIT_PIXELS,
     })
-      .resize({ width: 32, withoutEnlargement: true })
+      .toColorspace('srgb')
+      .flatten({ background: '#000000' })
+      // kernel cubic ≈ canvas drawImage 的平滑缩放（sharp 默认 lanczos3 有振铃过冲，
+      // 强对比边缘会轻微提亮/压暗导致平均色偏差）
+      .resize(32, 32, { fit: 'fill', kernel: 'cubic' })
       .raw()
       .toBuffer({ resolveWithObject: true });
 
-    const channels: number = info.channels; // 3=RGB 4=RGBA
+    // flatten + toColorspace 后恒为 3 通道 RGB，与 canvas getImageData 的逐像素语义一致
+    const channels: number = info.channels;
     let r = 0,
       g = 0,
       b = 0,
