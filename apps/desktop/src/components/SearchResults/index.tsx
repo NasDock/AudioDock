@@ -45,8 +45,9 @@ const SearchResults: React.FC<SearchResultsProps> = ({
   const { mode } = usePlayMode();
   const { token } = theme.useToken();
   // 注意：必须用实际生效主题 mode（已解析 system），不能用用户选项 themeSetting——
-  // themeSetting 为 "system" 时永 ≠ "dark"，暗色主题下背景会被错判成白色（此前 bug 根因）
-  const { mode } = useTheme();
+  // themeSetting 为 "system" 时永 ≠ "dark"，暗色主题下背景会被错判成白色（此前 bug 根因）。
+  // 别名 themeMode：避免与上方 usePlayMode() 的 mode（TrackType）重声明
+  const { mode: themeMode } = useTheme();
 
   // Add to Playlist State
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
@@ -188,7 +189,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
         className={styles.searchResults}
         style={{
           backgroundColor:
-            mode === "dark"
+            themeMode === "dark"
               ? "rgba(0, 0, 0, 0.9)"
               : "rgba(255, 255, 255, 0.9)",
         }}
@@ -262,7 +263,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
       className={styles.searchResults}
       style={{
         backgroundColor:
-          mode === "dark"
+          themeMode === "dark"
             ? "rgba(0, 0, 0, 0.9)"
             : "rgba(255, 255, 255, 0.9)",
       }}
