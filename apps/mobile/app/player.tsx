@@ -370,27 +370,40 @@ export function PlayerDetailView({
     : coverColor && !playerTheme?.progressColor
       ? rgba(coverColor, 0.3)
       : `${colors.primary}4D`;
-  // 封面主题色背景（对齐 desktop 播放详情页，两层叠加）：
-  // ① 高斯模糊封面打底（expo-image blurRadius，放大 1.2 防边缘露底）——只要当前曲目有封面
-  //    就渲染：外链封面/取色失败也有模糊质感（desktop 同款行为），不退回纯色白底
-  // ② 主题色渐变罩层（近不透明、主题色主导视觉；取色失败退中性遮罩兜底）：
+  // 封面主题色背景（对齐 hm 播放详情页，两层叠加）：
+  // ① 高斯模糊封面打底（放大 1.2 防边缘露底）——只要当前曲目有封面
+  //    就渲染：外链封面/取色失败也有模糊质感（desktop 同款行为），不退回纯色白底。
+  //    注意 expo-image Android 端 blurRadius 被 Glide BlurTransformation 钳制到最大 25
+  //    （ExpoImageViewWrapper.createPropOptions: BlurTransformation(min(it, 25))），
+  //    且模糊作用在解码后的源图上——300px 图上 25px 模糊放大到全屏后视觉上约等于无。
+  //    因此请求 48px 极小图：25px 模糊半径占图幅 >50%，拉伸到全屏后即为强磨砂效果，
+  //    顺带省流量；半径等效远超 hm 端 backdropBlur(80) 的观感。
+  // ② 主题色三段渐变罩层（半透明让磨砂透出，取色失败退中性遮罩兜底）：
   //    暗色模式主题色渐变压暗保白字可读；亮色模式向白色混合成 pastel 保黑字可读
   // 插件显式定义背景时整体不渲染（插件优先）
   const coverBlurUri = currentTrack?.cover
-    ? getImageUrl(currentTrack.cover, undefined, 300)
+    ? getImageUrl(currentTrack.cover, undefined, 48)
     : undefined;
-  // 渐变两端色：主题色可用时由其推导，否则中性遮罩（对齐 desktop 取色失败回退）
+  // 渐变三段色（对齐 hm PlayerPage bgTintTop/Mid/Bottom）：主题色可用时由其推导，
+  // 否则中性遮罩（对齐 desktop 取色失败回退）
   const bgStopTop = coverColor
     ? isDarkMode
-      ? rgba(coverColor, 0.88)
-      : rgba(tint(coverColor, 0.62), 0.92)
+      ? rgba(coverColor, 0.6)
+      : rgba(tint(coverColor, 0.72), 0.55)
     : isDarkMode
-      ? "rgba(0, 0, 0, 0.35)"
+      ? "rgba(0, 0, 0, 0.45)"
       : "rgba(255, 255, 255, 0.55)";
+  const bgStopMid = coverColor
+    ? isDarkMode
+      ? rgba(shade(coverColor, 0.55), 0.78)
+      : rgba(tint(coverColor, 0.5), 0.72)
+    : isDarkMode
+      ? "rgba(0, 0, 0, 0.65)"
+      : "rgba(255, 255, 255, 0.7)";
   const bgStopBottom = coverColor
     ? isDarkMode
-      ? rgba(shade(coverColor, 0.28), 0.97)
-      : rgba(tint(coverColor, 0.38), 0.96)
+      ? rgba(shade(coverColor, 0.22), 0.92)
+      : rgba(tint(coverColor, 0.28), 0.88)
     : isDarkMode
       ? "rgba(0, 0, 0, 0.85)"
       : "rgba(255, 255, 255, 0.9)";
@@ -419,6 +432,7 @@ export function PlayerDetailView({
           <Defs>
             <LinearGradient id="coverTint" x1="0" y1="0" x2="0.35" y2="1">
               <Stop offset="0" stopColor={bgStopTop} />
+              <Stop offset="0.5" stopColor={bgStopMid} />
               <Stop offset="1" stopColor={bgStopBottom} />
             </LinearGradient>
           </Defs>
