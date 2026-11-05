@@ -4,13 +4,10 @@ import {
   CloudDownloadOutlined,
   DeleteOutlined,
   EditOutlined,
-  MoreOutlined,
-  PauseCircleFilled,
-  PlayCircleFilled,
-  PlusOutlined,
   SearchOutlined,
   SortAscendingOutlined,
   SortDescendingOutlined,
+  SwapOutlined,
 } from "@ant-design/icons";
 import {
   addTrackToPlaylist,
@@ -27,7 +24,6 @@ import {
 import {
   Button,
   Col,
-  Dropdown,
   Flex,
   Form,
   Input,
@@ -36,7 +32,6 @@ import {
   Popconfirm,
   Row,
   Space,
-  Table,
   theme,
   Typography,
   type MenuProps,
@@ -48,7 +43,7 @@ import {
   MiDeviceSelector,
   XiaoAiIcon,
 } from "../../components/MiDeviceSelector";
-import PlayingIndicator from "../../components/PlayingIndicator";
+import TrackList from "../../components/TrackList";
 import { useMessage } from "../../context/MessageContext";
 import { useLoadMore } from "../../hooks/useLoadMore";
 import { type Track } from "../../models";
@@ -58,7 +53,6 @@ import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { usePlaylistStore } from "../../store/playlist";
 import { getCoverUrl } from "../../utils";
-import { formatDuration } from "../../utils/formatDuration";
 import { usePlayMode } from "../../utils/playMode";
 // Use the same styles as Detail component
 import styles from "../../components/Detail/index.module.less";
@@ -98,8 +92,6 @@ const PlaylistDetail: React.FC = () => {
   const {
     play,
     setPlaylist: setPlayerPlaylist,
-    currentTrack,
-    isPlaying,
   } = usePlayerStore();
 
   const { mode } = usePlayMode();
@@ -268,21 +260,6 @@ const PlaylistDetail: React.FC = () => {
     }
   };
 
-  const openMoveToPlaylistModal = async (e: React.MouseEvent, track: Track) => {
-    e.stopPropagation();
-    setSelectedTrack(track);
-    setPendingAction("move");
-    setIsAddToPlaylistModalOpen(true);
-    try {
-      const res = await getPlaylists(mode, user?.id);
-      if (res.code === 200) {
-        setPlaylists(res.data);
-      }
-    } catch (error) {
-      message.error(t("player.getPlaylistsFailed"));
-    }
-  };
-
   const handleAddToPlaylist = async (targetPlaylistId: string | number) => {
     if (!selectedTrack || !id) return;
     try {
@@ -333,112 +310,35 @@ const PlaylistDetail: React.FC = () => {
     return 0; // TODO: Implement specific sorting if needed, for now keep default or reverse
   });
 
-  const columns = [
+  // 每行「更多」菜单里的歌单专属操作（移入其他歌单 / 从当前歌单移除）。
+  // 表格改用统一 TrackList（CSS Grid + 虚拟列表），列宽由 gridTemplateColumns
+  // 显式给出，不再依赖 antd Table 的 colgroup —— Win 下表格单元格会竖排错位。
+  const extraMenuItems = (record: Track): MenuProps["items"] => [
     {
-      title: "#",
-      key: "index",
-      width: 50,
-      render: (_: any, __: any, index: number) => {
-        return <Text>{index + 1}</Text>;
+      key: "move",
+      label: t("playlistDetail.moveToPlaylist"),
+      icon: <SwapOutlined />,
+      onClick: () => {
+        setSelectedTrack(record);
+        setPendingAction("move");
+        setIsAddToPlaylistModalOpen(true);
+        getPlaylists(mode, user?.id)
+          .then((res) => {
+            if (res.code === 200) setPlaylists(res.data);
+          })
+          .catch(() => message.error(t("player.getPlaylistsFailed")));
       },
     },
     {
-      title: t("playlistDetail.cover"),
-      key: "cover",
-      width: 60,
-      render: (_: any, record: Track) => {
-        return (
-          <div
-            style={{ position: "relative" }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handlePlayTrack(record);
-            }}
-          >
-            <img
-              src={getCoverUrl(record.cover, record.id, 96)}
-              alt={record.name}
-              style={{
-                width: "30px",
-                height: "30px",
-                objectFit: "cover",
-              }}
-            />
-            {currentTrack?.id === record.id && isPlaying && (
-              <div className={styles.playIconStatus}>
-                <PlayingIndicator />
-              </div>
-            )}
-            {currentTrack?.id === record.id && isPlaying ? (
-              <PauseCircleFilled className={styles.listPlayIcon} />
-            ) : (
-              <PlayCircleFilled className={styles.listPlayIcon} />
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      title: t("playlistDetail.trackTitle"),
-      dataIndex: "name",
-      key: "name",
-      ellipsis: true,
-      render: (text: string, record: Track) => (
-        <Text strong={currentTrack?.id === record.id}>{text}</Text>
-      ),
-    },
-    {
-      title: t("playlistDetail.duration"),
-      dataIndex: "duration",
-      key: "duration",
-      width: 80,
-      render: (duration: number) => (
-        <Text type="secondary">{formatDuration(duration)}</Text>
-      ),
-    },
-    {
-      title: <MoreOutlined />,
-      key: "action",
-      width: 30,
-      render: (_: any, record: Track) => {
-        const items: MenuProps["items"] = [
-          {
-            key: "move",
-            label: t("playlistDetail.moveToPlaylist"),
-            icon: <PlusOutlined />,
-            onClick: (info) => {
-              info.domEvent.stopPropagation();
-              openMoveToPlaylistModal(info.domEvent as any, record);
-            },
-          },
-          {
-            key: "remove",
-            label: t("playlistDetail.removeFromList"),
-            icon: <DeleteOutlined />,
-            danger: true,
-            onClick: (info) => {
-              info.domEvent.stopPropagation();
-              // We need to confirm before delete, but Dropdown item onClick is immediate.
-              // We can use Modal.confirm or just execute directly if user prefers quick action.
-              // Given previous UI had Popconfirm, let's use Modal.confirm for safety or just direct call if acceptable.
-              // Let's use a simple confirm or just direct call for now as it's inside a menu.
-              // Actually, let's wrap the logic in a function that shows modal.
-              modalApi.confirm({
-                title: t("playlistDetail.confirmRemove"),
-                onOk: () => handleRemoveTrack(record.id),
-              });
-            },
-          },
-        ];
-
-        return (
-          <Dropdown menu={{ items }} trigger={["click"]}>
-            <MoreOutlined
-              style={{ cursor: "pointer", fontSize: "20px" }}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </Dropdown>
-        );
+      key: "remove",
+      label: t("playlistDetail.removeFromList"),
+      icon: <DeleteOutlined />,
+      danger: true,
+      onClick: () => {
+        modalApi.confirm({
+          title: t("playlistDetail.confirmRemove"),
+          onOk: () => handleRemoveTrack(record.id),
+        });
       },
     },
   ];
@@ -610,17 +510,19 @@ const PlaylistDetail: React.FC = () => {
             </div>
 
             {/* Track List */}
-            <Table
-              dataSource={sortedTracks}
-              columns={columns}
-              pagination={false}
-              rowKey="id"
+            <TrackList
+              tracks={sortedTracks}
               loading={tracksLoading}
-              rowClassName={styles.listCover}
-              onRow={(record) => ({
-                onClick: () => handlePlayTrack(record),
-                style: { cursor: "pointer" },
-              })}
+              showIndex
+              showCover
+              showArtist={false}
+              showAlbum={false}
+              showSource={false}
+              showDuration
+              showActions
+              onPlay={handlePlayTrack}
+              onRefresh={reloadTracks}
+              extraMenuItems={extraMenuItems}
               rowSelection={
                 isSelectionMode
                   ? {

@@ -13,6 +13,33 @@ body {
   scrollbar-color: transparent transparent;
 }
 
+/* antd Table 表格语义兜底（Windows / WebView2 环境）
+   症状：表头与单元格的 display 被算成 block，每格独占一行、列宽塌缩到文字宽，
+   整张表看起来"错位"。表格语义是 antd 布局的前提，这里显式兜住；
+   只声明 display，不改外观，也不涉及其它属性。
+   注意：若有页面使用 antd 的 virtual 表格（tbody tr 依赖 flex），需单独排除。 */
+.ant-table table {
+  display: table !important;
+}
+
+.ant-table-thead {
+  display: table-header-group !important;
+}
+
+.ant-table-tbody {
+  display: table-row-group !important;
+}
+
+.ant-table-thead > tr,
+.ant-table-tbody > tr {
+  display: table-row !important;
+}
+
+.ant-table-thead > tr > th,
+.ant-table-tbody > tr > td {
+  display: table-cell !important;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 5px;

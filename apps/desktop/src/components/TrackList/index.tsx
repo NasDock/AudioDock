@@ -54,6 +54,12 @@ export interface TrackListProps {
   rowSelection?: any;
   albumId?: number | string;
   playlistSource?: PlaylistSource;
+  /**
+   * 追加到每行「更多」菜单末尾的自定义操作项。
+   * 用于歌单详情等需要「移入其他歌单 / 从当前歌单移除」等场景，
+   * 默认库里那套操作（收藏 / 加入歌单 / 下载 / 删除）保持不变。
+   */
+  extraMenuItems?: (track: Track) => MenuProps["items"];
 }
 
 const ROW_HEIGHT = 56;
@@ -106,6 +112,7 @@ const TrackList: React.FC<TrackListProps> = ({
   rowSelection,
   albumId,
   playlistSource,
+  extraMenuItems,
 }) => {
   const message = useMessage();
   const { t } = useTranslation();
@@ -382,6 +389,10 @@ const TrackList: React.FC<TrackListProps> = ({
       (like: any) => like.userId === user?.id,
     );
     const isCurrent = currentTrack?.id === track.id;
+    // 调用方自定义操作（歌单详情：移入其他歌单 / 从歌单移除）
+    const customItems: MenuProps["items"] = extraMenuItems
+      ? (extraMenuItems(track) ?? [])
+      : [];
     return (
       <>
         {showSelect && (
@@ -539,6 +550,10 @@ const TrackList: React.FC<TrackListProps> = ({
                     danger: true,
                     onClick: () => handleDeleteSubTrack(track),
                   },
+                  // 调用方自定义操作（歌单详情：移入其他歌单 / 从歌单移除）
+                  ...(customItems.length > 0
+                    ? [{ type: "divider" as const }, ...customItems]
+                    : []),
                 ] as MenuProps["items"],
               }}
               trigger={["click"]}
