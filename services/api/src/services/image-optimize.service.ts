@@ -60,17 +60,26 @@ export class ImageOptimizeService {
     this.allowlistPrefixes = ['/covers/', '/music/'];
   }
 
+  /**
+   * @param blur 可选高斯模糊 sigma（px）。>0 时在缩放到目标尺寸之后再模糊：
+   *   先缩小再模糊 = 只对几万像素做卷积，成本可忽略，产物通常 <2KB。
+   *   移动端播放页的磨砂底图必须走这里，不能依赖客户端 blurRadius ——
+   *   expo-image Android 侧固定 `BlurTransformation(min(r,25), 4)`（先缩小 4 倍再模糊，
+   *   等效半径 ×4），小图会被糊成纯色块，且 RenderScript 在部分机型不可用。
+   */
   async optimize(
     rawSrc: string,
     width: number,
     quality: number | undefined,
     format: OutputFormat,
+    blur = 0,
   ): Promise<OptimizedImage> {
     const src = this.normalizeSrc(rawSrc);
     const normalizedSrc = this.assertAllowlisted(src);
+    const effBlur = Number.isFinite(blur) && blur > 0 ? Math.min(blur, 100) : 0;
 
     const effQuality = quality ?? (format === 'webp' ? 75 : 80);
-    const cacheKey = this.makeCacheKey(normalizedSrc, width, effQuality, format);
+    const cacheKey = this.makeCacheKey(normalizedSrc, width, effQuality, format, effBlur);
     const cachePath = this.cachePathFor(cacheKey, format);
 
     if (fs.existsSync(cachePath)) {
@@ -85,6 +94,11 @@ export class ImageOptimizeService {
 
     let pipeline = sharp(sourcePath, { limitInputPixels: ImageOptimizeService.SHARP_INPUT_LIMIT_PIXELS })
       .resize({ width, withoutEnlargement: true });
+
+    // 必须在 resize 之后 blur：先模糊大图再缩小既慢又会被缩放重新锐化边缘
+    if (effBlur > 0) {
+      pipeline = pipeline.blur(effBlur);
+    }
 
     if (format === 'webp') {
       pipeline = pipeline.webp({ quality: effQuality });
@@ -154,8 +168,13 @@ export class ImageOptimizeService {
     return null; // 暂不直接代理 /music/ 下的图片（可用 nginx 直接静态服务），后续按需扩展
   }
 
-  private makeCacheKey(src: string, w: number, q: number, fmt: OutputFormat): string {
-    return crypto.createHash('sha256').update(`${src}|${w}|${q}|${fmt}`).digest('hex').slice(0, 32);
+  private makeCacheKey(src: string, w: number, q: number, fmt: OutputFormat, blur = 0): string {
+    // blur>0 的产物与同尺寸清晰图是两份不同文件，必须进 key，否则模糊图会命中清晰图缓存
+    return crypto
+      .createHash('sha256')
+      .update(`${src}|${w}|${q}|${fmt}|${blur > 0 ? `b${blur}` : 'b0'}`)
+      .digest('hex')
+      .slice(0, 32);
   }
 
   private cachePathFor(key: string, fmt: OutputFormat): string {

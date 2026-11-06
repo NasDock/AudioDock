@@ -35,6 +35,7 @@ export class ImageOptimizeController {
     @Query('w') w: string,
     @Query('q') q: string | undefined,
     @Query('fmt') fmt: string | undefined,
+    @Query('blur') blurRaw: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
     if (!src || typeof src !== 'string') {
@@ -67,9 +68,23 @@ export class ImageOptimizeController {
       format = fmt;
     }
 
+    // 高斯模糊 sigma（像素）。供移动端播放页磨砂底图使用：
+    // 服务端出图可保证四端观感一致，且绕开 expo-image Android 端
+    // `BlurTransformation(min(r,25), 4)` 把 96px 小图糊成纯色块的问题。
+    let blur = 0;
+    if (blurRaw !== undefined && blurRaw !== '') {
+      if (!/^\d+(\.\d+)?$/.test(String(blurRaw))) {
+        throw new BadRequestException('blur must be a positive number');
+      }
+      blur = Number(blurRaw);
+      if (!Number.isFinite(blur) || blur <= 0 || blur > 100) {
+        throw new BadRequestException('blur must be in (0, 100]');
+      }
+    }
+
     let result: OptimizedImage;
     try {
-      result = await this.service.optimize(src, width, quality, format);
+      result = await this.service.optimize(src, width, quality, format, blur);
     } catch (err: any) {
       if (err?.code === 'OUT_OF_ALLOWLIST' || err?.code === 'NOT_FOUND' || err?.code === 'INVALID_SRC') {
         this.logger.warn(`reject image/optimize: src=${src} err=${err.message}`);
