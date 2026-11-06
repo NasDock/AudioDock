@@ -4,12 +4,12 @@ import VinylCover from "@/src/components/VinylCover";
 import { XiaoAiIcon } from "@/src/components/XiaoAiIcon";
 import { useAuth } from "@/src/context/AuthContext";
 import { PlayMode, usePlayer } from "@/src/context/PlayerContext";
-import { useTheme } from "@/src/context/ThemeContext";
+import { useTheme, darkColors } from "@/src/context/ThemeContext";
 import { Track, TrackType, UserTrackLike } from "@/src/models";
 import { useCoverDominantColor } from "@/src/hooks/useCoverDominantColor";
 import { usePlayerSkin } from "@/src/store/playerSkin";
-import { rgba, shade, tint } from "@/src/utils/dominantColor";
-import { getImageUrl } from "@/src/utils/image";
+import { rgba, shade } from "@/src/utils/dominantColor";
+import { getBlurredCoverUrl, getImageUrl } from "@/src/utils/image";
 import { getOrCreateDeviceId } from "@/src/utils/platform";
 import { trackEvent } from "@/src/services/tracking";
 import {
@@ -24,6 +24,7 @@ import {
 } from "@soundx/services";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
+import { StatusBar } from "expo-status-bar";
 import { Slider } from "@miblanchard/react-native-slider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getMvByTrackId, plusGetMe, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
@@ -291,7 +292,11 @@ export function PlayerDetailView({
   embedded = false,
   renderPlaylistModal = true,
 }: PlayerDetailViewProps) {
-  const { colors, theme } = useTheme();
+  const { colors: themeColors, theme } = useTheme();
+  // 播放详情页背景恒为深色（对齐 desktop 全屏播放页：模糊封面 + 深色主题色渐变），
+  // 因此前景配色必须强制走暗色板 —— 否则亮色主题下会出现「深底深字」看不清。
+  // 全局主题只影响播放页以外的界面（列表/设置等）。
+  const colors = theme === "light" ? darkColors : themeColors;
   // 播放器主题插件（VIP 专属）：null = 无主题/非会员，全部回退默认样式
   const playerTheme = usePlayerTheme();
   // 本地皮肤设置（内置插件层）：优先级低于 VIP 主题插件，见 store/playerSkin
@@ -352,7 +357,6 @@ export function PlayerDetailView({
   } = usePlayer();
   // 封面主题色（服务端 /image/dominant-color，算法同 desktop）：用于背景渐变 + 进度条着色
   const coverColor = useCoverDominantColor(currentTrack?.cover);
-  const isDarkMode = theme === "dark" || theme === "festive";
   // 黑胶样式（对齐 desktop detail.coverStyle/tonearm）：VIP 主题插件 > 本地皮肤设置；vinyl 时忽略 coverRadius
   const coverStyle = playerTheme?.coverStyle === "vinyl" ? "vinyl" : skinCoverStyle;
   // 唱针：插件显式定义以插件为准；否则黑胶自带唱针（对齐 desktop 内置皮肤 vinyl→tonearm=basic）
@@ -370,45 +374,36 @@ export function PlayerDetailView({
     : coverColor && !playerTheme?.progressColor
       ? rgba(coverColor, 0.3)
       : `${colors.primary}4D`;
-  // 封面主题色背景（对齐 hm 播放详情页，两层叠加）：
-  // ① 高斯模糊封面打底（放大 1.2 防边缘露底）——只要当前曲目有封面
-  //    就渲染：外链封面/取色失败也有模糊质感（desktop 同款行为），不退回纯色白底。
-  //    注意 expo-image Android 端 blurRadius 被 Glide BlurTransformation 钳制到最大 25
-  //    （ExpoImageViewWrapper.createPropOptions: BlurTransformation(min(it, 25))），
-  //    且模糊作用在解码后的源图上——300px 图上 25px 模糊放大到全屏后视觉上约等于无。
-  //    因此请求 48px 极小图：25px 模糊半径占图幅 >50%，拉伸到全屏后即为强磨砂效果，
-  //    顺带省流量；半径等效远超 hm 端 backdropBlur(80) 的观感。
-  // ② 主题色三段渐变罩层（半透明让磨砂透出，取色失败退中性遮罩兜底）：
-  //    暗色模式主题色渐变压暗保白字可读；亮色模式向白色混合成 pastel 保黑字可读
+  // 封面主题色背景（对齐 desktop 全屏播放页）：
+  // ① 磨砂底图：服务端 sharp 预模糊的小图（/image/optimize?...&blur=12）。
+  //    不能用 expo-image 的 blurRadius —— Android 侧 Glide `BlurTransformation(min(r,25), 4)`
+  //    的 sampling=4 是写死的：先把图缩小 4 倍再按 radius 模糊（等效半径 = radius×4）。
+  //    之前为了"加强模糊"改请求 48px 小图，量化后是 96px → 缩到 24×24 后用半径 25 模糊，
+  //    半径超过图幅 100%，直接糊成**均匀色块**，看起来反而像"没有高斯模糊"。
+  //    服务端出图后客户端不再设 blurRadius：四端（含 iOS 的 radius/2）观感一致、
+  //    绕开 RenderScript 在 Android 12+ 的兼容问题，设备侧零 GPU 开销。
+  // ② 压暗罩层：对齐 desktop 模糊层的 `brightness(0.75)`，让磨砂不发荧光。
+  // ③ 主题色渐变罩层：desktop 公式（顶部原色 0.5 → 底部 shade(0.22) 0.94），不分明暗主题。
   // 插件显式定义背景时整体不渲染（插件优先）
-  const coverBlurUri = currentTrack?.cover
-    ? getImageUrl(currentTrack.cover, undefined, 48)
-    : undefined;
-  // 渐变三段色（对齐 hm PlayerPage bgTintTop/Mid/Bottom）：主题色可用时由其推导，
-  // 否则中性遮罩（对齐 desktop 取色失败回退）
-  const bgStopTop = coverColor
-    ? isDarkMode
-      ? rgba(coverColor, 0.6)
-      : rgba(tint(coverColor, 0.72), 0.55)
-    : isDarkMode
-      ? "rgba(0, 0, 0, 0.45)"
-      : "rgba(255, 255, 255, 0.55)";
-  const bgStopMid = coverColor
-    ? isDarkMode
-      ? rgba(shade(coverColor, 0.55), 0.78)
-      : rgba(tint(coverColor, 0.5), 0.72)
-    : isDarkMode
-      ? "rgba(0, 0, 0, 0.65)"
-      : "rgba(255, 255, 255, 0.7)";
-  const bgStopBottom = coverColor
-    ? isDarkMode
-      ? rgba(shade(coverColor, 0.22), 0.92)
-      : rgba(tint(coverColor, 0.28), 0.88)
-    : isDarkMode
-      ? "rgba(0, 0, 0, 0.85)"
-      : "rgba(255, 255, 255, 0.9)";
+  const coverBlurUri = getBlurredCoverUrl(currentTrack?.cover);
+  // 粘性：切歌瞬间新封面未取色完成时，避免背景先闪回中性黑再跳色。
+  // 取色结果是缓存的，通常同一帧就绪；仅在"首次冷启动 + 立即切歌"时兜一下。
+  const [bgColor, setBgColor] = useState(coverColor);
+  useEffect(() => {
+    if (coverColor) setBgColor(coverColor);
+  }, [coverColor]);
+  // 渐变三段色：desktop 是两段，中间补一档让过渡更顺（SVG 只有 0/0.5/1 三档可用）
+  const bgStopTop = bgColor
+    ? rgba(bgColor, 0.5)
+    : "rgba(0, 0, 0, 0.35)";
+  const bgStopMid = bgColor
+    ? rgba(shade(bgColor, 0.5), 0.75)
+    : "rgba(0, 0, 0, 0.62)";
+  const bgStopBottom = bgColor
+    ? rgba(shade(bgColor, 0.22), 0.94)
+    : "rgba(0, 0, 0, 0.85)";
   const coverTintLayer =
-    !playerTheme?.background && (coverBlurUri || coverColor) ? (
+    !playerTheme?.background && (coverBlurUri || bgColor) ? (
       <View
         style={[StyleSheet.absoluteFill, { overflow: "hidden" }]}
         pointerEvents="none"
@@ -418,9 +413,16 @@ export function PlayerDetailView({
             source={{ uri: coverBlurUri }}
             style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.2 }] }]}
             contentFit="cover"
-            blurRadius={70}
           />
         ) : null}
+        {/* 压暗层：对齐 desktop `filter: brightness(0.75)`（CSS 的 brightness 在 RN 里
+            没有等价物，用黑色半透明罩层近似；0.25 ≈ 乘 0.75） */}
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: "rgba(0, 0, 0, 0.25)" },
+          ]}
+        />
         {/* Svg 必须显式像素尺寸：百分比尺寸（"100%"）在 Android 上实测不生效，
             渐变整层不渲染（此前"纯色背景/白色块"的根因之一）；对齐 VinylCover 的可行写法 */}
         <Svg
@@ -2236,6 +2238,7 @@ export function PlayerDetailView({
           },
         ]}
       >
+        <StatusBar style="light" />
         {coverTintLayer}
         <View style={styles.landscapeContainer}>
           <View style={[styles.landscapeLeft]}>
@@ -2445,6 +2448,9 @@ export function PlayerDetailView({
         { backgroundColor: themeBackground, paddingTop: insets.top },
       ]}
     >
+      {/* 播放页背景恒为深色（对齐 desktop），状态栏图标必须强制浅色，
+          否则亮色主题下全局 StatusBar 会给深色图标 → 黑底黑字看不见 */}
+      <StatusBar style="light" />
       {coverTintLayer}
       {!embedded && (
         <View style={[styles.header, { top }]}>
