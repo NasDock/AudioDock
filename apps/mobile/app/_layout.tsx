@@ -389,14 +389,12 @@ function RootLayoutNav() {
     rootSegment === "mv" ||
     rootSegment === "modal";
 
-  // 底部栏覆盖在根 Stack 上；这里只给屏幕内容预留底部空间，不改变根 Stack 高度。
-  // 这样进入播放页时，native 转场始终按屏幕真实底部计算起始位置。
+  // 底部栏覆盖在根 Stack 上；普通页面通过内容 padding 预留空间，根 Stack frame 不变。
   const bottomBarHeight =
     (!carLayoutMode && currentTrack ? MINI_PLAYER_HEIGHT : 0) +
     TAB_BAR_BASE_HEIGHT +
     safeAreaInsets.bottom;
-  // player 显示期间也保留底层 tab 的 padding（player 自身单独覆盖为 0），
-  // 避免进入动画期间底层页面同时发生布局位移。
+  // player 显示期间也保留底层页面 padding（player 自身单独覆盖为 0），避免转场中底层页面跳动。
   const reserveBottomBarSpace = !hideBottomBar || rootSegment === "player";
 
   // 底部栏恢复延迟。
@@ -441,7 +439,7 @@ function RootLayoutNav() {
   const stack = (
     <Stack
       screenOptions={{
-        // 根 Stack 恒全屏；普通页面内容底部预留覆盖式底部栏高度
+        // padding 只作用于屏幕内容；根 Stack / player 的转场 frame 仍保持全屏
         contentStyle: {
           paddingBottom: reserveBottomBarSpace ? bottomBarHeight : 0,
         },
@@ -466,7 +464,7 @@ function RootLayoutNav() {
           presentation: "fullScreenModal",
           headerShown: false,
           animation: "slide_from_bottom",
-          // 播放页自身是全屏页，不能预留底部栏空间，否则退场时页面会被压缩
+          // 播放页必须全屏，不能继承底部栏预留
           contentStyle: { paddingBottom: 0 },
         }}
       />
@@ -604,6 +602,7 @@ function RootLayoutNav() {
       {showBottomBar && (
         <GlobalBottomBar
           animateIn={bottomBarAnimateIn}
+          layerBelow={rootSegment === "player" || barRestorePending}
           onEnterAnimationComplete={handleBottomBarEnterComplete}
         />
       )}
@@ -643,6 +642,7 @@ function RootLayoutNav() {
             {showBottomBar && (
               <GlobalBottomBar
                 animateIn={bottomBarAnimateIn}
+                layerBelow={rootSegment === "player" || barRestorePending}
                 onEnterAnimationComplete={handleBottomBarEnterComplete}
               />
             )}

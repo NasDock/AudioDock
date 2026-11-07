@@ -27,11 +27,14 @@ const tabs = [
 interface GlobalBottomBarProps {
   /** 播放页退场结束后恢复时，从底部滑入 */
   animateIn?: boolean;
+  /** 播放页进出场过渡期间置于 native screen 下层，避免遮挡转场 */
+  layerBelow?: boolean;
   onEnterAnimationComplete?: () => void;
 }
 
 export const GlobalBottomBar = ({
   animateIn = false,
+  layerBelow = false,
   onEnterAnimationComplete,
 }: GlobalBottomBarProps) => {
   const { t } = useTranslation();
@@ -83,6 +86,7 @@ export const GlobalBottomBar = ({
     <Animated.View
       style={[
         styles.animationContainer,
+        layerBelow && styles.layerBelow,
         { height: animateIn ? animatedHeight : barHeight },
       ]}
     >
@@ -148,8 +152,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: "100%",
     overflow: "hidden",
+    // 普通页面保持在 Stack 上层；底部空间由 contentStyle 预留，不会遮挡内容
     zIndex: 10,
     elevation: 10,
+  },
+  layerBelow: {
+    // player 进出场时若还存在一帧旧底部栏，必须压在 native 转场页面下面
+    zIndex: -1,
+    elevation: 0,
   },
   // 内容锚定容器底部：外层高度从 0 展开时，底部栏从屏幕底部平滑露出；
   // 底层内容已由根 Stack 的 contentStyle 预留空间，不会再被上顶。
