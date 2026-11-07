@@ -1,7 +1,7 @@
 import * as Linking from 'expo-linking';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useRouter, useSegments } from "expo-router";
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import "react-native-reanimated";
 import "../src/i18n";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
@@ -390,10 +390,16 @@ function RootLayoutNav() {
   //  - 若改成 absolute 浮层，bottomBar 又会盖住 native Stack 里的退场页面，
   //    视觉上页面刚到 mini 播放器顶部就“消失”（React Native Screens 的转场层级
   //    不受普通 JS zIndex 完全控制，Android 上尤其明显）。
-  // 因此退场期间保持底部栏卸载，让播放页完整滑到屏幕底部；transitionEnd 后再恢复。
+  // 因此退场期间保持底部栏卸载，让播放页完整滑到屏幕底部；transitionEnd 后
+  // 底部栏再执行高度展开动画，从底部平滑恢复（见 GlobalBottomBar.animateIn）。
   // 用 useLayoutEffect 而非 useEffect：避免恢复首帧先按文档流渲染一次造成跳动。
   // 1.5s 只是 replace/异常路径的兜底，正常以 transitionEnd 精确恢复，避免慢速手势时提前出现。
   const [barRestorePending, setBarRestorePending] = useState(false);
+  // 播放页退场结束后恢复底部栏时执行一次「从底部滑入」动画
+  const [bottomBarAnimateIn, setBottomBarAnimateIn] = useState(false);
+  const handleBottomBarEnterComplete = useCallback(() => {
+    setBottomBarAnimateIn(false);
+  }, []);
   const wasBarHiddenRef = useRef(hideBottomBar);
   const previousRootSegmentRef = useRef(rootSegment);
   useLayoutEffect(() => {
@@ -401,15 +407,17 @@ function RootLayoutNav() {
     const previousRootSegment = previousRootSegmentRef.current;
     wasBarHiddenRef.current = hideBottomBar;
     previousRootSegmentRef.current = rootSegment;
-    if (!wasHidden) return;
     if (hideBottomBar) {
-      // 又进入了全屏路由：立即取消待恢复状态，交给 hideBottomBar 兜住
+      // 又进入了全屏路由：立即取消待恢复/未完成的进入动画，交给 hideBottomBar 兜住
       setBarRestorePending(false);
+      setBottomBarAnimateIn(false);
       return;
     }
+    if (!wasHidden) return;
     // 只对播放页退场延迟恢复；其他全屏页保持原有行为，避免侧滑退场时底部栏短暂消失。
     if (previousRootSegment !== "player") return;
     setBarRestorePending(true);
+    setBottomBarAnimateIn(true);
     const timer = setTimeout(() => setBarRestorePending(false), 1500);
     return () => clearTimeout(timer);
   }, [hideBottomBar, rootSegment]);
@@ -569,7 +577,12 @@ function RootLayoutNav() {
   const contentPanel = (
     <View style={styles.rightContent}>
       {stack}
-      {showBottomBar && <GlobalBottomBar />}
+      {showBottomBar && (
+        <GlobalBottomBar
+          animateIn={bottomBarAnimateIn}
+          onEnterAnimationComplete={handleBottomBarEnterComplete}
+        />
+      )}
     </View>
   );
 
@@ -603,7 +616,12 @@ function RootLayoutNav() {
         ) : (
           <View style={styles.stackRoot}>
             {stack}
-            {showBottomBar && <GlobalBottomBar />}
+            {showBottomBar && (
+              <GlobalBottomBar
+                animateIn={bottomBarAnimateIn}
+                onEnterAnimationComplete={handleBottomBarEnterComplete}
+              />
+            )}
           </View>
         )}
       </View>
