@@ -21,6 +21,7 @@ import { Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isCached } from "../services/cache";
 import { downloadTrack } from "../services/downloadManager";
+import { usePlayerSkin, type CoverStyle } from "../store/playerSkin";
 import { AddToPlaylistModal } from "./AddToPlaylistModal";
 import { EqualizerModal } from "./EqualizerModal";
 import { FilePathModal } from "./FilePathModal";
@@ -55,6 +56,7 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
     | { type: "addToPlaylist" }
     | { type: "lyricsSize" }
     | { type: "controlsPosition" }
+    | { type: "playerStyle" }
     | { type: "equalizer" }
     | { type: "trackPath" }
     | { type: "skip"; skipType: "intro" | "outro" };
@@ -79,6 +81,9 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
 
   const [sleepTimerVisible, setSleepTimerVisible] = useState(false);
   const [addToPlaylistVisible, setAddToPlaylistVisible] = useState(false);
+  const [playerStyleVisible, setPlayerStyleVisible] = useState(false);
+  // 本地皮肤设置（内置插件层）：播放器样式 默认/黑胶
+  const { coverStyle, setCoverStyle } = usePlayerSkin();
   const [remainingTime, setRemainingTime] = useState<string>("");
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -237,6 +242,9 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
       case "controlsPosition":
         setControlsPositionVisible(true);
         break;
+      case "playerStyle":
+        setPlayerStyleVisible(true);
+        break;
       case "equalizer":
         setEqVisible(true);
         break;
@@ -352,6 +360,15 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
       label: t('playerMore.controlPosition'),
       onPress: () => {
         setPendingModal({ type: "controlsPosition" });
+        setVisible(false);
+      },
+      disabled: false,
+    },
+    {
+      icon: "color-palette-outline" as const,
+      label: t('playerMore.playerStyle'),
+      onPress: () => {
+        setPendingModal({ type: "playerStyle" });
         setVisible(false);
       },
       disabled: false,
@@ -733,6 +750,68 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
                   </TouchableOpacity>
                 </View>
               </View>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* 播放器样式选择（内置皮肤层，VIP 主题插件优先级更高） */}
+      <Modal
+        visible={playerStyleVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPlayerStyleVisible(false)}
+        supportedOrientations={['portrait', 'landscape', 'landscape-left', 'landscape-right']}
+      >
+        <Pressable
+          style={styles.centeredBackdrop}
+          onPress={() => setPlayerStyleVisible(false)}
+        >
+          <View style={styles.centeredModalWrapper}>
+            <View
+              style={[
+                styles.centeredModalContent,
+                {
+                  backgroundColor: colors.card,
+                  paddingHorizontal: 20,
+                  paddingBottom: 20,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.title,
+                  { color: colors.text, textAlign: "center" },
+                ]}
+              >
+                {t('playerMore.playerStyle')}
+              </Text>
+              {(
+                [
+                  { value: "square" as CoverStyle, label: t('playerMore.styleDefault'), icon: "square-outline" as const },
+                  { value: "vinyl" as CoverStyle, label: t('playerMore.styleVinyl'), icon: "disc-outline" as const },
+                ]
+              ).map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[
+                    styles.option,
+                    { borderBottomColor: colors.border },
+                  ]}
+                  onPress={() => {
+                    setCoverStyle(opt.value);
+                    setPlayerStyleVisible(false);
+                  }}
+                >
+                  <Ionicons name={opt.icon} size={24} color={colors.text} />
+                  <Text style={[styles.optionText, { color: colors.text }]}>
+                    {opt.label}
+                  </Text>
+                  {coverStyle === opt.value && (
+                    <Ionicons name="checkmark" size={22} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
         </Pressable>

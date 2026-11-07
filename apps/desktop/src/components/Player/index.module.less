@@ -581,27 +581,34 @@
   display: flex;
   justify-content: var(--ad-detail-lyrics-justify, center);
   align-items: flex-start;
-  scrollbar-width: none;
+  // 滚动条常驻 thin 宽度、滑块透明，仅手动滚动时显色：
+  // win 经典滚动条占布局宽度，0↔8px 切换会引发布局重排
+  // → 新 scroll 事件 → 再显示，形成抽搐循环
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
   -ms-overflow-style: none;
 }
 
 .lyricsContainer::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
-
-.manualScrolling {
-  scrollbar-width: thin;
-}
-
-.manualScrolling::-webkit-scrollbar {
   width: 8px;
   height: 0;
 }
 
+.lyricsContainer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lyricsContainer::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.manualScrolling {
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
 .manualScrolling::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.28);
-  border-radius: 999px;
 }
 
 .manualScrolling::-webkit-scrollbar-track {

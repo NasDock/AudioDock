@@ -7,6 +7,8 @@ import { useTheme } from "../context/ThemeContext";
 import { TrackType } from "../models";
 import { getImageUrl } from "../utils/image";
 
+export const MINI_PLAYER_HEIGHT = 60;
+
 export const MiniPlayer = () => {
   const { colors } = useTheme();
   const router = useRouter();
@@ -118,7 +120,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: 10,
     width: "100%",
-    height: 60,
+    height: MINI_PLAYER_HEIGHT,
   },
   infoContaer: {
     flex: 2,

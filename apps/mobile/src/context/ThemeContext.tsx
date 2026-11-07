@@ -30,7 +30,8 @@ const lightColors: ThemeColors = {
   tabIconInactive: "#888888",
 };
 
-const darkColors: ThemeColors = {
+/** 暗色板对外导出：播放详情页背景恒为深色（对齐 desktop），前景配色需要强制走暗色板 */
+export const darkColors: ThemeColors = {
   background: "#000000",
   text: "#FFFFFF",
   primary: "#FFFFFF",

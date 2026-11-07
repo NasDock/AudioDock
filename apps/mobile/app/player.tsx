@@ -4,9 +4,12 @@ import VinylCover from "@/src/components/VinylCover";
 import { XiaoAiIcon } from "@/src/components/XiaoAiIcon";
 import { useAuth } from "@/src/context/AuthContext";
 import { PlayMode, usePlayer } from "@/src/context/PlayerContext";
-import { useTheme } from "@/src/context/ThemeContext";
+import { useTheme, darkColors } from "@/src/context/ThemeContext";
 import { Track, TrackType, UserTrackLike } from "@/src/models";
-import { getImageUrl } from "@/src/utils/image";
+import { useCoverVisual } from "@/src/hooks/useCoverDominantColor";
+import { usePlayerSkin } from "@/src/store/playerSkin";
+import { rgba, shade } from "@/src/utils/dominantColor";
+import { getBlurredCoverUrl, getImageUrl } from "@/src/utils/image";
 import { getOrCreateDeviceId } from "@/src/utils/platform";
 import { trackEvent } from "@/src/services/tracking";
 import {
@@ -20,6 +23,8 @@ import {
   playMiDeviceByUrl,
 } from "@soundx/services";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image as ExpoImage } from "expo-image";
+import { StatusBar } from "expo-status-bar";
 import { Slider } from "@miblanchard/react-native-slider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getMvByTrackId, plusGetMe, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
@@ -44,6 +49,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PlayerMoreModal } from "../src/components/PlayerMoreModal";
 import { PlaylistModal } from "../src/components/PlaylistModal";
@@ -286,29 +292,27 @@ export function PlayerDetailView({
   embedded = false,
   renderPlaylistModal = true,
 }: PlayerDetailViewProps) {
-  const { colors } = useTheme();
+  const { colors: themeColors, theme } = useTheme();
+  // 播放详情页背景恒为深色（对齐 desktop 全屏播放页：模糊封面 + 深色主题色渐变），
+  // 因此前景配色必须强制走暗色板 —— 否则亮色主题下会出现「深底深字」看不清。
+  // 全局主题只影响播放页以外的界面（列表/设置等）。
+  const colors = theme === "light" ? darkColors : themeColors;
   // 播放器主题插件（VIP 专属）：null = 无主题/非会员，全部回退默认样式
   const playerTheme = usePlayerTheme();
+  // 本地皮肤设置（内置插件层）：优先级低于 VIP 主题插件，见 store/playerSkin
+  const { coverStyle: skinCoverStyle } = usePlayerSkin();
   const themeBackground = playerTheme?.background ?? colors.background;
   const headerIconColor = playerTheme?.headerIconColor ?? colors.text;
   const titleColor = playerTheme?.titleColor ?? colors.text;
   const artistColor = playerTheme?.artistColor ?? colors.secondary;
   const coverRadius =
     typeof playerTheme?.coverRadius === "number" ? playerTheme.coverRadius : undefined;
-  // 黑胶样式（对齐 desktop detail.coverStyle/tonearm）：vinyl 时忽略 coverRadius
-  const coverStyle = playerTheme?.coverStyle === "vinyl" ? "vinyl" : "square";
-  const tonearm = playerTheme?.tonearm === "basic";
-  const progressColor = playerTheme?.progressColor ?? colors.primary;
   const controlColor = playerTheme?.controlColor ?? colors.text;
   const lyricsColor = playerTheme?.lyricsColor;
   const lyricsActiveColor = playerTheme?.lyricsActiveColor;
   const lyricsAlign = playerTheme?.lyricsAlign;
   const themeLyricFontSize =
     typeof playerTheme?.lyricsFontSize === "number" ? playerTheme.lyricsFontSize : undefined;
-  // 缓冲层底色：仅十六进制色可拼 alpha 后缀，否则回退主题色
-  const bufferedColor = /^#[0-9a-f]{6}$/i.test(progressColor)
-    ? `${progressColor}4D`
-    : `${colors.primary}4D`;
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { carModeEnabled } = useSettings();
@@ -351,6 +355,104 @@ export function PlayerDetailView({
     skipOutroDuration,
     setSkipOutroDuration,
   } = usePlayer();
+  // 封面主题色（mobile 纯本地计算，算法同 desktop）：用于背景渐变 + 进度条着色；
+  // 本地解码成功时还会带回一张磨砂底图（覆盖老服务端不支持 blur / 外链封面两种场景）。
+  const {
+    color: coverColor,
+    blurredCoverUri: localCoverBlurUri,
+    resolved: coverVisualResolved,
+  } = useCoverVisual(currentTrack?.cover);
+  // 黑胶样式（对齐 desktop detail.coverStyle/tonearm）：VIP 主题插件 > 本地皮肤设置；vinyl 时忽略 coverRadius
+  const coverStyle = playerTheme?.coverStyle === "vinyl" ? "vinyl" : skinCoverStyle;
+  // 唱针：插件显式定义以插件为准；否则黑胶自带唱针（对齐 desktop 内置皮肤 vinyl→tonearm=basic）
+  const tonearm =
+    playerTheme?.tonearm !== undefined
+      ? playerTheme.tonearm === "basic"
+      : coverStyle === "vinyl";
+  const progressColor =
+    playerTheme?.progressColor ??
+    (coverColor ? rgba(coverColor, 1) : undefined) ??
+    colors.primary;
+  // 缓冲层底色：仅十六进制色可拼 alpha 后缀；封面色路径用 rgba 0.3，否则回退主题色
+  const bufferedColor = /^#[0-9a-f]{6}$/i.test(progressColor)
+    ? `${progressColor}4D`
+    : coverColor && !playerTheme?.progressColor
+      ? rgba(coverColor, 0.3)
+      : `${colors.primary}4D`;
+  // 封面主题色背景（对齐 desktop 全屏播放页）：
+  // ① 磨砂底图：服务端 sharp 预模糊的小图（/image/optimize?...&blur=12）。
+  //    不能用 expo-image 的 blurRadius —— Android 侧 Glide `BlurTransformation(min(r,25), 4)`
+  //    的 sampling=4 是写死的：先把图缩小 4 倍再按 radius 模糊（等效半径 = radius×4）。
+  //    之前为了"加强模糊"改请求 48px 小图，量化后是 96px → 缩到 24×24 后用半径 25 模糊，
+  //    半径超过图幅 100%，直接糊成**均匀色块**，看起来反而像"没有高斯模糊"。
+  //    服务端出图后客户端不再设 blurRadius：四端（含 iOS 的 radius/2）观感一致、
+  //    绕开 RenderScript 在 Android 12+ 的兼容问题，设备侧零 GPU 开销。
+  // ② 压暗罩层：对齐 desktop 模糊层的 `brightness(0.75)`，让磨砂不发荧光。
+  // ③ 主题色渐变罩层：desktop 公式（顶部原色 0.5 → 底部 shade(0.22) 0.94），不分明暗主题。
+  // 插件显式定义背景时整体不渲染（插件优先）
+  // 本地解码生成的磨砂图优先：主题色现在恒为本地计算，磨砂图与主题色同源；
+  // 也覆盖老服务端 optimize 不认识 blur 参数、外链封面没有服务端磨砂图两类场景。
+  const serverCoverBlurUri = getBlurredCoverUrl(currentTrack?.cover);
+  // 解析未完成前不渲染服务端 URL：旧服务端会忽略 blur 参数返回清晰原图，
+  // 等本地产物就绪后直接上磨砂图，避免「清晰 → 磨砂」的可见切换。
+  const coverBlurUri =
+    localCoverBlurUri ?? (coverVisualResolved ? serverCoverBlurUri : undefined);
+  // 粘性：切歌瞬间新封面未取色完成时，避免背景先闪回中性黑再跳色。
+  // 取色结果是缓存的，通常同一帧就绪；仅在"首次冷启动 + 立即切歌"时兜一下。
+  const [bgColor, setBgColor] = useState(coverColor);
+  useEffect(() => {
+    if (coverColor) setBgColor(coverColor);
+  }, [coverColor]);
+  // 渐变三段色：desktop 是两段，中间补一档让过渡更顺（SVG 只有 0/0.5/1 三档可用）
+  const bgStopTop = bgColor
+    ? rgba(bgColor, 0.5)
+    : "rgba(0, 0, 0, 0.35)";
+  const bgStopMid = bgColor
+    ? rgba(shade(bgColor, 0.5), 0.75)
+    : "rgba(0, 0, 0, 0.62)";
+  const bgStopBottom = bgColor
+    ? rgba(shade(bgColor, 0.22), 0.94)
+    : "rgba(0, 0, 0, 0.85)";
+  const coverTintLayer =
+    !playerTheme?.background && (coverBlurUri || bgColor) ? (
+      <View
+        style={[StyleSheet.absoluteFill, { overflow: "hidden" }]}
+        pointerEvents="none"
+      >
+        {coverBlurUri ? (
+          <ExpoImage
+            source={{ uri: coverBlurUri }}
+            style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.2 }] }]}
+            contentFit="cover"
+          />
+        ) : null}
+        {/* 压暗层：对齐 desktop `filter: brightness(0.75)`（CSS 的 brightness 在 RN 里
+            没有等价物，用黑色半透明罩层近似；0.25 ≈ 乘 0.75） */}
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: "rgba(0, 0, 0, 0.25)" },
+          ]}
+        />
+        {/* Svg 必须显式像素尺寸：百分比尺寸（"100%"）在 Android 上实测不生效，
+            渐变整层不渲染（此前"纯色背景/白色块"的根因之一）；对齐 VinylCover 的可行写法 */}
+        <Svg
+          width={width}
+          height={height}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        >
+          <Defs>
+            <LinearGradient id="coverTint" x1="0" y1="0" x2="0.35" y2="1">
+              <Stop offset="0" stopColor={bgStopTop} />
+              <Stop offset="0.5" stopColor={bgStopMid} />
+              <Stop offset="1" stopColor={bgStopBottom} />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width={width} height={height} fill="url(#coverTint)" />
+        </Svg>
+      </View>
+    ) : null;
   // 流转接收端闭包用：保证 useEffect 里始终拿到最新引用（函数每次渲染重建，但内部依赖 ref 不旧）
   const switchContentModeRef = useRef(switchContentModeForIncomingTrack);
   switchContentModeRef.current = switchContentModeForIncomingTrack;
@@ -2147,6 +2249,8 @@ export function PlayerDetailView({
           },
         ]}
       >
+        <StatusBar style="light" />
+        {coverTintLayer}
         <View style={styles.landscapeContainer}>
           <View style={[styles.landscapeLeft]}>
             {/* 顶部折叠/更多按钮随控制条一起显隐（横屏沉浸式） */}
@@ -2244,7 +2348,9 @@ export function PlayerDetailView({
                       styles.landscapeControls,
                       {
                         opacity: controlsOpacity,
-                        backgroundColor: themeBackground,
+                        // 控制条不再垫不透明主题底色（亮色模式下是白块压住背景渐变）；
+                        // 仅插件主题显式定义背景时保留实底（插件优先）
+                        backgroundColor: playerTheme?.background,
                         borderRadius: 16,
                         padding: 10,
                         position: "absolute",
@@ -2353,6 +2459,10 @@ export function PlayerDetailView({
         { backgroundColor: themeBackground, paddingTop: insets.top },
       ]}
     >
+      {/* 播放页背景恒为深色（对齐 desktop），状态栏图标必须强制浅色，
+          否则亮色主题下全局 StatusBar 会给深色图标 → 黑底黑字看不见 */}
+      <StatusBar style="light" />
+      {coverTintLayer}
       {!embedded && (
         <View style={[styles.header, { top }]}>
           <TouchableOpacity

@@ -1,7 +1,7 @@
 import * as Linking from 'expo-linking';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useRouter, useSegments } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import "react-native-reanimated";
 import "../src/i18n";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
@@ -355,8 +355,80 @@ function RootLayoutNav() {
     return () => clearTimeout(timer);
   }, [checkPromotion, activityNotifyEnabled]);
 
+  // ─── 底部栏显示/隐藏 ────────────────────────────────────────────────
+  const rootSegment = segments[0] as string;
+  // 这些路由以全屏方式展示，需要隐藏底部栏（mini 播放器 + Tab）
+  const hideBottomBar =
+    rootSegment === "login" ||
+    rootSegment === "login-form" ||
+    rootSegment === "member-login" ||
+    rootSegment === "forgot-password" ||
+    rootSegment === "settings" ||
+    rootSegment === "source-manage" ||
+    rootSegment === "webdav-sources" ||
+    rootSegment === "llm-config" ||
+    rootSegment === "tts-config" ||
+    rootSegment === "plugin-center" ||
+    rootSegment === "player-theme" ||
+    rootSegment === "task-center" ||
+    rootSegment === "mi-speaker" ||
+    rootSegment === "player" ||
+    rootSegment === "product-updates" ||
+    rootSegment === "member-detail" ||
+    rootSegment === "member-benefits" ||
+    rootSegment === "member-payment-success" ||
+    rootSegment === "scan" ||
+    rootSegment === "scan-confirm" ||
+    rootSegment === "language" ||
+    rootSegment === "mv" ||
+    rootSegment === "modal";
+
+  // 底部栏恢复延迟。
+  // useSegments() 在返回时**立刻**更新到目标路由，但播放页退场动画还在跑。
+  // 这时不能提前渲染底部栏：
+  //  - 若直接回到文档流，Stack 会被压矮，正在下滑的页面下半截被裁掉；
+  //  - 若改成 absolute 浮层，bottomBar 又会盖住 native Stack 里的退场页面，
+  //    视觉上页面刚到 mini 播放器顶部就“消失”（React Native Screens 的转场层级
+  //    不受普通 JS zIndex 完全控制，Android 上尤其明显）。
+  // 因此退场期间保持底部栏卸载，让播放页完整滑到屏幕底部；transitionEnd 后
+  // 底部栏再执行高度展开动画，从底部平滑恢复（见 GlobalBottomBar.animateIn）。
+  // 用 useLayoutEffect 而非 useEffect：避免恢复首帧先按文档流渲染一次造成跳动。
+  // 1.5s 只是 replace/异常路径的兜底，正常以 transitionEnd 精确恢复，避免慢速手势时提前出现。
+  const [barRestorePending, setBarRestorePending] = useState(false);
+  // 播放页退场结束后恢复底部栏时执行一次「从底部滑入」动画
+  const [bottomBarAnimateIn, setBottomBarAnimateIn] = useState(false);
+  const handleBottomBarEnterComplete = useCallback(() => {
+    setBottomBarAnimateIn(false);
+  }, []);
+  const wasBarHiddenRef = useRef(hideBottomBar);
+  const previousRootSegmentRef = useRef(rootSegment);
+  useLayoutEffect(() => {
+    const wasHidden = wasBarHiddenRef.current;
+    const previousRootSegment = previousRootSegmentRef.current;
+    wasBarHiddenRef.current = hideBottomBar;
+    previousRootSegmentRef.current = rootSegment;
+    if (hideBottomBar) {
+      // 又进入了全屏路由：立即取消待恢复/未完成的进入动画，交给 hideBottomBar 兜住
+      setBarRestorePending(false);
+      setBottomBarAnimateIn(false);
+      return;
+    }
+    if (!wasHidden) return;
+    // 只对播放页退场延迟恢复；其他全屏页保持原有行为，避免侧滑退场时底部栏短暂消失。
+    if (previousRootSegment !== "player") return;
+    setBarRestorePending(true);
+    setBottomBarAnimateIn(true);
+    const timer = setTimeout(() => setBarRestorePending(false), 1500);
+    return () => clearTimeout(timer);
+  }, [hideBottomBar, rootSegment]);
+
   const stack = (
-    <Stack>
+    <Stack
+      screenListeners={{
+        // 退场动画结束：解除底部栏恢复延迟（见上方 barRestorePending）
+        transitionEnd: () => setBarRestorePending(false),
+      }}
+    >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen
@@ -470,33 +542,10 @@ function RootLayoutNav() {
     </Stack>
   );
 
-  const showCarLayout = isVip && carLayoutMode && (segments[0] as string) !== "player";
-  const rootSegment = segments[0] as string;
-  const hideBottomBar =
-    rootSegment === "login" ||
-    rootSegment === "login-form" ||
-    rootSegment === "member-login" ||
-    rootSegment === "forgot-password" ||
-    rootSegment === "settings" ||
-    rootSegment === "source-manage" ||
-    rootSegment === "webdav-sources" ||
-    rootSegment === "llm-config" ||
-    rootSegment === "tts-config" ||
-    rootSegment === "plugin-center" ||
-    rootSegment === "player-theme" ||
-    rootSegment === "task-center" ||
-    rootSegment === "mi-speaker" ||
-    rootSegment === "player" ||
-    rootSegment === "product-updates" ||
-    rootSegment === "member-detail" ||
-    rootSegment === "member-benefits" ||
-    rootSegment === "member-payment-success" ||
-    rootSegment === "scan" ||
-    rootSegment === "scan-confirm" ||
-    rootSegment === "language" ||
-    rootSegment === "mv" ||
-    rootSegment === "modal";
-  const showBottomBar = !hideBottomBar;
+  const showCarLayout = isVip && carLayoutMode && rootSegment !== "player";
+  // 退场动画期间（barRestorePending）先卸载底部栏：让 native Stack 保持全屏，
+  // 播放页可以完整滑到屏幕底部；动画结束后底部栏再直接按文档流恢复。
+  const showBottomBar = !hideBottomBar && !barRestorePending;
   const playerPanelWidth = carLayoutSize.height > 0 ? (carLayoutSize.height * 9) / 16 : 0;
   const swapButtonLeft =
     playerPanelWidth > 0
@@ -528,7 +577,12 @@ function RootLayoutNav() {
   const contentPanel = (
     <View style={styles.rightContent}>
       {stack}
-      {showBottomBar && <GlobalBottomBar />}
+      {showBottomBar && (
+        <GlobalBottomBar
+          animateIn={bottomBarAnimateIn}
+          onEnterAnimationComplete={handleBottomBarEnterComplete}
+        />
+      )}
     </View>
   );
 
@@ -562,7 +616,12 @@ function RootLayoutNav() {
         ) : (
           <View style={styles.stackRoot}>
             {stack}
-            {showBottomBar && <GlobalBottomBar />}
+            {showBottomBar && (
+              <GlobalBottomBar
+                animateIn={bottomBarAnimateIn}
+                onEnterAnimationComplete={handleBottomBarEnterComplete}
+              />
+            )}
           </View>
         )}
       </View>

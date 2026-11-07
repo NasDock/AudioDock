@@ -51,3 +51,40 @@ export const getImageUrl = (
   const src = `/${cleanPath}`;
   return `${cleanBaseURL}/image/optimize?src=${encodeURIComponent(src)}&w=${bucket}&q=72&fmt=webp`;
 };
+
+/**
+ * 播放页「磨砂底图」URL：服务端 sharp 预模糊的小图。
+ *
+ * 为什么不用 expo-image 的 blurRadius：
+ *  - Android 侧是 Glide `BlurTransformation(min(radius,25), 4)`，`sampling=4` 写死 ——
+ *    先把图缩小 4 倍再按 radius 模糊，等效半径 = radius × 4。96px 小图缩到 24px 后
+ *    用半径 25 模糊（超过图幅 100%）会直接糊成**均匀色块**，看起来像"没有模糊"；
+ *  - RenderScript 在 Android 12+ 已废弃，部分机型直接抛异常回退 CPU 栈模糊；
+ *  - iOS 侧 radius 还要 /2，两端观感天然对不齐。
+ * 服务端出图没有这些分支：四端拿到的是同一张已模糊的 webp，客户端零 GPU 开销。
+ *
+ * 不走档位量化（bucketWidth）：模糊图是独立缓存维度，尺寸固定不产生碎片；
+ * 且必须强制走 optimize（大图档位内网会直连原图，拿不到模糊）。
+ *
+ * @param cover track.cover（/covers/xxx）
+ * @param width 取图宽度，默认 192（放大到全屏仍有封面轮廓，不会糊成纯色）
+ * @param sigma 高斯模糊 sigma，默认 12
+ */
+export const getBlurredCoverUrl = (
+  cover?: string | null,
+  width = 192,
+  sigma = 12,
+): string | undefined => {
+  if (!cover) return undefined;
+  // 外链封面（Emby/Subsonic）服务端白名单不支持，交给调用方回退
+  if (cover.startsWith("http://") || cover.startsWith("https://")) return undefined;
+  const cleanPath = cover.startsWith("/") ? cover.substring(1) : cover;
+  if (!cleanPath.startsWith("covers/")) return undefined;
+
+  const baseURL = getBaseURL();
+  const cleanBaseURL = baseURL.endsWith("/")
+    ? baseURL.substring(0, baseURL.length - 1)
+    : baseURL;
+  const src = `/${cleanPath}`;
+  return `${cleanBaseURL}/image/optimize?src=${encodeURIComponent(src)}&w=${width}&q=72&fmt=webp&blur=${sigma}`;
+};
