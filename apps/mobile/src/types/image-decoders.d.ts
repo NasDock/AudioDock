@@ -28,4 +28,12 @@ declare module "upng-js" {
   export function decode(buffer: ArrayBuffer): DecodedPng;
   /** 返回每帧的 RGBA 数据（ArrayBuffer）；不传帧索引时返回全部帧 */
   export function toRGBA8(img: DecodedPng, frame?: number): ArrayBuffer[];
+  /** 编码 RGBA PNG；cnum=0 表示全彩无损 */
+  export function encode(
+    imgs: ArrayBuffer[],
+    width: number,
+    height: number,
+    cnum?: number,
+    dels?: number[],
+  ): ArrayBuffer;
 }

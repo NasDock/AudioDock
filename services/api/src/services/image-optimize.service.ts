@@ -13,7 +13,7 @@ import { Injectable } from '@nestjs/common';
 const sharp = require('sharp') as any;
 import { DEFAULT_CACHE_DIR } from '../common/media-paths';
 
-export type OutputFormat = 'webp' | 'jpeg';
+export type OutputFormat = 'webp' | 'jpeg' | 'png';
 
 export interface OptimizedImage {
   buffer: Buffer;
@@ -78,7 +78,8 @@ export class ImageOptimizeService {
     const normalizedSrc = this.assertAllowlisted(src);
     const effBlur = Number.isFinite(blur) && blur > 0 ? Math.min(blur, 100) : 0;
 
-    const effQuality = quality ?? (format === 'webp' ? 75 : 80);
+    // PNG 无损不消费 quality；归一化为 0，避免 q=72/q=80 产出相同图片却占两份缓存
+    const effQuality = format === 'png' ? 0 : quality ?? (format === 'webp' ? 75 : 80);
     const cacheKey = this.makeCacheKey(normalizedSrc, width, effQuality, format, effBlur);
     const cachePath = this.cachePathFor(cacheKey, format);
 
@@ -102,8 +103,12 @@ export class ImageOptimizeService {
 
     if (format === 'webp') {
       pipeline = pipeline.webp({ quality: effQuality });
-    } else {
+    } else if (format === 'jpeg') {
       pipeline = pipeline.jpeg({ quality: effQuality, mozjpeg: true });
+    } else {
+      // mobile 本地取色兜底要求 PNG：JPEG 压缩会把「大面积浅底 + 小面积彩色」
+      // 抹平，阈值过滤后退化成全图平均，个别封面 Δ 可到 80+。
+      pipeline = pipeline.png({ compressionLevel: 9 });
     }
 
     const buffer = await pipeline.toBuffer();
@@ -178,11 +183,14 @@ export class ImageOptimizeService {
   }
 
   private cachePathFor(key: string, fmt: OutputFormat): string {
-    return path.join(this.cacheRoot, `${key}.${fmt === 'webp' ? 'webp' : 'jpg'}`);
+    const ext = fmt === 'webp' ? 'webp' : fmt === 'jpeg' ? 'jpg' : 'png';
+    return path.join(this.cacheRoot, `${key}.${ext}`);
   }
 
   private contentTypeFor(fmt: OutputFormat): string {
-    return fmt === 'webp' ? 'image/webp' : 'image/jpeg';
+    if (fmt === 'webp') return 'image/webp';
+    if (fmt === 'jpeg') return 'image/jpeg';
+    return 'image/png';
   }
 
   /**
@@ -304,17 +312,22 @@ export class ImageOptimizeService {
       widths.map(async (w) => {
         try {
           const safeW = Math.min(Math.max(16, w | 0), 1500);
-          const cacheKey = this.makeCacheKey(src, safeW, quality, format);
+          const effQuality = format === 'png' ? 0 : quality;
+          const cacheKey = this.makeCacheKey(src, safeW, effQuality, format);
           const cachePath = this.cachePathFor(cacheKey, format);
           if (fs.existsSync(cachePath)) return; // 已存在则跳过
 
           const pipeline = sharp(sourcePath, { limitInputPixels: ImageOptimizeService.SHARP_INPUT_LIMIT_PIXELS })
             .resize({ width: safeW, withoutEnlargement: true });
 
-          const buf = await (format === 'webp'
-            ? pipeline.webp({ quality })
-            : pipeline.jpeg({ quality, mozjpeg: true })
-          ).toBuffer();
+          if (format === 'webp') {
+            pipeline.webp({ quality });
+          } else if (format === 'jpeg') {
+            pipeline.jpeg({ quality, mozjpeg: true });
+          } else {
+            pipeline.png({ compressionLevel: 9 });
+          }
+          const buf = await pipeline.toBuffer();
 
           const tmpPath = `${cachePath}.${process.pid}.${Date.now()}.tmp`;
           await fs.promises.writeFile(tmpPath, buf);

@@ -62,8 +62,8 @@ export class ImageOptimizeController {
 
     let format: OutputFormat = 'webp';
     if (fmt !== undefined) {
-      if (fmt !== 'webp' && fmt !== 'jpeg') {
-        throw new BadRequestException('fmt must be webp or jpeg');
+      if (fmt !== 'webp' && fmt !== 'jpeg' && fmt !== 'png') {
+        throw new BadRequestException('fmt must be webp, jpeg or png');
       }
       format = fmt;
     }
