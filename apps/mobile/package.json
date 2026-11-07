@@ -58,6 +58,7 @@
     "expo-web-browser": "~15.0.10",
     "i18next": "^26.0.4",
     "i18next-browser-languagedetector": "^8.2.1",
+    "jpeg-js": "^0.4.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-i18next": "^17.0.3",
@@ -75,7 +76,8 @@
     "react-native-track-player": "5.0.0-alpha0",
     "react-native-web": "~0.21.0",
     "react-native-wechat-lib": "1.1.27",
-    "react-native-worklets": "0.5.1"
+    "react-native-worklets": "0.5.1",
+    "upng-js": "^2.1.0"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
