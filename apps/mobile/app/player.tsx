@@ -355,8 +355,8 @@ export function PlayerDetailView({
     skipOutroDuration,
     setSkipOutroDuration,
   } = usePlayer();
-  // 封面主题色（服务端 /image/dominant-color，本地兜底算法同 desktop）：用于背景渐变 + 进度条着色；
-  // 本地兜底成功时还会带回一张磨砂底图（覆盖老服务端不支持 blur / 外链封面两种场景）。
+  // 封面主题色（mobile 纯本地计算，算法同 desktop）：用于背景渐变 + 进度条着色；
+  // 本地解码成功时还会带回一张磨砂底图（覆盖老服务端不支持 blur / 外链封面两种场景）。
   const {
     color: coverColor,
     blurredCoverUri: localCoverBlurUri,
@@ -390,11 +390,11 @@ export function PlayerDetailView({
   // ② 压暗罩层：对齐 desktop 模糊层的 `brightness(0.75)`，让磨砂不发荧光。
   // ③ 主题色渐变罩层：desktop 公式（顶部原色 0.5 → 底部 shade(0.22) 0.94），不分明暗主题。
   // 插件显式定义背景时整体不渲染（插件优先）
-  // 本地兜底生成的磨砂图优先：只有服务端取色失败时才会产生，
-  // 此时老服务端的 optimize 往往也不认识 blur 参数（会返回未模糊原图）；外链封面则本来就没有服务端磨砂图。
+  // 本地解码生成的磨砂图优先：主题色现在恒为本地计算，磨砂图与主题色同源；
+  // 也覆盖老服务端 optimize 不认识 blur 参数、外链封面没有服务端磨砂图两类场景。
   const serverCoverBlurUri = getBlurredCoverUrl(currentTrack?.cover);
   // 解析未完成前不渲染服务端 URL：旧服务端会忽略 blur 参数返回清晰原图，
-  // 等本地兜底产物就绪后直接上磨砂图，避免「清晰 → 磨砂」的可见切换。
+  // 等本地产物就绪后直接上磨砂图，避免「清晰 → 磨砂」的可见切换。
   const coverBlurUri =
     localCoverBlurUri ?? (coverVisualResolved ? serverCoverBlurUri : undefined);
   // 粘性：切歌瞬间新封面未取色完成时，避免背景先闪回中性黑再跳色。

@@ -1,7 +1,6 @@
 /**
- * 播放页封面视觉 hook：输入 track.cover，异步取主题色（服务端接口 + 内存缓存）。
- * 服务端不可用/外链封面时走本地纯 JS 兜底，并附带本地生成的磨砂底图。
- * 失败/不支持时 color 为 null，调用方回退默认主题色。
+ * 播放页封面视觉 hook：输入 track.cover，在本地异步解析主题色（带内存缓存），
+ * 并附带本地生成的磨砂底图。失败/不支持时 color 为 null，调用方回退默认主题色。
  */
 import { useEffect, useState } from "react";
 import {

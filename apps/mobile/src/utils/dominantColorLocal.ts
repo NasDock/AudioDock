@@ -1,10 +1,10 @@
 /**
  * 封面主题色 / 磨砂底图「本地解析」兜底（纯 JS，无原生依赖 → 可走 OTA）。
  *
- * 只在服务端取色不可用时启用（见 utils/dominantColor.ts 的调用点）：
- *  - 老版本服务端没有 /image/dominant-color（404）；
- *  - 外链封面（Emby / Subsonic）不在服务端白名单内，本来取不到色；
- *  - 服务端异常 / 网络超时。
+ * mobile 播放页主题色恒在本地计算（见 utils/dominantColor.ts 的调用点），
+ * 不再请求服务端 /image/dominant-color。覆盖两类封面：
+ *  - AudioDock 源封面（通过图片代理拿 96px PNG / 原图 / 96px JPEG）；
+ *  - 外链封面（Emby / Subsonic，直接下载原图）。
  *
  * 下载候选按「精度优先、兼容兜底」排序：
  *  1. AudioDock 源：/image/optimize?w=96&fmt=png（新版服务端；96=32×3，

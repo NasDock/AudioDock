@@ -383,31 +383,36 @@ function RootLayoutNav() {
     rootSegment === "mv" ||
     rootSegment === "modal";
 
-  // 底部栏恢复延迟（floating 过渡）。
-  // stack（Stack 导航容器）与 GlobalBottomBar 是同一个 flex 容器的**兄弟节点**，
-  // 底部栏一回到文档流，stack 立刻被压掉一整个底部栏高度（mini 播放器 + 49 + insets.bottom）。
-  // 而 useSegments() 在返回时**立刻**更新到目标路由，退场动画却还在跑 ——
-  // 于是正在下滑的播放页容器瞬间变矮，下半截在「mini 播放器顶部」那条线被裁掉，
-  // 表现就是「关闭到一半页面就看不见了」。
-  // 修法：退场动画期间底部栏照常显示但改成 absolute 浮层（见 GlobalBottomBar.floating），
-  // 不占布局高度；动画结束再切回文档流。transitionEnd 精确解除 + 600ms 兜底。
-  // 用 useLayoutEffect 而非 useEffect：否则恢复首帧会先按文档流渲染一次（Stack 被压矮一帧），
-  // 屏幕上看得出一次跳动。
+  // 底部栏恢复延迟。
+  // useSegments() 在返回时**立刻**更新到目标路由，但播放页退场动画还在跑。
+  // 这时不能提前渲染底部栏：
+  //  - 若直接回到文档流，Stack 会被压矮，正在下滑的页面下半截被裁掉；
+  //  - 若改成 absolute 浮层，bottomBar 又会盖住 native Stack 里的退场页面，
+  //    视觉上页面刚到 mini 播放器顶部就“消失”（React Native Screens 的转场层级
+  //    不受普通 JS zIndex 完全控制，Android 上尤其明显）。
+  // 因此退场期间保持底部栏卸载，让播放页完整滑到屏幕底部；transitionEnd 后再恢复。
+  // 用 useLayoutEffect 而非 useEffect：避免恢复首帧先按文档流渲染一次造成跳动。
+  // 1.5s 只是 replace/异常路径的兜底，正常以 transitionEnd 精确恢复，避免慢速手势时提前出现。
   const [barRestorePending, setBarRestorePending] = useState(false);
   const wasBarHiddenRef = useRef(hideBottomBar);
+  const previousRootSegmentRef = useRef(rootSegment);
   useLayoutEffect(() => {
     const wasHidden = wasBarHiddenRef.current;
+    const previousRootSegment = previousRootSegmentRef.current;
     wasBarHiddenRef.current = hideBottomBar;
+    previousRootSegmentRef.current = rootSegment;
     if (!wasHidden) return;
     if (hideBottomBar) {
       // 又进入了全屏路由：立即取消待恢复状态，交给 hideBottomBar 兜住
       setBarRestorePending(false);
       return;
     }
+    // 只对播放页退场延迟恢复；其他全屏页保持原有行为，避免侧滑退场时底部栏短暂消失。
+    if (previousRootSegment !== "player") return;
     setBarRestorePending(true);
-    const timer = setTimeout(() => setBarRestorePending(false), 600);
+    const timer = setTimeout(() => setBarRestorePending(false), 1500);
     return () => clearTimeout(timer);
-  }, [hideBottomBar]);
+  }, [hideBottomBar, rootSegment]);
 
   const stack = (
     <Stack
@@ -530,9 +535,9 @@ function RootLayoutNav() {
   );
 
   const showCarLayout = isVip && carLayoutMode && rootSegment !== "player";
-  // 退场动画期间（barRestorePending）底部栏照常显示，但改为 floating 浮层：
-  // 不占布局高度 → Stack 不被压矮，下滑中的页面不会被裁；视觉位置与占位模式一致。
-  const showBottomBar = !hideBottomBar;
+  // 退场动画期间（barRestorePending）先卸载底部栏：让 native Stack 保持全屏，
+  // 播放页可以完整滑到屏幕底部；动画结束后底部栏再直接按文档流恢复。
+  const showBottomBar = !hideBottomBar && !barRestorePending;
   const playerPanelWidth = carLayoutSize.height > 0 ? (carLayoutSize.height * 9) / 16 : 0;
   const swapButtonLeft =
     playerPanelWidth > 0
@@ -564,7 +569,7 @@ function RootLayoutNav() {
   const contentPanel = (
     <View style={styles.rightContent}>
       {stack}
-      {showBottomBar && <GlobalBottomBar floating={barRestorePending} />}
+      {showBottomBar && <GlobalBottomBar />}
     </View>
   );
 
@@ -598,7 +603,7 @@ function RootLayoutNav() {
         ) : (
           <View style={styles.stackRoot}>
             {stack}
-            {showBottomBar && <GlobalBottomBar floating={barRestorePending} />}
+            {showBottomBar && <GlobalBottomBar />}
           </View>
         )}
       </View>

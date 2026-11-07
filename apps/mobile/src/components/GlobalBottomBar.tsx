@@ -14,7 +14,7 @@ const tabs = [
   { label: "navTabs.mine", icon: "person", href: "/(tabs)/personal" },
 ];
 
-export const GlobalBottomBar = ({ floating = false }: { floating?: boolean }) => {
+export const GlobalBottomBar = () => {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const router = useRouter();
@@ -26,7 +26,7 @@ export const GlobalBottomBar = ({ floating = false }: { floating?: boolean }) =>
     segments[0] === "(tabs)" ? ((segments[1] as string) || "index") : "";
 
   return (
-    <View style={[styles.container, floating && styles.floating]}>
+    <View style={styles.container}>
       {!carLayoutMode && <MiniPlayer />}
       <View
         style={[
@@ -75,21 +75,6 @@ export const GlobalBottomBar = ({ floating = false }: { floating?: boolean }) =>
 const styles = StyleSheet.create({
   container: {
     width: "100%",
-  },
-  /**
-   * 浮层模式：不占据文档流高度，覆盖在内容之上。
-   *
-   * 用于「全屏页退场动画进行中」——底部栏与 Stack 是兄弟节点，一旦回到文档流，
-   * Stack 立刻被压矮整个底部栏高度，正在下滑的页面下半截会被裁掉
-   * （表现为「关闭到 mini 播放器顶部就看不见了」）。浮层化后 Stack 保持全屏，
-   * 且底部栏视觉位置与占位模式完全一致，动画结束切回文档流时不会跳动。
-   */
-  floating: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 10,
   },
   tabBar: {
     flexDirection: "row",
