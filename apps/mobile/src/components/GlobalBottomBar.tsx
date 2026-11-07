@@ -15,7 +15,7 @@ import { usePlayer } from "../context/PlayerContext";
 import { useSettings } from "../context/SettingsContext";
 import { useTheme } from "../context/ThemeContext";
 import { MINI_PLAYER_HEIGHT, MiniPlayer } from "./MiniPlayer";
-const TAB_BAR_BASE_HEIGHT = 49;
+export const TAB_BAR_BASE_HEIGHT = 49;
 const ENTER_DURATION_MS = 240;
 
 const tabs = [
@@ -141,12 +141,18 @@ export const GlobalBottomBar = ({
 
 const styles = StyleSheet.create({
   animationContainer: {
+    // 覆盖式底部栏：根 Stack 恒为全屏，转场起止位置不受底部栏显示/隐藏影响
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: "100%",
     overflow: "hidden",
-    position: "relative",
+    zIndex: 10,
+    elevation: 10,
   },
-  // 内容锚定容器底部：外层高度从 0 展开时，底部栏从屏幕底部平滑露出，
-  // 同时 Stack 被逐步压缩，避免恢复瞬间把页面内容上顶一下。
+  // 内容锚定容器底部：外层高度从 0 展开时，底部栏从屏幕底部平滑露出；
+  // 底层内容已由根 Stack 的 contentStyle 预留空间，不会再被上顶。
   container: {
     position: "absolute",
     left: 0,

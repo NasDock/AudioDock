@@ -19,7 +19,11 @@ const SWAP_BUTTON_SIZE = 42;
 import { PlaylistModal } from "../src/components/PlaylistModal";
 import { PrivacyAgreementDialog } from "../src/components/PrivacyAgreementDialog";
 import { SquirrelAgent } from "../src/components/SquirrelAgent";
-import { GlobalBottomBar } from "../src/components/GlobalBottomBar";
+import {
+  GlobalBottomBar,
+  TAB_BAR_BASE_HEIGHT,
+} from "../src/components/GlobalBottomBar";
+import { MINI_PLAYER_HEIGHT } from "../src/components/MiniPlayer";
 import { SettingsProvider, useSettings } from "../src/context/SettingsContext";
 import { SyncProvider } from "../src/context/SyncContext";
 import { syncWidgetMembership } from "../src/native/WidgetBridge";
@@ -29,6 +33,7 @@ import { UpdateModal } from "../src/components/UpdateModal";
 import { useCheckUpdate } from "../hooks/useCheckUpdate";
 import { PromotionDialog } from "../src/components/PromotionDialog";
 import { useCheckPromotion } from "../hooks/useCheckPromotion";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function RootLayoutNav() {
   const { token, isLoading, plusToken, user } = useAuth();
@@ -42,6 +47,7 @@ function RootLayoutNav() {
   } =
     useSettings();
   const { theme, colors } = useTheme();
+  const safeAreaInsets = useSafeAreaInsets();
   const { pause, resume, playNext, playPrevious, togglePlayMode, isPlaying, currentTrack, playTrackList } = usePlayer();
   const { mode: contentMode } = usePlayMode();
   const segments = useSegments();
@@ -383,6 +389,16 @@ function RootLayoutNav() {
     rootSegment === "mv" ||
     rootSegment === "modal";
 
+  // 底部栏覆盖在根 Stack 上；这里只给屏幕内容预留底部空间，不改变根 Stack 高度。
+  // 这样进入播放页时，native 转场始终按屏幕真实底部计算起始位置。
+  const bottomBarHeight =
+    (!carLayoutMode && currentTrack ? MINI_PLAYER_HEIGHT : 0) +
+    TAB_BAR_BASE_HEIGHT +
+    safeAreaInsets.bottom;
+  // player 显示期间也保留底层 tab 的 padding（player 自身单独覆盖为 0），
+  // 避免进入动画期间底层页面同时发生布局位移。
+  const reserveBottomBarSpace = !hideBottomBar || rootSegment === "player";
+
   // 底部栏恢复延迟。
   // useSegments() 在返回时**立刻**更新到目标路由，但播放页退场动画还在跑。
   // 这时不能提前渲染底部栏：
@@ -424,6 +440,12 @@ function RootLayoutNav() {
 
   const stack = (
     <Stack
+      screenOptions={{
+        // 根 Stack 恒全屏；普通页面内容底部预留覆盖式底部栏高度
+        contentStyle: {
+          paddingBottom: reserveBottomBarSpace ? bottomBarHeight : 0,
+        },
+      }}
       screenListeners={{
         // 退场动画结束：解除底部栏恢复延迟（见上方 barRestorePending）
         transitionEnd: () => setBarRestorePending(false),
@@ -444,6 +466,8 @@ function RootLayoutNav() {
           presentation: "fullScreenModal",
           headerShown: false,
           animation: "slide_from_bottom",
+          // 播放页自身是全屏页，不能预留底部栏空间，否则退场时页面会被压缩
+          contentStyle: { paddingBottom: 0 },
         }}
       />
       <Stack.Screen
@@ -731,6 +755,7 @@ const styles = StyleSheet.create({
   },
   stackRoot: {
     flex: 1,
+    position: "relative",
   },
   carModeContainer: {
     flex: 1,
@@ -743,6 +768,7 @@ const styles = StyleSheet.create({
   },
   rightContent: {
     flex: 1,
+    position: "relative",
   },
   swapButton: {
     position: "absolute",
