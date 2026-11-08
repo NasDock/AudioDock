@@ -461,14 +461,11 @@ function RootLayoutNav() {
       <Stack.Screen
         name="player"
         options={{
-          presentation: "transparentModal",
+          presentation: "fullScreenModal",
           headerShown: false,
-          // native 转场会受底部栏/容器 inset 影响；播放页改为 JS 自驱动滑入滑出（见 player.tsx）
-          animation: "none",
-          // 禁掉原生手势返回，统一走 closePlayer 的「滑到底部后再返回」
-          gestureEnabled: false,
-          // 播放页必须全屏且透明，滑动时下方才能看到上一页
-          contentStyle: { paddingBottom: 0, backgroundColor: "transparent" },
+          animation: "slide_from_bottom",
+          // 播放页必须全屏，不能继承底部栏预留
+          contentStyle: { paddingBottom: 0 },
         }}
       />
       <Stack.Screen

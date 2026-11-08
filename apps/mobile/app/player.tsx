@@ -33,7 +33,6 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { useTranslation } from "react-i18next";
 import {
   Animated,
-  Easing,
   Alert,
   BackHandler,
   Dimensions,
@@ -320,22 +319,6 @@ export function PlayerDetailView({
   const top = insets.top;
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
-  // 自驱动进出场：不再依赖 native slide_from_bottom，起止位置恒为屏幕完整高度
-  const transitionTranslateY = useRef(
-    new Animated.Value(embedded ? 0 : height),
-  ).current;
-  const transitionClosingRef = useRef(false);
-  useEffect(() => {
-    if (embedded) return;
-    const animation = Animated.timing(transitionTranslateY, {
-      toValue: 0,
-      duration: 260,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    });
-    animation.start();
-    return () => animation.stop();
-  }, [embedded, transitionTranslateY]);
   // 黑胶盘直径：对齐 desktop 方形220→圆盘320 的 1.45 倍关系（200 → 290），窄屏兜底
   const vinylSize = Math.min(width - 60, 290);
   // 横屏受高度约束（手机横屏高 <500 也走到单封面分支时需收窄）
@@ -511,28 +494,12 @@ export function PlayerDetailView({
   const lineLayouts = useRef<{ [key: number]: any }>({});
 
   const closePlayer = useCallback(() => {
-    const navigateBack = () => {
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.replace("/(tabs)");
-      }
-    };
-    if (embedded || transitionClosingRef.current) return;
-    // 快速进入又立即关闭时，先停掉入场动画，避免两个 timing 并发写同一 value
-    transitionTranslateY.stopAnimation();
-    transitionClosingRef.current = true;
-    // 先完整滑到屏幕底部，再触发路由返回；native 转场已禁用，不会被底部栏截断
-    Animated.timing(transitionTranslateY, {
-      toValue: height,
-      duration: 220,
-      easing: Easing.in(Easing.cubic),
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      transitionClosingRef.current = false;
-      if (finished) navigateBack();
-    });
-  }, [embedded, height, router, transitionTranslateY]);
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)");
+    }
+  }, [router]);
 
   useEffect(() => {
     if (embedded) return;
@@ -544,23 +511,6 @@ export function PlayerDetailView({
 
     return () => backHandler.remove();
   }, [embedded, closePlayer]);
-
-  const renderWithTransition = (content: React.ReactNode) => {
-    if (embedded) return content;
-    return (
-      <Animated.View
-        style={[
-          styles.transitionContainer,
-          {
-            backgroundColor: themeBackground,
-            transform: [{ translateY: transitionTranslateY }],
-          },
-        ]}
-      >
-        {content}
-      </Animated.View>
-    );
-  };
 
   useEffect(() => {
     const loadVipStatus = async () => {
@@ -1772,7 +1722,7 @@ export function PlayerDetailView({
 
   if (!currentTrack) {
     if (embedded && carModeEnabled) {
-      return renderWithTransition(
+      return (
         <View
           style={[
             styles.container,
@@ -1792,7 +1742,7 @@ export function PlayerDetailView({
       );
     }
 
-    return renderWithTransition(
+    return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Text style={{ color: colors.text }}>No track playing</Text>
         {!embedded && (
@@ -2288,7 +2238,7 @@ export function PlayerDetailView({
   );
 
   if (isLandscape && !(carModeEnabled && isVip)) {
-    return renderWithTransition(
+    return (
       <View
         style={[
           styles.container,
@@ -2502,7 +2452,7 @@ export function PlayerDetailView({
     );
   }
 
-  return renderWithTransition(
+  return (
     <View
       style={[
         styles.container,
@@ -2655,9 +2605,6 @@ export default function PlayerScreen() {
 }
 
 const styles = StyleSheet.create({
-  transitionContainer: {
-    flex: 1,
-  },
   container: {
     flex: 1,
   },
