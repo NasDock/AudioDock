@@ -9,11 +9,14 @@ const LEGACY_PLAY_MODE_KEY = "playMode";
 interface PlayModeContextType {
   mode: PlayMode;
   setMode: (mode: PlayMode) => Promise<void>;
+  /** 持久化的 contentMode 是否已从 AsyncStorage 读完（冷启动竞态闸门） */
+  modeLoaded: boolean;
 }
 
 const PlayModeContext = createContext<PlayModeContextType>({
   mode: "MUSIC",
   setMode: async () => {},
+  modeLoaded: false,
 });
 
 export const usePlayMode = () => useContext(PlayModeContext);
@@ -22,13 +25,17 @@ export const PlayModeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [mode, setModeState] = useState<PlayMode>("MUSIC");
+  const [modeLoaded, setModeLoaded] = useState(false);
   const { sourceType } = useAuth();
 
   useEffect(() => {
     if (sourceType === "Subsonic") {
       setModeState("MUSIC");
+      setModeLoaded(true);
     } else {
-      loadMode();
+      // 等持久化的 contentMode 读完再放行，保证 PlayerContext 的初始恢复
+      // 直接落在最终模式上，不会先按默认 MUSIC 恢复一轮再切换（双重恢复竞态）。
+      loadMode().finally(() => setModeLoaded(true));
     }
   }, [sourceType]);
 
@@ -55,7 +62,7 @@ export const PlayModeProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   return (
-    <PlayModeContext.Provider value={{ mode, setMode }}>
+    <PlayModeContext.Provider value={{ mode, setMode, modeLoaded }}>
       {children}
     </PlayModeContext.Provider>
   );

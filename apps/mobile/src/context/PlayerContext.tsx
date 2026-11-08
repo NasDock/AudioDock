@@ -194,7 +194,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const { user, device, isLoading: isAuthLoading } = useAuth();
   const { t } = useTranslation();
-  const { mode, setMode } = usePlayMode();
+  const { mode, setMode, modeLoaded } = usePlayMode();
   const { showNotification } = useNotification();
   const {
     acceptRelay,
@@ -233,6 +233,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const pendingPlaybackTrackIdRef = useRef<string | null>(null);
   // 用户是否主动暂停（用于区分「加载完停住」和「用户手动暂停」）
   const userPausedRef = useRef(false);
+  // 禁止「切歌/连播兜底」自动补播（PlaybackState 停在 Ready/Stopped 时的
+  // TrackPlayer.play() 兜底）。冷启动/模式切换的状态恢复只重建队列与进度，
+  // 绝不许出声——恢复路径会把此标记置 true；只有显式播放意图
+  // （playTrack / playTrackList / resume）才清除。
+  const suppressAutoResumeRef = useRef(true);
 
   const prevModeRef = useRef(mode);
   const isInitialLoadRef = useRef(true);
@@ -957,10 +962,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           String(currentTrackRef.current?.id) === pendingPlaybackTrackIdRef.current;
         const isAutoAdvanceStuck =
           !isPlaybackRequestPendingRef.current &&
+          !suppressAutoResumeRef.current &&
           currentTrackRef.current &&
           !userPausedRef.current;
 
         if (
+          !suppressAutoResumeRef.current &&
           event.state !== State.Buffering &&
           event.state !== State.Loading &&
           event.state !== State.Playing &&
@@ -1421,13 +1428,51 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     prevModeRef.current = nextMode;
   };
 
+  // 持久化瘦身：Track 带 lyrics 长文本和 likedByUsers/listenedByUsers/playlists
+  // 等嵌套数组。音乐队列常是整个曲库（数百上千首），整列原始 JSON 可达数 MB，
+  // 超出 AsyncStorage（Android 默认 6MB）容量后写入永远失败、catch 只打日志——
+  // playbackState_MUSIC 一直缺失，冷启动恢复不到 mini 播放器
+  // （有声书队列只是单专辑几十集，体积小所以一直正常）。
+  // 因此只保留当前曲目前后各 PERSIST_TRACK_WINDOW 首，并剥离大字段
+  // （当前曲目保留歌词，供播放页/车机歌词直接用）。
+  const sanitizeTrackForPersist = (t: Track, keepLyrics = false): Track => {
+    const {
+      lyrics,
+      likedByUsers,
+      listenedByUsers,
+      likedAsAudiobookByUsers,
+      listenedAsAudiobookByUsers,
+      playlists,
+      ...rest
+    } = t as any;
+    if (keepLyrics) {
+      rest.lyrics = lyrics ?? null;
+    }
+    return rest as Track;
+  };
+  const PERSIST_TRACK_WINDOW = 50;
+
   const savePlaybackState = async (targetMode: string) => {
     if (!currentTrackRef.current || !isSetup) return;
+    const current = currentTrackRef.current;
+    const fullList = trackListRef.current;
+    const currentIndex = Math.max(
+      0,
+      fullList.findIndex((t) => t.id === current.id)
+    );
+    const windowStart = Math.max(0, currentIndex - PERSIST_TRACK_WINDOW);
+    const persistCurrent = sanitizeTrackForPersist(current, true);
+    const persistList = fullList
+      .slice(windowStart, windowStart + PERSIST_TRACK_WINDOW * 2 + 1)
+      .map((t) => sanitizeTrackForPersist(t, t.id === current.id));
+    const playModeToSave = isRadioModeRef.current
+      ? normalPlayModeRef.current
+      : playModeRef.current;
     const state = {
-      currentTrack: currentTrackRef.current,
-      trackList: trackListRef.current,
+      currentTrack: persistCurrent,
+      trackList: persistList,
       position: positionRef.current,
-      playMode: isRadioModeRef.current ? normalPlayModeRef.current : playModeRef.current,
+      playMode: playModeToSave,
       playbackRate: playbackRateRef.current,
     };
     try {
@@ -1436,12 +1481,31 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         JSON.stringify(state)
       );
     } catch (e) {
+      // 兜底：即便窗口化后仍写失败（极端大歌词/存储满），降级为单曲目最小状态，
+      // 至少保证下次冷启动 mini 播放器能恢复。
       console.error("Failed to save playback state", e);
+      try {
+        await AsyncStorage.setItem(
+          `playbackState_${targetMode}`,
+          JSON.stringify({
+            currentTrack: persistCurrent,
+            trackList: [persistCurrent],
+            position: positionRef.current,
+            playMode: playModeToSave,
+            playbackRate: playbackRateRef.current,
+          })
+        );
+      } catch (fallbackError) {
+        console.error("Failed to save minimal playback state", fallbackError);
+      }
     }
   };
 
   const loadPlaybackState = async (targetMode: string, restorePlayMode = false) => {
     if (!isSetup) return;
+    // 状态恢复只重建队列/进度，期间及恢复后禁止兜底逻辑自动补播，
+    // 直到用户显式播放（playTrack/playTrackList/resume 会清除该标记）。
+    suppressAutoResumeRef.current = true;
     try {
       const saved = await AsyncStorage.getItem(`playbackState_${targetMode}`);
       if (saved) {
@@ -1576,7 +1640,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   useEffect(() => {
-    if (!isSetup || isAuthLoading) return;
+    // 等 contentMode 从 AsyncStorage 读完再恢复，避免先按默认 MUSIC 恢复一轮、
+    // loadMode 完成后又切到持久化模式重复恢复（两次 setQueue 并发交错）。
+    if (!isSetup || isAuthLoading || !modeLoaded) return;
     const handleModeChange = async () => {
       if (isInitialLoadRef.current) {
         await loadPlaybackState(mode, true); // 初始加载时恢复播放模式
@@ -1595,7 +1661,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     };
     handleModeChange();
-  }, [mode, isSetup, isAuthLoading]);
+  }, [mode, isSetup, isAuthLoading, modeLoaded]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1620,6 +1686,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     isPlaybackRequestPendingRef.current = true;
     pendingPlaybackTrackIdRef.current = String(track.id);
     userPausedRef.current = false;
+    suppressAutoResumeRef.current = false; // 显式播放意图，允许切歌兜底补播
 
     const isLatestRequest = () => requestId === playbackRequestIdRef.current;
 
@@ -1791,6 +1858,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     isPlaybackRequestPendingRef.current = true;
     pendingPlaybackTrackIdRef.current = tracks[index] ? String(tracks[index].id) : null;
     userPausedRef.current = false;
+    suppressAutoResumeRef.current = false; // 显式播放意图，允许切歌兜底补播
 
     const isLatestRequest = () => requestId === playbackRequestIdRef.current;
 
@@ -1957,6 +2025,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     if (isSetup) {
       try {
         userPausedRef.current = false;
+        suppressAutoResumeRef.current = false; // 显式恢复播放
         // 兜底：原生队列被回收/恢复失败导致为空，但 UI 还有当前曲目时，
         // play() 不会有任何效果——用当前曲目强制重建播放（跳过幂等检查）。
         const queue = await TrackPlayer.getQueue();
