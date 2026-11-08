@@ -80,6 +80,12 @@
 - 主窗口 transparent 仅 macOS 需要（对齐 Electron `transparent: darwin`），Windows 已在 tauri.windows.conf.json 覆盖 transparent:false；mini 窗口 transparent(true)+shadow(false) 对齐 Electron。
 - 远程定位白屏链路法：Win32 EnumWindows 看 Chrome_WidgetWin_0 是否 0x0/不可见（webview 是否初始化）+ %APPDATA%/cn.audiodock.desktop 日志文件探针 + probe.txt 轮询建窗探针隔离 command 上下文。
 
+## mobile 播放状态持久化与冷启动恢复（2026-11-08）
+- **AsyncStorage 有容量上限**（Android 默认 6MB）：不可整列持久化原始 Track（含 lyrics 长文本 + likedByUsers/playlists 嵌套数组）。音乐队列常是整个曲库 → 写入永远失败且 catch 只打日志 → `playbackState_MUSIC` 缺失 → 冷启动 mini 播放器不展示（有声书队列小所以一直正常）。savePlaybackState 必须瘦身（剥离 lyrics/嵌套数组，仅当前曲保留歌词）+ 队列窗口裁剪（当前曲前后各 50 首），写入失败再降级存单曲目最小状态。
+- **恢复路径绝不出声**：`suppressAutoResumeRef`（初始 true），loadPlaybackState 入口置 true，兜底自动补播 if 加闸门；只有 playTrack / playTrackList / resume 三个显式播放入口清除。冷启动 userPausedRef 默认 false 会误触发兜底 TrackPlayer.play()。
+- **contentMode 异步加载竞态**：playMode.tsx 暴露 `modeLoaded`，PlayerContext 初始恢复 effect 必须加 `!modeLoaded` 闸门，否则先按默认 MUSIC 恢复一轮、再切 AUDIOBOOK 二次恢复，两次 setQueue 并发交错。
+- 恢复队列被窗口化（±50 首），非当前曲目无歌词；恢复后需用户手动点播放（产品预期）。
+
 ## 其他
 - @soundx/services：father 构建入口指 dist，改 src/ 必须 `cd packages/services && pnpm build`。
 - mini 会员支付：plusWechatMpSession→openid；下单 clientType:'miniprogram'+openId；返回 wechatPay 喂 Taro.requestPayment。
