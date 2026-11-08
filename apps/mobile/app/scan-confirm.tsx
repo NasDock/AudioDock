@@ -158,7 +158,7 @@ export default function ScanConfirmScreen() {
         </Text>
 
         <View style={styles.list}>
-          {scanStatus.sourceBundles.map((bundle) => (
+          {(scanStatus.sourceBundles || []).map((bundle) => (
             <View key={bundle.type} style={[styles.bundleCard, { borderColor: colors.border, backgroundColor: colors.card }]}>
               <Text style={[styles.bundleTitle, { color: colors.text }]}>{bundle.type}</Text>
               {bundle.configs.map((config) => {
@@ -192,7 +192,7 @@ export default function ScanConfirmScreen() {
               })}
             </View>
           ))}
-          {scanStatus.sourceBundles.length === 0 && (
+          {(scanStatus.sourceBundles || []).length === 0 && (
             <Text style={[styles.desc, { color: colors.secondary, marginTop: 24 }]}>
               扫码设备没有提供任何数据源。将仅同步用户自身状态。
             </Text>

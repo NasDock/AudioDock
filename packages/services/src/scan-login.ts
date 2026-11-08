@@ -60,7 +60,21 @@ const scanLoginRequest = axios.create({
   baseURL: PLUS_API_BASE_URL,
 });
 
-scanLoginRequest.interceptors.response.use((response) => response.data);
+scanLoginRequest.interceptors.response.use((response) => {
+  const body = response.data;
+  // 服务端业务错误以 HTTP 200 + 错误码 envelope 返回（如 {code:400,message,..}），
+  // axios 不会抛错，必须在此显式拒绝，否则调用方会误判成功、静默失败
+  if (
+    body &&
+    typeof body === "object" &&
+    typeof body.code === "number" &&
+    body.code !== 200 &&
+    body.code !== 201
+  ) {
+    throw new Error(body.message || "扫码登录请求失败");
+  }
+  return body;
+});
 
 export const createScanLoginSession = async (data: {
   role: "scanner" | "target";
@@ -116,6 +130,15 @@ export const reportScanLoginResult = async (
   );
 };
 
+const SCAN_LOGIN_POLL_INTERVAL = 1500;
+const SCAN_LOGIN_WS_GRACE_PERIOD = 3000;
+
+const isTerminalScanLoginStatus = (status?: string) =>
+  status === "consumed" ||
+  status === "success" ||
+  status === "failed" ||
+  status === "expired";
+
 export const subscribeScanLoginSession = (
   sessionId: string,
   secret: string,
@@ -124,6 +147,22 @@ export const subscribeScanLoginSession = (
   const socket = getPlusSocket();
   const eventName = `scan_login_session_update:${sessionId}`;
   const reportEventName = "scan_login_report_result";
+
+  let stopped = false;
+  let lastStatus = "";
+  let pollTimer: ReturnType<typeof setInterval> | null = null;
+  let graceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const notify = (status: ScanLoginSessionStatus) => {
+    if (stopped || !status) return;
+    // 按状态去重：WS 推送与轮询可能同时到达同一状态
+    if (status.status === lastStatus) return;
+    lastStatus = status.status;
+    listener(status);
+    if (isTerminalScanLoginStatus(status.status)) {
+      stopPolling();
+    }
+  };
 
   const handleUpdate = (payload: {
     sessionId: string;
@@ -136,7 +175,7 @@ export const subscribeScanLoginSession = (
       sessionId: payload.sessionId,
       status: payload.status?.status,
     });
-    listener(payload.status);
+    notify(payload.status);
   };
 
   const handleReport = (payload: {
@@ -152,17 +191,55 @@ export const subscribeScanLoginSession = (
       success: payload.success,
       error: payload.error,
     });
-    listener({ status: payload.success ? "success" : "failed", sessionId } as any);
+    notify({ status: payload.success ? "success" : "failed", sessionId } as any);
+  };
+
+  const stopPolling = () => {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  };
+
+  const startPolling = () => {
+    if (stopped || pollTimer) return;
+    console.log("[scan-login] ws unavailable, fallback to polling", { sessionId });
+    pollTimer = setInterval(async () => {
+      if (stopped) return;
+      try {
+        const res = await getScanLoginSession(sessionId, secret);
+        const status = (res as any)?.data as ScanLoginSessionStatus | undefined;
+        if (status?.status) {
+          notify(status);
+        }
+      } catch (err) {
+        // 轮询失败静默重试，等待下一次 tick
+      }
+    }, SCAN_LOGIN_POLL_INTERVAL);
   };
 
   socket.on(eventName, handleUpdate);
   socket.on(reportEventName, handleReport);
   socket.emit("scan_login_watch", { sessionId, secret });
 
+  // 宽限期内 WS 没有任何推送（未连接/推送丢失）则降级轮询，
+  // 覆盖 wss 被代理/防火墙拦截、旧版 WS 地址静默无事件等场景
+  graceTimer = setTimeout(() => {
+    if (!stopped && !lastStatus) {
+      startPolling();
+    }
+  }, SCAN_LOGIN_WS_GRACE_PERIOD);
+
   return () => {
+    stopped = true;
     // socket.emit("scan_login_unwatch", { sessionId, secret });
     socket.off(eventName, handleUpdate);
     socket.off(reportEventName, handleReport);
+    stopPolling();
+    if (graceTimer) {
+      clearTimeout(graceTimer);
+      graceTimer = null;
+    }
   };
 };
 
