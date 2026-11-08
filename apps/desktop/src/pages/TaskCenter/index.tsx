@@ -23,9 +23,9 @@ import { useTranslation } from "react-i18next";
 
 const { Title, Text } = Typography;
 
-// 轮询策略：有进行中任务时 2s 高频刷新；没有时退到 30s 慢轮询（避免空跑打爆接口）
+// 轮询策略：仅有进行中任务时才 2s 轮询；没有进行中任务（含空列表）则完全停止轮询，
+// 直到用户手动刷新或触发任务操作后重新评估（避免空跑打爆接口）
 const ACTIVE_POLL_MS = 2000;
-const IDLE_POLL_MS = 30000;
 
 // 统一状态 → antd Tag 颜色（沿用 TTS 列表页既有色板）
 const STATUS_COLOR: Record<UnifiedTask["status"], string> = {
@@ -57,15 +57,15 @@ const TaskCenter: React.FC = () => {
     }
   };
 
-  // 根据当前任务列表自适应调度下一次轮询
+  // 根据当前任务列表自适应调度下一次轮询：无进行中任务时不再发起请求
   const scheduleNext = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
     const hasActive = tasksRef.current.some(isTaskActive);
-    const delay = hasActive ? ACTIVE_POLL_MS : IDLE_POLL_MS;
+    if (!hasActive) return;
     timerRef.current = setTimeout(async () => {
       await fetchTasks(false);
       scheduleNext();
-    }, delay);
+    }, ACTIVE_POLL_MS);
   };
 
   useEffect(() => {

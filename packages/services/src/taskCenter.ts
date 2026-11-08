@@ -188,3 +188,17 @@ export const hasActiveTasks = async (
   const tasks = await fetchAllTasks(serverAddress);
   return tasks.some(isTaskActive);
 };
+
+/**
+ * 任务变更事件名。创建/暂停/恢复/删除任务后通过 notifyTasksChanged() 广播，
+ * 空闲中的监听方（如 Header 任务中心入口）收到后才重新拉取一次，
+ * 避免无条件定时轮询打爆 /import/tasks 与 /tts/api/tasks/。
+ */
+export const TASKS_CHANGED_EVENT = "soundx:tasks-changed";
+
+/** 广播任务变更事件（仅浏览器环境生效）。 */
+export const notifyTasksChanged = (): void => {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(TASKS_CHANGED_EVENT));
+  }
+};

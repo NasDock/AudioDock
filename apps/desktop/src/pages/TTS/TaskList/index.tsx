@@ -17,7 +17,7 @@ import {
     Tag,
     Typography
 } from "antd";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { trackEvent } from "../../../services/tracking";
 
@@ -25,11 +25,19 @@ const { Title, Text } = Typography;
 
 // TtsTask type is now imported from @soundx/services
 
+// 轮询策略：仅有进行中任务（pending/processing）时才 5s 轮询；
+// 空列表或无进行中任务时完全停止轮询，手动刷新/任务操作后重新评估
+const ACTIVE_POLL_MS = 5000;
+const isActiveStatus = (status: string) =>
+  status === "pending" || status === "processing";
+
 const TaskList: React.FC = () => {
   const [tasks, setTasks] = useState<TtsTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const navigate = useNavigate();
+  const tasksRef = useRef<TtsTask[]>([]);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const ensureVipAccess = async () => {
     const plusToken = localStorage.getItem("plus_token");
@@ -55,12 +63,24 @@ const TaskList: React.FC = () => {
     if (showLoading) setLoading(true);
     try {
       const res = await getTtsTasks();
+      tasksRef.current = res.tasks;
       setTasks(res.tasks);
     } catch (error) {
       console.error("Failed to fetch tasks:", error);
     } finally {
       if (showLoading) setLoading(false);
     }
+  };
+
+  // 无进行中任务时停止轮询，不再发起请求
+  const scheduleNext = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    const hasActive = tasksRef.current.some((t) => isActiveStatus(t.status));
+    if (!hasActive) return;
+    timerRef.current = setTimeout(async () => {
+      await fetchTasks(false);
+      scheduleNext();
+    }, ACTIVE_POLL_MS);
   };
 
   const handleAction = async (action: string, id: string) => {
@@ -87,16 +107,23 @@ const TaskList: React.FC = () => {
         });
         await resumeTtsTask(id);
       }
-      fetchTasks(false);
+      await fetchTasks(false);
+      scheduleNext();
     } catch (error) {
       console.error(`Failed to ${action} task:`, error);
     }
   };
 
   useEffect(() => {
-    ensureVipAccess().then((ok)=>{ if (ok) fetchTasks(); });
-    const timer = setInterval(() => fetchTasks(false), 5000); // 后台静默刷新
-    return () => clearInterval(timer);
+    // 进页面只请求一次；有进行中任务才开始轮询，为空或全部终态则不轮询
+    ensureVipAccess().then((ok) => {
+      if (!ok) return;
+      fetchTasks().then(() => scheduleNext());
+    });
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filteredTasks =
@@ -287,7 +314,7 @@ const TaskList: React.FC = () => {
                 feature: "tts",
                 eventName: "tts_task_refresh",
               });
-              fetchTasks(true);
+              fetchTasks(true).then(() => scheduleNext());
             }}
             loading={loading}
           >

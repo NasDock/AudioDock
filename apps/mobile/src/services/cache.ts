@@ -129,10 +129,16 @@ export const isCached = async (trackId: number | string, originalPath: string): 
 /**
  * 秒播优化：音频缓存的同步内存索引。
  * 起播路径不能 await 任何 IO（FileSystem.getInfoAsync 也不行），
- * 否则「点击→出声」会被磁盘检查拖慢。这里用一个 Set 缓存已知命中的 trackId，
- * App 启动时从磁盘初始化一次，之后下载成功/删除时同步维护。
+ * 否则「点击→出声」会被磁盘检查拖慢。这里用 Map 缓存已知命中的
+ * cacheKey → 磁盘上的真实文件名（含扩展名），App 启动时从磁盘初始化一次，
+ * 之后下载成功/删除时同步维护。
+ *
+ * ⚠️ 必须存真实文件名而不是查询时用 track.path 现推扩展名：
+ * 下载时扩展名来自下载 URL，播放时 track.path 可能不同（如远端转码流
+ * 无扩展名），现推会拼出磁盘上不存在的 file:// 路径，AVPlayer 加载后
+ * isPlayable=false，直接抛 SwiftAudioEx itemWasUnplayable（error 4）。
  */
-const cachedTrackIds = new Set<string>();
+const cachedTrackFiles = new Map<string, string>();
 let cacheIndexInitPromise: Promise<void> | null = null;
 
 const ensureCacheIndex = (): Promise<void> => {
@@ -146,9 +152,9 @@ const ensureCacheIndex = (): Promise<void> => {
         // 整个「文件名去掉扩展名」就是缓存 key，已含源前缀，天然按源隔离
         if (f.endsWith('.tmp')) continue;
         const dot = f.lastIndexOf('.');
-        if (dot > 0) cachedTrackIds.add(f.substring(0, dot));
+        if (dot > 0) cachedTrackFiles.set(f.substring(0, dot), f);
       }
-      console.log(`[Cache] Audio cache index ready: ${cachedTrackIds.size} entries`);
+      console.log(`[Cache] Audio cache index ready: ${cachedTrackFiles.size} entries`);
     } catch (e) {
       console.warn('[Cache] Failed to init audio cache index', e);
     }
@@ -162,21 +168,22 @@ ensureCacheIndex();
 /**
  * 同步判断曲目是否已缓存。索引未初始化完成时返回 null（保守走远端，
  * 不阻塞起播）；初始化完成后命中则返回本地 file:// 路径。
- * key 含源前缀，仅命中当前源的缓存。
+ * key 含源前缀，仅命中当前源的缓存；返回索引记录的真实文件名，
+ * 保证路径一定对应磁盘上存在的那个文件。
  */
 export const getCachedTrackPathSync = (
   trackId: number | string,
   originalPath: string,
 ): string | null => {
-  const key = cacheKey(trackId);
-  if (!cachedTrackIds.has(key)) return null;
-  const extension = originalPath.split('.').pop() || 'mp3';
+  const file = cachedTrackFiles.get(cacheKey(trackId));
+  if (!file) return null;
   // resolveLocalPath 确保 file:// 前缀（RNTP 要求本地文件必须带 scheme）
-  return resolveLocalPath(`${CACHE_DIR}${key}.${extension}`);
+  return resolveLocalPath(`${CACHE_DIR}${file}`);
 };
 
-const markCached = (trackId: number | string): void => {
-  cachedTrackIds.add(cacheKey(trackId));
+const markCached = (trackId: number | string, localPath: string): void => {
+  const file = localPath.split('/').pop();
+  if (file) cachedTrackFiles.set(cacheKey(trackId), file);
 };
 
 /**
@@ -189,7 +196,7 @@ export const removeCachedTrack = async (
   try {
     await FileSystem.deleteAsync(getLocalPath(trackId, originalPath), { idempotent: true });
   } finally {
-    cachedTrackIds.delete(cacheKey(trackId));
+    cachedTrackFiles.delete(cacheKey(trackId));
   }
 };
 
@@ -217,7 +224,7 @@ export const downloadTrack = async (track: Track, url: string): Promise<string |
       const fileInfo = await FileSystem.getInfoAsync(localPath);
       if (fileInfo.exists) {
         await saveTrackMetadata(track, localPath);
-        markCached(track.id);
+        markCached(track.id, localPath);
         return localPath;
       }
 
@@ -233,7 +240,7 @@ export const downloadTrack = async (track: Track, url: string): Promise<string |
 
         console.log(`[Cache] Successfully downloaded and verified track ${track.id}`);
         await saveTrackMetadata(track, localPath);
-        markCached(track.id);
+        markCached(track.id, localPath);
         return localPath;
       } else {
         // Cleanup temp file if download failed
