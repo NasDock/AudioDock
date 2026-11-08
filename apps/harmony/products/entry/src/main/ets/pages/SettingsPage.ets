@@ -15,6 +15,7 @@ import { applySystemBar } from '../services/systemBar';
 import { isDesktopLyricSupported, setDesktopLyricEnabled } from '../services/avSessionService';
 import { openInBrowser, jumpToAppMarket } from '../utils/browserUtils';
 import { plusApi, setPlusAuthToken } from 'features_network';
+import { widgetBridge } from '../services/WidgetBridge';
 import { getLatestVersion, fetchReleaseBody, compareVersions, classifyRelease } from '../services/updateService';
 
 // 设置项开关行：独立子组件，刻意不用 @Builder。
@@ -525,7 +526,11 @@ struct SettingsPage {
       // 清理会员态（对齐 mobile：setPlusToken(null) + 清 kvStore）
       setPlusAuthToken(null);
       await kvStore.delete('plus_token');
+      // 修正：plus 用户 ID 的 key 是 plus_user_id（之前误删 plus_userId，残留脏数据）
+      await kvStore.delete('plus_user_id');
       await kvStore.delete('plus_userId');
+      // 清掉小部件 VIP 缓存（对齐未登录语义：不锁定，走实时查询兜底）
+      widgetBridge.clearVipSnapshot().catch((): void => undefined);
       this.deleteMemberConfirmVisible = false;
       promptAction.showToast({ message: t('settings.deleteMemberSuccess') });
       router.replaceUrl({ url: 'pages/MemberLoginPage' });
@@ -1421,6 +1426,8 @@ struct SettingsPage {
         vipEndsAt: result.vipEndsAt ?? endsAt.toISOString(),
       }));
       await kvStore.set('plus_vip_updated_at', Date.now().toString());
+      // 内测开通 VIP 立即同步小部件状态（解锁桌面小部件，不等下次冷启动）
+      widgetBridge.syncVip().catch((): void => undefined);
       // 刷新本页 isPlusVip（如有 UI 依赖）；此处只 toast 提示成功
       promptAction.showDialog({
         title: t('settings.betaTestSuccess'),

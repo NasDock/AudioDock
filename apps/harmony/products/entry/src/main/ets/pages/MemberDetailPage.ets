@@ -8,6 +8,7 @@ import { Logger } from 'audiodock_common';
 import { plusApi, setPlusAuthToken } from 'features_network';
 import type { PlusUserProfile } from 'features_network';
 import { openEmail } from '../utils/emailUtils';
+import { widgetBridge } from '../services/WidgetBridge';
 
 class ComparisonRow {
   feature: string = '';
@@ -90,6 +91,8 @@ struct MemberDetailPage {
     await kvStore.set('plus_token', '');
     await kvStore.set('plus_user_id', '');
     setPlusAuthToken(null);
+    // 清掉小部件 VIP 缓存（未登录语义：不锁定，走实时查询兜底）
+    widgetBridge.clearVipSnapshot().catch((): void => undefined);
     promptAction.showToast({ message: t('memberBenefits.logoutSuccess') });
     router.replaceUrl({ url: 'pages/MemberLoginPage' });
   }

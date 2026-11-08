@@ -50,6 +50,7 @@
 - 播控必须用 call 事件（message 控不了主 App）；冷启动先 `playerStore.restoreState()`，call 回调 await 再执行。
 - 封面三级兜底 data:base64→file://→URL；统一 getImageUrl(path, 300) 走 /image/optimize。后端 Track 字段 id/name/artist/cover/duration/type/path。
 - WidgetIcon：状态变化图标用无参 @Builder+双 Image+.visibility 互斥。PlayerStore.togglePlay 的 pause 分支必须显式 `this.state='paused'`。
+- VIP 锁定（2026-11-08 修复）：① plus token 是 features_network 模块级变量，**EntryAbility.initialize 必须恢复 plus_token→setPlusAuthToken**，否则冷启动 syncVip 恒 401；② **VIP 判定口径必须用 plusApi.getMe → vipTier !== 'NONE'**（对齐 mobile syncVipState），/vip/status 的 isVip 语义不同会误锁（内测会员 isVip=false）；③ 登录/支付/内测/退出要主动调 widgetBridge.syncVip()/clearVipSnapshot()，syncVip 翻转时推卡片。
 
 ## 手机横屏封面轮播（hm+mobile）
 - 判定：横屏 && 高<500 && queue>1；锚点 1:2:3（66.7/133.3/200），非当前露 1/3；effPos = idx − posAnim（单动画值）。

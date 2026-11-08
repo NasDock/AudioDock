@@ -10,6 +10,7 @@ import type { VipCurrentLowestPriceData, VipPlanPrice, CouponItem, WechatPayPayl
 import { openInBrowser } from '../utils/browserUtils';
 import { openEmail } from '../utils/emailUtils';
 import { payWithWeChat, isWeChatInstalled } from '../services/WechatPayService';
+import { widgetBridge } from '../services/WidgetBridge';
 
 class ComparisonRow {
   feature: string = '';
@@ -183,6 +184,8 @@ struct MemberBenefitsPage {
     await kvStore.set('plus_token', '');
     await kvStore.set('plus_user_id', '');
     setPlusAuthToken(null);
+    // 清掉小部件 VIP 缓存（未登录语义：不锁定，走实时查询兜底）
+    widgetBridge.clearVipSnapshot().catch((): void => undefined);
     promptAction.showToast({ message: t('memberBenefits.logoutSuccess') });
     router.replaceUrl({ url: 'pages/MemberLoginPage' });
   }

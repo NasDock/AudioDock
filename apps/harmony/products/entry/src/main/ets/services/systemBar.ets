@@ -63,7 +63,8 @@ export function applySystemBar(mode: ThemeMode): void {
 
 /**
  * 播放页沉浸式系统栏：状态栏 / 底部小横条设透明，透出播放页全屏背景（封面磨砂+主题色渐变），
- * 图标色按背景明暗取反差——亮色 pastel 渐变背景用黑图标，暗色渐变背景用白图标。
+ * 图标色按背景明暗取反差——暗色渐变背景用白图标。
+ * 播放详情页恒为深色（对齐 mobile 强制暗色板），调用方固定传 'dark'。
  * 进入播放页时调用；退出播放页必须调用 applySystemBar 恢复全局主题色。
  */
 export function applyPlayerSystemBar(mode: ThemeMode): void {

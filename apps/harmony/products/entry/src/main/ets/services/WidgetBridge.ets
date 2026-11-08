@@ -480,7 +480,12 @@ class WidgetBridgeImpl {
 
   // ─── 启动时拉取：VIP、歌单、历史、上新 ────────────────────────────────
 
-  private async syncVip(): Promise<void> {
+  /**
+   * 拉取 VIP 状态并写入 widget_vip 缓存（public：会员登录/支付成功/内测开通后由各页面主动触发，
+   * 不等下一次冷启动；对齐 mobile _layout.tsx syncVipState）。
+   * VIP 状态翻转时立即推一轮卡片，避免卡片停留在旧的锁定/解锁页。
+   */
+  async syncVip(): Promise<void> {
     try {
       // plus VIP 系统有独立用户 ID（与 authStore.user.id 不同），见 mobile _layout.tsx syncVipState
       const userId = await kvStore.get('plus_user_id');
@@ -489,16 +494,38 @@ class WidgetBridgeImpl {
         // 避免登录态恢复前把 isVip=false 当作"已同步结果"缓存，导致 VIP 也被错误锁定。
         return;
       }
-      const status = await plusApi.getVipStatus(userId);
+      // ⚠️ 口径必须对齐 mobile syncVipState：用 /users/me 的 vipTier !== 'NONE' 判定。
+      // 不要用 /vip/status 的 isVip —— 两个接口语义不同（/vip/status 会把内测等来源的
+      // vipTier 判成 isVip=false），App 内各页面（PersonalPage/MainPage/PlayerPage）全部
+      // 走 getMe vipTier，用错接口会导致「App 里是会员、小部件误锁」。
+      const profile = await plusApi.getMe(userId);
       const snap: VipSnapshot = {
-        isVip: !!status.isVip,
-        expiresAt: status.expiresAt ?? null,
+        isVip: !!profile.vipTier && profile.vipTier !== 'NONE',
+        expiresAt: profile.vipExpiresAt ?? null,
         updatedAt: Date.now(),
       };
+      // 状态翻转时立即推卡片（updateForms 会带上新的 isLocked）
+      const prev = await kvStore.getJSON<VipSnapshot>(WIDGET_KV_KEYS.vip);
+      const changed = !prev || prev.isVip !== snap.isVip;
       await kvStore.setJSON<VipSnapshot>(WIDGET_KV_KEYS.vip, snap);
-      Logger.i(TAG, `syncVip isVip=${snap.isVip}`);
+      Logger.i(TAG, `syncVip isVip=${snap.isVip} changed=${changed}`);
+      if (changed) this.scheduleSyncNowPlaying();
     } catch (e) {
       Logger.w(TAG, `syncVip: ${String(e)}`);
+    }
+  }
+
+  /**
+   * plus 退出登录/注销会员账号时调用：清掉 widget_vip 缓存并推一轮卡片。
+   * 不主动写 isVip=false —— readIsLocked 对「未登录」语义是不锁定（避免误伤），
+   * 与缓存缺失时走实时查询失败的兜底行为一致。
+   */
+  async clearVipSnapshot(): Promise<void> {
+    try {
+      await kvStore.delete(WIDGET_KV_KEYS.vip);
+      this.scheduleSyncNowPlaying();
+    } catch (e) {
+      Logger.w(TAG, `clearVipSnapshot: ${String(e)}`);
     }
   }
 

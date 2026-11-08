@@ -4,6 +4,7 @@ import { t, getLang } from 'features_i18n';
 import { kvStore } from 'features_storage';
 import { Logger } from 'audiodock_common';
 import { plusApi, setPlusAuthToken } from 'features_network';
+import { widgetBridge } from '../services/WidgetBridge';
 
 @Entry
 @Component
@@ -49,6 +50,8 @@ struct MemberPaymentSuccessPage {
       if (token) setPlusAuthToken(token);
       if (userId) {
         await plusApi.getVipStatus(userId);
+        // 支付成功立即同步小部件 VIP 状态（解锁桌面小部件，不等下次冷启动）
+        widgetBridge.syncVip().catch((): void => undefined);
       }
     } catch (e) {
       Logger.w('PaymentSuccess', `refreshVipStatus failed: ${String(e)}`);
