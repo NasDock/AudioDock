@@ -110,6 +110,24 @@ jobs:
           pnpm --filter @soundx/db run generate
           pnpm --filter @soundx/services run build
 
+      - name: Pre-download Tauri bundle tools (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        # tauri bundler 打 AppImage 时会从 github.com 下载 AppRun/linuxdeploy，
+        # GitHub 偶发 504 导致整个 build 失败；先带重试预下载到 bundler 缓存目录，
+        # bundler 检测到文件已存在即跳过下载。缓存文件名规则见 tauri-bundler
+        # linuxdeploy.rs：AppRun-{arch} 与 linuxdeploy-07333c6-{arch}.AppImage。
+        run: |
+          set -e
+          mkdir -p ~/.cache/tauri
+          curl -fSL --connect-timeout 30 --retry 6 --retry-all-errors --retry-delay 10 \
+            -o ~/.cache/tauri/AppRun-x86_64 \
+            https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-x86_64
+          curl -fSL --connect-timeout 30 --retry 6 --retry-all-errors --retry-delay 10 \
+            -o ~/.cache/tauri/linuxdeploy-07333c6-x86_64.AppImage \
+            https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy-07333c6/linuxdeploy-x86_64.AppImage
+          chmod +x ~/.cache/tauri/AppRun-x86_64 ~/.cache/tauri/linuxdeploy-07333c6-x86_64.AppImage
+          ls -la ~/.cache/tauri/
+
       - name: Build Tauri App
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

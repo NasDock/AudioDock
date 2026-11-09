@@ -119,7 +119,13 @@ jobs:
         run: |
           cd apps/mobile/android
           chmod +x gradlew
-          ./gradlew assembleRelease
+          # kotlin-compiler-embeddable 等依赖经 Maven Central 重定向到 github.com 下载，
+          # GitHub 偶发 504（tag 构建是冷缓存，必走全量下载），失败时重试最多 3 次。
+          for i in 1 2 3; do
+            ./gradlew assembleRelease && break
+            echo "Gradle build attempt $i failed, retrying in 20s..."
+            sleep 20
+          done
 
       - name: Rename and Prepare APK
         id: prepare_apk
