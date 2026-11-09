@@ -459,11 +459,22 @@ function RootLayoutNav() {
       <Stack.Screen
         name="player"
         options={{
-          presentation: "fullScreenModal",
+          // iOS：原生 fullScreenModal + slide_from_bottom（进出场与下滑手势均正常，勿动）。
+          // Android：RNScreens 4.16（Fabric）pop 时 React 立即卸载屏幕视图、原生退场动画
+          // 不播放（页面直接消失），改为 transparentModal + animation:"none"，进出场由
+          // player.tsx 自驱动滑入滑出（关闭时先滑到屏幕底部再 router.back()）。
+          // transparentModal 保持下层 (tabs) 页面挂载可见，滑动时底部栏原地透出。
+          presentation:
+            Platform.OS === "android" ? "transparentModal" : "fullScreenModal",
           headerShown: false,
-          animation: "slide_from_bottom",
-          // 播放页必须全屏，不能继承底部栏预留
-          contentStyle: { paddingBottom: 0 },
+          animation: Platform.OS === "android" ? "none" : "slide_from_bottom",
+          // Android 禁掉原生手势返回，统一走 closePlayer 的「滑到底部后再返回」
+          gestureEnabled: Platform.OS === "android" ? false : undefined,
+          // 播放页必须全屏（不继承底部栏预留）；Android 透明底，滑动时才能看到下层页面
+          contentStyle:
+            Platform.OS === "android"
+              ? { paddingBottom: 0, backgroundColor: "transparent" }
+              : { paddingBottom: 0 },
         }}
       />
       <Stack.Screen
@@ -686,7 +697,7 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { Image as ExpoImage } from "expo-image";
-import { Animated, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Animated, Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import PlaybackNotification from "../src/components/PlaybackNotification";
 import { NotificationProvider } from "../src/context/NotificationContext";
 
