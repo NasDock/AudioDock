@@ -38,6 +38,19 @@ const dedupeConfigs = (
   return Array.from(map.values());
 };
 
+// 服务端要求 sourceBundles 的 internal/external 均非空（否则整个 claim 被 400 拒绝），
+// 单地址配置用另一侧地址互补回填，双侧皆空的配置丢弃
+const sanitizeConfigs = (
+  configs: Array<{ id: string; internal: string; external: string; name?: string }>,
+) =>
+  configs
+    .map((config) => ({
+      ...config,
+      internal: config.internal || config.external || "",
+      external: config.external || config.internal || "",
+    }))
+    .filter((config) => config.internal && config.external);
+
 export async function collectMobileScanLoginPayload(): Promise<ScanLoginClaimPayload> {
   const savedAddress = (await AsyncStorage.getItem("serverAddress")) || "";
   const sourceType = (await AsyncStorage.getItem("selectedSourceType")) || "AudioDock";
@@ -53,7 +66,7 @@ export async function collectMobileScanLoginPayload(): Promise<ScanLoginClaimPay
       const parsed = raw ? JSON.parse(raw) : [];
       return {
         type,
-        configs: Array.isArray(parsed) ? parsed : [],
+        configs: sanitizeConfigs(Array.isArray(parsed) ? parsed : []),
       };
     }),
   );

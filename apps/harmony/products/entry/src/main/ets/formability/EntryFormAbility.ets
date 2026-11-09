@@ -227,7 +227,9 @@ export default class EntryFormAbility extends FormExtensionAbility {
   /**
    * 判定是否应该显示 VIP 锁定页：
    * - 优先读 WidgetBridge.syncVip 写入的 widget_vip（updatedAt > 0 表示已同步）
-   * - 兜底：直接调 plusApi.getVipStatus（卡片进程冷启动时主 App 未跑过 syncVip）
+   * - 兜底：直接调 plusApi.getMe（卡片进程冷启动时主 App 未跑过 syncVip）。
+   *   口径对齐 mobile syncVipState：vipTier !== 'NONE'（不要用 /vip/status 的
+   *   isVip，两个接口语义不同，会误锁内测等来源的会员）
    * - 未登录 / API 失败 → 不锁定（避免误伤正常体验）
    */
   private async readIsLocked(): Promise<boolean> {
@@ -238,8 +240,8 @@ export default class EntryFormAbility extends FormExtensionAbility {
       }
       const plusUserId = await kvStore.get('plus_user_id');
       if (!plusUserId) return false;
-      const status = await plusApi.getVipStatus(plusUserId);
-      return !status.isVip;
+      const profile = await plusApi.getMe(plusUserId);
+      return !profile.vipTier || profile.vipTier === 'NONE';
     } catch (e) {
       Logger.w(TAG, `readIsLocked: ${String(e)}`);
       return false;

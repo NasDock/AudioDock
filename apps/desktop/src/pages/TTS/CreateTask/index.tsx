@@ -15,6 +15,7 @@ import {
   getTtsVoices,
   getTtsProviders,
   identifyTtsBatch,
+  notifyTasksChanged,
   uploadTtsFile,
   plusGetMe,
 } from "@soundx/services";
@@ -265,6 +266,7 @@ const CreateTask: React.FC = () => {
 
       if (res.success) {
         message.success(`成功开启 ${res.count} 个任务`);
+        notifyTasksChanged();
         navigate("/tts/tasks");
       }
     } catch (err) {

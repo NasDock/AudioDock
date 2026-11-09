@@ -33,6 +33,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { useTranslation } from "react-i18next";
 import {
   Animated,
+  Easing,
   Alert,
   BackHandler,
   Dimensions,
@@ -60,6 +61,11 @@ import { useSettings } from "@/src/context/SettingsContext";
 import { usePlayerTheme } from "../src/hooks/usePlayerTheme";
 
 const { width } = Dimensions.get("window");
+
+// Android 播放页进出场改由 JS 自驱动：RNScreens 4.16（Fabric）在 Android 上 pop
+// 播放页时不播放原生退场动画（页面直接消失）；iOS 原生转场正常保持不动。
+// 配套：_layout.tsx 中 Android 端 player 路由为 transparentModal + animation:"none"。
+const isSelfDrivenTransition = Platform.OS === "android";
 
 // Parse LRC format lyrics
 interface LyricLine {
@@ -319,6 +325,23 @@ export function PlayerDetailView({
   const top = insets.top;
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
+  // Android 自驱动进出场：不再依赖 native 转场，起止位置恒为屏幕完整高度。
+  // iOS / embedded 走原生转场，该值恒 0（renderWithTransition 直接透传）。
+  const transitionTranslateY = useRef(
+    new Animated.Value(!embedded && isSelfDrivenTransition ? height : 0),
+  ).current;
+  const transitionClosingRef = useRef(false);
+  useEffect(() => {
+    if (embedded || !isSelfDrivenTransition) return;
+    const animation = Animated.timing(transitionTranslateY, {
+      toValue: 0,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [embedded, transitionTranslateY]);
   // 黑胶盘直径：对齐 desktop 方形220→圆盘320 的 1.45 倍关系（200 → 290），窄屏兜底
   const vinylSize = Math.min(width - 60, 290);
   // 横屏受高度约束（手机横屏高 <500 也走到单封面分支时需收窄）
@@ -494,12 +517,33 @@ export function PlayerDetailView({
   const lineLayouts = useRef<{ [key: number]: any }>({});
 
   const closePlayer = useCallback(() => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/(tabs)");
+    const navigateBack = () => {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace("/(tabs)");
+      }
+    };
+    // iOS / embedded：原生转场，直接返回
+    if (embedded || !isSelfDrivenTransition) {
+      navigateBack();
+      return;
     }
-  }, [router]);
+    if (transitionClosingRef.current) return;
+    // 快速进入又立即关闭时，先停掉入场动画，避免两个 timing 并发写同一 value
+    transitionTranslateY.stopAnimation();
+    transitionClosingRef.current = true;
+    // Android：先完整滑到屏幕底部再触发路由返回（native 转场已禁用，不会被截断）
+    Animated.timing(transitionTranslateY, {
+      toValue: height,
+      duration: 220,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      transitionClosingRef.current = false;
+      if (finished) navigateBack();
+    });
+  }, [embedded, height, router, transitionTranslateY]);
 
   useEffect(() => {
     if (embedded) return;
@@ -511,6 +555,25 @@ export function PlayerDetailView({
 
     return () => backHandler.remove();
   }, [embedded, closePlayer]);
+
+  // Android 自驱动进出场容器：透明屏（transparentModal）内由本层携带不透明背景，
+  // 滑入滑出时下层页面/底部栏从透明区透出。iOS / embedded 直接透传内容。
+  const renderWithTransition = (content: React.ReactNode) => {
+    if (embedded || !isSelfDrivenTransition) return content;
+    return (
+      <Animated.View
+        style={[
+          styles.transitionContainer,
+          {
+            backgroundColor: themeBackground,
+            transform: [{ translateY: transitionTranslateY }],
+          },
+        ]}
+      >
+        {content}
+      </Animated.View>
+    );
+  };
 
   useEffect(() => {
     const loadVipStatus = async () => {
@@ -1722,7 +1785,7 @@ export function PlayerDetailView({
 
   if (!currentTrack) {
     if (embedded && carModeEnabled) {
-      return (
+      return renderWithTransition(
         <View
           style={[
             styles.container,
@@ -1742,7 +1805,7 @@ export function PlayerDetailView({
       );
     }
 
-    return (
+    return renderWithTransition(
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Text style={{ color: colors.text }}>No track playing</Text>
         {!embedded && (
@@ -2238,7 +2301,7 @@ export function PlayerDetailView({
   );
 
   if (isLandscape && !(carModeEnabled && isVip)) {
-    return (
+    return renderWithTransition(
       <View
         style={[
           styles.container,
@@ -2452,7 +2515,7 @@ export function PlayerDetailView({
     );
   }
 
-  return (
+  return renderWithTransition(
     <View
       style={[
         styles.container,
@@ -2605,6 +2668,10 @@ export default function PlayerScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Android 自驱动进出场容器（renderWithTransition）：透明屏内承载不透明背景
+  transitionContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },

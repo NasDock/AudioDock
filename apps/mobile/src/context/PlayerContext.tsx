@@ -59,7 +59,7 @@ import {
 import { usePlayMode } from "../utils/playMode";
 import { useTranslation } from "react-i18next";
 import { updateWidget, updateWidgetCollections } from "../native/WidgetBridge";
-import { cacheCover, getCachedTrackPathSync } from "../services/cache";
+import { cacheCover, getCachedTrackPathSync, removeCachedTrack } from "../services/cache";
 import { resolveArtworkUri } from "../services/trackResolver";
 import { getBaseURL } from "../https";
 import { toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
@@ -228,6 +228,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const [skipOutroDuration, setSkipOutroDurationState] = useState(0);
   const isSkippingOutroRef = useRef(false); // 防止重复触发切歌
   const lastAutoNextAtRef = useRef(0);
+  // 播放错误计数（按曲目 id）：用于「缓存损坏重试一次 → 仍失败则跳下一首」的兜底策略
+  const playbackErrorCountRef = useRef<Record<string, number>>({});
   const playbackRequestIdRef = useRef(0);
   const isPlaybackRequestPendingRef = useRef(false);
   const pendingPlaybackTrackIdRef = useRef<string | null>(null);
@@ -922,6 +924,70 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     setupPlayer();
   }, []);
 
+  // ✨ 播放错误兜底（如 iOS SwiftAudioEx itemWasUnplayable / error 4）：
+  // 1. 若当前曲目正用本地缓存 file:// 播放 —— 缓存文件可能损坏/半成品/
+  //    扩展名漂移，剔除缓存后原地用远端 URL 重建该曲目并重试一次；
+  // 2. 重试仍失败或本来就是远端播放 —— 跳到下一首，避免卡死在坏曲目上。
+  const handlePlaybackError = async () => {
+    const track = currentTrackRef.current;
+    if (!track) {
+      await playNext();
+      return;
+    }
+
+    const key = String(track.id);
+    const count = (playbackErrorCountRef.current[key] ?? 0) + 1;
+    playbackErrorCountRef.current[key] = count;
+
+    const cachedPath = getCachedTrackPathSync(track.id, track.path);
+    if (count === 1 && cachedPath) {
+      console.warn(
+        `[Player] Cached file unplayable, evicting & retrying remote: ${key}`
+      );
+      try {
+        await removeCachedTrack(track.id, track.path);
+        const activeIndex = await TrackPlayer.getActiveTrackIndex();
+        if (activeIndex === undefined) {
+          await playNext();
+          return;
+        }
+        const retryQuality = getPlaybackQualityPreferenceSync(
+          qualitySettingsRef.current
+        );
+        const remoteUri = track.path.startsWith("http")
+          ? track.path
+          : track.type === TrackType.AUDIOBOOK
+            ? `${getBaseURL()}${track.path
+                .split("/")
+                .map(encodeURIComponent)
+                .join("/")}`
+            : buildTrackPlaybackUrl(track, retryQuality);
+        await TrackPlayer.remove(activeIndex);
+        await TrackPlayer.add(
+          {
+            id: String(track.id),
+            url: remoteUri,
+            title: track.name,
+            artist: track.artist,
+            album: track.album || "Unknown Album",
+            artwork: resolveArtworkUri(track),
+            duration: track.duration || 0,
+            type: track.type,
+          } as any,
+          activeIndex
+        );
+        await TrackPlayer.skip(activeIndex);
+        await TrackPlayer.play();
+        return;
+      } catch (e) {
+        console.warn("[Player] Cache-evict retry failed", e);
+      }
+    }
+
+    // 远端本身不可播（404/鉴权/不支持的编码）或重试失败：跳过坏曲目防止卡死
+    await playNext();
+  };
+
   useTrackPlayerEvents(
     [
       Event.PlaybackState,
@@ -935,14 +1001,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           "An error occurred while playing the current track.",
           event
         );
+        // 播放出错时清空预加载缓存，避免可能的问题
+        radioNextTrackRef.current = null;
         if (isRadioModeRef.current) {
-          // 播放出错时清空预加载缓存，避免可能的问题
-          radioNextTrackRef.current = null;
           playNext();
+        } else {
+          void handlePlaybackError();
         }
       }
       if (event.type === Event.PlaybackState) {
         setIsPlaying(event.state === State.Playing);
+        // 成功起播后清空错误计数，后续再出错允许重新走「剔缓存重试」
+        if (event.state === State.Playing) {
+          playbackErrorCountRef.current = {};
+        }
         setIsLoading(
           event.state === State.Buffering || event.state === State.Loading
         );

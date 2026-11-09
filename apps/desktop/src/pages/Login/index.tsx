@@ -182,6 +182,16 @@ const Login: React.FC = () => {
     };
   }, [scanSession]);
 
+  // 二维码会话 TTL 只有 5 分钟，到期前自动刷新，避免扫到已过期二维码
+  useEffect(() => {
+    if (!scanSession) return;
+    const ms = scanSession.expiresAt - Date.now() - 10000;
+    const timer = setTimeout(() => {
+      createTargetSession();
+    }, Math.max(ms, 5000));
+    return () => clearTimeout(timer);
+  }, [scanSession]);
+
   useEffect(() => {
     if (!scanSession || scanStatus?.status !== "confirmed") return;
 
@@ -599,7 +609,9 @@ const Login: React.FC = () => {
               </div>
             ) : (
               <div className={styles.qrPanel}>
-                {qrValue ? <QRCode value={qrValue} size={180} bordered={false} /> : null}
+                {qrValue ? (
+                  <QRCode value={qrValue} size={240} errorLevel="L" bordered={false} />
+                ) : null}
                 <Button onClick={createTargetSession}>{t("login.refreshQR")}</Button>
               </div>
             )}

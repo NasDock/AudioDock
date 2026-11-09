@@ -1,7 +1,7 @@
 import * as Linking from 'expo-linking';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useRouter, useSegments } from "expo-router";
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "react-native-reanimated";
 import "../src/i18n";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
@@ -397,23 +397,17 @@ function RootLayoutNav() {
   // player 显示期间也保留底层页面 padding（player 自身单独覆盖为 0），避免转场中底层页面跳动。
   const reserveBottomBarSpace = !hideBottomBar || rootSegment === "player";
 
-  // 底部栏恢复延迟。
-  // useSegments() 在返回时**立刻**更新到目标路由，但播放页退场动画还在跑。
-  // 这时不能提前渲染底部栏：
-  //  - 若直接回到文档流，Stack 会被压矮，正在下滑的页面下半截被裁掉；
-  //  - 若改成 absolute 浮层，bottomBar 又会盖住 native Stack 里的退场页面，
-  //    视觉上页面刚到 mini 播放器顶部就“消失”（React Native Screens 的转场层级
-  //    不受普通 JS zIndex 完全控制，Android 上尤其明显）。
-  // 因此退场期间保持底部栏卸载，让播放页完整滑到屏幕底部；transitionEnd 后
-  // 底部栏再执行高度展开动画，从底部平滑恢复（见 GlobalBottomBar.animateIn）。
-  // 用 useLayoutEffect 而非 useEffect：避免恢复首帧先按文档流渲染一次造成跳动。
-  // 1.5s 只是 replace/异常路径的兜底，正常以 transitionEnd 精确恢复，避免慢速手势时提前出现。
+  // 播放页进出场期间，底部栏保持挂载在原位置、只压到 native Stack 下层：
+  //  - 进入播放页：rootSegment 立刻变为 "player"，layerBelow 生效，播放页从底部
+  //    滑上时从底部栏上方经过，底部栏原地不动、不再隐藏；
+  //  - 退出播放页：useSegments() 在返回时**立刻**更新到目标路由，但播放页下滑
+  //    退场动画还在跑。此期间用 barRestorePending 继续保持 layerBelow，避免底部栏
+  //    盖住正在退场的 native 页面（RNScreens 转场层级不受普通 JS zIndex 完全控制）。
+  // 底层页面 contentStyle 的 paddingBottom 始终保留（见 reserveBottomBarSpace），
+  // 转场期间把该 padding 条带的背景设为透明，下层的底部栏才能原地透出。
+  // transitionEnd 精确解除 layerBelow；1.5s 只是 replace/异常路径的兜底。
+  // 用 useLayoutEffect 而非 useEffect：避免恢复首帧先按普通层级渲染一次造成跳动。
   const [barRestorePending, setBarRestorePending] = useState(false);
-  // 播放页退场结束后恢复底部栏时执行一次「从底部滑入」动画
-  const [bottomBarAnimateIn, setBottomBarAnimateIn] = useState(false);
-  const handleBottomBarEnterComplete = useCallback(() => {
-    setBottomBarAnimateIn(false);
-  }, []);
   const wasBarHiddenRef = useRef(hideBottomBar);
   const previousRootSegmentRef = useRef(rootSegment);
   useLayoutEffect(() => {
@@ -422,30 +416,34 @@ function RootLayoutNav() {
     wasBarHiddenRef.current = hideBottomBar;
     previousRootSegmentRef.current = rootSegment;
     if (hideBottomBar) {
-      // 又进入了全屏路由：立即取消待恢复/未完成的进入动画，交给 hideBottomBar 兜住
+      // 进入全屏路由：清除可能残留的退场 pending（player 期间 layerBelow 由
+      // rootSegment === "player" 直接兜住，不依赖 barRestorePending）
       setBarRestorePending(false);
-      setBottomBarAnimateIn(false);
       return;
     }
     if (!wasHidden) return;
-    // 只对播放页退场延迟恢复；其他全屏页保持原有行为，避免侧滑退场时底部栏短暂消失。
+    // 只对播放页退场维持 layerBelow；其他全屏页保持原有行为，避免侧滑退场时底部栏短暂消失。
     if (previousRootSegment !== "player") return;
     setBarRestorePending(true);
-    setBottomBarAnimateIn(true);
     const timer = setTimeout(() => setBarRestorePending(false), 1500);
     return () => clearTimeout(timer);
   }, [hideBottomBar, rootSegment]);
 
+  // 底部栏是否需要压在 native 转场页面下层（播放页打开期间 + 退场动画期间）
+  const bottomBarLayerBelow = rootSegment === "player" || barRestorePending;
+
   const stack = (
     <Stack
       screenOptions={{
-        // padding 只作用于屏幕内容；根 Stack / player 的转场 frame 仍保持全屏
+        // padding 只作用于屏幕内容；根 Stack / player 的转场 frame 仍保持全屏。
+        // 播放页进出场期间把 padding 条带背景设为透明，压在下层的底部栏才能原地透出。
         contentStyle: {
           paddingBottom: reserveBottomBarSpace ? bottomBarHeight : 0,
+          backgroundColor: bottomBarLayerBelow ? "transparent" : undefined,
         },
       }}
       screenListeners={{
-        // 退场动画结束：解除底部栏恢复延迟（见上方 barRestorePending）
+        // 退场动画结束：解除底部栏的下压层级（见上方 barRestorePending）
         transitionEnd: () => setBarRestorePending(false),
       }}
     >
@@ -461,11 +459,22 @@ function RootLayoutNav() {
       <Stack.Screen
         name="player"
         options={{
-          presentation: "fullScreenModal",
+          // iOS：原生 fullScreenModal + slide_from_bottom（进出场与下滑手势均正常，勿动）。
+          // Android：RNScreens 4.16（Fabric）pop 时 React 立即卸载屏幕视图、原生退场动画
+          // 不播放（页面直接消失），改为 transparentModal + animation:"none"，进出场由
+          // player.tsx 自驱动滑入滑出（关闭时先滑到屏幕底部再 router.back()）。
+          // transparentModal 保持下层 (tabs) 页面挂载可见，滑动时底部栏原地透出。
+          presentation:
+            Platform.OS === "android" ? "transparentModal" : "fullScreenModal",
           headerShown: false,
-          animation: "slide_from_bottom",
-          // 播放页必须全屏，不能继承底部栏预留
-          contentStyle: { paddingBottom: 0 },
+          animation: Platform.OS === "android" ? "none" : "slide_from_bottom",
+          // Android 禁掉原生手势返回，统一走 closePlayer 的「滑到底部后再返回」
+          gestureEnabled: Platform.OS === "android" ? false : undefined,
+          // 播放页必须全屏（不继承底部栏预留）；Android 透明底，滑动时才能看到下层页面
+          contentStyle:
+            Platform.OS === "android"
+              ? { paddingBottom: 0, backgroundColor: "transparent" }
+              : { paddingBottom: 0 },
         }}
       />
       <Stack.Screen
@@ -565,9 +574,9 @@ function RootLayoutNav() {
   );
 
   const showCarLayout = isVip && carLayoutMode && rootSegment !== "player";
-  // 退场动画期间（barRestorePending）先卸载底部栏：让 native Stack 保持全屏，
-  // 播放页可以完整滑到屏幕底部；动画结束后底部栏再直接按文档流恢复。
-  const showBottomBar = !hideBottomBar && !barRestorePending;
+  // 底部栏始终挂载（播放页期间也不例外）：播放页路由时只是压到 native Stack 下层，
+  // 让播放页滑上/滑下时从它上方经过，底部栏保持原位置不动。
+  const showBottomBar = !hideBottomBar || rootSegment === "player";
   const playerPanelWidth = carLayoutSize.height > 0 ? (carLayoutSize.height * 9) / 16 : 0;
   const swapButtonLeft =
     playerPanelWidth > 0
@@ -600,11 +609,7 @@ function RootLayoutNav() {
     <View style={styles.rightContent}>
       {stack}
       {showBottomBar && (
-        <GlobalBottomBar
-          animateIn={bottomBarAnimateIn}
-          layerBelow={rootSegment === "player" || barRestorePending}
-          onEnterAnimationComplete={handleBottomBarEnterComplete}
-        />
+        <GlobalBottomBar layerBelow={bottomBarLayerBelow} />
       )}
     </View>
   );
@@ -640,11 +645,7 @@ function RootLayoutNav() {
           <View style={styles.stackRoot}>
             {stack}
             {showBottomBar && (
-              <GlobalBottomBar
-                animateIn={bottomBarAnimateIn}
-                layerBelow={rootSegment === "player" || barRestorePending}
-                onEnterAnimationComplete={handleBottomBarEnterComplete}
-              />
+              <GlobalBottomBar layerBelow={bottomBarLayerBelow} />
             )}
           </View>
         )}
@@ -696,7 +697,7 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { Image as ExpoImage } from "expo-image";
-import { Animated, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Animated, Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import PlaybackNotification from "../src/components/PlaybackNotification";
 import { NotificationProvider } from "../src/context/NotificationContext";
 

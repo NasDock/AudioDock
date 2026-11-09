@@ -5,6 +5,7 @@ import { t, getLang } from 'features_i18n';
 import { kvStore } from 'features_storage';
 import { Logger } from 'audiodock_common';
 import { plusApi, setPlusAuthToken } from 'features_network';
+import { widgetBridge } from '../services/WidgetBridge';
 import { openInBrowser } from '../utils/browserUtils';
 
 type LoginMode = 'phone' | 'email';
@@ -134,6 +135,8 @@ struct MemberLoginPage {
       await kvStore.set('plus_token', res.token);
       await kvStore.set('plus_user_id', res.userId);
       setPlusAuthToken(res.token);
+      // 登录成功立即同步小部件 VIP 状态（不等下次冷启动 refreshAll）
+      widgetBridge.syncVip().catch((): void => undefined);
       promptAction.showToast({ message: t('memberLogin.loginSuccess') });
       router.replaceUrl({ url: 'pages/MemberDetailPage' });
     } catch (e) {

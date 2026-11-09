@@ -34,7 +34,7 @@ import { playerThemeStore } from '../theme/playerThemeStore';
 import type { PlayerThemeTokens } from '../theme/playerThemeSchema';
 import { playerSkinStore } from '../theme/playerSkinStore';
 import type { CoverStyle } from '../theme/playerSkinStore';
-import { fetchDominantColor, rgbToHex, alphaHex, shade, tint } from '../utils/dominantColor';
+import { fetchDominantColor, rgbToHex, alphaHex, shade } from '../utils/dominantColor';
 import { applySystemBar, applyPlayerSystemBar } from '../services/systemBar';
 import type { Rgb } from '../utils/dominantColor';
 import { VinylCover } from '../components/VinylCover';
@@ -196,7 +196,11 @@ struct PlayerPage {
   private unsubPlayerLeft: (() => void) | null = null;
   @StorageLink('themeMode') @Watch('onThemeModeChange') themeMode: ThemeMode = 'light';
   @State private langAtBuild: string = getLang();
-  @State theme: Theme = buildTheme('light');
+  // 播放详情页恒为深色（对齐 mobile player.tsx：theme === "light" ? darkColors : themeColors）。
+  // 背景是磨砂封面 + 深色渐变，亮色主题下若用亮板会「深底深字」看不清；
+  // 全局主题只影响播放页以外的界面。themeMode 仍保留：仅用于插件主题 light/dark 段选择
+  // 与离开页面时恢复全局系统栏。
+  @State theme: Theme = buildTheme('dark');
   // ─── 播放器主题插件（对齐 mobile usePlayerTheme）───
   // 激活主题 + VIP 时生效，全部 token 可选、缺省回退主题默认；festive 按 dark 段处理
   @State private themeTokens: PlayerThemeTokens | null = null;
@@ -231,7 +235,8 @@ struct PlayerPage {
   private coverFlowWidth: number = 0;
 
   onThemeModeChange(): void {
-    this.theme = buildTheme(this.themeMode);
+    // 播放页恒深色（对齐 mobile），全局主题切换只刷新插件 token 分段
+    this.theme = buildTheme('dark');
     this.refreshPlayerTheme();
   }
 
@@ -328,41 +333,32 @@ struct PlayerPage {
   }
 
   // ─── 背景渐变三段色（顶/中/底）───
-  // 罩层带 backdropBlur 真磨砂，渐变透明度降到 0.5~0.9 让模糊封面透出来（磨砂质感），
-  // 三段拉开明度差保证渐变层次可见：暗色模式主题色→压暗保白字可读，
-  // 亮色模式向白色混合成 pastel 保黑字可读；取色失败退中性遮罩（对齐 desktop 回退）。
+  // 对齐 mobile player.tsx bgStopTop/Mid/Bottom（同源 desktop 公式），播放页恒深色、不分明暗主题：
+  // 顶 原色0.5 → 中 shade(0.5)·0.75 → 底 shade(0.22)·0.94；取色失败退中性黑遮罩（0.35/0.62/0.85）。
+  // 罩层另有 backdropBlur 真磨砂 + rgba(0,0,0,0.25) 压暗层（对齐 mobile 模糊层 brightness(0.75) 近似）。
 
   /** 背景渐变顶部色 */
   private bgTintTop(): string {
     if (this.coverColor === null) {
-      return this.themeMode === 'light' ? '#8CFFFFFF' : '#73000000';
+      return '#59000000'; // rgba(0,0,0,0.35)
     }
-    if (this.themeMode === 'light') {
-      return alphaHex(tint(this.coverColor, 0.72), 0.55);
-    }
-    return alphaHex(this.coverColor, 0.6);
+    return alphaHex(this.coverColor, 0.5);
   }
 
   /** 背景渐变中部色 */
   private bgTintMid(): string {
     if (this.coverColor === null) {
-      return this.themeMode === 'light' ? '#B3FFFFFF' : '#A6000000';
+      return '#9E000000'; // rgba(0,0,0,0.62)
     }
-    if (this.themeMode === 'light') {
-      return alphaHex(tint(this.coverColor, 0.5), 0.72);
-    }
-    return alphaHex(shade(this.coverColor, 0.55), 0.78);
+    return alphaHex(shade(this.coverColor, 0.5), 0.75);
   }
 
   /** 背景渐变底部色 */
   private bgTintBottom(): string {
     if (this.coverColor === null) {
-      return this.themeMode === 'light' ? '#E6FFFFFF' : '#D9000000';
+      return '#D9000000'; // rgba(0,0,0,0.85)
     }
-    if (this.themeMode === 'light') {
-      return alphaHex(tint(this.coverColor, 0.28), 0.88);
-    }
-    return alphaHex(shade(this.coverColor, 0.22), 0.92);
+    return alphaHex(shade(this.coverColor, 0.22), 0.94);
   }
 
   /** 方形封面圆角：主题 coverRadius 覆盖默认（vinyl 时忽略） */
@@ -383,7 +379,8 @@ struct PlayerPage {
   }
 
   aboutToAppear(): void {
-    this.theme = buildTheme(this.themeMode);
+    // 播放页恒深色（对齐 mobile player.tsx 强制暗色板），不跟随全局亮色主题
+    this.theme = buildTheme('dark');
     // 恢复歌词字号（对齐 mobile player.tsx useEffect onMount 读 AsyncStorage 'lyric_font_size'）
     kvStore.get('lyric_font_size')
       .then((v: string | null): void => {
@@ -1142,8 +1139,8 @@ struct PlayerPage {
   }
 
   onPageShow(): void {
-    // 沉浸式系统栏：状态栏/小横条透明透出播放页全屏背景，图标按主题明暗取反差色
-    applyPlayerSystemBar(this.themeMode);
+    // 沉浸式系统栏：状态栏/小横条透明透出播放页全屏背景；播放页恒深色（对齐 mobile），图标恒白
+    applyPlayerSystemBar('dark');
     // 语言可能在后台（语言页/系统设置）被修改：回显时若语言已变化，切换 if 分支重建整页。
     // 不能在隐藏时重建——@StorageProp 在后台更新触发的重建会导致路由页触摸失效，
     // 因此用 langAtBuild 把重建延迟到页面可见时。
@@ -1163,10 +1160,12 @@ struct PlayerPage {
     // 沉浸式：背景层放在外层 Stack 全屏铺满（覆盖状态栏/小横条区域，配合 applyPlayerSystemBar
     // 透明系统栏透出背景）；内容 Column 保留 padding 避让系统区。
     Stack({ alignContent: Alignment.TopStart }) {
-      // 封面主题色背景（两层叠加，全屏含系统区）：
+      // 封面主题色背景（三层叠加，全屏含系统区），对齐 mobile coverTintLayer：
       // ① 清晰封面放大打底（1.2 防 backdropBlur 边缘采样露底）——只要有封面就渲染：
       //    外链封面/取色失败也有磨砂质感（desktop 同款行为），不退回纯色
-      // ② 磨砂渐变罩层：backdropBlur 实时高斯模糊（磨砂玻璃质感）+ 三段主题色渐变
+      // ② 磨砂压暗罩层：backdropBlur 实时高斯模糊（mobile 是预模糊小图，hm 用真磨砂等效）
+      //    + rgba(0,0,0,0.25) 压暗（对齐 mobile 模糊层 brightness(0.75) 的黑色半透明近似）
+      // ③ 三段主题色渐变罩层（公式对齐 mobile bgStopTop/Mid/Bottom）
       // 插件显式定义背景时整体不渲染（插件优先）
       if (this.themeTokens?.background === undefined &&
         (this.current()?.coverUrl !== undefined || this.coverColor !== null)) {
@@ -1183,8 +1182,14 @@ struct PlayerPage {
           .width('100%')
           .height('100%')
           .backdropBlur(80)
+          .backgroundColor('#40000000')
+          // 覆盖层必须显式放行触摸，否则挡住下层所有交互
+          .hitTestBehavior(HitTestMode.None)
+        Column()
+          .width('100%')
+          .height('100%')
           .linearGradient({
-            // ArkUI angle 70 ≈ CSS 160deg（偏右下的竖向渐变）
+            // ArkUI angle 70 ≈ CSS 160deg（偏右下的竖向渐变），对齐 mobile SVG x2=0.35,y2=1
             angle: 70,
             colors: [
               [this.bgTintTop(), 0.0],

@@ -7,7 +7,7 @@ import router from '@ohos.router';
 import { bundleManager, ConfigurationConstant, Configuration } from '@kit.AbilityKit';
 import { Logger, getSelfBundleInfo, getSelfAppVersion } from 'audiodock_common';
 import { kvStore, fileCache, rdbStore } from 'features_storage';
-import { httpClient } from 'features_network';
+import { httpClient, setPlusAuthToken } from 'features_network';
 import { applySetting } from 'features_i18n';
 import { type ThemeMode } from 'features_ui';
 import { installPlaybackService } from '../services/playbackService';
@@ -272,6 +272,13 @@ export default class EntryAbility extends UIAbility {
     // 恢复登录态（user/token），桌面小部件 syncVip 依赖 authStore.state_.user?.id，
     // 没这一步 syncVip 会因为 user=null 把 KV 写成 isVip=false，导致卡片被误锁定。
     await authStore.loadFromStorage();
+
+    // 恢复 plus 会员 token：widgetBridge.refreshAll() 的 syncVip 在 onCreate 阶段就调
+    // plusApi.getVipStatus（/vip/status 无 Authorization 时服务端返回 401 missing token），
+    // 而 plus token 之前只有各页面懒加载时才 setPlusAuthToken —— 冷启动时恒为 null，
+    // syncVip 每次都失败，widget_vip 缓存永远停在旧值，VIP 用户的桌面小部件被误锁。
+    const plusToken = await kvStore.get('plus_token');
+    if (plusToken) setPlusAuthToken(plusToken);
 
     Logger.i(TAG, 'initialize complete');
   }

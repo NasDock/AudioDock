@@ -33,6 +33,11 @@ export default function ScanScreen() {
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
     if (hasScanned) return;
     setHasScanned(true);
+    console.log("[scan-login] qr detected", data);
+    trackEvent({
+      feature: "scan_login",
+      eventName: "scan_login_qr_detected",
+    });
 
     try {
       setScanBusy(true);
@@ -111,6 +116,7 @@ export default function ScanScreen() {
             <CameraView
               style={styles.camera}
               facing="back"
+              barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
               onBarcodeScanned={handleBarcodeScanned}
             />
             {scanBusy && (

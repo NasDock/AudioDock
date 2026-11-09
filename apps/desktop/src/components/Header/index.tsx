@@ -39,6 +39,8 @@ import {
   getRunningImportTask,
   getSearchHistory,
   hasActiveTasks,
+  notifyTasksChanged,
+  TASKS_CHANGED_EVENT,
   plusDeleteMe,
   plusGetMe,
   plusParticipateInternalTest,
@@ -404,27 +406,54 @@ const Header: React.FC = () => {
   const [, setPlusVipData] = useState<any>(null);
   const [redeemingInternalTestCode, setRedeemingInternalTestCode] =
     useState(false);
-  // 任务中心入口显隐：仅当存在进行中任务时显示
+  // 任务中心入口显隐：仅当存在进行中任务时显示。
+  // 空闲时零请求：挂载时检查一次，无活动任务即停止；
+  // 有活动任务时 3s 轮询直至全部结束；其它页面创建/变更任务后
+  // 通过 TASKS_CHANGED_EVENT 事件唤醒重新检查。
   const [showTaskCenterEntry, setShowTaskCenterEntry] = useState(false);
+  const taskCheckTimerRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
 
   useEffect(() => {
     let cancelled = false;
+
+    const stopPolling = () => {
+      if (taskCheckTimerRef.current) {
+        clearInterval(taskCheckTimerRef.current);
+        taskCheckTimerRef.current = null;
+      }
+    };
+
     const check = async () => {
       try {
         const active = await hasActiveTasks();
-        console.log("Checked active tasks:", active);
-        if (!cancelled) setShowTaskCenterEntry(active);
+        if (cancelled) return;
+        setShowTaskCenterEntry(active);
+        if (active) {
+          if (!taskCheckTimerRef.current) {
+            taskCheckTimerRef.current = setInterval(check, 3000);
+          }
+        } else {
+          stopPolling();
+        }
       } catch (e) {
         /* 忽略：网络异常时不改变入口状态 */
         console.warn("Failed to check active tasks", e);
       }
     };
+
     check();
-    const timer = setInterval(check, 3000);
+    const onTasksChanged = () => {
+      check();
+    };
+    window.addEventListener(TASKS_CHANGED_EVENT, onTasksChanged);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      stopPolling();
+      window.removeEventListener(TASKS_CHANGED_EVENT, onTasksChanged);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -602,6 +631,9 @@ const Header: React.FC = () => {
 
         // Clear previous timer if any
         if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+
+        // 广播任务变更，唤醒任务中心入口检查（空闲时不会轮询）
+        notifyTasksChanged();
 
         pollTimerRef.current = setInterval(() => {
           pollTaskStatus(taskId);
