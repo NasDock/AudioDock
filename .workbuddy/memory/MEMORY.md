@@ -49,6 +49,7 @@
 - preferences 每进程一份缓存：跨进程读走 getFresh/getJSONFresh；跨进程 subscribe 无效 → PlayerStore.notify() 加 pushToWidget 钩子（节流 1000ms）；跨进程单例 store 显式 loadFromStorage。
 - 播控必须用 call 事件（message 控不了主 App）；冷启动先 `playerStore.restoreState()`，call 回调 await 再执行。
 - 封面三级兜底 data:base64→file://→URL；统一 getImageUrl(path, 300) 走 /image/optimize。后端 Track 字段 id/name/artist/cover/duration/type/path。
+- **卡片实际只认 data: URI**（formrender 进程读不到主进程 file://）；WidgetBridge 对 >80KB 封面必须先在端侧压缩（ImageKit desiredSize→packToData JPEG q78，正在播放 300px / 列表 96px），否则飞牛 640×640 原图（128KB）恒 dataImage=0B → 全占位。`packing()` 自 API13 废弃用 `packToData()`。飞牛媒体下载要带鉴权：downloadBytes 补 getFnosPlaybackHeaders、AVSession 走 fetchFnosMediaBytes；响应码放宽到 2xx（中继可能 206）。
 - WidgetIcon：状态变化图标用无参 @Builder+双 Image+.visibility 互斥。PlayerStore.togglePlay 的 pause 分支必须显式 `this.state='paused'`。
 - VIP 锁定（2026-11-08 修复）：① plus token 是 features_network 模块级变量，**EntryAbility.initialize 必须恢复 plus_token→setPlusAuthToken**，否则冷启动 syncVip 恒 401；② **VIP 判定口径必须用 plusApi.getMe → vipTier !== 'NONE'**（对齐 mobile syncVipState），/vip/status 的 isVip 语义不同会误锁（内测会员 isVip=false）；③ 登录/支付/内测/退出要主动调 widgetBridge.syncVip()/clearVipSnapshot()，syncVip 翻转时推卡片。
 
@@ -98,6 +99,13 @@
 - 文档：`docs/fnos-music-api.md`（API 速查 + 三端链路差异 + 踩坑记录）。
 - **mobile 本地取色（dominantColorLocal）自己发 HTTP，不经 FnosClient → 必须显式带 `getMediaHeaders()`**，否则飞牛封面 401 → 播放页没主题色（但封面能显示，因为组件走 getImageSource 带头）——这是判据。
 - **飞牛列表接口不返回 lyrics**，只有 `GET /lyric/list?trackGUID=` 单曲接口有；mobile 在 `PlayerContext` 切歌时懒加载并**并回 currentTrack**（播放页/车机歌词/歌词预览共用）。desktop 早有懒加载，mobile 曾漏。
+
+## hm 数据源：飞牛音乐 fnos（2026-11-10 完整移植）
+- 目录 `features/network/src/main/ets/fnos/`（types/crypto/client/mapper/adapter/index）。hm 原本只是 AudioDock 服务端客户端，外部源必须端侧自写适配器。
+- 分发靠模块级开关：entry 的 `applyFnosSession/restoreFnosSession` 调 `enableFnos()`，各 `api/*.ets` 方法入口 `if (isFnosSource()) return fnosAdapter.x()`；页面零改动（HAR 不能反向依赖 entry 的 AuthStore）。
+- 加不上请求头的两处：封面 → `utils/fnosCover.ets` 下载落盘给 `file://`；音频 → `media.createMediaSourceWithUrl(url, headers)`（AVPlayerBackend.load 第二参数）。fnos 源下跳过播放缓存/预下载（裸 URL 401）。
+- 小部件独立进程：`WidgetBridge.downloadBytes` 需补 `getFnosPlaybackHeaders()`，否则 `/static/cover` 401 全占位；plus/VIP 走固定域名不受影响。
+- 能力缺口：专辑收藏/专辑历史空实现、上传不支持、音质只 lossless。
 
 ## 其他
 - @soundx/services：father 构建入口指 dist，改 src/ 必须 `cd packages/services && pnpm build`。

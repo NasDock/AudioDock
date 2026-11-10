@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import request from '@ohos.request';
 import { httpClient } from '../HarmonyHttpClient';
+import { fnosAdapter, isFnosSource } from '../fnos';
 import type { LoadMoreResp } from '../types';
 import type { TrackDto } from './track';
 
@@ -59,10 +60,14 @@ export interface AlbumApi {
 
 class AlbumApiImpl implements AlbumApi {
   async list(): Promise<AlbumDto[]> {
+    if (isFnosSource()) return fnosAdapter.albumList();
     return httpClient.get<AlbumDto[]>('/album/list');
   }
 
   async loadMore(params: AlbumLoadMoreParams): Promise<LoadMoreResp<AlbumDto>> {
+    if (isFnosSource()) {
+      return fnosAdapter.albumLoadMore(params.pageSize, params.loadCount, params.sortBy ?? '');
+    }
     const q: Record<string, string | number | boolean> = {};
     q['pageSize'] = params.pageSize;
     q['loadCount'] = params.loadCount;
@@ -72,10 +77,14 @@ class AlbumApiImpl implements AlbumApi {
   }
 
   async getById(id: string): Promise<AlbumDto> {
+    if (isFnosSource()) return fnosAdapter.albumById(id);
     return httpClient.get<AlbumDto>(`/album/${id}`);
   }
 
   async getTracks(id: string, pageSize: number, skip: number, sort: string, sortBy?: string): Promise<AlbumTracksResp> {
+    if (isFnosSource()) {
+      return fnosAdapter.albumTracks(id, pageSize, skip, sort, sortBy ?? '');
+    }
     const q: Record<string, string | number | boolean> = {};
     q['pageSize'] = pageSize;
     q['skip'] = skip;
@@ -85,14 +94,17 @@ class AlbumApiImpl implements AlbumApi {
   }
 
   async byArtist(artist: string): Promise<AlbumDto[]> {
+    if (isFnosSource()) return fnosAdapter.albumsByArtist(artist);
     return httpClient.get<AlbumDto[]>(`/album/artist/${encodeURIComponent(artist)}`);
   }
 
   async collaborativeByArtist(artist: string): Promise<AlbumDto[]> {
+    if (isFnosSource()) return fnosAdapter.albumsByArtist(artist);
     return httpClient.get<AlbumDto[]>(`/album/collaborative/${encodeURIComponent(artist)}`);
   }
 
   async latest(params: AlbumLatestParams): Promise<AlbumDto[]> {
+    if (isFnosSource()) return fnosAdapter.albumLatest(params.pageSize ?? 20);
     const q: Record<string, string | number | boolean> = {};
     q['type'] = params.type;
     if (params.pageSize !== undefined) q['pageSize'] = params.pageSize;
@@ -101,6 +113,7 @@ class AlbumApiImpl implements AlbumApi {
   }
 
   async recommend(params: AlbumRecommendParams): Promise<AlbumDto[]> {
+    if (isFnosSource()) return fnosAdapter.albumLatest(params.pageSize ?? 20);
     const q: Record<string, string | number | boolean> = {};
     q['type'] = params.type;
     if (params.pageSize !== undefined) q['pageSize'] = params.pageSize;
@@ -109,6 +122,7 @@ class AlbumApiImpl implements AlbumApi {
   }
 
   async search(keyword: string, limit: number): Promise<AlbumDto[]> {
+    if (isFnosSource()) return fnosAdapter.albumSearch(keyword, limit);
     const q: Record<string, string | number | boolean> = {};
     q['keyword'] = keyword;
     q['limit'] = limit;
@@ -121,6 +135,7 @@ class AlbumApiImpl implements AlbumApi {
    * 返回结构 { code, message, data: Album }，用 @ohos.request.uploadFile 实现（参考 userApi.uploadAvatar）。
    */
   async uploadCover(id: string, fileUri: string, mimeType?: string): Promise<AlbumDto> {
+    if (isFnosSource()) throw new Error('飞牛音乐数据源不支持上传专辑封面');
     const context = getContext() as common.UIAbilityContext;
     const fileName = fileUri.split('/').pop() || `album-${id}.jpg`;
     const url = `${httpClient.getBaseURL()}/album/${id}/cover`;

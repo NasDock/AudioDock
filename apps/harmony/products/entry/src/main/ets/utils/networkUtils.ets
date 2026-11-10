@@ -1,19 +1,31 @@
 import http from '@ohos.net.http';
 import { Logger } from 'audiodock_common';
+import { probeFnos } from 'features_network';
 
 const TAG = 'LoginDiag';
 
 // ============ 数据源映射（对齐 mobile 端 packages/services） ============
+// 'Feiniu' 是本端展示用的 key，映射到后端/适配器口径的 'fnos'（飞牛音乐 trim.music）
 export const SOURCEMAP: Record<string, string> = {
   'AudioDock': 'audiodock',
   'Subsonic': 'subsonic',
   'Emby': 'emby',
+  'Feiniu': 'fnos',
 };
 
 export const SOURCETIPSMAP: Record<string, string> = {
   'AudioDock': '所有支持 AudioDock 官方服务端',
   'Subsonic': '所有支持 Subsonic 协议的服务端，例如：Navidrome、Gonic 等',
   'Emby': '所有支持 Emby 协议的服务端',
+  'Feiniu': '飞牛 fnOS 自带的音乐应用（trim.music），地址填 NAS，如 http://192.168.1.10:5666',
+};
+
+/** 数据源展示名（SOURCEMAP 的 key 是技术标识，这里负责本地化） */
+export const SOURCE_LABELS: Record<string, string> = {
+  'AudioDock': 'AudioDock',
+  'Subsonic': 'Subsonic',
+  'Emby': 'Emby',
+  'Feiniu': '飞牛',
 };
 
 // ============ 服务器连通性探测（对齐 mobile networkUtils.checkServerConnectivity） ============
@@ -26,6 +38,15 @@ export async function checkServerConnectivity(address: string, sourceType: strin
   }
 
   const mappedType: string = SOURCEMAP[sourceType] || 'audiodock';
+
+  // 飞牛音乐：`/sys/config` 免登录且必定返回服务器身份，能拿到 serverGUID 即视为存活。
+  // 地址归一化（补协议/端口、去 /music 尾巴）在 fnos 客户端里做，这里直接交给它。
+  if (mappedType === 'fnos') {
+    const alive: boolean = await probeFnos(address);
+    Logger.i(TAG, `fnos probe url=${address} alive=${alive}`);
+    return alive;
+  }
+
   const base: string = address.replace(/\/+$/, '');
   let pingUrl: string;
   if (mappedType === 'subsonic') {

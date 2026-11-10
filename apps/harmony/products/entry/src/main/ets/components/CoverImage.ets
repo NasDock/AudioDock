@@ -1,5 +1,7 @@
 import { bucketWidth, getImageUrl } from '../utils/image';
+import { resolveFnosCover } from '../utils/fnosCover';
 import { IS_INTERNAL_KEY } from '../utils/networkMode';
+import { isFnosMediaUrl } from 'features_network';
 import { buildTheme } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
 
@@ -18,6 +20,8 @@ export struct CoverImage {
   @State theme: Theme = buildTheme('light');
   @State failed: boolean = false;
   @State currentUrl: string = '';
+  /** 正在解析的飞牛封面 key，用于丢弃过期的异步结果 */
+  private pendingCoverKey: string = '';
 
   aboutToAppear() {
     this.theme = buildTheme(this.themeMode);
@@ -42,7 +46,27 @@ export struct CoverImage {
 
   /** imgWidth 是 vp，按 2 倍估算目标设备像素宽度 */
   private buildUrl(): string {
-    return getImageUrl(this.path, bucketWidth(this.imgWidth * 2));
+    const url: string = getImageUrl(this.path, bucketWidth(this.imgWidth * 2));
+    // 飞牛封面只认 Cookie/Authorization，Image 加不了请求头：
+    // 先带鉴权下载落盘，再用本地 file:// 地址渲染（见 utils/fnosCover.ets）
+    if (isFnosMediaUrl(url)) {
+      this.loadFnosCover(url);
+      return '';
+    }
+    return url;
+  }
+
+  private loadFnosCover(url: string): void {
+    const key: string = url;
+    this.pendingCoverKey = key;
+    resolveFnosCover(url).then((local: string): void => {
+      // 期间 path 又变了（快速滑动/切歌），丢弃这次结果
+      if (this.pendingCoverKey !== key) return;
+      this.currentUrl = local;
+    }).catch((): void => {
+      if (this.pendingCoverKey !== key) return;
+      this.failed = true;
+    });
   }
 
   @Builder

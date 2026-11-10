@@ -218,10 +218,17 @@ export default class EntryAbility extends UIAbility {
     await fileCache.init(ctx);
     await rdbStore.init(ctx);
 
-    const stored = await kvStore.get('serverAddress');
-    if (stored) httpClient.setBaseURL(stored);
-    const token = await kvStore.get(`token_${stored ?? ''}`);
-    if (token) httpClient.setAuthToken(token);
+    // 数据源分流：飞牛音乐的 origin/token 与 AudioDock 的 baseURL 是两套东西，
+    // 冷启动必须先把飞牛会话灌进 features_network 的分发开关，否则首屏会拿 fnos 地址去打 /track/list。
+    const selectedSource = await kvStore.get('selectedSourceType');
+    if (selectedSource === 'fnos') {
+      await authStore.restoreFnosSession();
+    } else {
+      const stored = await kvStore.get('serverAddress');
+      if (stored) httpClient.setBaseURL(stored);
+      const token = await kvStore.get(`token_${stored ?? ''}`);
+      if (token) httpClient.setAuthToken(token);
+    }
 
     // 服务器地址确定后才能判定内网/外网，封面与头像的分级加载依赖它
     await refreshNetworkMode();

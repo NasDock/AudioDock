@@ -205,7 +205,11 @@ export default class EntryFormAbility extends FormExtensionAbility {
       return;
     }
     try {
-      const stored = await kvStore.get('serverAddress');
+      // 飞牛音乐源的 serverAddress 是 NAS 网关地址，不是 AudioDock 服务端：
+      // 卡片进程不要拿它当 baseURL（请求路径完全不同），只保留本地播放状态展示。
+      const selectedSource = await kvStore.get('selectedSourceType');
+      const isFnos = selectedSource === 'fnos';
+      const stored = isFnos ? null : await kvStore.get('serverAddress');
       if (stored) httpClient.setBaseURL(stored);
       // 卡片进程是独立 process，WidgetCoverResolver.baseUrl 是模块级变量，
       // 主 App 进程的赋值在这里看不到，必须自己从 kvStore 读 serverAddress 初始化，

@@ -2,11 +2,13 @@ import router from '@ohos.router';
 import promptAction from '@ohos.promptAction';
 import { buildTheme, type Theme, type ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
-import { HttpError } from 'features_network';
+import { HttpError, loginFnos } from 'features_network';
+import type { FnosLoginOutcome } from 'features_network';
 import { kvStore } from 'features_storage';
 import { Logger } from 'audiodock_common';
 import { authStore } from '../context/AuthStore';
-import { SOURCEMAP, SOURCETIPSMAP, selectBestServer } from '../utils/networkUtils';
+import { getOrCreateDeviceId } from '../utils/device';
+import { SOURCEMAP, SOURCETIPSMAP, SOURCE_LABELS, selectBestServer } from '../utils/networkUtils';
 
 interface Creds {
   username?: string;
@@ -50,7 +52,7 @@ struct LoginPage {
     this.theme = buildTheme(this.themeMode);
   }
 
-  // 归一化数据源类型为 mobile 端的大写展示形式（AudioDock / Subsonic / Emby）
+  // 归一化数据源类型为 mobile 端的大写展示形式（AudioDock / Subsonic / Emby / Feiniu）
   private normalizeSourceType(raw: string): string {
     const lower: string = raw.toLowerCase();
     if (lower === 'subsonic') {
@@ -58,6 +60,9 @@ struct LoginPage {
     }
     if (lower === 'emby') {
       return 'Emby';
+    }
+    if (lower === 'feiniu' || lower === 'fnos') {
+      return 'Feiniu';
     }
     return 'AudioDock';
   }
@@ -68,6 +73,9 @@ struct LoginPage {
     }
     if (this.sourceType === 'Emby') {
       return $r('app.media.emby');
+    }
+    if (this.sourceType === 'Feiniu') {
+      return $r('app.media.fnos');
     }
     return $r('app.media.logo');
   }
@@ -201,6 +209,20 @@ struct LoginPage {
       const creds: Creds = { username: this.username, password: this.password };
       await kvStore.set(`creds_${this.sourceType}_${bestAddress}`, JSON.stringify(creds));
 
+      // 飞牛音乐走自己的会话：/sys/config 预检 + 密码登录拿 userToken，
+      // 之后所有数据请求由 features_network 分发到飞牛适配器，不再经过 AudioDock 服务端。
+      if (mappedType === 'fnos') {
+        if (!this.isLogin) {
+          promptAction.showToast({ message: '飞牛音乐账号请在 fnOS 系统里创建，不能在这里注册' });
+          return;
+        }
+        const deviceSeed: string = await getOrCreateDeviceId();
+        const outcome: FnosLoginOutcome = await loginFnos(bestAddress, this.username, this.password, deviceSeed);
+        await authStore.applyFnosSession(outcome);
+        router.replaceUrl({ url: 'pages/RootShellPage' });
+        return;
+      }
+
       // 切换服务器：写入地址与类型后重载认证状态（baseURL + sourceType + 凭据）
       await kvStore.set('serverAddress', bestAddress);
       await kvStore.set('selectedSourceType', mappedType);
@@ -288,7 +310,7 @@ struct LoginPage {
               .height(80)
               .borderRadius(16)
               .margin({ bottom: 20 })
-            Text(`${this.sourceType} ${this.isLogin ? t('loginForm.login') : t('loginForm.register')}`)
+            Text(`${SOURCE_LABELS[this.sourceType] ?? this.sourceType} ${this.isLogin ? t('loginForm.login') : t('loginForm.register')}`)
               .fontSize(24)
               .fontWeight(FontWeight.Bold)
               .fontColor(this.theme.colors.text)

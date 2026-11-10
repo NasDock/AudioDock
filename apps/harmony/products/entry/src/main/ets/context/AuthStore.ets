@@ -1,6 +1,10 @@
 import { kvStore } from 'features_storage';
 import { httpClient } from 'features_network';
 import { authApi } from 'features_network';
+import {
+  enableFnos, disableFnos, isFnosSource,
+} from 'features_network';
+import type { FnosLoginOutcome, FnosSessionInfo } from 'features_network';
 import { socketService, SocketConnectOptions, SocketConnectQuery } from 'features_socket';
 import { Logger } from 'audiodock_common';
 import deviceInfo from '@ohos.deviceInfo';
@@ -10,7 +14,10 @@ import { getDevicePlatform, getOrCreateDeviceId } from '../utils/device';
 
 type Listener = () => void;
 
-export type SourceType = 'audiodock' | 'subsonic' | 'emby';
+/** 飞牛音乐会话（origin/apiBase/token/用户）落盘 key —— 飞牛只保持一个当前会话 */
+const FNOS_SESSION_KEY = 'fnos_session';
+
+export type SourceType = 'audiodock' | 'subsonic' | 'emby' | 'fnos';
 
 export interface AuthState {
   user: AuthMe | null;
@@ -53,6 +60,11 @@ export class AuthStore {
   async loadFromStorage(): Promise<void> {
     const url = await kvStore.get('serverAddress');
     const sourceType = (await kvStore.get('selectedSourceType')) as SourceType | null;
+    // 飞牛音乐：AudioDock 的 token/baseURL 都不适用，单独恢复一份会话
+    if (sourceType === 'fnos') {
+      await this.restoreFnosSession();
+      return;
+    }
     if (url) {
       httpClient.setBaseURL(url);
       const normalized = httpClient.getBaseURL();
@@ -84,6 +96,79 @@ export class AuthStore {
     await this.persist(res);
   }
 
+  // ────────────────────────────────────────────────────────────
+  // 飞牛音乐（fnos）会话
+  // ────────────────────────────────────────────────────────────
+
+  /**
+   * 登录成功后应用飞牛会话：
+   * 1. 打开 features_network 的分发开关（trackApi 等直接转调飞牛适配器）
+   * 2. 内存 state 对齐 page 层的 sourceType/user 判定
+   * 3. 会话落盘，供冷启动恢复
+   */
+  async applyFnosSession(outcome: FnosLoginOutcome): Promise<void> {
+    const info: FnosSessionInfo = outcome.session;
+    enableFnos(info);
+    const user: AuthMe = { id: outcome.userId, username: outcome.username };
+    this.state = {
+      serverAddress: info.origin,
+      sourceType: 'fnos',
+      token: info.token,
+      user: user,
+      deviceName: this.state.deviceName,
+    };
+    await kvStore.set('serverAddress', info.origin);
+    await kvStore.set('selectedSourceType', 'fnos');
+    await kvStore.set(FNOS_SESSION_KEY, JSON.stringify(info));
+    this.notify();
+  }
+
+  /** 冷启动恢复飞牛会话；没有落盘会话时什么也不做（页面会兜底回登录页） */
+  async restoreFnosSession(): Promise<void> {
+    try {
+      const raw = await kvStore.get(FNOS_SESSION_KEY);
+      if (raw === null || raw.length === 0) return;
+      const info: FnosSessionInfo = JSON.parse(raw) as FnosSessionInfo;
+      if (info.origin === undefined || info.origin.length === 0) return;
+      enableFnos(info);
+      const user: AuthMe = { id: info.userId, username: info.username };
+      this.state = {
+        serverAddress: info.origin,
+        sourceType: 'fnos',
+        token: info.token,
+        user: user,
+        deviceName: this.state.deviceName,
+      };
+      Logger.i('AuthStore', `restoreFnosSession origin=${info.origin} user=${info.username}`);
+      this.notify();
+    } catch (e) {
+      Logger.w('AuthStore', `restoreFnosSession failed: ${String(e)}`);
+    }
+  }
+
+  /** 清除飞牛会话（退出登录 / 切回 AudioDock 源时调用） */
+  async clearFnosSession(): Promise<void> {
+    disableFnos();
+    await kvStore.delete(FNOS_SESSION_KEY).catch((): void => undefined);
+  }
+
+  /**
+   * 从飞牛音乐切回 AudioDock 系数据源（AudioDock / Subsonic / Emby）前调用：
+   * 关掉 fnos 分发开关并复位 sourceType，否则随后的 switchServer 会被 fnos 分支拦下。
+   */
+  async leaveFnosSource(): Promise<void> {
+    if (!isFnosSource() && this.state.sourceType !== 'fnos') return;
+    await this.clearFnosSession();
+    this.state = {
+      user: null,
+      token: null,
+      sourceType: 'audiodock',
+      serverAddress: '',
+      deviceName: this.state.deviceName,
+    };
+    this.notify();
+  }
+
   async register(dto: RegisterDto): Promise<void> {
     const res = await authApi.register(await this.withDeviceInfo(dto));
     await this.persist(res);
@@ -99,6 +184,17 @@ export class AuthStore {
 
   async logout(): Promise<void> {
     const url = this.state.serverAddress;
+    // 飞牛音乐没有 AudioDock 的 token/user 存储，走自己的清理
+    if (isFnosSource() || this.state.sourceType === 'fnos') {
+      await this.clearFnosSession();
+      // 选源状态一并清掉：退出后应回到默认的 AudioDock 登录页
+      await kvStore.delete('selectedSourceType').catch((): void => undefined);
+      await kvStore.delete('serverAddress').catch((): void => undefined);
+      socketService.disconnect();
+      this.state = this.defaultState();
+      this.notify();
+      return;
+    }
     if (!url) return;
     await kvStore.delete(`token_${url}`);
     await kvStore.delete(`user_${url}`);
@@ -110,6 +206,14 @@ export class AuthStore {
   }
 
   async switchServer(url: string): Promise<void> {
+    // 飞牛音乐：没有 AudioDock 的登录态概念，切地址等同于重新登录，
+    // 这里清掉旧的 fnos 会话并打开开关交给 SourceManagePage 引导去登录页。
+    if (this.state.sourceType === 'fnos') {
+      await this.clearFnosSession();
+      this.state = this.defaultState();
+      this.notify();
+      return;
+    }
     httpClient.setBaseURL(url);
     const normalized = httpClient.getBaseURL();
     const token = await kvStore.get(`token_${normalized}`);
@@ -195,6 +299,8 @@ export class AuthStore {
    * 幂等：已连接则直接返回；切换账号/重新登录由调用方先 disconnectSyncSocket 再 connect。
    */
   async connectSyncSocket(): Promise<void> {
+    // 飞牛音乐不是 AudioDock 服务端，没有 sync socket 网关
+    if (this.state.sourceType === 'fnos') return;
     if (socketService.isConnected()) return;
     const user = this.state.user;
     const token = this.state.token;

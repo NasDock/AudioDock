@@ -1,4 +1,5 @@
 import { httpClient } from '../HarmonyHttpClient';
+import { fnosAdapter, isFnosSource } from '../fnos';
 import type { TrackDto } from './track';
 
 /**
@@ -40,40 +41,69 @@ export interface PlaylistApi {
 
 class PlaylistApiImpl implements PlaylistApi {
   async list(type?: string): Promise<PlaylistDto[]> {
+    if (isFnosSource()) return fnosAdapter.playlists();
     const q: Record<string, string | number | boolean> = {};
     if (type !== undefined && type.length > 0) q['type'] = type;
     return httpClient.get<PlaylistDto[]>('/playlists', q);
   }
 
   async getById(id: string): Promise<PlaylistDetailResp> {
+    if (isFnosSource()) {
+      // 飞牛的 /playlist/detail 只有歌单元信息，曲目要另拉一页（详情页只调这一个方法）
+      const meta: PlaylistDto = await fnosAdapter.playlistById(id);
+      const resp: PlaylistDetailResp = {
+        id: meta.id,
+        name: meta.name,
+        type: meta.type,
+        createdAt: meta.createdAt,
+        description: meta.description,
+        trackCount: meta.trackCount,
+        _count: meta._count,
+        tracks: [],
+      };
+      try {
+        const page = await fnosAdapter.playlistTracks(id, 0, 200);
+        resp.tracks = page.list;
+      } catch (e) {
+        // 曲目拉取失败不影响歌单头部展示
+        resp.tracks = [];
+      }
+      return resp;
+    }
     return httpClient.get<PlaylistDetailResp>(`/playlists/${id}`);
   }
 
   async create(name: string, type?: string): Promise<PlaylistDto> {
+    if (isFnosSource()) return fnosAdapter.createPlaylist(name);
     const payload: PlaylistCreatePayload = { name: name, type: type };
     return httpClient.post<PlaylistDto>('/playlists', payload);
   }
 
   async rename(id: string, name: string): Promise<PlaylistDto> {
+    if (isFnosSource()) return fnosAdapter.renamePlaylist(id, name);
     const payload: PlaylistCreatePayload = { name: name };
     return httpClient.put<PlaylistDto>(`/playlists/${id}`, payload);
   }
 
   async remove(id: string): Promise<void> {
+    if (isFnosSource()) return fnosAdapter.removePlaylist(id);
     return httpClient.del<void>(`/playlists/${id}`);
   }
 
   async addTrack(id: string, trackId: string): Promise<void> {
+    if (isFnosSource()) return fnosAdapter.addTracks(id, [trackId]);
     const payload: PlaylistAddTrackPayload = { trackId: trackId };
     return httpClient.post<void>(`/playlists/${id}/tracks`, payload);
   }
 
   async addTracks(id: string, trackIds: string[]): Promise<void> {
+    if (isFnosSource()) return fnosAdapter.addTracks(id, trackIds);
     const payload: PlaylistAddTracksPayload = { trackIds: trackIds };
     return httpClient.post<void>(`/playlists/${id}/tracks/batch`, payload);
   }
 
   async removeTrack(id: string, trackId: string): Promise<void> {
+    if (isFnosSource()) return fnosAdapter.removeTrack(id, trackId);
     return httpClient.del<void>(`/playlists/${id}/tracks/${trackId}`);
   }
 }
