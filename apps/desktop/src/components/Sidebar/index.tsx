@@ -22,7 +22,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
 import { useAuthStore } from "../../store/auth";
 import { usePlaylistStore } from "../../store/playlist";
-import { isEmbySource, isSubsonicSource } from "../../utils";
+import { isEmbySource, isMvSupported, isSubsonicSource } from "../../utils";
 import { isWeb } from "../../utils/platform";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
@@ -161,13 +161,16 @@ const Sidebar: React.FC = () => {
                 active={isActive("/songs")}
                 collapsed={collapsed}
               />
-              <MenuItem
-                icon={<VideoCameraOutlined />}
-                text="MV"
-                onClick={() => navigate("/mvs")}
-                active={isActive("/mvs")}
-                collapsed={collapsed}
-              />
+              {/* 飞牛音乐没有 MV 能力，隐藏入口 */}
+              {isMvSupported() && (
+                <MenuItem
+                  icon={<VideoCameraOutlined />}
+                  text="MV"
+                  onClick={() => navigate("/mvs")}
+                  active={isActive("/mvs")}
+                  collapsed={collapsed}
+                />
+              )}
             </>
           )
         }

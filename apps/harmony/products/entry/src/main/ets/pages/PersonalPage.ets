@@ -203,6 +203,10 @@ export struct PersonalTab {
     } catch (e) {
       Logger.w('PersonalTab', `read storage failed: ${String(e)}`);
     }
+    // 飞牛音乐没有专辑收藏/专辑历史，强制回落到单曲视图
+    if (isFnosSource() && this.activeSubTab === 'album') {
+      this.activeSubTab = 'track';
+    }
     await this.loadData();
     this.loadVipStatus();
     this.checkRunningImportTask();
@@ -258,7 +262,7 @@ export struct PersonalTab {
         for (const p of list) rows.push(ListRow.fromPlaylist(p));
         this.rows = rows;
       } else if (this.activeTab === 'favorites') {
-        if (this.activeSubTab === 'track') {
+        if (this.effectiveSubTab() === 'track') {
           const res = await userDataApi.likedTracks({ pageSize: 100, loadCount: 0, type: this.mode });
           const rows: ListRow[] = [];
           for (const it of res.list) {
@@ -274,7 +278,7 @@ export struct PersonalTab {
           this.rows = rows;
         }
       } else if (this.activeTab === 'history') {
-        if (this.activeSubTab === 'track') {
+        if (this.effectiveSubTab() === 'track') {
           const res = await userDataApi.trackHistory({ pageSize: 100, loadCount: 0, type: this.mode });
           const rows: ListRow[] = [];
           for (const it of res.list) {
@@ -303,7 +307,14 @@ export struct PersonalTab {
     this.loadData();
   }
 
+  // 与 desktop 的 effectiveViewMode 同构：飞牛下强制单曲，
+  // 子 tab、选中态与取数都走这个值，避免残留 album 拉到空的专辑列表。
+  private effectiveSubTab(): string {
+    return isFnosSource() ? 'track' : this.activeSubTab;
+  }
+
   switchSubTab(tab: string): void {
+    if (isFnosSource() && tab === 'album') return;
     this.activeSubTab = tab;
     this.loadData();
   }
@@ -879,22 +890,24 @@ export struct PersonalTab {
   SubTabBuilder() {
     if (this.activeTab === 'favorites' || this.activeTab === 'history') {
       Row({ space: 12 }) {
-        Row() {
-          Text(t('personal.album'))
-            .fontSize(14)
-            .fontWeight(this.activeSubTab === 'album' ? FontWeight.Bold : FontWeight.Normal)
-            .fontColor(this.activeSubTab === 'album' ? this.theme.colors.primary : this.theme.colors.textSecondary)
+        if (!isFnosSource()) {
+          Row() {
+            Text(t('personal.album'))
+              .fontSize(14)
+              .fontWeight(this.effectiveSubTab() === 'album' ? FontWeight.Bold : FontWeight.Normal)
+              .fontColor(this.effectiveSubTab() === 'album' ? this.theme.colors.primary : this.theme.colors.textSecondary)
+          }
+          .padding({ left: 16, right: 16, top: 6, bottom: 6 }).borderRadius(20)
+          .backgroundColor(Color.Transparent)
+          .onClick((): void => this.switchSubTab('album'))
         }
-        .padding({ left: 16, right: 16, top: 6, bottom: 6 }).borderRadius(20)
-        .backgroundColor(Color.Transparent)
-        .onClick((): void => this.switchSubTab('album'))
 
-        if (this.mode !== 'AUDIOBOOK') {
+        if (this.mode !== 'AUDIOBOOK' || isFnosSource()) {
           Row() {
             Text(t('personal.track'))
               .fontSize(14)
-              .fontWeight(this.activeSubTab === 'track' ? FontWeight.Bold : FontWeight.Normal)
-              .fontColor(this.activeSubTab === 'track' ? this.theme.colors.primary : this.theme.colors.textSecondary)
+              .fontWeight(this.effectiveSubTab() === 'track' ? FontWeight.Bold : FontWeight.Normal)
+              .fontColor(this.effectiveSubTab() === 'track' ? this.theme.colors.primary : this.theme.colors.textSecondary)
           }
           .padding({ left: 16, right: 16, top: 6, bottom: 6 }).borderRadius(20)
           .backgroundColor(Color.Transparent)

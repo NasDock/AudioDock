@@ -2,7 +2,7 @@ export { HarmonyHttpClient, httpClient } from './src/main/ets/HarmonyHttpClient'
 export { HttpError } from './src/main/ets/HttpError';
 export {
   fnosClient, fnosAdapter, FnosApiError, resolveFnosServer,
-  isFnosSource, enableFnos, disableFnos, resolveFnosAddress, probeFnos, loginFnos,
+  isFnosSource, isMvSupported, enableFnos, disableFnos, resolveFnosAddress, probeFnos, loginFnos,
   isFnosMediaUrl, fetchFnosMediaBytes, fetchFnosLyrics, getFnosPlaybackHeaders,
 } from './src/main/ets/fnos';
 export type { FnosSessionInfo, FnosLoginOutcome, FnosResolvedServer } from './src/main/ets/fnos';

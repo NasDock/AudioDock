@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { usePlayer } from '../../context/PlayerContext';
 import { usePlayMode } from '../../utils/playMode';
 import { getImageUrl as buildImageUrl } from '../../utils/image';
+import { isMvSupported } from '../../utils/mvSupport';
 import './index.scss';
 
 const SONG_SKELETON_COUNT = 9;
@@ -51,6 +52,7 @@ export default function Library() {
   const [heartbeatModeActive, setHeartbeatModeActive] = useState(false);
   const currentSourceType = Taro.getStorageSync('currentSourceType') || 'AudioDock';
   const canSwitchMode = currentSourceType !== 'Subsonic';
+  const mvSupported = isMvSupported(currentSourceType);
 
   const loadData = async (isLoadMore = false) => {
     if (!isLoadMore) {
@@ -123,7 +125,7 @@ export default function Library() {
           setHasMore(res.data.hasMore ?? newItems.length < (res.data.total || 0));
           setLoadCount((isLoadMore ? loadCount : 0) + 1);
         }
-      } else if (activeTab === 'mvs') {
+      } else if (mvSupported && activeTab === 'mvs') {
         const res = await getMvList(50, isLoadMore ? loadCount * 50 : 0);
         if (res && res.list) {
           const list = res.list as Mv[];
@@ -159,7 +161,14 @@ export default function Library() {
 
   useEffect(() => {
     loadData();
-  }, [mode, activeTab, heartbeatModeActive]);
+  }, [mode, activeTab, heartbeatModeActive, mvSupported]);
+
+  // 飞牛音乐没有 MV 能力：切源后若停在 MV tab 就退回可用 tab
+  useEffect(() => {
+    if (!mvSupported && activeTab === 'mvs') {
+      setActiveTab(mode === 'MUSIC' ? 'songs' : 'artists');
+    }
+  }, [mvSupported, activeTab, mode]);
 
   useEffect(() => {
     setShowTrackMoreMenu(false);
@@ -203,7 +212,7 @@ export default function Library() {
             type: mode,
           }),
           mode === 'AUDIOBOOK' && user ? getCollections(user.id) : Promise.resolve(null),
-          mode === 'MUSIC' ? getMvList(1, 0) : Promise.resolve(null)
+          mode === 'MUSIC' && mvSupported ? getMvList(1, 0) : Promise.resolve(null)
         ]);
 
         if (cancelled) return;
@@ -228,7 +237,7 @@ export default function Library() {
               ? (collectionRes?.code === 200 ? collectionRes.data?.length || 0 : 0)
               : null,
           mvs:
-            mode === 'MUSIC'
+            mode === 'MUSIC' && mvSupported
               ? mvRes?.total || mvRes?.list?.length || 0
               : null,
         });
@@ -244,7 +253,7 @@ export default function Library() {
     return () => {
       cancelled = true;
     };
-  }, [mode, user]);
+  }, [mode, user, mvSupported]);
 
   // 占位图各文件不同，这里绑死；调用点传显示尺寸（rpx 值 ≈ 目标设备像素，见 utils/image.ts）
   const getImageUrl = (url: string | null, width = 300) =>
@@ -360,7 +369,8 @@ export default function Library() {
             >
                 {renderTabLabel(t('nav.albums'), tabCounts.albums, activeTab === 'albums')}
             </View>
-            {mode === 'MUSIC' && (
+            {/* 飞牛音乐没有 MV 能力，隐藏 MV tab */}
+            {mvSupported && mode === 'MUSIC' && (
               <View
                 className={`tab-item ${activeTab === 'mvs' ? 'active' : ''}`}
                 onClick={() => setActiveTab('mvs')}
@@ -477,6 +487,8 @@ export default function Library() {
                      id={`item-${item.id}`}
                      className='grid-item'
                      onClick={() => {
+                       // 飞牛音乐没有 MV 能力，兜底阻止深链跳转
+                       if (!mvSupported && activeTab === 'mvs') return;
                        let url = '';
                        if (activeTab === 'artists') url = `/pages/artist/index?id=${item.id}`;
                        else if (activeTab === 'collections') url = `/pages/collection/index?id=${item.id}`;

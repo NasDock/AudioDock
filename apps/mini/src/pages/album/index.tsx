@@ -10,6 +10,7 @@ import XiaoAiIcon from '../../components/XiaoAiIcon';
 import { useAuth } from '../../context/AuthContext';
 import { usePlayer } from '../../context/PlayerContext';
 import { getImageUrl as buildImageUrl } from '../../utils/image';
+import { isMvSupported } from '../../utils/mvSupport';
 import { getBaseURL } from '../../utils/request';
 import './index.scss';
 import BottomTabBar from '../../components/BottomTabBar';
@@ -20,6 +21,7 @@ export default function AlbumDetail() {
   const { id } = router.params;
   const { playTrackList, currentTrack, isPlaying } = usePlayer();
   const { user } = useAuth();
+  const mvSupported = isMvSupported();
 
   const [album, setAlbum] = useState<Album | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -33,11 +35,18 @@ export default function AlbumDetail() {
   const [isMiDeviceSelectorVisible, setIsMiDeviceSelectorVisible] = useState(false);
   const [isCastingToMi, setIsCastingToMi] = useState(false);
 
+  // 飞牛音乐没有 MV 能力：切源时若停在 MV tab 就退回曲目 tab
+  useEffect(() => {
+    if (!mvSupported && activeTab === 'mvs') {
+      setActiveTab('tracks');
+    }
+  }, [mvSupported, activeTab]);
+
   useEffect(() => {
     if (id) {
       loadData(Number(id), sortBy, sort);
     }
-  }, [id, sortBy, sort]);
+  }, [id, sortBy, sort, mvSupported]);
 
   const loadData = async (albumId: number, currentSortBy: AlbumTrackSortBy, currentSort: 'asc' | 'desc') => {
     setLoading(true);
@@ -49,7 +58,8 @@ export default function AlbumDetail() {
 
       if (albumRes.code === 200) {
         setAlbum(albumRes.data);
-        if (albumRes.data?.name) {
+        // 飞牛音乐没有 MV 能力，跳过无效请求
+        if (mvSupported && albumRes.data?.name) {
           getMvsByAlbum(albumRes.data.name, albumRes.data.artist).then((res: any) => {
             if (res?.length) setMvs(res);
           }).catch((e: any) => console.error(e));
@@ -162,7 +172,7 @@ export default function AlbumDetail() {
                  </View>
              </View>
 
-             {mvs.length > 0 && (
+             {mvSupported && mvs.length > 0 && (
                <View className='tabs'>
                  <View 
                    className={`tab-item ${activeTab === 'tracks' ? 'active' : ''}`}
@@ -180,7 +190,7 @@ export default function AlbumDetail() {
              )}
 
              <View className='track-list'>
-                 {activeTab === 'mvs' ? (
+                 {mvSupported && activeTab === 'mvs' ? (
                    mvs.map((mv, index) => (
                      <View 
                         key={mv.id} 

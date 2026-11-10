@@ -50,7 +50,7 @@ import { resolveArtworkUri } from "../../services/trackResolver";
 import { useAuthStore } from "../../store/auth";
 import { useMvPlaylistStore } from "../../store/mvPlaylist";
 import { usePlayerStore } from "../../store/player";
-import { getCoverUrl } from "../../utils";
+import { getCoverUrl, isMvSupported } from "../../utils";
 import LazyImage from "../LazyImage";
 import TrackList from "../TrackList";
 import styles from "./index.module.less";
@@ -191,8 +191,8 @@ const Detail: React.FC = () => {
         );
         setIsLiked(isLikedByCurrentUser);
         
-        // load MVs
-        if (res.data?.name) {
+        // load MVs（飞牛音乐没有 MV 能力，跳过无效请求）
+        if (isMvSupported() && res.data?.name) {
             getMvsByAlbum(res.data.name, res.data.artist).then((mvRes: any[]) => {
                 if (mvRes?.length) {
                     setMvs(mvRes);
@@ -676,7 +676,7 @@ const Detail: React.FC = () => {
                 </div>
               </div>
 
-              {mvs.length > 0 && (
+              {isMvSupported() && mvs.length > 0 && (
                 <div style={{ display: 'flex', gap: 24, marginBottom: 24, borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
                   <div
                     style={{
@@ -706,7 +706,7 @@ const Detail: React.FC = () => {
               )}
 
               {/* Track List */}
-              {activeTab === 'mvs' ? (
+              {isMvSupported() && activeTab === 'mvs' ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {mvs.map((mv, index) => (
                     <div 

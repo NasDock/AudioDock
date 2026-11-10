@@ -16,6 +16,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Slider } from "@miblanchard/react-native-slider";
 import SkeletonBlock from "@/src/components/SkeletonBlock";
 import { useTheme } from "../../src/context/ThemeContext";
+import { useAuth } from "../../src/context/AuthContext";
+import { isMvSupported } from "../../src/utils/mvSupport";
 import { getMvById, getMvByTrackId, type Mv } from "@soundx/services";
 import { getImageSource } from "../../src/utils/image";
 import { getBaseURL } from "../../src/https";
@@ -35,6 +37,8 @@ export default function MvScreen() {
   const targetId = trackId ?? id;
 
   const { colors } = useTheme();
+  const { sourceType } = useAuth();
+  const mvSupported = isMvSupported(sourceType);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -128,6 +132,11 @@ export default function MvScreen() {
   });
 
   useEffect(() => {
+    // 飞牛音乐没有 MV 能力：入口已隐藏，深链/历史栈进来直接退回，也不要暂停正在播放的音频
+    if (!mvSupported) {
+      router.back();
+      return;
+    }
     pause();
     if (!currentMvId) {
       return;
@@ -159,7 +168,7 @@ export default function MvScreen() {
     };
 
     fetchMv();
-  }, [pause, currentMvId, isTrackMode, playlistState.list]);
+  }, [pause, currentMvId, isTrackMode, playlistState.list, mvSupported, router]);
 
   // Listen for playback end in playlist mode
   useEffect(() => {

@@ -1,3 +1,4 @@
+import { isFnosSource } from "@/src/utils/mvSupport";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   createCompactTask,
@@ -187,6 +188,8 @@ export default function PersonalScreen() {
   const { mode, setMode } = usePlayMode();
   const { logout, user, switchServer, sourceType, setSourceType, device } =
     useAuth();
+  // 飞牛音乐只支持单曲维度的收藏/播放历史（专辑接口返回空），因此只保留单曲视图
+  const fnosSource = isFnosSource(sourceType);
   const { playTrackList } = usePlayer();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -319,6 +322,8 @@ export default function PersonalScreen() {
 
   const [activeTab, setActiveTab] = useState<TabType>("playlists");
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>("track");
+  // 与 desktop 的 effectiveViewMode 同构：飞牛下强制单曲，避免残留 album 拉到空列表
+  const effectiveSubTab: SubTabType = fnosSource ? "track" : activeSubTab;
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -395,7 +400,7 @@ export default function PersonalScreen() {
     if (user) {
       loadData();
     }
-  }, [user, activeTab, activeSubTab, mode]);
+  }, [user, activeTab, activeSubTab, mode, fnosSource]);
 
   // Reset selected album when tab changes or mode changes
   useEffect(() => {
@@ -404,10 +409,10 @@ export default function PersonalScreen() {
 
   // AUDIOBOOK 模式下强制使用专辑子标签
   useEffect(() => {
-    if (mode === "AUDIOBOOK" && activeSubTab !== "album") {
+    if (!fnosSource && mode === "AUDIOBOOK" && activeSubTab !== "album") {
       setActiveSubTab("album");
     }
-  }, [mode]);
+  }, [mode, fnosSource]);
 
   React.useEffect(() => {
     if (user) {
@@ -453,7 +458,7 @@ export default function PersonalScreen() {
         const res = await getPlaylists(mode as any, user.id);
         if (res.code === 200) setPlaylists(res.data);
       } else if (activeTab === "favorites") {
-        if (activeSubTab === "track") {
+        if (effectiveSubTab === "track") {
           const res = await getFavoriteTracks(user.id, 0, 10000, mode as any);
           if (res.code === 200)
             setFavorites(res.data.list.map((item: any) => item.track));
@@ -464,7 +469,7 @@ export default function PersonalScreen() {
             setFavorites(res.data.list.map((item: any) => item.album));
         }
       } else if (activeTab === "history") {
-        if (activeSubTab === "track") {
+        if (effectiveSubTab === "track") {
           const res = await getTrackHistory(user.id, 0, 10000, mode as any);
           if (res.code === 200)
             setHistory(res.data.list.map((item: any) => item.track));
@@ -509,7 +514,7 @@ export default function PersonalScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadData();
-  }, [user, activeTab, activeSubTab, mode]);
+  }, [user, activeTab, activeSubTab, mode, fnosSource]);
 
   const handleOpenTtsTasks = async () => {
     setMenuVisible(false);
@@ -740,7 +745,7 @@ export default function PersonalScreen() {
       const isAlbum =
         activeTab !== "playlists" &&
         activeTab !== "downloads" &&
-        activeSubTab === "album";
+        effectiveSubTab === "album";
       const isDownloadAlbum =
         activeTab === "downloads" &&
         mode === "AUDIOBOOK" &&
@@ -868,7 +873,7 @@ export default function PersonalScreen() {
     },
     [
       activeTab,
-      activeSubTab,
+      effectiveSubTab,
       colors,
       favorites,
       history,
@@ -1127,8 +1132,10 @@ export default function PersonalScreen() {
       {(activeTab === "favorites" || activeTab === "history") && (
         <View style={styles.subTabContainer}>
           {[
-            { id: "album", label: t("personal.album") },
-            ...(mode !== "AUDIOBOOK"
+            ...(fnosSource
+              ? []
+              : [{ id: "album", label: t("personal.album") }]),
+            ...(fnosSource || mode !== "AUDIOBOOK"
               ? [{ id: "track", label: t("personal.track") }]
               : []),
           ].map((sub) => (
@@ -1136,7 +1143,7 @@ export default function PersonalScreen() {
               key={sub.id}
               style={[
                 styles.subTabItem,
-                activeSubTab === sub.id && {
+                effectiveSubTab === sub.id && {
                   backgroundColor: "rgba(150,150,150,0.1)",
                 },
               ]}
@@ -1147,11 +1154,11 @@ export default function PersonalScreen() {
                   styles.subTabText,
                   {
                     color:
-                      activeSubTab === sub.id
+                      effectiveSubTab === sub.id
                         ? colors.primary
                         : colors.secondary,
                   },
-                  activeSubTab === sub.id && { fontWeight: "bold" },
+                  effectiveSubTab === sub.id && { fontWeight: "bold" },
                 ]}
               >
                 {sub.label}

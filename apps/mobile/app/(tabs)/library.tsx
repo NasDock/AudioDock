@@ -28,6 +28,7 @@ import { useTheme } from "../../src/context/ThemeContext";
 import { Album, Artist, Track, TrackSource } from "../../src/models";
 import { downloadTracks } from "../../src/services/downloadManager";
 import { getImageSource } from "../../src/utils/image";
+import { isMvSupported } from "../../src/utils/mvSupport";
 import { usePlayMode } from "../../src/utils/playMode";
 import { trackEvent } from "../../src/services/tracking";
 import { mvPlaylistStore } from "../../src/store/mvPlaylist";
@@ -980,6 +981,7 @@ export default function LibraryScreen() {
   const router = useRouter();
   const { mode, setMode } = usePlayMode();
   const { sourceType, user, device } = useAuth();
+  const mvSupported = isMvSupported(sourceType);
   const { playTrackList } = usePlayer();
   const insets = useSafeAreaInsets();
   const [tabCounts, setTabCounts] = useState<{
@@ -1052,6 +1054,13 @@ export default function LibraryScreen() {
     }
   }, [mode, heartbeatModeActive]);
 
+  // 切到不支持 MV 的数据源（飞牛）时，若正停留在 MV tab 就退回歌曲 tab
+  useEffect(() => {
+    if (!mvSupported && activeTab === "mvs") {
+      setActiveTab("songs");
+    }
+  }, [mvSupported, activeTab]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -1074,7 +1083,7 @@ export default function LibraryScreen() {
           mode === "AUDIOBOOK" && user
             ? getCollections(user.id)
             : Promise.resolve(null),
-          mode === "MUSIC"
+          mode === "MUSIC" && mvSupported
             ? getMvList(1, 0)
             : Promise.resolve(null)
         ]);
@@ -1101,7 +1110,7 @@ export default function LibraryScreen() {
               ? (collectionRes?.code === 200 ? collectionRes.data?.length ?? 0 : 0)
               : null,
           mvs:
-            mode === "MUSIC"
+            mode === "MUSIC" && mvSupported
               ? (mvRes?.list?.length ? mvRes.total : 0)
               : null,
         });
@@ -1117,7 +1126,7 @@ export default function LibraryScreen() {
     return () => {
       cancelled = true;
     };
-  }, [mode, user]);
+  }, [mode, user, mvSupported]);
 
   const renderTabLabel = (
     label: string,
@@ -1377,7 +1386,8 @@ export default function LibraryScreen() {
           >
             {renderTabLabel(t("nav.albums"), tabCounts.albums, activeTab === "albums")}
           </TouchableOpacity>
-          {mode === "MUSIC" && (
+          {/* 飞牛音乐没有 MV 能力，隐藏 MV tab */}
+          {mvSupported && mode === "MUSIC" && (
             <TouchableOpacity
               style={[
                 styles.segmentItem,
@@ -1428,7 +1438,7 @@ export default function LibraryScreen() {
           }
         />
       ) : activeTab === "mvs" ? (
-        <MvList />
+        mvSupported ? <MvList /> : null
       ) : (
         <CollectionList />
       )}

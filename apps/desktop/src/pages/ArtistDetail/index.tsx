@@ -44,6 +44,7 @@ import { type Album, type Artist, type Track, TrackType } from "../../models";
 import { downloadTracks } from "../../services/downloadManager";
 import { resolveArtworkUri } from "../../services/trackResolver";
 import { useAuthStore } from "../../store/auth";
+import { isMvSupported } from "../../utils";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
 
@@ -139,7 +140,8 @@ const ArtistDetail: React.FC = () => {
             setCollaborativeAlbums(collaborativeRes.data);
           }
 
-          if (artistQueryKey) {
+          // 飞牛音乐没有 MV 能力，跳过无效请求
+          if (isMvSupported() && artistQueryKey) {
             getMvsByArtist(artistQueryKey).then((res: any[]) => {
               if (res?.length) {
                 setMvs(res);
@@ -381,7 +383,7 @@ const ArtistDetail: React.FC = () => {
         </div>
       )}
 
-      {mvs.length > 0 && (
+      {isMvSupported() && mvs.length > 0 && (
         <div className={styles.content} style={{ marginTop: "48px" }}>
           <Title level={4} className={styles.sectionTitle}>
             MV ({mvs.length})

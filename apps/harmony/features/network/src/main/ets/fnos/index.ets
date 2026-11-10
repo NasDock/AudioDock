@@ -33,6 +33,15 @@ export function isFnosSource(): boolean {
   return active;
 }
 
+/**
+ * 当前数据源是否支持 MV。
+ * 飞牛音乐（fnOS trim.music）没有 MV 能力，mvApi 全部短路返回空结果，
+ * 页面据此隐藏 MV tab / 卡片 / 播放按钮（其它端同名同语义）。
+ */
+export function isMvSupported(): boolean {
+  return !active;
+}
+
 export function enableFnos(info: FnosSessionInfo): void {
   fnosClient.setSession(info.origin, info.apiBase, info.token, info.relayMode);
   fnosClient.setIdentity(info.userId, info.username);

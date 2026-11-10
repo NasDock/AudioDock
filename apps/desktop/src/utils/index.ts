@@ -39,6 +39,13 @@ export const isFnosSource = () => {
   return localStorage.getItem("selectedSourceType") === "Feiniu";
 };
 
+/**
+ * 当前数据源是否支持 MV。
+ * 飞牛音乐（fnOS trim.music）没有 MV 能力，适配器全部返回空实现，
+ * 因此飞行模式下所有 MV 入口（tab / 卡片 / 播放按钮 / 路由）都要隐藏。
+ */
+export const isMvSupported = () => !isFnosSource();
+
 /** 外部数据源（非 AudioDock 官方服务端）：扫描/整理/文件夹/有声书等能力都不可用 */
 export const isThirdPartySource = () =>
   isSubsonicSource() || isEmbySource() || isFnosSource();

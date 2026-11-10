@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { PlayMode, usePlayer } from '../../context/PlayerContext';
 import { usePlayMode } from '../../utils/playMode';
 import { getImageUrl as buildImageUrl } from '../../utils/image';
+import { isMvSupported } from '../../utils/mvSupport';
 import { getBaseURL } from '../../utils/request';
 import { trackEvent } from '../../utils/tracking';
 import './index.scss';
@@ -80,6 +81,7 @@ export default function Player() {
   } = usePlayer();
   const { mode } = usePlayMode();
   const { user } = useAuth();
+  const mvSupported = isMvSupported();
   const [showLyrics, setShowLyrics] = useState(false);
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [currentLyricIndex, setCurrentLyricIndex] = useState(-1);
@@ -108,7 +110,8 @@ export default function Player() {
     let cancelled = false;
 
     const checkMvStatus = async () => {
-      if (!currentTrack || currentTrack.type === 'AUDIOBOOK') {
+      // 飞牛音乐没有 MV 能力，直接跳过探测请求
+      if (!mvSupported || !currentTrack || currentTrack.type === 'AUDIOBOOK') {
         if (!cancelled) setHasMv(false);
         return;
       }
@@ -130,7 +133,7 @@ export default function Player() {
     return () => {
       cancelled = true;
     };
-  }, [currentTrack?.id, currentTrack?.type]);
+  }, [currentTrack?.id, currentTrack?.type, mvSupported]);
 
   useEffect(() => {
     if (lyrics.length > 0) {
@@ -511,7 +514,7 @@ const handleOpenMore = () => {
                     <View className='player-action-btns'>
                         {currentTrack.type !== 'AUDIOBOOK' && (
                           <>
-                            {hasMv && (
+                            {mvSupported && hasMv && (
                               <View className='player-action-btn' onClick={() => Taro.navigateTo({ url: `/pages/mv/index?trackId=${currentTrack.id}` })}>
                                   <Text className='player-action-icon icon icon-video' />
                               </View>
