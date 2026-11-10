@@ -181,7 +181,8 @@ const SearchResults: React.FC<SearchResultsProps> = ({
     results &&
     (results.tracks.length > 0 ||
       results.artists.length > 0 ||
-      results.albums.length > 0);
+      results.albums.length > 0 ||
+      (results.playlists?.length || 0) > 0);
 
   if (!hasResults) {
     return (
@@ -315,6 +316,27 @@ const SearchResults: React.FC<SearchResultsProps> = ({
               cover={getCoverUrl(album, album.id, 96)}
               title={album.name}
               subtitle={`${album.artist} · ${album.year}`}
+            />
+          ))}
+        </div>
+      )}
+
+      {(results.playlists?.length || 0) > 0 && (
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>{t('searchResults.playlist')}</div>
+          {results.playlists!.map((playlist) => (
+            <Item
+              key={playlist.id}
+              // 飞牛的歌单没有封面，走头像形态显示名字首字
+              data={{ ...playlist, avatar: null }}
+              type="playlist"
+              onClick={() => {
+                navigate(`/playlist/${playlist.id}`);
+                onClose();
+              }}
+              title={playlist.name}
+              subtitle={t('common.trackCount', { count: playlist._count?.tracks || 0 })}
+              isArtist={true}
             />
           ))}
         </div>

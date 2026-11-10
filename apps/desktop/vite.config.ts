@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import svgr from 'vite-plugin-svgr';
+import { fnosProxyPlugin } from './vite-plugin-fnos-proxy';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -21,5 +22,7 @@ export default defineConfig({
   plugins: [
     react(),
     svgr(),
+    // 飞牛网关没有 CORS，web 端由 dev server 代转并补 Cookie: mode=relay
+    fnosProxyPlugin(),
   ],
 })

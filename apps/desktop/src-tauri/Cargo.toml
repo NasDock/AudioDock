@@ -17,7 +17,9 @@ tauri-plugin-autostart = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-global-shortcut = "2"
-tauri-plugin-http = "2"
+# unsafe-headers：飞牛 FN Connect 中继每个请求要 `Cookie: mode=relay`，
+# 而 plugin-http 默认按 fetch 规范丢弃 Cookie 这类 forbidden header
+tauri-plugin-http = { version = "2", features = ["unsafe-headers"] }
 tauri-plugin-os = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

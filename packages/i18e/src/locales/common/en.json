@@ -1046,6 +1046,7 @@
     "single": "Track",
     "artist": "Artist",
     "album": "Album",
+    "playlist": "Playlist",
     "musician": "Musician",
     "narrator": "Narrator",
     "addToPlaylist": "Add to Playlist",

@@ -27,6 +27,7 @@ import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { usePlayMode } from "../../utils/playMode";
 import { formatTimeLabel } from "../../utils/timeFormat";
+import { isFnosSource } from "../../utils";
 import styles from "./index.module.less";
 
 const { Title } = Typography;
@@ -34,7 +35,12 @@ const { Title } = Typography;
 const Favorites: React.FC = () => {
   const { t } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
-  const [viewMode, setViewMode] = useState<"album" | "track">("album");
+  // 飞牛音乐只支持单曲收藏（专辑收藏接口返回空），因此只保留单曲视图
+  const fnosSource = isFnosSource();
+  const [viewMode, setViewMode] = useState<"album" | "track">(
+    fnosSource ? "track" : "album",
+  );
+  const effectiveViewMode: "album" | "track" = fnosSource ? "track" : viewMode;
   const { token } = theme.useToken();
   const { play, setPlaylist } = usePlayerStore();
 
@@ -52,7 +58,7 @@ const Favorites: React.FC = () => {
   }>({
     fetcher: async ({ pageSize, skip }) => {
       const loadCount = Math.floor(skip / pageSize);
-      if (viewMode === "album") {
+      if (effectiveViewMode === "album") {
         const res = await getFavoriteAlbums(user?.id || 0, loadCount, pageSize, type);
         return toPagedResult<any>(res.data as ILoadMoreData<any>, pageSize);
       } else {
@@ -61,7 +67,7 @@ const Favorites: React.FC = () => {
       }
     },
     pageSize: PAGE_SIZE,
-    deps: [viewMode, type, user?.id],
+    deps: [effectiveViewMode, type, user?.id],
     uniqueKey: (item) => item.id,
   });
 
@@ -105,7 +111,7 @@ const Favorites: React.FC = () => {
         <Title level={4} className={styles.timelineTitle}>
           {formatTimeLabel(item.time)}
         </Title>
-        {viewMode === "album" ? (
+        {effectiveViewMode === "album" ? (
           <Row gutter={16}>
             {item.items.map((album) => (
               <Col key={album.id}>
@@ -139,15 +145,29 @@ const Favorites: React.FC = () => {
         <Flex gap={8} align="center">
           {type === "MUSIC" && (
             <Segmented
-              options={[
-                { value: "album", icon: <AppstoreOutlined />, label: t("favorites.album") },
-                {
-                  value: "track",
-                  icon: <UnorderedListOutlined />,
-                  label: t("favorites.songs"),
-                },
-              ]}
-              value={viewMode}
+              options={
+                fnosSource
+                  ? [
+                      {
+                        value: "track",
+                        icon: <UnorderedListOutlined />,
+                        label: t("favorites.songs"),
+                      },
+                    ]
+                  : [
+                      {
+                        value: "album",
+                        icon: <AppstoreOutlined />,
+                        label: t("favorites.album"),
+                      },
+                      {
+                        value: "track",
+                        icon: <UnorderedListOutlined />,
+                        label: t("favorites.songs"),
+                      },
+                    ]
+              }
+              value={effectiveViewMode}
               onChange={(value) => setViewMode(value as "album" | "track")}
             />
           )}

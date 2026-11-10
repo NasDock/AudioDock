@@ -12,6 +12,7 @@ mod window;
 mod cache;
 mod protocol;
 mod media_server;
+mod fnos_http;
 #[cfg(target_os = "windows")]
 mod taskbar_thumb;
 
@@ -153,6 +154,7 @@ pub fn run() {
             commands::update_tray_lyric,
             commands::update_lyric,
             commands::set_minimize_to_tray,
+            fnos_http::fnos_request,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
