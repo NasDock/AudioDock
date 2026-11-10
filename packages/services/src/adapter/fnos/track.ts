@@ -200,11 +200,12 @@ export class FnosTrackAdapter implements ITrackAdapter {
 
   async getLyrics(id: number | string) {
     const guid = String(id);
-    // 官方客户端用 trackGUID；老版本用 guid，两个都试一遍
-    let payload = await this.client
-      .get<unknown>("/lyric/list", { trackGUID: guid })
-      .catch(() => null);
-    if (!extractLyricText(payload)) {
+    // 实测只认 trackGUID；guid 是历史写法，仅在上面的请求真失败时才回退，
+    // 避免「本来就没歌词」的曲目白跑两次请求
+    let payload: unknown = null;
+    try {
+      payload = await this.client.get<unknown>("/lyric/list", { trackGUID: guid });
+    } catch {
       payload = await this.client.get<unknown>("/lyric/list", { guid }).catch(() => null);
     }
     return this.response(extractLyricText(payload));

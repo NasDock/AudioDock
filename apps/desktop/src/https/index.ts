@@ -3,6 +3,7 @@ import axios, { AxiosError, type AxiosResponse } from "axios";
 import { SOURCEMAP } from "../constants/sources";
 import { registerFnosTransport } from "../services/fnosTransport";
 import { useAuthStore } from "../store/auth";
+import { enforceSourcePlayMode } from "../utils/playMode";
 
 // 飞牛网关没有 CORS 头，必须先把请求切到 Tauri 的 Rust 侧再发（web 环境下自动跳过）
 registerFnosTransport();
@@ -142,6 +143,9 @@ const initAdapter = () => {
     } else {
       useNativeAdapter();
     }
+
+    // 飞牛只有音乐：把上次残留的「有声书」模式纠正回来
+    enforceSourcePlayMode(mappedType === "fnos" ? "Feiniu" : sourceType);
   } catch (e) {
     console.error("初始化适配器失败", e);
     useNativeAdapter();

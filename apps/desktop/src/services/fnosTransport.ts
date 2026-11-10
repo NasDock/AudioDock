@@ -5,6 +5,7 @@ import {
   type FnosTransport,
 } from "@soundx/services";
 import { invoke } from "@tauri-apps/api/core";
+import { cacheUtils } from "../utils/cache";
 import { isWeb } from "../utils/platform";
 
 /**
@@ -34,11 +35,54 @@ const REDIRECT_HINT = (status: number, location?: string | null) =>
     location ? ` → ${location}` : ""
   }，通常是中继未放行（Cookie: mode=relay 丢失）或会话已失效`;
 
+/**
+ * 桌面端媒体代理就绪信号。
+ *
+ * 封面/音频地址由 `buildMediaUrl()` 拼，必须指向本地 127.0.0.1 转发服务
+ * （`src-tauri/src/fnos_media.rs`）。端口要异步问 Rust 才知道，而首个媒体地址
+ * 一定出现在某个业务请求返回之后 —— 所以在 `tauriTransport` 里 await 它，
+ * 就保证了「生成媒体地址时前缀已就绪」。
+ */
+let mediaProxyReady: Promise<void> | null = null;
+
+/** 最近一次同步给 Rust 的会话标识（origin + cookie），用于去重 */
+let syncedSession = "";
+
+/**
+ * 把当前请求的 Cookie 同步给 Rust 的 `/fnos/*` 转发服务。
+ *
+ * 会话 Token 只在 Cookie 里（`music-token=…`，中继还有 `mode=relay`），
+ * 而 `<img>` / `<audio>` 带不了请求头，只能让本地转发服务替我们带上。
+ * 每换一次 token 才真的走一次 IPC（保序 await，避免封面请求抢跑）。
+ */
+const syncMediaSession = async (url: string, headers: Record<string, string>) => {
+  const cookie = headers.Cookie || headers.cookie;
+  if (!cookie) return;
+  // 只认带 music-token 的完整会话。
+  // 登录前的预检（`/sys/config`，skipAuth）和中继探测只会带 `mode=relay`，
+  // 用它覆盖会话会让后续所有封面/音频变成「有 Cookie 但没 token」→ 401。
+  if (!cookie.includes("music-token=")) return;
+  const origin = new URL(url).origin;
+  const key = `${origin}|${cookie}`;
+  if (key === syncedSession) return;
+  try {
+    await invoke("fnos_set_media_session", { origin, cookie });
+    syncedSession = key;
+  } catch (error) {
+    // 同步失败只影响封面/播放，不该让业务请求失败。
+    // 不写入 syncedSession —— 下次请求还要重试，否则一次失败就永久 401。
+    console.warn("[Fnos] 同步媒体会话失败", error);
+  }
+};
+
 /** 桌面端：Rust 侧发请求 */
 const tauriTransport: FnosTransport = async (request) => {
   if (request.binary) {
     throw new Error("飞牛音乐媒体二进制通道尚未接入（封面/音频请走 <img>/<audio> 地址）");
   }
+
+  if (mediaProxyReady) await mediaProxyReady;
+  await syncMediaSession(request.url, request.headers);
 
   const response = await invoke<FnosRustResponse>("fnos_request", {
     method: request.method,
@@ -114,6 +158,35 @@ export const registerFnosTransport = () => {
   setFnosTransport(tauriTransport);
   registered = true;
   console.log("[Fnos] 已注入 Rust 传输层（fnos_request）");
+
+  // 媒体（封面/音频）走本地 127.0.0.1 转发服务，端口要问 Rust 拿。
+  // 见 fnos_media.rs：`/fnos/<apiPath><path>?...&__b=<origin>`
+  mediaProxyReady = initMediaProxy();
+};
+
+/**
+ * 取本地媒体服务 origin 并把它设成媒体代理前缀。
+ *
+ * 这段代码在模块加载期（`https/index.ts` 顶层）就跑，个别环境下 IPC 还没就绪，
+ * 所以失败时退避重试几次 —— 拿不到前缀的话封面/音频会退回直连，必然 401。
+ */
+const initMediaProxy = async (attempt = 0): Promise<void> => {
+  try {
+    const mediaOrigin = await invoke<string>("get_media_origin");
+    if (!mediaOrigin) throw new Error("媒体服务 origin 为空");
+    const mediaProxy = `${mediaOrigin}/fnos`;
+    setFnosMediaProxy(mediaProxy);
+    // 本地媒体服务端口是每次启动随机分配的，而上层列表缓存（5 分钟）里存着
+    // 上一进程拼好的封面/音频绝对地址 —— 不清掉会有一段时间封面全 404。
+    cacheUtils.clearAll();
+    console.log("[Fnos] 媒体代理：", mediaProxy);
+  } catch (error) {
+    if (attempt < 3) {
+      await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+      return initMediaProxy(attempt + 1);
+    }
+    console.warn("[Fnos] 初始化媒体代理失败（封面/音频将无法加载）", error);
+  }
 };
 
 /**

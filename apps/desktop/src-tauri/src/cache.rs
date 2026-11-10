@@ -477,7 +477,20 @@ async fn download_track_internal(
             .and_then(|e| e.to_str())
             .map(|e| e.to_lowercase())
             .unwrap_or_else(|| "mp3".to_string());
-        format!("{}.{}", decoded_name, ext)
+        // 第三方源（飞牛）的播放地址是 `/track/stream?guid=…`：最后一段是固定
+        // 动作名 `stream` 而不是曲目标识，直接当文件名会把整个曲库写进同一个
+        // `stream.mp3`，后下载的覆盖前一首，命中缓存时播出来就是别人的歌。
+        // 这类「动词段」一律退回 track id 当文件名。
+        let is_verb_segment = matches!(
+            decoded_name.as_str(),
+            "stream" | "download" | "file" | "audio" | "play" | "media"
+        );
+        let stem = if is_verb_segment {
+            metadata.id.to_string()
+        } else {
+            decoded_name
+        };
+        format!("{}.{}", stem, ext)
     } else {
         decoded_name
     };

@@ -87,7 +87,7 @@ import { useSettingsStore } from "../../store/settings";
 import { isEmbySource, isFnosSource, isSubsonicSource, isThirdPartySource } from "../../utils";
 // isWindows/tauriMinimizeWindow/tauriMaximizeWindow/tauriCloseWindow 已随 winControls 迁移到 TitleBar
 import { isTauri, isWeb, tauriOpenExternal } from "../../utils/platform";
-import { usePlayMode } from "../../utils/playMode";
+import { enforceSourcePlayMode, usePlayMode } from "../../utils/playMode";
 import { requestHomeRefresh } from "../../utils/refreshHome";
 import SearchResults from "../SearchResults";
 import styles from "./index.module.less";
@@ -1118,6 +1118,8 @@ const Header: React.FC = () => {
                 localStorage.setItem("serverAddress", url);
                 localStorage.setItem("selectedSourceType", type);
                 localStorage.setItem(`serverAddress_${type}`, url);
+                // 飞牛只有音乐：切过去时把「有声书」模式纠正回音乐
+                enforceSourcePlayMode(type);
 
                 // 2. Load credentials if available
                 const credsKey = `creds_${type}_${url}`;

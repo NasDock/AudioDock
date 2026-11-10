@@ -13,6 +13,7 @@ mod cache;
 mod protocol;
 mod media_server;
 mod fnos_http;
+mod fnos_media;
 #[cfg(target_os = "windows")]
 mod taskbar_thumb;
 
@@ -70,13 +71,16 @@ pub fn run() {
                 Arc::new(CacheManager::new(app_data_dir.clone(), &dp))
             };
             // Local streaming HTTP server for cached audio (AVPlayer can't stream
-            // from the `media://` custom protocol).
-            let media_origin = media_server::start(download_path.clone())?;
+            // from the `media://` custom protocol). Also proxies fnOS music media
+            // (`/fnos/*`), see fnos_media.rs.
+            let fnos_sessions = fnos_media::new_sessions();
+            let media_origin = media_server::start(download_path.clone(), fnos_sessions.clone())?;
             app.manage(AppState {
                 cache_manager,
                 player_state: Mutex::new(PlayerState::default()),
                 download_path,
                 media_origin,
+                fnos_sessions,
             });
             app.manage(MinimizeToTrayFlag(true));
 
@@ -154,6 +158,7 @@ pub fn run() {
             commands::update_tray_lyric,
             commands::update_lyric,
             commands::set_minimize_to_tray,
+            commands::fnos_set_media_session,
             fnos_http::fnos_request,
         ])
         .run(tauri::generate_context!())

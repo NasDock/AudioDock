@@ -27,6 +27,7 @@ import {
   getMiQRCodeStatus,
   getMvByTrackId,
   getPlaylists,
+  getTrackLyrics,
   getUserDevices,
   type Device as OnlineDevice,
   type MiDevice,
@@ -94,6 +95,7 @@ import { useSettingsStore } from "../../store/settings";
 import LazyImage from "../LazyImage";
 import { useSyncStore } from "../../store/sync";
 import { formatDuration } from "../../utils/formatDuration";
+import { isFnosSource } from "../../utils";
 import { isTauri, tauriGetDeviceName, getOrCreateDeviceId, computeStableDeviceId, tauriMaximizeWindow } from "../../utils/platform";
 import { getCurrentPlaybackQualityPreference } from "../../utils/playbackQuality";
 import { getPlayMode, setPlayMode, usePlayMode } from "../../utils/playMode";
@@ -1265,9 +1267,43 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
     { time: number; text: string }[]
   >([]);
 
+  const currentTrackId = currentTrack ? String(currentTrack.id) : "";
+
+  // 歌词懒加载：飞牛的曲目列表不带歌词，只有 `GET /lyric/list?trackGUID=` 单曲接口；
+  // 其它数据源的 Track 里已经内建 lyrics，命中后直接跳过。
+  const [fetchedLyrics, setFetchedLyrics] = useState<{
+    id: string;
+    text: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!currentTrack || currentTrack.lyrics || !isFnosSource()) return;
+    let cancelled = false;
+    const id = String(currentTrack.id);
+    getTrackLyrics(currentTrack.id)
+      .then((res) => {
+        if (cancelled) return;
+        const text = typeof res?.data === "string" && res.data.trim() ? res.data : null;
+        setFetchedLyrics({ id, text });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.warn("[Player] 加载歌词失败", error);
+        setFetchedLyrics({ id, text: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTrackId, currentTrack?.lyrics]);
+
+  // 懒加载结果只对同一首曲目生效，切歌时不会串词
+  const currentLyrics =
+    currentTrack?.lyrics ||
+    (fetchedLyrics && fetchedLyrics.id === currentTrackId ? fetchedLyrics.text : null);
+
   // Parse lyrics when track changes
   useEffect(() => {
-    const rawLyrics = currentTrack?.lyrics;
+    const rawLyrics = currentLyrics;
     if (!rawLyrics) {
       setParsedLyrics([]);
       // Sync empty state immediately
@@ -1302,7 +1338,7 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
 
     parsed.sort((a, b) => a.time - b.time);
     setParsedLyrics(parsed);
-  }, [currentTrack?.lyrics]);
+  }, [currentLyrics]);
 
   // Sync active lyric line
   useEffect(() => {
@@ -2923,7 +2959,7 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
             >
               {appMode === TrackType.MUSIC ? (
                 <Lyrics
-                  lyrics={currentTrack?.lyrics || null}
+                  lyrics={currentLyrics || null}
                   currentTime={currentTime}
                 />
               ) : activeTab === "playlist" ? (
@@ -2949,7 +2985,7 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
                 </div>
               ) : (
                 <Lyrics
-                  lyrics={currentTrack?.lyrics || null}
+                  lyrics={currentLyrics || null}
                   currentTime={currentTime}
                 />
               )}

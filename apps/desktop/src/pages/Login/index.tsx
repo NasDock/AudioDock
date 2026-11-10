@@ -46,6 +46,7 @@ import { useAuthStore } from "../../store/auth";
 import { trackEvent } from "../../services/tracking";
 import { isWeb, tauriGetDeviceName, getDevicePlatform, computeStableDeviceId } from "../../utils/platform";
 import { applyDesktopScanLoginResult } from "../../utils/scanLogin";
+import { enforceSourcePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
 
 const { Title, Text } = Typography;
@@ -486,6 +487,8 @@ const Login: React.FC = () => {
 
       localStorage.setItem(`serverAddress_${type}`, activeAddress);
       localStorage.setItem("selectedSourceType", type);
+      // 飞牛只有音乐，残留的有声书模式会让列表变空
+      enforceSourcePlayMode(type);
       saveConfig(internalAddress, externalAddress, type);
 
       const tokenKey = `token_${activeAddress}`;

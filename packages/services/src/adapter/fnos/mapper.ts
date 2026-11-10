@@ -224,22 +224,39 @@ export const mapFnosUser = (raw: FnosUser): User => {
 };
 
 /**
- * 歌词返回可能是纯字符串、`{ content }`、`{ list: [{ content }] }` 三种，
- * 这里统一抽成 LRC 文本（具体形态联调时再收紧）。
+ * 歌词接口（`GET /lyric/list?trackGUID=<guid>`）实测返回：
+ *
+ * ```json
+ * { "list": [{ "guid": "...", "source": 1, "content": "[00:15.21]...", "isLRC": true }],
+ *   "preferred": "<guid>" }
+ * ```
+ *
+ * 一首歌可能挂多份歌词（不同来源/翻译），`preferred` 指官方选中的那份；
+ * 拿不到 `preferred` 时退回第一份非空内容。历史上返回过纯字符串与
+ * `{ content }` 两种形态，一并兼容。
  */
 export const extractLyricText = (payload: unknown): string | null => {
   if (!payload) return null;
-  if (typeof payload === "string") return payload;
-  if (typeof payload === "object") {
-    const record = payload as Record<string, any>;
-    if (typeof record.content === "string") return record.content;
-    if (typeof record.lyric === "string") return record.lyric;
-    if (Array.isArray(record.list)) {
-      const first = record.list[0];
-      if (typeof first === "string") return first;
-      if (first && typeof first.content === "string") return first.content;
-      if (first && typeof first.lyric === "string") return first.lyric;
-    }
+  if (typeof payload === "string") return payload.trim() ? payload : null;
+  if (typeof payload !== "object") return null;
+
+  const record = payload as Record<string, any>;
+  const pick = (item: any): string | null => {
+    if (typeof item === "string") return item.trim() ? item : null;
+    if (!item || typeof item !== "object") return null;
+    if (typeof item.content === "string" && item.content.trim()) return item.content;
+    if (typeof item.lyric === "string" && item.lyric.trim()) return item.lyric;
+    return null;
+  };
+
+  if (Array.isArray(record.list) && record.list.length > 0) {
+    const preferred = typeof record.preferred === "string" ? record.preferred : "";
+    const chosen = preferred
+      ? record.list.find((item: any) => item && item.guid === preferred)
+      : null;
+    const text = pick(chosen) ?? record.list.map(pick).find(Boolean) ?? null;
+    if (text) return text;
   }
-  return null;
+
+  return pick(record);
 };

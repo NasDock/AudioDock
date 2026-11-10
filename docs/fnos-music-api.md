@@ -272,10 +272,42 @@ GET <path>?page=1&size=50&sort=<field>,<asc|desc>
 | GET | `/track/playlist-detail/list` | `playlistGUID,page,size,sort` | 歌单内曲目 | 文档 |
 | GET | `/track/metadata` | `guid` | 单曲元数据 | 待确认 |
 | GET | `/track/audio-info` | `guid` | 单曲音频规格 | 待确认 |
-| GET | `/lyric/list` | `guid`（或 `trackGUID`） | 返回 LRC 纯文本 | 文档 |
+| GET | `/lyric/list` | `trackGUID` | 歌词，见下方 4.2.1 | 实测 |
 | GET | `/lyric/list/{subpath}` | — | 同上（路径式） | 待确认 |
 
 > 参数大小写：官方用 **`albumGUID` / `playlistGUID`**（`xxxGuid` 为兼容别名），`guid` 单数用于详情类接口。
+
+#### 4.2.1 歌词（实测）
+
+```
+GET /music/api/v1/lyric/list?trackGUID=8adb708c675345998c45d0d24560a4e0
+```
+
+```json
+{
+  "code": 0,
+  "msg": "",
+  "data": {
+    "list": [
+      {
+        "guid": "a08acc1c8bb1456fb08bb562d932f815",
+        "source": 1,
+        "content": "[00:00.00]作词 : 无\n[00:15.21]总想跟着你\n...",
+        "createdAt": 1794195117,
+        "updatedAt": 1794195117,
+        "isLRC": true,
+        "offset": 0
+      }
+    ],
+    "preferred": "a08acc1c8bb1456fb08bb562d932f815"
+  }
+}
+```
+
+- 参数只认 **`trackGUID`**（曲目 `guid`）；`guid` 是历史兼容写法，实测已不再生效。
+- `list` 可能有多份（不同来源/翻译），`preferred` 指向官方选中的那份；`content` 为 LRC 文本，`isLRC: true`。
+- 无歌词时 `list` 为空数组，`preferred` 为空串。
+- **歌词不在 `TrackVO` 里**：曲目列表/详情都不带歌词，必须单曲单独请求，所以客户端要在播放时懒加载。
 
 ### 4.3 专辑 / 歌手
 
@@ -462,8 +494,17 @@ const size = pageSize;
   - 会话 token 由 dev server 按 origin 记住（API 请求带的 token），**不写进 URL** ——
     否则整条地址会被应用缓存进 localStorage，重新登录后 token 变了就全 401。
   - `Range` 原样透传，实测封面 `200 image/jpeg`、音频 `206 audio/mpeg`，可以拖进度。
-- **桌面端（未接入）**：`<img>` / `<audio>` 加不了头，需要 `fnos://` 自定义协议
-  （参考已有 `protocol::handle_media`）或 Rust 侧返回字节流。当前桌面端点播放会 401。
+- **桌面端（已跑通，2026-11-10）**：复用本地回环媒体服务器，`setFnosMediaProxy("<mediaOrigin>/fnos")`。
+  - 路由在 `src-tauri/src/fnos_media.rs`：`GET /fnos/{*rel}?…&__b=<上游 origin>`，从 query 摘掉
+    `__b` 拼上游地址，补 `Cookie`、透传 `Range`、响应体流式回灌。
+  - 会话 Cookie 由前端在每次业务请求时通过 `fnos_set_media_session` 同步到 Rust
+    （按 origin 存、按 token 去重、**不写进 URL**），首个媒体地址生成前一定已就绪
+    （`tauriTransport` 先 await 代理初始化，再 await 会话同步，最后才发业务请求）。
+  - 实测：封面 `200 image/jpeg`（640×640）、音频 `206 audio/mpeg` + `content-range`。
+  - 为什么不用 `fnos://` 自定义协议：AVPlayer 无法从自定义协议流式播放，
+    而 `http://127.0.0.1` 是它原生支持的传输方式（`media_server.rs` 就是为此存在）。
+  - 媒体服务端口每次启动随机 → 前端初始化代理后会清一次 `soundx_cache_*`，
+    否则 5 分钟内会用到上一进程拼好的旧端口地址。
 
 ### 6.6 播放地址的一个坑
 
@@ -479,7 +520,7 @@ const size = pageSize;
 | `Cookie: mode=relay` 是禁止头 | 浏览器直连 `*.fnos.net` 一定 302 | **已解决**：由代理/ Rust 侧补，浏览器侧只发自定义头 |
 | `plugin-http` 默认 scope 为空 + 过滤 Cookie | 请求在 Rust 侧被拒或在 JS 层被丢，devtools 里看不到任何请求 | **已绕开**：改用自定义 `fnos_request` 命令 |
 | 非安全上下文没有 `crypto.subtle` | 密码哈希抛错 → 预检成功但登录 POST 不发 | 已解决：`hash.ts` 内置纯 JS 兜底 |
-| 桌面端媒体无鉴权通道 | 封面/音频 401 | **未解决**，下一步做 `fnos://` 协议 |
+| 桌面端媒体无鉴权通道 | 封面/音频 401 | **已解决**：本地 `/fnos` 转发路由（`fnos_media.rs`） |
 
 #### http 插件的 scope 写法（踩坑记录）
 

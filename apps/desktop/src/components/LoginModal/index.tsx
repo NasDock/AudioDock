@@ -36,6 +36,7 @@ import { FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP } from "../../consta
 import subsonic from "../../assets/subsonic.png";
 import { useMessage } from "../../context/MessageContext";
 import { useAuthStore } from "../../store/auth";
+import { enforceSourcePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
 
 const { Title, Text } = Typography;
@@ -200,6 +201,8 @@ const LoginModal: React.FC = () => {
 
     localStorage.setItem(addressKey, values.serverAddress);
     localStorage.setItem("selectedSourceType", type);
+    // 飞牛只有音乐，残留的有声书模式会让列表变空
+    enforceSourcePlayMode(type);
     saveToHistory(values.serverAddress, type);
 
     const baseURL = values.serverAddress;
@@ -331,6 +334,7 @@ const LoginModal: React.FC = () => {
           onChange={(val) => {
             setSourceType(val as string);
             localStorage.setItem("selectedSourceType", val as string);
+            enforceSourcePlayMode(val as string);
           }}
         />
       </div>
