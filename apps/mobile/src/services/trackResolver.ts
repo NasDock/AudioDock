@@ -1,6 +1,7 @@
 import { getBaseURL } from "../https";
 import { Track, TrackType } from "../models";
 import { getImageUrl } from "../utils/image";
+import { getMediaHeaders } from "../utils/mediaAuth";
 import type { AudioQuality } from "./trackQuality";
 import { buildTrackPlaybackUrl } from "./trackQuality";
 import {
@@ -59,7 +60,8 @@ export const resolveTrackUri = async (
     // 3. If not cached but features is enabled, trigger background download
     console.log(`[TrackResolver] Not cached, starting background download: ${track.id}`);
     if (shouldDownload) {
-      downloadTrack(track, originalUri).catch((e) =>
+      // 飞牛的音频接口只认 Authorization 头，下载缓存也要带上
+      downloadTrack(track, originalUri, getMediaHeaders()).catch((e) =>
         console.error("[TrackResolver] Cache download failed", e)
       );
     }
@@ -113,7 +115,7 @@ export const resolveArtworkUriForPlayer = async (
   }
 
   if (options.shouldDownload) {
-    const localOrRemote = await cacheCover(remoteArtwork);
+    const localOrRemote = await cacheCover(remoteArtwork, getMediaHeaders());
     if (localOrRemote.startsWith("http://") || localOrRemote.startsWith("https://")) {
       return localOrRemote;
     }

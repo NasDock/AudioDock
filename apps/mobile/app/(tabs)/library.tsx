@@ -27,7 +27,7 @@ import { usePlayer } from "../../src/context/PlayerContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { Album, Artist, Track, TrackSource } from "../../src/models";
 import { downloadTracks } from "../../src/services/downloadManager";
-import { getImageUrl } from "../../src/utils/image";
+import { getImageSource } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
 import { trackEvent } from "../../src/services/tracking";
 import { mvPlaylistStore } from "../../src/store/mvPlaylist";
@@ -281,13 +281,11 @@ const SongList = ({
                 </View>
               ) : (
                 <CachedImage
-                  source={{
-                    uri: getImageUrl(
-                      item.cover,
-                      `https://picsum.photos/seed/${item.id}/100/100`,
-                      96,
-                    ),
-                  }}
+                  source={getImageSource(
+                    item.cover,
+                    `https://picsum.photos/seed/${item.id}/100/100`,
+                    96,
+                  )}
                   style={styles.songImage}
                 />
               )}
@@ -476,13 +474,11 @@ const ArtistList = ({
             onPress={() => router.push(`/artist/${item.id}`)}
           >
             <CachedImage
-              source={{
-                uri: getImageUrl(
-                  item.avatar,
-                  `https://picsum.photos/seed/${item.id}/200/200`,
-                  128,
-                ),
-              }}
+              source={getImageSource(
+                item.avatar,
+                `https://picsum.photos/seed/${item.id}/200/200`,
+                128,
+              )}
               style={[
                 styles.image,
                 {
@@ -667,12 +663,10 @@ const AlbumList = ({
               ]}
             >
               <CachedImage
-                source={{
-                  uri: getImageUrl(
-                    item.cover,
-                    `https://picsum.photos/seed/${item.id}/200/200`,
-                  ),
-                }}
+                source={getImageSource(
+                  item.cover,
+                  `https://picsum.photos/seed/${item.id}/200/200`,
+                )}
                 style={[
                   styles.albumImage,
                   {
@@ -820,12 +814,10 @@ const CollectionList = () => {
                 ]}
               >
                 <CachedImage
-                  source={{
-                    uri: getImageUrl(
-                      previewCover,
-                      `https://picsum.photos/seed/collection-${item.id}/200/200`,
-                    ),
-                  }}
+                  source={getImageSource(
+                    previewCover,
+                    `https://picsum.photos/seed/collection-${item.id}/200/200`,
+                  )}
                   style={[
                     styles.albumImage,
                     {
@@ -941,12 +933,10 @@ const MvList = () => {
                 ]}
               >
                 <CachedImage
-                  source={{
-                    uri: getImageUrl(
-                      item.cover,
-                      `https://picsum.photos/seed/mv-${item.id}/200/200`,
-                    ),
-                  }}
+                  source={getImageSource(
+                    item.cover,
+                    `https://picsum.photos/seed/mv-${item.id}/200/200`,
+                  )}
                   style={[
                     styles.albumImage,
                     {

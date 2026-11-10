@@ -11,6 +11,7 @@ import {
   getRecommendedAlbums,
   getTrackHistory,
   getRecommendedTracks,
+  getTrackLyrics,
   reportAudiobookProgress
 } from "@soundx/services";
 import * as Device from "expo-device";
@@ -57,11 +58,13 @@ import {
   resolveTrackUri,
 } from "../services/trackResolver";
 import { usePlayMode } from "../utils/playMode";
+import { getMediaHeaders, hasMediaHeaders } from "../utils/mediaAuth";
 import { useTranslation } from "react-i18next";
 import { updateWidget, updateWidgetCollections } from "../native/WidgetBridge";
-import { cacheCover, getCachedTrackPathSync, removeCachedTrack } from "../services/cache";
+import { cacheCover, getCachedCover, getCachedTrackPathSync, removeCachedTrack, resolveLocalPath } from "../services/cache";
 import { resolveArtworkUri } from "../services/trackResolver";
-import { getBaseURL } from "../https";
+import { getBaseURL, getCurrentSourceType } from "../https";
+import { isFnosSource } from "../constants/sources";
 import { toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
 import {
   AudioQuality,
@@ -193,6 +196,53 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { user, device, isLoading: isAuthLoading } = useAuth();
+  // 飞牛的音频接口只认 Authorization 头：RNTP 的 track 支持 headers，
+  // 构造队列时统一带上（其它源为空对象）。
+  const mediaHeaders = getMediaHeaders();
+  // 飞牛这类「媒体接口只认 Authorization 头」的源，封面也得靠头才能拉到，
+  // 而原生播控（通知栏 / 锁屏）拉图时带不了请求头 —— 只能先把封面落盘，
+  // 再把本地 file:// 路径喂给 RNTP。其它源直接用远端 URL，不做额外 IO。
+  const needsLocalArtwork = hasMediaHeaders(mediaHeaders);
+
+  /**
+   * 拿到已缓存的本地封面（file:// 路径）；没缓存过返回 undefined。
+   *
+   * 只查不下载，命中时是一次很快的原生 stat 调用；用来在起播瞬间就把
+   * 通知栏封面换成本地图，避免系统去裸拉远端地址（飞牛会 401）。
+   */
+  const resolveCachedArtwork = async (track: Track): Promise<string | undefined> => {
+    if (!needsLocalArtwork) return undefined;
+    const remote = resolveArtworkUri(track);
+    if (!remote) return undefined;
+    try {
+      const cached = await getCachedCover(remote);
+      return cached ? resolveLocalPath(cached) : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
+  /**
+   * 后台把封面下载到本地并写回原生播控的元数据。
+   *
+   * 用 `getActiveTrackIndex` 而不是记下入队时的下标：起播后旧曲目会被
+   * 移除，队列下标会整体前移，按旧下标更新会改错歌的封面。
+   */
+  const syncArtworkToActiveTrack = async (track: Track) => {
+    if (!needsLocalArtwork) return;
+    try {
+      const local = await resolveArtworkUriForPlayer(track, { shouldDownload: true });
+      if (!local || local.startsWith("http://") || local.startsWith("https://")) return;
+      const activeIndex = await TrackPlayer.getActiveTrackIndex();
+      if (activeIndex === undefined) return;
+      const active = await TrackPlayer.getActiveTrack();
+      if (!active || String(active.id) !== String(track.id)) return;
+      await TrackPlayer.updateMetadataForTrack(activeIndex, { artwork: local } as any);
+    } catch (error) {
+      console.warn("[Player] 同步本地封面到原生播控失败", error);
+    }
+  };
+
   const { t } = useTranslation();
   const { mode, setMode, modeLoaded } = usePlayMode();
   const { showNotification } = useNotification();
@@ -290,6 +340,62 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     currentTrackRef.current = track;
     setCurrentTrack(track);
   }, []);
+
+  /**
+   * 飞牛歌词懒加载。
+   *
+   * 飞牛的曲目列表接口**不返回 lyrics**，歌词只有单曲接口
+   * `GET /lyric/list?trackGUID=<guid>` 能取到（见 docs/fnos-music-api.md）。
+   * 所以切歌时按需拉一次，拉到后并回当前曲目 —— 播放页歌词面板、
+   * 车机歌词（CarWith / Android Auto / CarPlay）、歌词字号预览共用同一份。
+   *
+   * 其它数据源的 Track 里已内建 lyrics，命中后直接跳过。
+   */
+  const lyricsCacheRef = useRef<Map<string, string>>(new Map());
+
+  const applyLyricsToCurrentTrack = useCallback(
+    (trackId: string, text: string) => {
+      const current = currentTrackRef.current;
+      if (!current || String(current.id) !== trackId) return;
+      if (current.lyrics) return;
+      setCurrentTrackState({ ...current, lyrics: text });
+    },
+    [setCurrentTrackState],
+  );
+
+  useEffect(() => {
+    const track = currentTrackRef.current;
+    if (!track) return;
+    const trackId = String(track.id);
+    // 数据源自带歌词 → 不用再拉
+    if (track.lyrics) return;
+    // 只有飞牛需要单独拉（其它源的歌词随列表一起下发）
+    if (!isFnosSource(getCurrentSourceType())) return;
+
+    const cached = lyricsCacheRef.current.get(trackId);
+    if (cached) {
+      applyLyricsToCurrentTrack(trackId, cached);
+      return;
+    }
+
+    let cancelled = false;
+    getTrackLyrics(track.id)
+      .then((res) => {
+        if (cancelled) return;
+        const text =
+          typeof res?.data === "string" && res.data.trim() ? res.data : null;
+        if (!text) return;
+        lyricsCacheRef.current.set(trackId, text);
+        applyLyricsToCurrentTrack(trackId, text);
+      })
+      .catch((error) => {
+        console.warn("[Player] 加载飞牛歌词失败", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTrack?.id, applyLyricsToCurrentTrack]);
 
   // 预下载去重标记：记录已触发过预下载的 trackId，避免同一首歌重复下载。
   // setTrackListState 时清空（播放列表变化 → 重新计算预下载范围）。
@@ -973,6 +1079,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             artwork: resolveArtworkUri(track),
             duration: track.duration || 0,
             type: track.type,
+            headers: mediaHeaders,
           } as any,
           activeIndex
         );
@@ -1074,9 +1181,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           }
 
           console.log(`[Player] Active track changed to index ${event.index}: ${nextTrack.name}`);
-          
+
           setCurrentTrackState(nextTrack);
           isSkippingOutroRef.current = false;
+
+          // 飞牛这类源：原生播控的封面是裸远端地址（系统拉图带不了
+          // Authorization 头），后台落盘后把本地封面写回去
+          syncArtworkToActiveTrack(nextTrack).catch(() => {});
 
           // ✨ 智能预缓存：当前曲目开始播放时，预下载播放列表前后各 5 首（共 10 首）。
           // 已缓存/已触发过的曲目跳过（preDownloadedIdsRef 去重），
@@ -1647,6 +1758,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                   artwork: resolveArtworkUri(activeTrack),
                   duration: activeTrack.duration || 0,
                   type: activeTrack.type,
+                  headers: mediaHeaders,
                 } as any,
               ]);
               await TrackPlayer.skip(0);
@@ -1662,6 +1774,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                     artwork: resolveArtworkUri(track),
                     duration: track.duration || 0,
                     type: track.type,
+                    headers: mediaHeaders,
                   }) as any,
               );
 
@@ -1805,6 +1918,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       // Artwork: use the remote URL immediately. A cached / downloaded
       // copy is wired up in the background and just swaps the metadata.
       const remoteArtwork = resolveArtworkUri(track);
+      // 飞牛的封面必须带头才能拉（原生播控拉不到），命中本地缓存时直接用本地文件
+      const cachedArtwork = await resolveCachedArtwork(track);
 
       console.log("Playing track:", track.id, "URI:", remoteUri);
 
@@ -1814,9 +1929,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         title: track.name,
         artist: track.artist,
         album: track.album || "Unknown Album",
-        artwork: remoteArtwork,
+        artwork: cachedArtwork ?? remoteArtwork,
         duration: track.duration || 0,
         type: track.type, // ✨ 传递类型
+        // 飞牛的音频接口只认 Authorization 头（RNTP 支持 track 级 headers）
+        headers: mediaHeaders,
       };
       knownTrackByIdRef.current.set(String(track.id), track);
 
@@ -1905,7 +2022,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       // Background: download cover art for future metadata use.
-      resolveArtworkUriForPlayer(track, { shouldDownload: true }).catch(() => {
+      // 飞牛这类源会顺带把本地封面写回原生播控（远端 URL 系统拉不下来）。
+      syncArtworkToActiveTrack(track).catch(() => {
         /* keep remote artwork */
       });
 
@@ -1966,7 +2084,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       if (shouldUseSingleTrackQueue) {
         const track = tracks[index];
         const uri = buildSyncUri(track);
-        const artwork = resolveArtworkUri(track);
+        const artwork =
+          (await resolveCachedArtwork(track)) ?? resolveArtworkUri(track);
         if (!isLatestRequest()) return;
 
         await TrackPlayer.setQueue([
@@ -1979,6 +2098,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             artwork,
             duration: track.duration || 0,
             type: track.type,
+            headers: mediaHeaders,
           } as any,
         ]);
         if (!isLatestRequest()) return;
@@ -1994,6 +2114,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         resolveArtworkUriForPlayer(track, { shouldDownload: true }).catch(
           () => {}
         );
+        syncArtworkToActiveTrack(track).catch(() => {});
       } else {
         // ✨ 核心改进：预加载整个列表进入原生队列。全部使用同步 URL
         // 计算 + 远程封面，确保 setQueue 不被任何 IO 操作阻塞。
@@ -2007,6 +2128,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           duration: t.duration || 0,
           // ✨ 附加自定义字段，方便背景服务识别
           type: t.type,
+          headers: mediaHeaders,
         } as any));
         if (!isLatestRequest()) return;
 
@@ -2014,6 +2136,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!isLatestRequest()) return;
 
         await TrackPlayer.skip(index);
+
+        // 飞牛这类源：当前曲目的封面拉不到（要 Authorization 头），
+        // 后台落盘后把本地封面写回原生播控
+        syncArtworkToActiveTrack(tracks[index]).catch(() => {});
 
         // ✨ 后台异步触发当前和下一首的缓存/封面升级（不阻塞播放）
         // 秒播优化：延迟 3s 让当前曲目优先完成初始缓冲，再触发下载；

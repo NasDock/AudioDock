@@ -37,7 +37,7 @@ import { useAuth } from "../src/context/AuthContext";
 import { usePlayer } from "../src/context/PlayerContext";
 import { useTheme } from "../src/context/ThemeContext";
 import { Album, Artist, Track } from "../src/models";
-import { getImageUrl } from "../src/utils/image";
+import { getImageSource } from "../src/utils/image";
 import { usePlayMode } from "../src/utils/playMode";
 
 export default function SearchScreen() {
@@ -263,12 +263,12 @@ export default function SearchScreen() {
   };
 
   const renderItem = ({ item, type }: { item: any; type: string }) => {
-    const coverUrl =
+    const coverSource =
       type === "track" || type === "album"
-        ? getImageUrl(item.cover, "https://picsum.photos/100", 96)
+        ? getImageSource(item.cover, "https://picsum.photos/100", 96)
         : type === "artist"
-          ? getImageUrl(item.avatar, "https://picsum.photos/100", 96)
-          : "https://picsum.photos/100";
+          ? getImageSource(item.avatar, "https://picsum.photos/100", 96)
+          : { uri: "https://picsum.photos/100" };
 
     const isLiked = user && (
        type === 'track' 
@@ -292,7 +292,7 @@ export default function SearchScreen() {
         }}
       >
         <Image
-          source={{ uri: coverUrl }}
+          source={coverSource}
           style={[styles.itemImage, type === "artist" && { borderRadius: 25 }]}
         />
         <View style={styles.itemInfo}>

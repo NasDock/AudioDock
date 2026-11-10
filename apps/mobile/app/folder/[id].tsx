@@ -27,7 +27,7 @@ import { TrackMoreModal } from "../../src/components/TrackMoreModal";
 import { usePlayer } from "../../src/context/PlayerContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { Track } from "../../src/models";
-import { getImageUrl } from "../../src/utils/image";
+import { getImageSource } from "../../src/utils/image";
 
 export default function FolderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -288,9 +288,7 @@ export default function FolderDetailScreen() {
               </View>
             ) : (
               <Image
-                source={{
-                  uri: getImageUrl((item as Track).cover, `https://picsum.photos/seed/${item.id}/300/300`),
-                }}
+                source={getImageSource((item as Track).cover, `https://picsum.photos/seed/${item.id}/300/300`)}
                 style={styles.gridTrackCover}
               />
             )}
@@ -332,9 +330,7 @@ export default function FolderDetailScreen() {
             </View>
           ) : (
             <Image
-              source={{
-                uri: getImageUrl((item as Track).cover, `https://picsum.photos/seed/${item.id}/200/200`),
-              }}
+              source={getImageSource((item as Track).cover, `https://picsum.photos/seed/${item.id}/200/200`)}
               style={styles.trackCover}
             />
           )}

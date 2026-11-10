@@ -48,7 +48,7 @@ import {
 } from "../../src/services/cache";
 import { openStoreDebug } from "../../src/services/openStore";
 import { trackEvent } from "../../src/services/tracking";
-import { getImageUrl } from "../../src/utils/image";
+import { getImageSource } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
 import {
   getCachedVipStatus,
@@ -78,12 +78,12 @@ const StackedCover = ({ tracks }: { tracks: any[] }) => {
   return (
     <View style={styles.stackedCoverContainer}>
       {covers.map((track, index) => {
-        const coverUrl = getImageUrl(track.cover, "https://picsum.photos/100", 96);
+        const coverSource = getImageSource(track.cover, "https://picsum.photos/100", 96);
 
         return (
           <CachedImage
             key={track.id}
-            source={{ uri: coverUrl }}
+            source={coverSource}
             style={[
               styles.itemCover,
               styles.stackedCover,
@@ -751,7 +751,7 @@ export default function PersonalScreen() {
       // Wait, FlatList data source is controlled.
 
       const data = item;
-      const coverUrl = getImageUrl(item.cover, "https://picsum.photos/100", 96);
+      const coverSource = getImageSource(item.cover, "https://picsum.photos/100", 96);
 
       return (
         <TouchableOpacity
@@ -794,12 +794,12 @@ export default function PersonalScreen() {
                 // Or just use first track cover if we aggregated?
                 // We passed cover in albumMap.
                 <CachedImage
-                  source={{ uri: coverUrl }}
+                  source={coverSource}
                   style={styles.itemCover}
                 />
               ) : (
                 <CachedImage
-                  source={{ uri: coverUrl }}
+                  source={coverSource}
                   style={styles.itemCover}
                 />
               )}
@@ -1027,9 +1027,7 @@ export default function PersonalScreen() {
       <View style={styles.userInfo}>
         <TouchableOpacity onPress={handleChangeAvatar} activeOpacity={0.8}>
           <CachedImage
-            source={{
-              uri: getImageUrl(avatarOverride, "https://picsum.photos/200", 128),
-            }} // Placeholder for avatar
+            source={getImageSource(avatarOverride, "https://picsum.photos/200", 128)} // Placeholder for avatar
             style={styles.avatar}
           />
           {user && (

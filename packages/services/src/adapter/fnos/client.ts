@@ -162,6 +162,11 @@ const defaultTransport: FnosTransport = async (request) => {
     headers: request.headers,
     data: request.body,
     timeout: 20000,
+    // 显式关掉 credentials：React Native 的 XHR 默认 withCredentials=true，
+    // Android 侧 OkHttp 在 cookie jar 非空时会用 jar 里的 cookie **覆盖**
+    // 我们手动设的 `Cookie: mode=relay`（中继必需），覆盖后网关直接 302。
+    // false → RN 用 CookieJar.NO_COOKIES，手动设的头原样发出。
+    withCredentials: false,
     // 自己判状态码，便于给出「返回非 JSON」这类可读错误
     validateStatus: () => true,
     responseType: request.binary ? "arraybuffer" : "text",
@@ -198,50 +203,84 @@ export interface FnosResolvedServer {
  * - 去掉尾部斜杠，并把误粘的 `/music`、`/api/v1`、`/music/api/v1` 去掉
  * - 没有显式端口时：https 用 443，显式 http:// 用 80，裸地址用 5666
  * - host 是 fnos.net / 5ddd.com 时判定为中继模式
+ *
+ * 这里**不用 `new URL()`**：React Native 的全局 `URL` 是 `Libraries/Blob/URL`
+ * 存根，`protocol` / `port` 只有 getter 没有 setter，赋值会直接抛 TypeError
+ * （ES module 是严格模式）。所以改成纯字符串解析，各端（Chromium / Hermes /
+ * Node）行为一致。
  */
 export const resolveFnosServer = (raw: string, apiPath?: string): FnosResolvedServer => {
   const value = String(raw || "").trim();
   if (!value) throw new Error("飞牛音乐未配置服务器地址");
 
-  const explicitScheme = /^([A-Za-z][A-Za-z0-9+.-]*):\/\//.exec(value)?.[1]?.toLowerCase();
+  const schemeMatch = /^([A-Za-z][A-Za-z0-9+.-]*):\/\//.exec(value);
+  const explicitScheme = schemeMatch?.[1]?.toLowerCase();
   if (explicitScheme && explicitScheme !== "http" && explicitScheme !== "https") {
     throw new Error(`不支持的协议：${explicitScheme}://，飞牛音乐只支持 http/https`);
   }
 
-  const withScheme = explicitScheme ? value : `http://${value}`;
-  let url: URL;
-  try {
-    url = new URL(withScheme);
-  } catch {
-    throw new Error("飞牛音乐服务器地址格式不正确");
+  // 拆 authority / path
+  const rest = explicitScheme ? value.slice(schemeMatch![0].length) : value;
+  const slashIndex = rest.indexOf("/");
+  const authority = (slashIndex >= 0 ? rest.slice(0, slashIndex) : rest).trim();
+  let path = slashIndex >= 0 ? rest.slice(slashIndex) : "";
+  if (!authority) throw new Error("飞牛音乐服务器地址格式不正确");
+  // 去掉 query / hash
+  path = path.split(/[?#]/)[0];
+
+  // 去掉 userinfo（http://user@host）
+  const atIndex = authority.lastIndexOf("@");
+  const hostPort = atIndex >= 0 ? authority.slice(atIndex + 1) : authority;
+  if (!hostPort) throw new Error("飞牛音乐服务器地址缺少主机名");
+
+  let hostname = "";
+  let port = "";
+  if (hostPort.startsWith("[")) {
+    // IPv6 字面量：[::1]:5666
+    const closeIndex = hostPort.indexOf("]");
+    if (closeIndex < 0) throw new Error("飞牛音乐服务器地址格式不正确");
+    hostname = hostPort.slice(0, closeIndex + 1);
+    const tail = hostPort.slice(closeIndex + 1);
+    if (tail.startsWith(":")) port = tail.slice(1);
+    else if (tail) throw new Error("飞牛音乐服务器地址格式不正确");
+  } else {
+    const colonIndex = hostPort.lastIndexOf(":");
+    if (colonIndex >= 0) {
+      hostname = hostPort.slice(0, colonIndex);
+      port = hostPort.slice(colonIndex + 1);
+    } else {
+      hostname = hostPort;
+    }
   }
-  if (!url.hostname) throw new Error("飞牛音乐服务器地址缺少主机名");
+  if (!hostname) throw new Error("飞牛音乐服务器地址缺少主机名");
+  if (port) {
+    if (!/^\d{1,5}$/.test(port) || Number(port) > 65535) {
+      throw new Error("飞牛音乐服务器地址格式不正确");
+    }
+  }
 
   // 去掉误粘的路径尾巴
-  let path = url.pathname.replace(/\/+$/, "");
+  path = path.replace(/\/+$/, "");
   if (/\/music\/api\/v1$/i.test(path)) path = path.replace(/\/music\/api\/v1$/i, "");
   else if (/\/api\/v1$/i.test(path)) path = path.replace(/\/api\/v1$/i, "");
   if (/\/music$/i.test(path)) path = path.replace(/\/music$/i, "");
   if (path === "/") path = "";
 
-  // 端口补全
-  const hasExplicitPort = /:\d+(\/|$)/.test(withScheme.slice(withScheme.indexOf("://") + 3));
+  const isRelayHost = RELAY_HOST_PATTERN.test(hostname);
+  const hasExplicitPort = Boolean(port);
   // 裸写的中继域名（xxx.fnos.net / xxx.5ddd.com）走 https，不要硬套 5666
-  if (!explicitScheme && !hasExplicitPort && RELAY_HOST_PATTERN.test(url.hostname)) {
-    url.protocol = "https:";
+  let scheme = explicitScheme || "http";
+  if (!explicitScheme && !hasExplicitPort && isRelayHost) scheme = "https";
+  if (!hasExplicitPort && scheme === "http" && !explicitScheme) {
+    // 裸地址（没写协议也没写端口）按 5666 走
+    port = String(FNOS_DEFAULT_HTTP_PORT);
   }
-  const scheme = url.protocol.replace(":", "");
-  if (!hasExplicitPort && !url.port) {
-    if (scheme === "https") {
-      // 443 是默认端口，URL 里不写
-    } else if (explicitScheme) {
-      // 用户显式写了 http://，按 80 走
-    } else {
-      url.port = String(FNOS_DEFAULT_HTTP_PORT);
-    }
+  // 默认端口不写进 host（与浏览器 URL 行为一致）
+  if ((scheme === "http" && port === "80") || (scheme === "https" && port === "443")) {
+    port = "";
   }
 
-  const host = url.host;
+  const host = port ? `${hostname}:${port}` : hostname;
   const origin = `${scheme}://${host}`;
   const gatewayPath = (apiPath || DEFAULT_API_PATH).replace(/\/+$/, "");
   const normalizedGatewayPath = gatewayPath.startsWith("/") ? gatewayPath : `/${gatewayPath}`;
@@ -249,7 +288,7 @@ export const resolveFnosServer = (raw: string, apiPath?: string): FnosResolvedSe
   return {
     origin,
     apiBase: `${origin}${path}${normalizedGatewayPath}`,
-    relayMode: RELAY_HOST_PATTERN.test(url.hostname),
+    relayMode: isRelayHost,
     host,
   };
 };
@@ -575,9 +614,11 @@ export class FnosClient {
     // 不写进 URL —— 否则会被应用把整条地址缓存进 localStorage，重新登录后 token 失效
     if (mediaProxyBase) {
       try {
-        const apiBase = new URL(this.getApiBase());
-        const search = new URLSearchParams({ ...merged, __b: apiBase.origin });
-        return `${mediaProxyBase}${apiBase.pathname}${path}?${search.toString()}`;
+        // 不用 new URL()：RN 的全局 URL 是存根，pathname 解析不可靠
+        const resolved = this.resolve();
+        const apiPathname = resolved.apiBase.slice(resolved.origin.length);
+        const search = new URLSearchParams({ ...merged, __b: resolved.origin });
+        return `${mediaProxyBase}${apiPathname}${path}?${search.toString()}`;
       } catch {
         // apiBase 是相对路径时退回直连
       }

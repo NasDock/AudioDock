@@ -10,7 +10,6 @@ import {
   type ScanLoginSession,
   type ScanLoginSessionStatus,
   subscribeScanLoginSession,
-  SOURCEMAP,
   SOURCETIPSMAP,
 } from "@soundx/services";
 
@@ -34,15 +33,19 @@ import QRCode from "react-native-qrcode-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
+import {
+  getMappedSourceType,
+  getSourceLogo,
+  isFnosRelayAddress,
+  isFnosSource,
+  normalizeFnosAddress,
+  SOURCE_LABELS,
+} from "../src/constants/sources";
 import { selectBestServer } from "../src/utils/networkUtils";
 import {
   applyMobileScanLoginResult,
   collectMobileScanLoginPayload,
 } from "../src/utils/scanLogin";
-
-const logo = require("../assets/images/logo.webp");
-const subsonicLogo = require("../assets/images/subsonic.webp");
-const embyLogo = require("../assets/images/emby.webp");
 
 export default function LoginFormScreen() {
   const { colors } = useTheme();
@@ -59,6 +62,9 @@ export default function LoginFormScreen() {
   const isLandscape = width > height;
 
   const sourceType = (params.type as string) || "AudioDock";
+  /** 飞牛：账号在 fnOS 里创建，不能自助注册；也没有扫码登录（那是 AudioDock 服务端的能力） */
+  const isFnos = isFnosSource(sourceType);
+  const supportsScanLogin = !isFnos;
 
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -77,14 +83,14 @@ export default function LoginFormScreen() {
   }, [sourceType]);
 
   useEffect(() => {
-    if (!isLandscape) {
+    if (!isLandscape || !supportsScanLogin) {
       setScanSession(null);
       setScanStatus(null);
       return;
     }
 
     createTargetSession();
-  }, [isLandscape]);
+  }, [isLandscape, supportsScanLogin]);
 
   useEffect(() => {
     if (!scanSession || !isLandscape) return;
@@ -252,12 +258,35 @@ export default function LoginFormScreen() {
       return;
     }
 
+    // 飞牛地址先归一化（补协议 / 默认端口 5666 / 去掉误粘的 /music 路径），
+    // 否则「探测用的地址」和「适配器实际请求的地址」会对不上。
+    const normalizedInternal = isFnos
+      ? normalizeFnosAddress(internalAddress)
+      : internalAddress;
+    const normalizedExternal = isFnos
+      ? normalizeFnosAddress(externalAddress)
+      : externalAddress;
+
     try {
       setLoading(true);
-      const bestAddress = await selectBestServer(internalAddress, externalAddress, sourceType);
+      const bestAddress = await selectBestServer(
+        normalizedInternal,
+        normalizedExternal,
+        sourceType,
+      );
 
       if (!bestAddress) {
-        Alert.alert("连接失败", "无法连接到任一服务器地址，请检查网络或地址输入");
+        // 中继域名连不上，八成是 FN Connect 没给这台设备放行（网关会 302 到登录页）
+        const isRelay =
+          isFnos &&
+          (isFnosRelayAddress(normalizedInternal) ||
+            isFnosRelayAddress(normalizedExternal));
+        Alert.alert(
+          "连接失败",
+          isRelay
+            ? "无法连接飞牛音乐。若用的是 FN Connect 中继域名（*.fnos.net），请确认中继已放行本设备；也可以改填 NAS 内网地址。"
+            : "无法连接到任一服务器地址，请检查网络或地址输入",
+        );
         setLoading(false);
         return;
       }
@@ -284,14 +313,14 @@ export default function LoginFormScreen() {
       }
 
       const existingIndex = existingConfigs.findIndex(
-        (c) => c.internal === internalAddress && c.external === externalAddress,
+        (c) => c.internal === normalizedInternal && c.external === normalizedExternal,
       );
 
       if (existingIndex === -1) {
         existingConfigs.push({
           id: Date.now().toString(),
-          internal: internalAddress,
-          external: externalAddress,
+          internal: normalizedInternal,
+          external: normalizedExternal,
           name: `服务器 ${existingConfigs.length + 1}`,
         });
       }
@@ -304,12 +333,15 @@ export default function LoginFormScreen() {
 
       await switchServer(bestAddress, sourceType, true);
 
-      const mappedType = SOURCEMAP[sourceType as keyof typeof SOURCEMAP] || "audiodock";
+      const mappedType = getMappedSourceType(sourceType);
       if (isLogin) {
         await login({ username, password });
       } else {
         if (mappedType === "subsonic") {
           throw new Error("Subsonic 数据源不支持注册");
+        }
+        if (mappedType === "fnos") {
+          throw new Error("飞牛音乐账号请在 fnOS 系统里创建，不能在这里注册");
         }
         await register({ username, password });
       }
@@ -326,13 +358,13 @@ export default function LoginFormScreen() {
 
 
   const LogoIcon = () => {
-    if (sourceType === "AudioDock") return <Image source={logo} style={styles.logo} />;
-    if (sourceType === "Subsonic") return <Image source={subsonicLogo} style={styles.logo} />;
-    if (sourceType === "Emby") return <Image source={embyLogo} style={styles.logo} />;
-    return <Image source={logo} style={styles.logo} />;
+    return <Image source={getSourceLogo(sourceType)} style={styles.logo} />;
   };
 
   const renderScanPanel = () => {
+    // 飞牛没有扫码登录（扫码同步是 AudioDock 服务端的能力），直接不渲染
+    if (!supportsScanLogin) return null;
+
     if (isLandscape) {
       if (scanStatus?.status === "waiting_confirm") {
         return (
@@ -450,11 +482,13 @@ export default function LoginFormScreen() {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => setIsLogin((prev) => !prev)}>
-        <Text style={[styles.switchText, { color: colors.primary }]}>
-          {isLogin ? "没有账号？去注册" : "已有账号？去登录"}
-        </Text>
-      </TouchableOpacity>
+      {!isFnos ? (
+        <TouchableOpacity onPress={() => setIsLogin((prev) => !prev)}>
+          <Text style={[styles.switchText, { color: colors.primary }]}>
+            {isLogin ? "没有账号？去注册" : "已有账号？去登录"}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 
@@ -495,7 +529,7 @@ export default function LoginFormScreen() {
               <View style={styles.logoContainer}>
                 <LogoIcon />
                 <Text style={[styles.title, { color: colors.text }]}>
-                  {sourceType} {isLogin ? "登录" : "注册"}
+                  {SOURCE_LABELS[sourceType] || sourceType} {isLogin ? "登录" : "注册"}
                 </Text>
               </View>
 

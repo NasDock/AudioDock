@@ -20,7 +20,7 @@ import {
 import { Modal, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { getImageUrl } from "../utils/image";
+import { getImageSource } from "../utils/image";
 import { FloatingActionButtons } from "./FloatingActionButtons";
 
 type TabType = "current" | "history" | "favorites";
@@ -185,10 +185,7 @@ export const PlaylistModal = () => {
                 height: isAlbum ? 50 : 20,
                 borderRadius: isAlbum ? 4 : 2,
               }}
-              source={{
-                // 播放列表行内封面，走 96 档（恒压缩）——见 utils/image.ts 分级规则
-                uri: getImageUrl(item.cover, "https://picsum.photos/100", 96),
-              }}
+              source={getImageSource(item.cover, "https://picsum.photos/100", 96)}
             />
           </View>
 

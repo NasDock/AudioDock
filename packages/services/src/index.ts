@@ -33,10 +33,15 @@ export const SOURCEMAP = {
     AudioDock: "audiodock",
     Subsonic: "subsonic",
     Emby: "emby",
+    // 飞牛 fnOS 自带的音乐应用（trim.music）。
+    // desktop / mobile / mini 都用这份清单渲染数据源列表，mini 侧有自己的本地
+    // 清单（apps/mini/src/utils/sourceUtils.ts）不含飞牛，所以放这里是安全的。
+    Feiniu: "fnos",
 }
 
 export const SOURCETIPSMAP = {
     AudioDock: "所有支持 AudioDock 官方服务端",
     Subsonic: "所有支持 Subsonic 协议的服务端，例如：Navidrome、Gonic 等",
     Emby: "所有支持 Emby 协议的服务端",
+    Feiniu: "飞牛 fnOS 自带的音乐应用（trim.music），地址填 NAS，如 http://192.168.1.10:5666",
 }

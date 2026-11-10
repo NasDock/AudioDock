@@ -13,6 +13,13 @@ export const CachedImage: React.FC<CachedImageProps> = ({ source, ...props }) =>
     return source.uri || null;
   }, [source]);
 
+  // 飞牛这类数据源的封面接口只认 Authorization 头：
+  // 落盘缓存和最终渲染都要带上，否则 401。
+  const headers = useMemo(() => {
+    if (!source || Array.isArray(source) || typeof source === "number") return undefined;
+    return (source as { headers?: Record<string, string> }).headers;
+  }, [source]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -26,7 +33,7 @@ export const CachedImage: React.FC<CachedImageProps> = ({ source, ...props }) =>
       return;
     }
 
-    cacheCover(remoteUri).then((uri) => {
+    cacheCover(remoteUri, headers).then((uri) => {
       if (isMounted) {
         setCachedUri(uri);
       }
@@ -35,11 +42,20 @@ export const CachedImage: React.FC<CachedImageProps> = ({ source, ...props }) =>
     return () => {
       isMounted = false;
     };
-  }, [remoteUri]);
+  }, [remoteUri, headers]);
 
   if (typeof source === "number" || Array.isArray(source)) {
     return <Image {...props} source={source} />;
   }
 
-  return <Image {...props} source={{ ...(source || {}), uri: cachedUri || remoteUri || undefined }} />;
+  return (
+    <Image
+      {...props}
+      source={{
+        ...(source || {}),
+        uri: cachedUri || remoteUri || undefined,
+        headers,
+      }}
+    />
+  );
 };

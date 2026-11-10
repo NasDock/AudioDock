@@ -39,6 +39,8 @@ interface VinylCoverProps {
   isPlaying: boolean;
   /** 是否渲染唱针（主题 tonearm === "basic"） */
   tonearm?: boolean;
+  /** 图片请求头（飞牛封面只认 Authorization 头） */
+  headers?: Record<string, string>;
 }
 
 /** 旋转一圈时长（对齐 desktop vinylSpin 8s linear infinite） */
@@ -47,7 +49,7 @@ const SPIN_DURATION = 8000;
 const ARM_DURATION = 600;
 const ARM_EASING = Easing.bezier(0.34, 1.4, 0.64, 1);
 
-const VinylCover: React.FC<VinylCoverProps> = ({ uri, size, isPlaying, tonearm = false }) => {
+const VinylCover: React.FC<VinylCoverProps> = ({ uri, size, isPlaying, tonearm = false, headers }) => {
   const k = size / 320; // desktop 参考系缩放系数
   const c = size / 2;
   const inset = 18 * k; // 沟纹离盘边的距离
@@ -152,7 +154,7 @@ const VinylCover: React.FC<VinylCoverProps> = ({ uri, size, isPlaying, tonearm =
         </Svg>
         <View style={[StyleSheet.absoluteFill, styles.center]}>
           <Image
-            source={{ uri }}
+            source={{ uri, headers }}
             style={{
               width: imgSize,
               height: imgSize,

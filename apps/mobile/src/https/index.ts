@@ -3,10 +3,26 @@ import { setRequestInstance } from "@soundx/services";
 import axios, { AxiosError, type AxiosResponse } from "axios";
 
 let activeBaseURL = "http://localhost:3000";
+let activeSourceType = "AudioDock";
 
 // Get base URL synchronously for UI rendering
 export function getBaseURL(): string {
   return activeBaseURL;
+}
+
+/**
+ * 当前数据源类型（AudioDock / Subsonic / Emby / Feiniu）。
+ *
+ * 媒体鉴权要用：飞牛的封面 / 音频接口只认 `Authorization` 头，
+ * 而图片、播放队列都是同步构造 URL 的，拿不到 React 状态，
+ * 所以这里维护一份模块级镜像，由 AuthContext 在启动 / 切源时同步。
+ */
+export function getCurrentSourceType(): string {
+  return activeSourceType;
+}
+
+export function setCurrentSourceType(type: string) {
+  activeSourceType = type || "AudioDock";
 }
 
 const instance = axios.create({

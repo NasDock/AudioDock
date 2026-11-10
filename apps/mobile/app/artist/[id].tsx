@@ -11,7 +11,7 @@ import { usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Album, Artist, Track, TrackSource, TrackType } from "@/src/models";
 import { downloadTracks } from "@/src/services/downloadManager";
-import { getImageUrl } from "@/src/utils/image";
+import { getImageSource } from "@/src/utils/image";
 import { mvPlaylistStore } from "@/src/store/mvPlaylist";
 import { usePlayMode } from "@/src/utils/playMode";
 import { Ionicons } from "@expo/vector-icons";
@@ -331,13 +331,11 @@ export default function ArtistDetailScreen() {
       <ScrollView>
         <View style={styles.header}>
           <Image
-            source={{
-              uri: getImageUrl(
-                artist.avatar,
-                `https://picsum.photos/seed/${artist.id}/300/300`,
-                600,
-              ),
-            }}
+            source={getImageSource(
+              artist.avatar,
+              `https://picsum.photos/seed/${artist.id}/300/300`,
+              600,
+            )}
             style={styles.avatar}
           />
           <Text style={[styles.name, { color: colors.text }]}>
@@ -368,12 +366,10 @@ export default function ArtistDetailScreen() {
                 >
                   <View style={styles.albumCoverContainer}>
                     <Image
-                      source={{
-                        uri: getImageUrl(
-                          album.cover,
-                          `https://picsum.photos/seed/${album.id}/200/200`,
-                        ),
-                      }}
+                      source={getImageSource(
+                        album.cover,
+                        `https://picsum.photos/seed/${album.id}/200/200`,
+                      )}
                       style={styles.albumCover}
                     />
                     {album.type === "AUDIOBOOK" &&
@@ -428,12 +424,10 @@ export default function ArtistDetailScreen() {
                 >
                   <View style={styles.albumCoverContainer}>
                     <Image
-                      source={{
-                        uri: getImageUrl(
-                          album.cover,
-                          `https://picsum.photos/seed/${album.id}/200/200`,
-                        ),
-                      }}
+                      source={getImageSource(
+                        album.cover,
+                        `https://picsum.photos/seed/${album.id}/200/200`,
+                      )}
                       style={styles.albumCover}
                     />
                     {(album.type === "AUDIOBOOK" ||
@@ -495,12 +489,10 @@ export default function ArtistDetailScreen() {
                   >
                     <View style={styles.albumCoverContainer}>
                       <Image
-                        source={{
-                          uri: getImageUrl(
-                            cover,
-                            `https://picsum.photos/seed/collection-${col.id}/200/200`,
-                          ),
-                        }}
+                        source={getImageSource(
+                          cover,
+                          `https://picsum.photos/seed/collection-${col.id}/200/200`,
+                        )}
                         style={styles.albumCover}
                       />
                     </View>
@@ -543,13 +535,11 @@ export default function ArtistDetailScreen() {
                 >
                   <View style={styles.albumCoverContainer}>
                     <Image
-                      source={{
-                        uri: getImageUrl(
-                          mv.cover,
-                          `https://picsum.photos/seed/mv-${mv.id}/200/200`,
-                          96,
-                        ),
-                      }}
+                      source={getImageSource(
+                        mv.cover,
+                        `https://picsum.photos/seed/mv-${mv.id}/200/200`,
+                        96,
+                      )}
                       style={styles.albumCover}
                     />
                   </View>
@@ -696,13 +686,11 @@ export default function ArtistDetailScreen() {
                 </View>
                 <View style={styles.trackInfo}>
                   <Image
-                    source={{
-                      uri: getImageUrl(
-                        track.cover,
-                        `https://picsum.photos/seed/${track.id}/20/20`,
-                        96,
-                      ),
-                    }}
+                    source={getImageSource(
+                      track.cover,
+                      `https://picsum.photos/seed/${track.id}/20/20`,
+                      96,
+                    )}
                     alt=""
                     style={{ width: 20, height: 20 }}
                   />

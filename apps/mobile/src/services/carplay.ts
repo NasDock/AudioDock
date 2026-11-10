@@ -9,6 +9,8 @@ import {
 } from "@soundx/services";
 import type { Album, Playlist, Track } from "../models";
 import { getImageUrl } from "../utils/image";
+import { getMediaHeaders, hasMediaHeaders } from "../utils/mediaAuth";
+import { cacheCover, resolveLocalPath } from "./cache";
 import { getCarPlayController } from "./carplayBridge";
 
 /**
@@ -47,12 +49,36 @@ function loadCarPlay(): CarPlayModule | null {
   }
 }
 
-function trackToListItem(track: Track) {
+/**
+ * CarPlay 列表项封面。
+ *
+ * 车机自己拉图（`imgUrl` 只能是 URL 或本地文件路径），带不了请求头 ——
+ * 飞牛这类「媒体接口只认 Authorization 头」的源必须先把封面落到本地，
+ * 再把本地路径给车机；否则车机裸拉远端地址会 401（列表没有封面）。
+ */
+async function resolveCarPlayImage(cover?: string | null): Promise<string | null> {
+  if (!cover) return null;
+  const url = getImageUrl(cover, undefined, 300);
+  const headers = getMediaHeaders();
+  if (!hasMediaHeaders(headers)) return url;
+  try {
+    const local = await cacheCover(url, headers);
+    if (!local || local.startsWith("http://") || local.startsWith("https://")) {
+      return null;
+    }
+    return resolveLocalPath(local);
+  } catch (e) {
+    console.warn("[CarPlay] 缓存封面失败", e);
+    return null;
+  }
+}
+
+async function trackToListItem(track: Track) {
   return {
     id: String(track.id),
     text: track.name,
     detailText: track.artist || undefined,
-    imgUrl: track.cover ? getImageUrl(track.cover, undefined, 300) : null,
+    imgUrl: await resolveCarPlayImage(track.cover),
     playbackProgress:
       track.duration && track.progress ? track.progress / track.duration : undefined,
   } as const;
@@ -69,10 +95,11 @@ function buildTrackListTemplate(
   mod: CarPlayModule,
   title: string,
   tracks: Track[],
+  items: any[],
 ) {
   return new mod.ListTemplate({
     title,
-    sections: [{ items: tracks.map(trackToListItem) as any }],
+    sections: [{ items: items as any }],
     async onItemSelect({ index }) {
       await playTracks(tracks, index);
     },
@@ -97,7 +124,11 @@ async function openRecentTracks(mod: CarPlayModule) {
   } catch (e) {
     console.warn("[CarPlay] 加载最近播放失败", e);
   }
-  mod.CarPlay.pushTemplate(buildTrackListTemplate(mod, "最近播放", tracks), true);
+  const items = await Promise.all(tracks.map(trackToListItem));
+  mod.CarPlay.pushTemplate(
+    buildTrackListTemplate(mod, "最近播放", tracks, items),
+    true,
+  );
 }
 
 /** 我的歌单 → 歌单内曲目 */
@@ -131,8 +162,9 @@ async function openPlaylists(mod: CarPlayModule) {
       } catch (e) {
         console.warn("[CarPlay] 加载歌单曲目失败", e);
       }
+      const items = await Promise.all(tracks.map(trackToListItem));
       mod.CarPlay.pushTemplate(
-        buildTrackListTemplate(mod, playlist.name, tracks),
+        buildTrackListTemplate(mod, playlist.name, tracks, items),
         true,
       );
     },
@@ -149,17 +181,20 @@ async function openAlbums(mod: CarPlayModule) {
   } catch (e) {
     console.warn("[CarPlay] 加载专辑失败", e);
   }
+  const albumItems = await Promise.all(
+    albums.map(async (a) => ({
+      id: String(a.id),
+      text: a.name,
+      detailText: a.artist || undefined,
+      imgUrl: await resolveCarPlayImage(a.cover),
+      showsDisclosureIndicator: true,
+    })),
+  );
   const template = new mod.ListTemplate({
     title: "推荐专辑",
     sections: [
       {
-        items: albums.map((a) => ({
-          id: String(a.id),
-          text: a.name,
-          detailText: a.artist || undefined,
-          imgUrl: a.cover ? getImageUrl(a.cover, undefined, 300) : null,
-          showsDisclosureIndicator: true,
-        })) as any,
+        items: albumItems as any,
       },
     ],
     async onItemSelect({ index }) {
@@ -172,8 +207,9 @@ async function openAlbums(mod: CarPlayModule) {
       } catch (e) {
         console.warn("[CarPlay] 加载专辑曲目失败", e);
       }
+      const items = await Promise.all(tracks.map(trackToListItem));
       mod.CarPlay.pushTemplate(
-        buildTrackListTemplate(mod, album.name, tracks),
+        buildTrackListTemplate(mod, album.name, tracks, items),
         true,
       );
     },

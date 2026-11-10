@@ -4,19 +4,17 @@ import fnosLogo from "../assets/fnos.png";
 /**
  * desktop 支持的数据源清单。
  *
- * 之所以在端侧扩展而不是直接改 `@soundx/services` 的 SOURCEMAP：
- * mobile / mini 都是用 `Object.keys(SOURCEMAP)` 渲染数据源列表的，
- * 公共常量里一加，那两个端就会出现「能选但没有对应适配器」的选项。
- * 等飞牛适配器在移动端也接上之后，再把这条挪回公共常量。
+ * 飞牛适配器接入 mobile 后，`Feiniu` 已挪回 `@soundx/services` 的公共常量
+ * （mobile / mini 用 `Object.keys(SOURCEMAP)` 渲染数据源列表，mini 侧有自己的
+ * 本地清单不含飞牛，所以公共常量里加这一项是安全的）。
+ * 这里保留一份别名导出，避免历史引用散落各处时找不到。
  */
 export const SOURCEMAP = {
   ...BASE_SOURCEMAP,
-  Feiniu: "fnos",
 } as const;
 
 export const SOURCETIPSMAP = {
   ...BASE_TIPSMAP,
-  Feiniu: "飞牛 fnOS 自带的音乐应用（trim.music），地址填 NAS，如 http://192.168.1.10:5666",
 } as const;
 
 /** 数据源展示名（SOURCEMAP 的 key 是技术标识，这里负责本地化） */

@@ -1,6 +1,7 @@
 import { NativeModules } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { cacheCover } from "../services/cache";
+import { getMediaHeaders } from "../utils/mediaAuth";
 import { getImageUrl } from "../utils/image";
 import { Album, Playlist, Track } from "../models";
 
@@ -148,7 +149,7 @@ export const updateWidgetCollections = async (params: {
       const coverUrl = firstTrack?.cover ? getImageUrl(firstTrack.cover, undefined, 128) : null;
       let coverPath: string | null = null;
       if (coverUrl) {
-        const cached = await cacheCover(coverUrl);
+        const cached = await cacheCover(coverUrl, getMediaHeaders());
         if (!cached.startsWith("http://") && !cached.startsWith("https://")) {
           coverPath = normalizeLocalPath(cached);
         }
@@ -171,7 +172,7 @@ export const updateWidgetCollections = async (params: {
       const coverUrl = (track as any).cover ? getImageUrl((track as any).cover, undefined, 128) : null;
       let coverPath: string | null = null;
       if (coverUrl) {
-        const cached = await cacheCover(coverUrl);
+        const cached = await cacheCover(coverUrl, getMediaHeaders());
         if (!cached.startsWith("http://") && !cached.startsWith("https://")) {
           coverPath = normalizeLocalPath(cached);
         }
@@ -194,7 +195,7 @@ export const updateWidgetCollections = async (params: {
       const coverUrl = track.cover ? getImageUrl(track.cover, undefined, 128) : null;
       let coverPath: string | null = null;
       if (coverUrl) {
-        const cached = await cacheCover(coverUrl);
+        const cached = await cacheCover(coverUrl, getMediaHeaders());
         if (!cached.startsWith("http://") && !cached.startsWith("https://")) {
           coverPath = normalizeLocalPath(cached);
         }
@@ -216,7 +217,7 @@ export const updateWidgetCollections = async (params: {
       const coverUrl = album.cover ? getImageUrl(album.cover, undefined, 128) : null;
       let coverPath: string | null = null;
       if (coverUrl) {
-        const cached = await cacheCover(coverUrl);
+        const cached = await cacheCover(coverUrl, getMediaHeaders());
         if (!cached.startsWith("http://") && !cached.startsWith("https://")) {
           coverPath = normalizeLocalPath(cached);
         }

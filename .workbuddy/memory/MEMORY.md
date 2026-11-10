@@ -87,8 +87,21 @@
 - **contentMode 异步加载竞态**：playMode.tsx 暴露 `modeLoaded`，PlayerContext 初始恢复 effect 必须加 `!modeLoaded` 闸门，否则先按默认 MUSIC 恢复一轮、再切 AUDIOBOOK 二次恢复，两次 setQueue 并发交错。
 - 恢复队列被窗口化（±50 首），非当前曲目无歌词；恢复后需用户手动点播放（产品预期）。
 
+## 飞牛音乐数据源（fnOS trim.music，三端共用）
+- 协议要点：网关 `/music/api/v1`；响应信封 `{code,msg,data}`，code 0 成功；登录 `POST /user/password-login`（密码 SHA-256 hex、deviceId 32位 hex），会话 token 用 `Authorization: <userToken>`（**无 Bearer 前缀**）。
+- **媒体接口（/static/cover、/track/stream）只认 Authorization 头**：query token、Cookie music-token 实测全 401。desktop 走本地 /fnos 代理；mobile 走「组件带 headers」。
+- **FN Connect 中继（*.fnos.net / *.5ddd.com）必须带 `Cookie: mode=relay`**，否则网关 302 到登录页。适配器 `buildHeaders()` 自带；端侧裸请求（探测/封面）要手动补。
+- **RN 全局 URL 是存根**（Libraries/Blob/URL，只有 getter）：`url.protocol=`/`url.port=` 在严格模式抛 TypeError。`resolveFnosServer()` 已改纯字符串解析，端侧别再写第二份 URL 解析。
+- **RN 设 Cookie 头必须显式关 credentials**（fetch `credentials:'omit'` / axios `withCredentials:false`）：RN 的 XHR 默认 withCredentials=true，Android OkHttp 在 cookie jar 非空时会用 jar 的 cookie 覆盖手动设的 Cookie 头 → 中继又 302。iOS 的重定向回调会把 allHTTPHeaderFields 整个替换（Authorization 也丢）。
+- 适配器切换函数名 `useXxxAdapter` 像 React hook → eslint rules-of-hooks 误报。统一 `import { useFnosAdapter as activateFnosAdapter }`（desktop 同约定）。
+- 飞牛只有音乐（强制 MUSIC）、不能注册、不能扫码登录、无搜索历史接口（`setSearchRecordStorage` 用端侧存储顶替）。
+- 文档：`docs/fnos-music-api.md`（API 速查 + 三端链路差异 + 踩坑记录）。
+- **mobile 本地取色（dominantColorLocal）自己发 HTTP，不经 FnosClient → 必须显式带 `getMediaHeaders()`**，否则飞牛封面 401 → 播放页没主题色（但封面能显示，因为组件走 getImageSource 带头）——这是判据。
+- **飞牛列表接口不返回 lyrics**，只有 `GET /lyric/list?trackGUID=` 单曲接口有；mobile 在 `PlayerContext` 切歌时懒加载并**并回 currentTrack**（播放页/车机歌词/歌词预览共用）。desktop 早有懒加载，mobile 曾漏。
+
 ## 其他
 - @soundx/services：father 构建入口指 dist，改 src/ 必须 `cd packages/services && pnpm build`。
 - mini 会员支付：plusWechatMpSession→openid；下单 clientType:'miniprogram'+openId；返回 wechatPay 喂 Taro.requestPayment。
 - services/mi 小爱音箱：sqlite3（data/xiaoai.db）DB 操作 asyncio.to_thread；唤醒词 DB 优先；API 前缀 /api；docker 挂 auth.json/.mi.token/data/。
 - CI：Android job 不用 android-actions/setup-android@v3，ubuntu-latest 自带 SDK。
+- 本机 bash `grep` 静默无输出（检索一律用 Grep 工具）；`eslint .` 多目录会撞 WorkBuddy broker socket EPIPE（分目录跑）。

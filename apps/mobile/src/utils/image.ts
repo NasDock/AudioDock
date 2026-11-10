@@ -1,5 +1,6 @@
 import { getBaseURL } from "../https";
 import { bucketWidth, isThumbnailBucket } from "./imageBucket";
+import { getMediaHeaders } from "./mediaAuth";
 import { isInternalNetworkSync } from "./networkMode";
 
 /**
@@ -87,4 +88,25 @@ export const getBlurredCoverUrl = (
     : baseURL;
   const src = `/${cleanPath}`;
   return `${cleanBaseURL}/image/optimize?src=${encodeURIComponent(src)}&w=${width}&q=72&fmt=webp&blur=${sigma}`;
+};
+
+/**
+ * 图片 source（含鉴权头）。
+ *
+ * 与 `getImageUrl` 的区别：飞牛音乐的封面接口只认 `Authorization` 头，
+ * `<Image>` / `expo-image` 都是从 source 上读 headers 的，
+ * 所以飞牛源必须用这个函数返回的对象，不能只用裸 URL。
+ *
+ * @param path 图片路径或完整 URL
+ * @param placeholder 缺图时的占位图
+ * @param width 目标设备像素宽度，默认 300
+ */
+export const getImageSource = (
+  path?: string | null,
+  placeholder?: string,
+  width = 300,
+): { uri: string; headers?: Record<string, string> } => {
+  const uri = getImageUrl(path, placeholder, width);
+  const headers = getMediaHeaders();
+  return Object.keys(headers).length > 0 ? { uri, headers } : { uri };
 };

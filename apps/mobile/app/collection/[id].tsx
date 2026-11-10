@@ -25,7 +25,7 @@ import {
 } from "react-native";
 import Modal from "react-native-modal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getImageUrl } from "@/src/utils/image";
+import { getImageSource } from "@/src/utils/image";
 
 const COLLECTION_ITEM_COVER_SIZE = 56;
 
@@ -220,12 +220,10 @@ export default function CollectionDetailScreen() {
       }}
     >
       <CachedImage
-        source={{
-          uri: getImageUrl(
-            item.cover,
-            `https://picsum.photos/seed/album-${item.id}/200/200`,
-          ),
-        }}
+        source={getImageSource(
+          item.cover,
+          `https://picsum.photos/seed/album-${item.id}/200/200`,
+        )}
         style={styles.albumCover}
       />
       <View style={{ flex: 1 }}>
@@ -296,13 +294,11 @@ export default function CollectionDetailScreen() {
 
       <View style={styles.coverSection}>
         <CachedImage
-          source={{
-            uri: getImageUrl(
-              cover,
-              `https://picsum.photos/seed/collection-${collection.id}/400/400`,
-              600,
-            ),
-          }}
+          source={getImageSource(
+            cover,
+            `https://picsum.photos/seed/collection-${collection.id}/400/400`,
+            600,
+          )}
           style={styles.coverImage}
         />
         <Text style={[styles.title, { color: colors.text }]}>{collection.name}</Text>
@@ -430,12 +426,10 @@ export default function CollectionDetailScreen() {
               renderItem={({ item }) => (
                 <TouchableOpacity style={styles.coverOption} onPress={() => handleSelectCover(item)}>
                   <CachedImage
-                    source={{
-                      uri: getImageUrl(
-                        item.cover,
-                        `https://picsum.photos/seed/album-${item.id}/200/200`,
-                      ),
-                    }}
+                    source={getImageSource(
+                      item.cover,
+                      `https://picsum.photos/seed/album-${item.id}/200/200`,
+                    )}
                     style={styles.coverThumb}
                   />
                   <Text style={[styles.sheetText, { color: colors.text }]} numberOfLines={1}>
