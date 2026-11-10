@@ -5,7 +5,7 @@ import { buildTheme } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { formatDuration, Logger } from 'audiodock_common';
-import { trackApi, playlistApi, artistApi, albumApi, miApi, plusApi, setPlusAuthToken, deviceApi, mvApi } from 'features_network';
+import { trackApi, playlistApi, artistApi, albumApi, miApi, plusApi, setPlusAuthToken, deviceApi, mvApi, isMvSupported } from 'features_network';
 import type { PlaylistDto, ArtistDto, AlbumDto, MiDevice, TrackDto, OnlineDevice, MVDto, PlaybackQualityOption, PlaybackQualityProfile } from 'features_network';
 import { kvStore } from 'features_storage';
 import type { LyricLine } from 'features_player';
@@ -1969,7 +1969,7 @@ struct PlayerPage {
         });
 
         // 2. MV（非有声书且当前曲目有 MV 时展示，对齐 mobile hasMv + videocam-outline）
-        if (this.current()?.contentType !== 'AUDIOBOOK' && this.hasMv) {
+        if (isMvSupported() && this.current()?.contentType !== 'AUDIOBOOK' && this.hasMv) {
           Row() {
             AppIcon({ name: 'video', iconSize: 24, color: this.theme.colors.text });
           }
@@ -3063,6 +3063,12 @@ struct PlayerPage {
    * 有声书/无曲目时 hasMv=false；否则 mvApi.byTrack 命中即缓存 dto 供跳转。
    */
   private refreshMvStatus(): void {
+    // 飞牛音乐没有 MV 能力，直接跳过探测请求
+    if (!isMvSupported()) {
+      this.hasMv = false;
+      this.mvDto = null;
+      return;
+    }
     const cur = this.current();
     if (!cur || cur.contentType === 'AUDIOBOOK') {
       this.hasMv = false;
@@ -3088,6 +3094,7 @@ struct PlayerPage {
 
   /** 跳转 MV 详情（对齐 mobile player.tsx 信息行 videocam 按钮：setPlaylist 后 push MVDetailPage）。 */
   private handleOpenMv(): void {
+    if (!isMvSupported()) return;
     const mv: MVDto | null = this.mvDto;
     if (!mv) return;
     const list: MVDto[] = [mv];

@@ -4,7 +4,7 @@ import { buildTheme, CommonNavBar, EmptyView, SkeletonBlock, CommonButton } from
 import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { formatDuration, Logger } from 'audiodock_common';
-import { httpClient, mvApi } from 'features_network';
+import { httpClient, mvApi, isMvSupported } from 'features_network';
 import type { MVDto } from 'features_network';
 import { MvVideoPlayer } from '../components/MvVideoPlayer';
 import { mvPlaylistStore } from '../store/MvPlaylistStore';
@@ -45,6 +45,11 @@ struct MVDetailPage {
   }
 
   aboutToAppear(): void {
+    // 飞牛音乐没有 MV 能力：入口已隐藏，深链/历史栈进来直接退回，也不要暂停正在播放的音频
+    if (!isMvSupported()) {
+      router.back();
+      return;
+    }
     this.theme = buildTheme(this.themeMode);
     interface RouterParams { id?: string }
     const p = router.getParams() as RouterParams;

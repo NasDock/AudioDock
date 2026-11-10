@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { usePlayer } from '../../context/PlayerContext';
 import { usePlayMode } from '../../utils/playMode';
 import { getImageUrl as buildImageUrl } from '../../utils/image';
+import { isFnosSource } from '../../utils/mvSupport';
 import PlayingIndicator from '../PlayingIndicator';
 import './index.scss';
 
@@ -28,6 +29,9 @@ const PlaylistModal = () => {
 
   const [activeTab, setActiveTab] = useState<TabType>('current');
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>('track');
+  // 飞牛音乐没有专辑收藏/专辑历史，弹窗内同样只保留单曲视图
+  const fnosSource = isFnosSource();
+  const effectiveSubTab: SubTabType = fnosSource ? 'track' : activeSubTab;
   const [listData, setListData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -39,7 +43,7 @@ const PlaylistModal = () => {
         loadTabData();
       }
     }
-  }, [showPlaylist, activeTab, activeSubTab, user, mode, trackList]);
+  }, [showPlaylist, activeTab, activeSubTab, user, mode, trackList, fnosSource]);
 
   const loadTabData = async () => {
     if (!user) return;
@@ -47,7 +51,7 @@ const PlaylistModal = () => {
     try {
       let res: any;
       const isAudiobook = mode === 'AUDIOBOOK';
-      const currentSubTab = isAudiobook ? 'album' : activeSubTab;
+      const currentSubTab = fnosSource ? 'track' : (isAudiobook ? 'album' : effectiveSubTab);
 
       if (activeTab === 'history') {
         if (currentSubTab === 'track') {
@@ -86,7 +90,7 @@ const PlaylistModal = () => {
     buildImageUrl(url, "https://picsum.photos/100", width);
   const handleItemClick = (item: any, index: number) => {
     const isCurrent = activeTab === 'current';
-    const isAlbum = !isCurrent && (activeSubTab === 'album' || mode === 'AUDIOBOOK');
+    const isAlbum = !isCurrent && !fnosSource && (effectiveSubTab === 'album' || mode === 'AUDIOBOOK');
 
     if (isAlbum) {
       setShowPlaylist(false);
@@ -99,7 +103,7 @@ const PlaylistModal = () => {
 
   const renderItem = (item: any, index: number) => {
     const isCurrent = activeTab === 'current';
-    const isAlbum = !isCurrent && (activeSubTab === 'album' || mode === 'AUDIOBOOK');
+    const isAlbum = !isCurrent && !fnosSource && (effectiveSubTab === 'album' || mode === 'AUDIOBOOK');
     const isActive = !isAlbum && currentTrack?.id === item.id;
 
     return (
@@ -152,18 +156,18 @@ const PlaylistModal = () => {
           ))}
         </View>
 
-        {mode === 'MUSIC' && activeTab !== 'current' && (
+        {(mode === 'MUSIC' || fnosSource) && activeTab !== 'current' && (
           <View className='sub-tab-container'>
             {[
-              { id: 'album', label: t('nav.albums') },
+              ...(fnosSource ? [] : [{ id: 'album', label: t('nav.albums') }]),
               { id: 'track', label: t('nav.tracks') },
             ].map((sub) => (
               <View
                 key={sub.id}
-                className={`sub-tab-item ${activeSubTab === sub.id ? 'active' : ''}`}
+                className={`sub-tab-item ${effectiveSubTab === sub.id ? 'active' : ''}`}
                 onClick={() => setActiveSubTab(sub.id as SubTabType)}
               >
-                <Text className={`sub-tab-text ${activeSubTab === sub.id ? 'active' : ''}`}>
+                <Text className={`sub-tab-text ${effectiveSubTab === sub.id ? 'active' : ''}`}>
                   {sub.label}
                 </Text>
               </View>

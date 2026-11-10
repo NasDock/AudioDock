@@ -5,7 +5,7 @@ import { kvStore } from 'features_storage';
 import { t } from 'features_i18n';
 import { Logger } from 'audiodock_common';
 import {
-  artistApi, albumApi, trackApi, collectionApi, mvApi, miApi, playlistApi,
+  artistApi, albumApi, trackApi, collectionApi, mvApi, miApi, playlistApi, isMvSupported,
 } from 'features_network';
 import type {
   ArtistDto, AlbumDto, TrackDto, CollectionDto, MVDto,
@@ -127,6 +127,10 @@ export struct LibraryTab {
     if (this.mode === 'AUDIOBOOK' && this.activeTab === 'songs') {
       this.activeTab = 'artists';
     }
+    // 飞牛音乐没有 MV 能力：隐藏 MV tab，并校正残留的 mvs 选中态
+    if (!isMvSupported() && this.activeTab === 'mvs') {
+      this.activeTab = 'artists';
+    }
     this.initData();
   }
 
@@ -210,8 +214,11 @@ export struct LibraryTab {
         const trackCount = await trackApi.loadMore({ pageSize: 1, loadCount: 0, type: 'MUSIC' });
         counts['songs'] = trackCount.total;
 
-        const mvCount = await mvApi.list({ pageSize: 1, skip: 0 });
-        counts['mvs'] = mvCount.total;
+        // 飞牛音乐没有 MV 能力，跳过无效请求
+        if (isMvSupported()) {
+          const mvCount = await mvApi.list({ pageSize: 1, skip: 0 });
+          counts['mvs'] = mvCount.total;
+        }
       } else if (this.userId.length > 0) {
         const cols = await collectionApi.list(this.userId);
         counts['collections'] = cols.length;
@@ -273,7 +280,7 @@ export struct LibraryTab {
       } else if (this.activeTab === 'collections' && this.mode === 'AUDIOBOOK' && this.userId.length > 0) {
         this.listVersion++;
         this.collections = await collectionApi.list(this.userId);
-      } else if (this.activeTab === 'mvs' && this.mode === 'MUSIC') {
+      } else if (this.activeTab === 'mvs' && this.mode === 'MUSIC' && isMvSupported()) {
         const res = await mvApi.list({ pageSize: GRID_PAGE, skip: 0 });
         this.listVersion++;
         // 倒序展示：最新添加的 MV 排在前面
@@ -312,11 +319,15 @@ export struct LibraryTab {
     if (this.mode !== 'AUDIOBOOK' && this.activeTab === 'collections') {
       this.activeTab = 'artists';
     }
+    if (!isMvSupported() && this.activeTab === 'mvs') {
+      this.activeTab = 'artists';
+    }
     this.exitSelectionMode();
     await this.loadAllData();
   }
 
   switchTab(tab: string): void {
+    if (tab === 'mvs' && !isMvSupported()) return;
     this.activeTab = tab;
     // 对齐 mobile：离开 songs tab 时退出多选
     if (tab !== 'songs') {
@@ -376,6 +387,7 @@ export struct LibraryTab {
   }
 
   navigateToMv(id: string): void {
+    if (!isMvSupported()) return;
     // 把当前 MV 网格（this.mvs）作为列表塞进 playlist，再跳详情页。
     // 这样从 Library 入口进入后也能在详情页内上一首/下一首切换（对齐 mobile library.tsx:928-932）。
     const idx = this.mvs.findIndex((m) => m.id === id);
@@ -629,7 +641,8 @@ export struct LibraryTab {
     if (this.mode === 'MUSIC') tabs.push(new TabInfo('songs', t('nav.tracks')));
     tabs.push(new TabInfo('artists', t('nav.artists')));
     tabs.push(new TabInfo('albums', t('nav.albums')));
-    if (this.mode === 'MUSIC') tabs.push(new TabInfo('mvs', 'MV'));
+    // 飞牛音乐没有 MV 能力，隐藏 MV tab
+    if (this.mode === 'MUSIC' && isMvSupported()) tabs.push(new TabInfo('mvs', 'MV'));
     if (this.mode === 'AUDIOBOOK') tabs.push(new TabInfo('collections', t('nav.collections')));
     return tabs;
   }
@@ -1129,7 +1142,7 @@ export struct LibraryTab {
       this.AlbumGridBuilder()
     } else if (this.activeTab === 'collections') {
       this.CollectionGridBuilder()
-    } else {
+    } else if (isMvSupported()) {
       this.MvGridBuilder()
     }
   }

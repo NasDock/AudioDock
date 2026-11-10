@@ -11,6 +11,7 @@ import { usePlayerSkin } from "@/src/store/playerSkin";
 import { rgba, shade } from "@/src/utils/dominantColor";
 import { getBlurredCoverUrl, getImageUrl } from "@/src/utils/image";
 import { getOrCreateDeviceId } from "@/src/utils/platform";
+import { isMvSupported } from "@/src/utils/mvSupport";
 import { trackEvent } from "@/src/services/tracking";
 import {
   getMiAuthStatus,
@@ -505,7 +506,8 @@ export function PlayerDetailView({
   const [isDownloading, setIsDownloading] = useState(false);
   const [hasMv, setHasMv] = useState(false);
   const [syncCheckLoading, setSyncCheckLoading] = useState(false);
-  const { user, device, setPlusToken } = useAuth();
+  const { user, device, setPlusToken, sourceType } = useAuth();
+  const mvSupported = isMvSupported(sourceType);
   const { t } = useTranslation();
   const [isVip, setIsVip] = useState(false);
   const [lyricFontSize, setLyricFontSize] = useState(16);
@@ -1044,7 +1046,8 @@ export function PlayerDetailView({
     let cancelled = false;
 
     const checkMvStatus = async () => {
-      if (!currentTrack || currentTrack.type === TrackType.AUDIOBOOK) {
+      // 飞牛音乐没有 MV 能力，直接跳过探测请求
+      if (!mvSupported || !currentTrack || currentTrack.type === TrackType.AUDIOBOOK) {
         if (!cancelled) setHasMv(false);
         return;
       }
@@ -1066,7 +1069,7 @@ export function PlayerDetailView({
     return () => {
       cancelled = true;
     };
-  }, [currentTrack?.id, currentTrack?.type]);
+  }, [currentTrack?.id, currentTrack?.type, mvSupported]);
 
   const breatheAnim = useRef(new Animated.Value(1)).current;
 
@@ -2130,7 +2133,7 @@ export function PlayerDetailView({
         {renderPlaylistModal && <PlaylistModal />}
         {currentTrack.type !== TrackType.AUDIOBOOK && (
           <>
-            {hasMv && (
+            {mvSupported && hasMv && (
               <TouchableOpacity
                 onPress={() => {
                   router.push({

@@ -10,6 +10,7 @@ import QuickLocate from '../../components/QuickLocate';
 import XiaoAiIcon from '../../components/XiaoAiIcon';
 import { usePlayer } from '../../context/PlayerContext';
 import { getImageUrl as buildImageUrl } from '../../utils/image';
+import { isMvSupported } from '../../utils/mvSupport';
 import { getBaseURL } from '../../utils/request';
 import './index.scss';
 import BottomTabBar from '../../components/BottomTabBar';
@@ -19,7 +20,8 @@ export default function ArtistDetail() {
   const router = useRouter();
   const { id } = router.params;
   const { playTrackList, currentTrack, isPlaying } = usePlayer();
-  
+  const mvSupported = isMvSupported();
+
   const [artist, setArtist] = useState<Artist | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [collabAlbums, setCollabAlbums] = useState<Album[]>([]);
@@ -52,7 +54,8 @@ export default function ArtistDetail() {
              if (collabRes.code === 200) setCollabAlbums(collabRes.data);
              if (tracksRes.code === 200) setTracks(tracksRes.data);
              
-             getMvsByArtist(artistRes.data.name).then((res: any[]) => {
+             // 飞牛音乐没有 MV 能力，跳过无效请求
+             if (mvSupported) getMvsByArtist(artistRes.data.name).then((res: any[]) => {
                  if (res?.length) setMvs(res);
              }).catch((e: any) => console.error(e));
         }
@@ -173,7 +176,7 @@ export default function ArtistDetail() {
                  </View>
              )}
 
-             {mvs.length > 0 && (
+             {mvSupported && mvs.length > 0 && (
                  <View className='section'>
                      <Text className='section-title'>MV ({mvs.length})</Text>
                      <ScrollView scrollX className='horizontal-list'>

@@ -5,7 +5,7 @@ import { buildTheme, CommonNavBar, CommonButton, EmptyView, SkeletonBlock } from
 import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { Logger } from 'audiodock_common';
-import { albumApi, artistApi, trackApi, collectionApi, mvApi, miApi } from 'features_network';
+import { albumApi, artistApi, trackApi, collectionApi, mvApi, miApi, isMvSupported } from 'features_network';
 import type { AlbumDto, ArtistDto, TrackDto, MVDto, CollectionDto, CollectionAlbumItem, MiDevice, MiTrackPayload } from 'features_network';
 import { DetailHero } from '../components/DetailHero';
 import { SectionHeader } from '../components/SectionHeader';
@@ -244,7 +244,8 @@ export struct ArtistDetailContent {
         }
       }
 
-      if (this.mvs.length > 0) {
+      // 飞牛音乐没有 MV 能力，隐藏 MV 分区
+      if (isMvSupported() && this.mvs.length > 0) {
         ListItem() {
           this.MvSection()
         }
@@ -418,6 +419,7 @@ export struct ArtistDetailContent {
               progress: 0,
               theme: this.theme,
               onCardClick: () => {
+                if (!isMvSupported()) return;
                 // 跳详情页前先把整个艺人 MV 列表塞进 playlist，
                 // 这样进入详情页能上一首/下一首连续播放（对齐 mobile artist/[id].tsx:539）。
                 mvPlaylistStore.setPlaylist(this.mvs, idx);
@@ -745,7 +747,10 @@ export struct ArtistDetailContent {
       tasks.push(albumApi.byArtist(artistQueryKey).then((v: AlbumDto[]) => { this.albums = v; }).catch(() => undefined));
       tasks.push(albumApi.collaborativeByArtist(artistQueryKey).then((v: AlbumDto[]) => { this.collaborativeAlbums = v; }).catch(() => undefined));
       tasks.push(trackApi.byArtist(artistQueryKey).then((v: TrackDto[]) => { this.tracks = v; }).catch(() => undefined));
-      tasks.push(mvApi.byArtist(artistQueryKey).then((v: MVDto[]) => { this.mvs = v; }).catch(() => undefined));
+      // 飞牛音乐没有 MV 能力，跳过无效请求
+      if (isMvSupported()) {
+        tasks.push(mvApi.byArtist(artistQueryKey).then((v: MVDto[]) => { this.mvs = v; }).catch(() => undefined));
+      }
 
       if (artist.type === 'AUDIOBOOK') {
         const uid = authStore.state_.user?.id ?? '';

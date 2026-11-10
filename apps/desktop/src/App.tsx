@@ -51,6 +51,7 @@ import i18n from "./i18n";
 import { socketService } from "./services/socket";
 import { useAuthStore } from "./store/auth";
 import { useSettingsStore, type SettingsState } from "./store/settings";
+import { isMvSupported } from "./utils";
 import { isTauri } from "./utils/platform";
 import { invoke } from "@tauri-apps/api/core";
 import { emitTo, listen } from "@tauri-apps/api/event";
@@ -213,9 +214,10 @@ const AppContent = () => {
         <Route path="/detail" element={<Detail />} />
         <Route path="/artist/:id" element={<ArtistDetail />} />
         <Route path="/category" element={<Category />} />
-        <Route path="/mvs" element={<Mvs />} />
-        <Route path="/mv" element={<MvDetail />} />
-        <Route path="/mv/:id" element={<MvDetail />} />
+        {/* 飞牛音乐没有 MV 能力：入口隐藏的同时，深链/历史记录也要挡回去 */}
+        <Route path="/mvs" element={isMvSupported() ? <Mvs /> : <Navigate to="/recommended" replace />} />
+        <Route path="/mv" element={isMvSupported() ? <MvDetail /> : <Navigate to="/recommended" replace />} />
+        <Route path="/mv/:id" element={isMvSupported() ? <MvDetail /> : <Navigate to="/recommended" replace />} />
         <Route path="/collections" element={<Collections />} />
         <Route path="/collection/:id" element={<CollectionDetail />} />
         <Route path="/songs" element={<Songs />} />

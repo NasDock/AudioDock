@@ -14,6 +14,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { Album, Track, TrackSource } from "@/src/models";
 import { downloadTracks } from "@/src/services/downloadManager";
 import { getImageUrl } from "@/src/utils/image";
+import { isMvSupported } from "@/src/utils/mvSupport";
 import { mvPlaylistStore } from "@/src/store/mvPlaylist";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -57,6 +58,7 @@ export default function AlbumDetailScreen() {
   const { playTrack, playTrackList, currentTrack, isPlaying, seekTo, position } =
     usePlayer();
   const { user, sourceType } = useAuth();
+  const mvSupported = isMvSupported(sourceType);
   const [album, setAlbum] = useState<Album | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [mvs, setMvs] = useState<any[]>([]);
@@ -87,11 +89,18 @@ export default function AlbumDetailScreen() {
 
   const PAGE_SIZE = 20000;
 
+  // 飞牛音乐没有 MV 能力：切源时若停在 MV tab 就退回曲目 tab
+  useEffect(() => {
+    if (!mvSupported && activeTab === "mvs") {
+      setActiveTab("tracks");
+    }
+  }, [mvSupported, activeTab]);
+
   useEffect(() => {
     if (id) {
       loadData(id as string, sort, sortBy);
     }
-  }, [id, sort, sortBy]);
+  }, [id, sort, sortBy, mvSupported]);
 
   const loadData = async (albumId: number | string, currentSort: "asc" | "desc", currentSortBy: AlbumTrackSortBy) => {
     try {
@@ -109,8 +118,8 @@ export default function AlbumDetailScreen() {
         );
         setIsLiked(isLikedByCurrentUser);
         
-        // load MVs
-        if (albumRes.data?.name) {
+        // load MVs（飞牛音乐没有 MV 能力，跳过无效请求）
+        if (mvSupported && albumRes.data?.name) {
             getMvsByAlbum(albumRes.data.name, albumRes.data.artist).then((res: any[]) => {
                 if (res?.length) {
                     setMvs(res);
@@ -370,7 +379,7 @@ export default function AlbumDetailScreen() {
       </View>
       <FlatList
         ref={flatListRef}
-        data={activeTab === 'mvs' ? mvs : tracks}
+        data={mvSupported && activeTab === 'mvs' ? mvs : tracks}
         keyExtractor={(item) => item.id.toString()}
         onScrollToIndexFailed={(info) => {
           flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
@@ -511,7 +520,7 @@ export default function AlbumDetailScreen() {
               ) : null}
             </View>
             
-            {mvs.length > 0 && (
+            {mvSupported && mvs.length > 0 && (
               <View style={{ flexDirection: 'row', marginTop: 20, width: '100%', borderBottomWidth: 1, borderBottomColor: colors.border }}>
                 <TouchableOpacity 
                   style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderBottomWidth: activeTab === 'tracks' ? 2 : 0, borderBottomColor: colors.primary }}
@@ -534,7 +543,7 @@ export default function AlbumDetailScreen() {
           </View>
         }
         renderItem={({ item, index }) => {
-          if (activeTab === 'mvs') {
+          if (mvSupported && activeTab === 'mvs') {
             return (
               <TouchableOpacity
                 style={[styles.trackItem, { borderBottomColor: colors.border }]}
