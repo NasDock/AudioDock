@@ -1,5 +1,5 @@
 import { kvStore } from 'features_storage';
-import { trackApi } from 'features_network';
+import { trackApi, isFnosSource } from 'features_network';
 import { isInternalNetwork } from '../utils/networkMode';
 
 export type Quality = 'lossless' | 'high' | 'standard';
@@ -40,6 +40,12 @@ export async function getCurrentQuality(): Promise<Quality> {
 }
 
 export async function resolveTrackUrl(trackId: string, quality: Quality, path?: string): Promise<string> {
+  // 飞牛音乐的音频流就在 NAS 上（`/music/api/v1/track/stream?guid=`），
+  // 不能被改写成 AudioDock 的 `/track/stream/{id}` 代理地址。
+  if (isFnosSource()) {
+    if (path !== undefined && path !== null && path.length > 0) return path;
+    return trackApi.streamUrl(trackId, quality);
+  }
   // 对齐 mobile/desktop/mini 的 buildTrackPlaybackUrl：
   // 只有当 path 的 host 就是当前 baseURL 的 host（即本来就是服务器自己的地址）时才直返；
   // 否则（如 strm 曲目指向 Alist 内网地址）改走 /track/stream 服务端代理，避免外网/跨网段不可达。

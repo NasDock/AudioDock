@@ -45,12 +45,16 @@ export class AVPlayerBackend implements IAudioPlayer {
     }
   }
 
-  async load(url: string, _headers?: Record<string, string>, contentType?: string): Promise<void> {
+  async load(url: string, headers?: Record<string, string>, contentType?: string): Promise<void> {
     const p = await this.ensure();
     this.currentContentType = contentType === 'AUDIOBOOK' ? 'AUDIOBOOK' : 'MUSIC';
     // AVPlayer.url 只接受 http(s) 网络地址；本地缓存文件必须走 fdSrc
     const isNetwork = url.startsWith('http://') || url.startsWith('https://');
     this.pendingSourceIsNetwork = isNetwork;
+    // 外部源（飞牛音乐）的流要带 Cookie/Authorization，<url> 这种设置方式加不了请求头，
+    // 必须走 media.createMediaSourceWithUrl(url, headers) + setMediaSource。
+    const headerKeys: string[] = headers === undefined ? [] : Object.keys(headers);
+    const hasHeaders: boolean = headerKeys.length > 0 && isNetwork;
     // 同一来源已加载则直接复用，避免重复 prepare（error 态不复用，允许重试）
     if (this.currentUrl === url && p.state !== 'error' &&
       (isNetwork ? p.url === url : this.currentFd >= 0)) {
@@ -80,8 +84,23 @@ export class AVPlayerBackend implements IAudioPlayer {
       this.prepareReject = (e: Error) => { clearTimeout(timer); reject(e); };
       try {
         if (isNetwork) {
-          // 设置 url 后播放器进入 initialized 态，prepare 在 stateChange 回调里触发
-          p.url = url;
+          if (hasHeaders) {
+            // 设置 url 后播放器进入 initialized 态，prepare 在 stateChange 回调里触发；
+            // setMediaSource 同样是「设置数据源 → initialized」，走同一套后续流程
+            const source: media.MediaSource = media.createMediaSourceWithUrl(url, headers);
+            // ⚠️ 不同 API 版本的 setMediaSource 返回类型不一致（Promise<void> / void），
+            // 直接 `.catch` 在真机上会抛 `Cannot read property catch of undefined`，
+            // 把整个 load 打成失败态。统一用 Promise.resolve 包一层。
+            Promise.resolve(p.setMediaSource(source)).catch((err: BusinessError) => {
+              Logger.e('AVPlayer', `setMediaSource failed: ${err.message}`);
+              const r = this.prepareReject;
+              this.prepareResolve = null;
+              this.prepareReject = null;
+              if (r) r(new Error(err.message));
+            });
+          } else {
+            p.url = url;
+          }
         } else {
           const file = fs.openSync(url, fs.OpenMode.READ_ONLY);
           this.currentFd = file.fd;

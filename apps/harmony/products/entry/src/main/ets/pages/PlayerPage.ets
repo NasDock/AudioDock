@@ -34,7 +34,7 @@ import { playerThemeStore } from '../theme/playerThemeStore';
 import type { PlayerThemeTokens } from '../theme/playerThemeSchema';
 import { playerSkinStore } from '../theme/playerSkinStore';
 import type { CoverStyle } from '../theme/playerSkinStore';
-import { fetchDominantColor, rgbToHex, alphaHex, shade } from '../utils/dominantColor';
+import { fetchDominantColor, getCachedDominantColor, rgbToHex, alphaHex, shade } from '../utils/dominantColor';
 import { applySystemBar, applyPlayerSystemBar } from '../services/systemBar';
 import type { Rgb } from '../utils/dominantColor';
 import { VinylCover } from '../components/VinylCover';
@@ -150,8 +150,10 @@ struct PlayerPage {
   @State private showPlayerStyle: boolean = false;
   // 本地皮肤设置（内置插件层，优先级低于 VIP 主题插件，见 theme/playerSkinStore）
   @State private skinCoverStyle: CoverStyle = 'square';
-  // 封面主题色（服务端 /image/dominant-color）：背景渐变 + 进度条着色，取色失败为 null 回退默认
+  // 封面主题色（本地提取，见 utils/dominantColorLocal.ets）：背景渐变 + 进度条着色，取色失败为 null 回退默认
   @State private coverColor: Rgb | null = null;
+  /** 正在解析的封面 key，用于丢弃快速切歌时过期的异步取色结果（对齐 mobile hook 的 cancelled） */
+  private coverColorKey: string = '';
   private unsubSkinStore: (() => void) | null = null;
   // 有声书：跳过片头/片尾设置半模态（对齐 mobile PlayerMoreModal skip modal）
   @State private showSkipSheet: boolean = false;
@@ -322,11 +324,25 @@ struct PlayerPage {
     return this.ptIsVinyl();
   }
 
-  /** 封面主题色刷新（对齐 mobile useCoverDominantColor，异步不阻塞渲染） */
+  /**
+   * 封面主题色刷新（对齐 mobile useCoverVisual）：
+   * 命中内存缓存时首帧同步可见，避免重进播放页先闪中性黑；未命中再本地异步解析。
+   */
   private refreshCoverColor(): void {
     const cur = this.current();
-    fetchDominantColor(cur?.coverUrl ?? null)
+    const cover: string | null = cur?.coverUrl ?? null;
+    const key: string = cover ?? '';
+    this.coverColorKey = key;
+    const cached: Rgb | null = getCachedDominantColor(cover);
+    if (cached !== null) {
+      this.coverColor = cached;
+      return;
+    }
+    this.coverColor = null;
+    fetchDominantColor(cover)
       .then((c: Rgb | null): void => {
+        // 期间又切歌了，丢弃这次结果
+        if (this.coverColorKey !== key) return;
         this.coverColor = c;
       })
       .catch(() => undefined);

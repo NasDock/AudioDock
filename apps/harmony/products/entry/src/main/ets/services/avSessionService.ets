@@ -6,6 +6,7 @@ import { http } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { Logger } from 'audiodock_common';
 import { kvStore } from 'features_storage';
+import { isFnosMediaUrl, fetchFnosMediaBytes } from 'features_network';
 import { util } from '@kit.ArkTS';
 import { audioBackend } from 'features_player';
 import { playerStore } from '../context/PlayerStore';
@@ -653,23 +654,32 @@ function bindDesktopLyricListeners(): void {
 // ────────────────────────────────────────────────────────────
 
 async function fetchCoverPixelMap(url: string): Promise<image.PixelMap> {
-  const req = http.createHttp();
-  try {
-    const resp = await req.request(url, {
-      method: http.RequestMethod.GET,
-      expectDataType: http.HttpDataType.ARRAY_BUFFER,
-      connectTimeout: 10000,
-      readTimeout: 10000,
-    });
-    if (resp.responseCode !== 200) {
-      throw new Error(`HTTP ${resp.responseCode}`);
+  let buf: ArrayBuffer = new ArrayBuffer(0);
+  if (isFnosMediaUrl(url)) {
+    // 飞牛 /static/cover 只认 Cookie/Authorization（无 Bearer），裸 GET 会 401，
+    // 解出来的是错误页字节 → `Decode image header failed` → 锁屏/播控中心无封面。
+    buf = await fetchFnosMediaBytes(url);
+  } else {
+    const req = http.createHttp();
+    try {
+      const resp = await req.request(url, {
+        method: http.RequestMethod.GET,
+        expectDataType: http.HttpDataType.ARRAY_BUFFER,
+        connectTimeout: 10000,
+        readTimeout: 10000,
+      });
+      if (resp.responseCode < 200 || resp.responseCode >= 300) {
+        throw new Error(`HTTP ${resp.responseCode}`);
+      }
+      buf = resp.result as ArrayBuffer;
+    } finally {
+      req.destroy();
     }
-    const buf = resp.result as ArrayBuffer;
-    const source = image.createImageSource(buf);
-    const pm = await source.createPixelMap();
-    source.release();
-    return pm;
+  }
+  const source = image.createImageSource(buf);
+  try {
+    return await source.createPixelMap();
   } finally {
-    req.destroy();
+    source.release();
   }
 }

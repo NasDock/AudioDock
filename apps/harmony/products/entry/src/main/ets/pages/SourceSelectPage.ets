@@ -1,7 +1,7 @@
 import router from '@ohos.router';
 import { buildTheme, type Theme, type ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
-import { SOURCEMAP, SOURCETIPSMAP } from '../utils/networkUtils';
+import { SOURCEMAP, SOURCETIPSMAP, SOURCE_LABELS } from '../utils/networkUtils';
 
 /**
  * 数据源选择页，1:1 对齐 mobile 的 LoginSelectionScreen（app/login.tsx）：
@@ -32,6 +32,9 @@ struct SourceSelectPage {
     }
     if (key === 'Emby') {
       return $r('app.media.emby');
+    }
+    if (key === 'Feiniu') {
+      return $r('app.media.fnos');
     }
     return $r('app.media.logo');
   }
@@ -100,7 +103,7 @@ struct SourceSelectPage {
                   .height(50)
                   .margin({ right: 15 })
                 Column() {
-                  Text(key)
+                  Text(SOURCE_LABELS[key] ?? key)
                     .fontSize(18)
                     .fontWeight(FontWeight.Bold)
                     .fontColor(this.theme.colors.text)

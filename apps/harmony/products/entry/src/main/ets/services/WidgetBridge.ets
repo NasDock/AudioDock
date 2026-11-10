@@ -1,6 +1,7 @@
 import formProvider from '@ohos.app.form.formProvider';
 import formBindingData from '@ohos.app.form.formBindingData';
 import { http } from '@kit.NetworkKit';
+import { image } from '@kit.ImageKit';
 import fs from '@ohos.file.fs';
 import { util } from '@kit.ArkTS';
 import common from '@ohos.app.ability.common';
@@ -8,6 +9,7 @@ import { Logger } from 'audiodock_common';
 import { kvStore } from 'features_storage';
 import { httpClient } from 'features_network';
 import { plusApi } from 'features_network';
+import { isFnosSource, getFnosPlaybackHeaders } from 'features_network';
 import { userDataApi } from 'features_network';
 import { trackApi } from 'features_network';
 import { playlistApi } from 'features_network';
@@ -85,6 +87,16 @@ const HISTORY_LIMIT = 3;
  * 会被系统丢弃导致卡片收不到）。封面统一压到 300px webp，基本 <20KB。
  */
 const COVER_DATA_IMAGE_MAX_BYTES = 80 * 1024;
+/**
+ * 超过上限时的本地压缩目标宽度。
+ * 正在播放大卡 198vp×2 ≈ 396px，300px 足够；列表小卡 40vp×2 ≈ 80px，96px 足够。
+ * 飞牛源（fnOS）的 /static/cover 忽略 size 参数、直接回原图（实测 50~125KB），
+ * 不压缩就永远生成不了 data URI —— 卡片渲染进程读不到主进程 file://，只剩占位音符。
+ */
+const CARD_COVER_MAX_WIDTH = 300;
+const CARD_COVER_LIST_WIDTH = 96;
+/** 压缩输出统一 JPEG，质量 78 下 300px 图约 15~30KB，远低于 FormBindingData 上限。 */
+const CARD_COVER_JPEG_QUALITY = 78;
 /**
  * 预取封面超时：网络不好时不能卡住 updateForm 主流程，
  * 超时后直接放弃 dataImage，退化为发网络 URL。
@@ -229,8 +241,10 @@ class WidgetBridgeImpl {
     // file:// 缓存 + dataImage 内联，卡片直接渲染本地资源。
     const coverSource = cur.coverUrl ?? '';
     if (coverSource !== this.lastCoverKey) {
-      await this.prefetchCover(coverSource);
-      this.lastCoverKey = coverSource;
+      // 只有下载成功才固化 key：飞牛源 401 / 网络抖动后，下次 notify 会自动重试，
+      // 不会让卡片一直停在占位音符上。
+      const ok: boolean = await this.prefetchCover(coverSource);
+      if (ok) this.lastCoverKey = coverSource;
     }
     const snap: NowPlayingSnapshot = {
       title: cur.title ?? '',
@@ -256,12 +270,18 @@ class WidgetBridgeImpl {
 
   /**
    * 把封面（相对路径或外链）拉成本地缓存 + base64 dataImage。
-   * 成功时 lastCoverFile/lastCoverDataImage 更新；失败保留旧值并清空，走网络 URL 兜底。
+   * 成功时 lastCoverFile/lastCoverDataImage 更新；失败清空，走网络 URL 兜底。
+   *
+   * ⚠️ 卡片只认 data: URI（file:// 在 formrender 进程沙箱里读不到）。飞牛源
+   * `/static/cover` 回的是原图（50~125KB），超过 COVER_DATA_IMAGE_MAX_BYTES 时
+   * 必须先在端侧压到卡片尺寸，否则 dataImage 恒为 0B → 卡片全占位音符。
+   *
+   * @returns 下载是否成功（决定要不要固化 lastCoverKey）。
    */
-  private async prefetchCover(coverSource: string): Promise<void> {
+  private async prefetchCover(coverSource: string): Promise<boolean> {
     this.lastCoverFile = '';
     this.lastCoverDataImage = '';
-    if (coverSource === '') return;
+    if (coverSource === '') return true;
     try {
       const absoluteUrl: string = coverSource.startsWith('http://') || coverSource.startsWith('https://')
         ? coverSource
@@ -276,32 +296,98 @@ class WidgetBridgeImpl {
         this.downloadBytes(absoluteUrl),
         timeout,
       ]);
-      if (result.bytes.length === 0) return;
-      const filePath: string = await this.writeCoverToDisk(absoluteUrl, result.bytes, result.ext);
-      if (filePath !== '') this.lastCoverFile = `file://${filePath}`;
-      if (result.bytes.length <= COVER_DATA_IMAGE_MAX_BYTES) {
-        const mime = result.ext === 'webp' ? 'image/webp' : result.ext === 'png' ? 'image/png' : 'image/jpeg';
-        this.lastCoverDataImage = `data:${mime};base64,${this.uint8ToBase64(result.bytes)}`;
+      if (result.bytes.length === 0) return false;
+      let bytes: Uint8Array = result.bytes;
+      let ext: string = result.ext;
+      if (bytes.length > COVER_DATA_IMAGE_MAX_BYTES) {
+        const shrunk: DownloadedImage | null = await this.shrinkCoverForCard(bytes, CARD_COVER_MAX_WIDTH);
+        if (shrunk !== null && shrunk.bytes.length > 0) {
+          bytes = shrunk.bytes;
+          ext = shrunk.ext;
+        }
       }
-      Logger.i(TAG, `prefetchCover ok file=${this.lastCoverFile !== ''} dataImage=${this.lastCoverDataImage.length}B`);
+      const filePath: string = await this.writeCoverToDisk(absoluteUrl, bytes, ext);
+      if (filePath !== '') this.lastCoverFile = `file://${filePath}`;
+      if (bytes.length <= COVER_DATA_IMAGE_MAX_BYTES) {
+        const mime = ext === 'webp' ? 'image/webp' : ext === 'png' ? 'image/png' : 'image/jpeg';
+        this.lastCoverDataImage = `data:${mime};base64,${this.uint8ToBase64(bytes)}`;
+      }
+      Logger.i(TAG,
+        `prefetchCover ok file=${this.lastCoverFile !== ''} dataImage=${this.lastCoverDataImage.length}B src=${result.bytes.length}B`);
+      return true;
     } catch (e) {
       Logger.w(TAG, `prefetchCover: ${String(e)}`);
+      return false;
+    }
+  }
+
+  /**
+   * 端侧把封面压到卡片尺寸，产出可内联成 data: URI 的 JPEG 字节。
+   * 只在原图超过 COVER_DATA_IMAGE_MAX_BYTES 时调用，AudioDock 源的
+   * `/image/optimize` 缩略图路径完全不受影响。
+   */
+  private async shrinkCoverForCard(raw: Uint8Array, targetWidth: number): Promise<DownloadedImage | null> {
+    let source: image.ImageSource | null = null;
+    let pm: image.PixelMap | null = null;
+    try {
+      const buffer: ArrayBuffer = raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength) as ArrayBuffer;
+      source = image.createImageSource(buffer);
+      const info: image.ImageInfo = await source.getImageInfo();
+      const width: number = info.size.width;
+      const height: number = info.size.height;
+      if (width <= 0 || height <= 0) return null;
+      const scale: number = Math.min(1, targetWidth / Math.max(width, height));
+      const size: image.Size = {
+        width: Math.max(1, Math.round(width * scale)),
+        height: Math.max(1, Math.round(height * scale)),
+      };
+      const options: image.DecodingOptions = {
+        desiredSize: size,
+        desiredPixelFormat: image.PixelMapFormat.RGBA_8888,
+      };
+      pm = await source.createPixelMap(options);
+      const packer: image.ImagePacker = image.createImagePacker();
+      const packing: image.PackingOption = {
+        format: 'image/jpeg',
+        quality: CARD_COVER_JPEG_QUALITY,
+      };
+      // packing() 自 API 13 起废弃，用 packToData()（参数完全一致）
+      const packed: ArrayBuffer = await packer.packToData(pm, packing);
+      const out: DownloadedImage = { bytes: new Uint8Array(packed), ext: 'jpg' };
+      Logger.i(TAG,
+        `shrinkCover ${width}x${height} ${raw.length}B -> ${size.width}x${size.height} ${out.bytes.length}B`);
+      return out;
+    } catch (e) {
+      Logger.w(TAG, `shrinkCoverForCard: ${String(e)}`);
+      return null;
+    } finally {
+      if (pm !== null) pm.release();
+      if (source !== null) source.release();
     }
   }
 
   /** 用 @kit.NetworkKit http 拉二进制（绕开 httpClient 的 JSON 解析管道）。
    * 返回 {bytes, ext}——ext 从 Content-Type 拿真实格式，不再猜 URL 后缀。
+   *
+   * 飞牛音乐源：`/static/cover` 只认 Cookie/Authorization（无 Bearer），
+   * 裸 GET 会 401 → 卡片封面全变占位音符，所以这里补上会话头。
    */
   private async downloadBytes(url: string): Promise<DownloadedImage> {
     const httpReq = http.createHttp();
     try {
-      const resp = await httpReq.request(url, {
+      const options: http.HttpRequestOptions = {
         method: http.RequestMethod.GET,
         expectDataType: http.HttpDataType.ARRAY_BUFFER,
         readTimeout: COVER_PREFETCH_TIMEOUT_MS,
         connectTimeout: COVER_PREFETCH_TIMEOUT_MS,
-      });
-      if (resp.responseCode !== 200) {
+      };
+      if (isFnosSource()) {
+        options.header = getFnosPlaybackHeaders();
+      }
+      const resp = await httpReq.request(url, options);
+      // 飞牛 /static/cover 在外网中继下可能回 206（分片），只认 200 会误判成失败
+      // （同 fnos/client.ets fetchMediaBytes 的处理）。
+      if (resp.responseCode < 200 || resp.responseCode >= 300) {
         Logger.w(TAG, `downloadBytes status=${resp.responseCode} url=${url}`);
         return { bytes: new Uint8Array(0), ext: '' };
       }
@@ -357,9 +443,19 @@ class WidgetBridgeImpl {
         timeout,
       ]);
       if (result.bytes.length === 0) return '';
-      if (result.bytes.length > COVER_DATA_IMAGE_MAX_BYTES) return '';
-      const mime = result.ext === 'webp' ? 'image/webp' : result.ext === 'png' ? 'image/png' : 'image/jpeg';
-      return `data:${mime};base64,${this.uint8ToBase64(result.bytes)}`;
+      let bytes: Uint8Array = result.bytes;
+      let ext: string = result.ext;
+      // 飞牛原图可能 >80KB：卡片只认 data: URI，超限就先本地压到列表小图尺寸
+      if (bytes.length > COVER_DATA_IMAGE_MAX_BYTES) {
+        const shrunk: DownloadedImage | null = await this.shrinkCoverForCard(bytes, CARD_COVER_LIST_WIDTH);
+        if (shrunk !== null && shrunk.bytes.length > 0) {
+          bytes = shrunk.bytes;
+          ext = shrunk.ext;
+        }
+      }
+      if (bytes.length > COVER_DATA_IMAGE_MAX_BYTES) return '';
+      const mime = ext === 'webp' ? 'image/webp' : ext === 'png' ? 'image/png' : 'image/jpeg';
+      return `data:${mime};base64,${this.uint8ToBase64(bytes)}`;
     } catch (e) {
       Logger.w(TAG, `resolveCoverToDataImage: ${String(e)}`);
       return '';

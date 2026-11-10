@@ -1,4 +1,5 @@
 import { fileCache } from 'features_storage';
+import { isFnosSource, fetchFnosLyrics } from 'features_network';
 import type { TrackDto } from 'features_network';
 import { getCurrentQuality, getExternalQuality, getInternalQuality, resolveTrackUrl } from './trackQuality';
 import type { Quality } from './trackQuality';
@@ -11,6 +12,21 @@ import { playerStore } from '../context/PlayerStore';
  * 之前所有调用方硬编码 false，导致外网音质设置永远不生效。
  */
 export async function resolveTrackToPlayer(track: TrackDto, isExternal?: boolean): Promise<Track> {
+  // 飞牛音乐：音频流必须直连 NAS（`/track/stream?guid=`），不能走 AudioDock 的
+  // `/track/stream/{id}` 代理；歌词在播放入口补拉一次，避免列表阶段 N 次请求。
+  if (isFnosSource()) {
+    const fnosUrl: string = await resolveTrackUrl(track.id, 'lossless', track.path);
+    let lyrics: string = track.lyrics ?? '';
+    if (lyrics.length === 0) {
+      try {
+        lyrics = await fetchFnosLyrics(track.id);
+      } catch (e) {
+        lyrics = '';
+      }
+    }
+    return toPlayerTrack(track, fnosUrl, lyrics);
+  }
+
   const ext = track.ext ?? 'mp3';
   // 多数据源隔离：sourceKey 随当前 serverAddress 变化，A/B 两源同 track_id 互不命中
   const sourceKey = await getSourceKey();
@@ -80,12 +96,13 @@ export async function playQueueFast(
     .catch(() => undefined);
 }
 
-function toPlayerTrack(t: TrackDto, url: string): Track {
+function toPlayerTrack(t: TrackDto, url: string, lyrics?: string): Track {
   // PlayerStore.Track 是播放器内部模型，沿用 title/coverUrl；
   // 后端 TrackDto 的字段是 name/cover，在这里做一次映射。
   return {
     id: t.id, title: t.name, artist: t.artist, album: t.album,
     duration: t.duration, coverUrl: t.cover, ext: t.ext, url,
-    lyrics: t.lyrics, contentType: t.type,
+    lyrics: lyrics !== undefined ? lyrics : t.lyrics,
+    contentType: t.type,
   };
 }

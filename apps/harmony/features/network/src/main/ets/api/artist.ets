@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import request from '@ohos.request';
 import { httpClient } from '../HarmonyHttpClient';
+import { fnosAdapter, isFnosSource } from '../fnos';
 import type { LoadMoreResp } from '../types';
 
 /**
@@ -44,10 +45,14 @@ export interface ArtistApi {
 
 class ArtistApiImpl implements ArtistApi {
   async list(): Promise<ArtistDto[]> {
+    if (isFnosSource()) return fnosAdapter.artistList();
     return httpClient.get<ArtistDto[]>('/artist/list');
   }
 
   async loadMore(params: ArtistLoadMoreParams): Promise<LoadMoreResp<ArtistDto>> {
+    if (isFnosSource()) {
+      return fnosAdapter.artistLoadMore(params.pageSize, params.loadCount, params.sortBy ?? '');
+    }
     const q: Record<string, string | number | boolean> = {};
     q['pageSize'] = params.pageSize;
     q['loadCount'] = params.loadCount;
@@ -57,10 +62,12 @@ class ArtistApiImpl implements ArtistApi {
   }
 
   async getById(id: string): Promise<ArtistDto> {
+    if (isFnosSource()) return fnosAdapter.artistById(id);
     return httpClient.get<ArtistDto>(`/artist/${id}`);
   }
 
   async latest(params: ArtistLatestParams): Promise<ArtistDto[]> {
+    if (isFnosSource()) return fnosAdapter.artistLatest(params.pageSize ?? 0);
     const q: Record<string, string | number | boolean> = {};
     q['type'] = params.type;
     if (params.pageSize !== undefined) q['pageSize'] = params.pageSize;
@@ -69,6 +76,7 @@ class ArtistApiImpl implements ArtistApi {
   }
 
   async search(keyword: string, limit: number): Promise<ArtistDto[]> {
+    if (isFnosSource()) return fnosAdapter.artistSearch(keyword, limit);
     const q: Record<string, string | number | boolean> = {};
     q['keyword'] = keyword;
     q['limit'] = limit;
@@ -81,6 +89,7 @@ class ArtistApiImpl implements ArtistApi {
    * 返回结构 { code, message, data: Artist }。
    */
   async uploadAvatar(id: string, fileUri: string, mimeType?: string): Promise<ArtistDto> {
+    if (isFnosSource()) throw new Error('飞牛音乐数据源不支持上传歌手头像');
     const context = getContext() as common.UIAbilityContext;
     const fileName = fileUri.split('/').pop() || `artist-${id}.jpg`;
     const url = `${httpClient.getBaseURL()}/artist/${id}/avatar`;
