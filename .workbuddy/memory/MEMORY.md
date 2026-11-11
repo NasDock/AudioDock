@@ -79,3 +79,4 @@
 - mini 会员支付：plusWechatMpSession→openid；下单 clientType:'miniprogram'+openId；返回 wechatPay 喂 Taro.requestPayment。
 - services/mi 小爱音箱：sqlite3（data/xiaoai.db）操作走 asyncio.to_thread；唤醒词 DB 优先；API 前缀 /api；docker 挂 auth.json/.mi.token/data/。
 - CI：Android job 不用 android-actions/setup-android@v3，ubuntu-latest 自带 SDK。
+- 本机 bash `grep` 静默无输出（检索一律用 Grep 工具）；`eslint .` 多目录会撞 WorkBuddy broker socket EPIPE（分目录跑）。
