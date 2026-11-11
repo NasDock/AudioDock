@@ -4,6 +4,7 @@ import { usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { TrackType } from "@/src/models";
 import { usePlayMode } from "@/src/utils/playMode";
+import { isFnosSource } from "@/src/utils/mvSupport";
 import { Ionicons } from "@expo/vector-icons";
 import { getAlbumHistory, getFavoriteAlbums, getFavoriteTracks, getTrackHistory } from "@soundx/services";
 import { useRouter } from "expo-router";
@@ -31,6 +32,8 @@ export const PlaylistModal = () => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { user, sourceType } = useAuth();
+  // 飞牛音乐没有专辑收藏/专辑历史，弹窗内同样只保留单曲视图
+  const fnosSource = isFnosSource(sourceType);
   const { mode } = usePlayMode();
   const router = useRouter();
   const {
@@ -46,13 +49,14 @@ export const PlaylistModal = () => {
 
   const [activeTab, setActiveTab] = useState<TabType>("current");
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>("track");
+  const effectiveSubTab: SubTabType = fnosSource ? "track" : activeSubTab;
 
   // AUDIOBOOK 模式下强制使用专辑子标签
   useEffect(() => {
-    if (mode === "AUDIOBOOK" && activeSubTab !== "album") {
+    if (!fnosSource && mode === "AUDIOBOOK" && activeSubTab !== "album") {
       setActiveSubTab("album");
     }
-  }, [mode]);
+  }, [mode, fnosSource]);
   const [listData, setListData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const flatListRef = React.useRef<FlatList>(null);
@@ -107,14 +111,14 @@ export const PlaylistModal = () => {
         loadTabData();
       }
     }
-  }, [showPlaylist, activeTab, activeSubTab, user, mode, trackList]);
+  }, [showPlaylist, activeTab, activeSubTab, user, mode, trackList, fnosSource]);
 
   const loadTabData = async () => {
     if (!user) return;
     setLoading(true);
     try {
       let res: any;
-      const currentSubTab = activeSubTab;
+      const currentSubTab = effectiveSubTab;
 
       if (activeTab === "history") {
         if (currentSubTab === "track") {
@@ -150,7 +154,7 @@ export const PlaylistModal = () => {
 
   const renderItem = ({ item, index }: { item: any; index: number }) => {
     const isCurrent = activeTab === "current";
-    const isAlbum = !isCurrent && activeSubTab === "album";
+    const isAlbum = !isCurrent && effectiveSubTab === "album";
     const isHistoryOrFav = activeTab !== "current";
 
     // Item could be Track or Album
@@ -275,14 +279,16 @@ export const PlaylistModal = () => {
             {activeTab !== "current" && (
               <View style={styles.subTabContainer}>
                 {[
-                  { id: "album", label: t('playlist.album') },
-                  ...(mode !== "AUDIOBOOK" ? [{ id: "track", label: t('playlist.single') }] : []),
+                  ...(fnosSource ? [] : [{ id: "album", label: t('playlist.album') }]),
+                  ...(fnosSource || mode !== "AUDIOBOOK"
+                    ? [{ id: "track", label: t('playlist.single') }]
+                    : []),
                 ].map((sub) => (
                   <TouchableOpacity
                     key={sub.id}
                     style={[
                       styles.subTabItem,
-                      activeSubTab === sub.id && {
+                      effectiveSubTab === sub.id && {
                         backgroundColor: "rgba(150,150,150,0.1)",
                       },
                     ]}
@@ -293,7 +299,7 @@ export const PlaylistModal = () => {
                         styles.subTabText,
                         {
                           color:
-                            activeSubTab === sub.id
+                            effectiveSubTab === sub.id
                               ? colors.primary
                               : colors.secondary,
                         },

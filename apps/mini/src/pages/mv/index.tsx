@@ -8,6 +8,7 @@ import { useTheme } from '../../context/ThemeContext'
 import { getImageUrl as buildImageUrl } from '../../utils/image';
 import { getBaseURL } from '../../utils/request';
 import { mvPlaylistStore } from '../../store/mvPlaylist'
+import { isMvSupported } from '../../utils/mvSupport'
 import './index.scss'
 
 const MV_VIDEO_ID = 'mv-video-player'
@@ -38,6 +39,11 @@ export default function MvPlayer() {
     buildImageUrl(url, "", width);
 
   useLoad((options) => {
+    // 飞牛音乐没有 MV 能力：入口已隐藏，深链/历史栈进来直接退回，也不要暂停正在播放的音频
+    if (!isMvSupported()) {
+      Taro.navigateBack()
+      return
+    }
     pause() // pause audio player when entering MV
     const id = options.id
     const trackId = options.trackId

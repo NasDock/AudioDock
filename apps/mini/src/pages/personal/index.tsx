@@ -26,6 +26,7 @@ import { useAuth } from '../../context/AuthContext';
 import { usePlayer } from '../../context/PlayerContext';
 import { usePlayMode } from '../../utils/playMode';
 import { getImageUrl as buildImageUrl } from '../../utils/image';
+import { isFnosSource } from '../../utils/mvSupport';
 import { trackEvent } from '../../utils/tracking';
 import './index.scss';
 
@@ -42,6 +43,10 @@ export default function Personal() {
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>('track');
   const [loading, setLoading] = useState(false);
   const [sourceType, setSourceType] = useState('AudioDock');
+  // 飞牛音乐只支持单曲维度的收藏/播放历史（专辑接口返回空），因此只保留单曲视图
+  const fnosSource = isFnosSource(sourceType);
+  // 与 desktop 的 effectiveViewMode 同构：飞牛下强制单曲，避免残留 album 拉到空列表
+  const effectiveSubTab: SubTabType = fnosSource ? 'track' : activeSubTab;
 
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<any[]>([]);
@@ -123,7 +128,7 @@ export default function Personal() {
         const res = await getPlaylists(mode as any, user.id);
         if (res.code === 200) setPlaylists(res.data);
       } else if (activeTab === 'favorites') {
-        if (mode === 'MUSIC' && activeSubTab === 'track') {
+        if (effectiveSubTab === 'track' && (mode === 'MUSIC' || fnosSource)) {
           const res = await getFavoriteTracks(user.id, 0, 1000, mode as any);
           if (res.code === 200) setFavorites(res.data.list.map((item: any) => item.track));
         } else {
@@ -131,7 +136,7 @@ export default function Personal() {
           if (res.code === 200) setFavorites(res.data.list.map((item: any) => item.album));
         }
       } else if (activeTab === 'history') {
-        if (mode === 'MUSIC' && activeSubTab === 'track') {
+        if (effectiveSubTab === 'track' && (mode === 'MUSIC' || fnosSource)) {
           const res = await getTrackHistory(user.id, 0, 1000, mode as any);
           if (res.code === 200) setHistory(res.data.list.map((item: any) => item.track));
         } else {
@@ -144,7 +149,7 @@ export default function Personal() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, activeSubTab, mode, user]);
+  }, [activeTab, activeSubTab, effectiveSubTab, fnosSource, mode, user]);
 
   useEffect(() => {
     refreshSourceType();
@@ -160,7 +165,7 @@ export default function Personal() {
     if (user) {
       loadData();
     }
-  }, [activeTab, activeSubTab, mode, user, loadData]);
+  }, [activeTab, activeSubTab, mode, user, fnosSource, loadData]);
 
   const pollTaskStatus = async (taskId: string) => {
     try {
@@ -332,11 +337,11 @@ export default function Personal() {
 
     return data.map((item) => {
       const isPlaylist = activeTab === 'playlists';
-      const isAlbum = activeTab !== 'playlists' && (mode === 'AUDIOBOOK' || activeSubTab === 'album');
+      const isAlbum = activeTab !== 'playlists' && !fnosSource && (mode === 'AUDIOBOOK' || effectiveSubTab === 'album');
 
       return (
         <View
-          key={`${item.id}-${activeTab}-${activeSubTab}`}
+          key={`${item.id}-${activeTab}-${effectiveSubTab}`}
           className='item-row'
           onClick={() => {
             if (isPlaylist) {
@@ -493,12 +498,14 @@ export default function Personal() {
           ))}
       </View>
 
-      {mode === 'MUSIC' && (activeTab === 'favorites' || activeTab === 'history') && (
+      {(mode === 'MUSIC' || fnosSource) && (activeTab === 'favorites' || activeTab === 'history') && (
         <View className='sub-tabs-row'>
-          <View className={`sub-tab ${activeSubTab === 'album' ? 'active' : ''}`} onClick={() => setActiveSubTab('album')}>
-            <Text>{t('nav.albums')}</Text>
-          </View>
-          <View className={`sub-tab ${activeSubTab === 'track' ? 'active' : ''}`} onClick={() => setActiveSubTab('track')}>
+          {!fnosSource && (
+            <View className={`sub-tab ${effectiveSubTab === 'album' ? 'active' : ''}`} onClick={() => setActiveSubTab('album')}>
+              <Text>{t('nav.albums')}</Text>
+            </View>
+          )}
+          <View className={`sub-tab ${effectiveSubTab === 'track' ? 'active' : ''}`} onClick={() => setActiveSubTab('track')}>
             <Text>{t('nav.tracks')}</Text>
           </View>
         </View>

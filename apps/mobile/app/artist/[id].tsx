@@ -12,6 +12,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { Album, Artist, Track, TrackSource, TrackType } from "@/src/models";
 import { downloadTracks } from "@/src/services/downloadManager";
 import { getImageSource } from "@/src/utils/image";
+import { isMvSupported } from "@/src/utils/mvSupport";
 import { mvPlaylistStore } from "@/src/store/mvPlaylist";
 import { usePlayMode } from "@/src/utils/playMode";
 import { Ionicons } from "@expo/vector-icons";
@@ -52,6 +53,7 @@ export default function ArtistDetailScreen() {
   const { playTrackList, currentTrack, isPlaying } = usePlayer();
   const { mode } = usePlayMode();
   const { sourceType, user } = useAuth();
+  const mvSupported = isMvSupported(sourceType);
   const router = useRouter();
   const [artist, setArtist] = useState<Artist | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -131,7 +133,8 @@ export default function ArtistDetailScreen() {
             setCollaborativeAlbums(collaborativeRes.data);
           if (tracksRes.code === 200) setTracks(tracksRes.data);
           
-          if (artistQueryKey) {
+          // 飞牛音乐没有 MV 能力，跳过无效请求
+          if (mvSupported && artistQueryKey) {
             getMvsByArtist(artistQueryKey).then((res: any[]) => {
               if (res?.length) {
                 setMvs(res);
@@ -509,7 +512,7 @@ export default function ArtistDetailScreen() {
           </View>
         )}
 
-        {mvs.length > 0 && (
+        {mvSupported && mvs.length > 0 && (
           <View style={styles.section}>
             <Text
               style={[

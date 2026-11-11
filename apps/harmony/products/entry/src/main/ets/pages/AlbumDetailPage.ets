@@ -6,7 +6,7 @@ import { buildTheme, CommonNavBar, CommonButton, EmptyView, SkeletonBlock } from
 import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { Logger } from 'audiodock_common';
-import { albumApi, mvApi, miApi, trackApi, playlistApi, collectionApi } from 'features_network';
+import { albumApi, mvApi, miApi, trackApi, playlistApi, collectionApi, isMvSupported } from 'features_network';
 import type { AlbumDto, TrackDto, MVDto, AlbumTracksResp, MiDevice, MiTrackPayload, CollectionDto } from 'features_network';
 import { DetailHero } from '../components/DetailHero';
 import { TrackRow } from '../components/TrackRow';
@@ -231,7 +231,8 @@ export struct AlbumDetailContent {
             theme: this.theme,
           })
           this.ActionRow()
-          if (this.mvs.length > 0) {
+          // 飞牛音乐没有 MV 能力，隐藏 MV 子 tab
+          if (isMvSupported() && this.mvs.length > 0) {
             this.TabBar()
           }
         }
@@ -240,7 +241,7 @@ export struct AlbumDetailContent {
         .padding({ top: 20, bottom: 20 })
       }
 
-      if (this.activeTab === 'mvs') {
+      if (isMvSupported() && this.activeTab === 'mvs') {
         ForEach(this.mvs, (mv: MVDto, idx: number) => {
           ListItem() {
             TrackRow({
@@ -384,19 +385,22 @@ export struct AlbumDetailContent {
       })
       .onClick(() => this.activeTab = 'tracks')
 
-      Column() {
-        Text(`MV (${this.mvs.length})`)
-          .fontSize(15)
-          .fontWeight(this.activeTab === 'mvs' ? FontWeight.Bold : FontWeight.Normal)
-          .fontColor(this.activeTab === 'mvs' ? this.theme.colors.primary : this.theme.colors.textSecondary)
+      // 飞牛音乐没有 MV 能力，隐藏 MV 子 tab
+      if (isMvSupported()) {
+        Column() {
+          Text(`MV (${this.mvs.length})`)
+            .fontSize(15)
+            .fontWeight(this.activeTab === 'mvs' ? FontWeight.Bold : FontWeight.Normal)
+            .fontColor(this.activeTab === 'mvs' ? this.theme.colors.primary : this.theme.colors.textSecondary)
+        }
+        .layoutWeight(1)
+        .padding({ top: 10, bottom: 10 })
+        .border({
+          width: { bottom: this.activeTab === 'mvs' ? 2 : 0 },
+          color: this.theme.colors.primary,
+        })
+        .onClick(() => this.activeTab = 'mvs')
       }
-      .layoutWeight(1)
-      .padding({ top: 10, bottom: 10 })
-      .border({
-        width: { bottom: this.activeTab === 'mvs' ? 2 : 0 },
-        color: this.theme.colors.primary,
-      })
-      .onClick(() => this.activeTab = 'mvs')
     }
     .width('100%')
     .margin({ top: 20 })
@@ -506,7 +510,8 @@ export struct AlbumDetailContent {
   }
 
   private loadMvs(album: AlbumDto): void {
-    if (album.name.length === 0) return;
+    // 飞牛音乐没有 MV 能力，跳过无效请求
+    if (!isMvSupported() || album.name.length === 0) return;
     mvApi.byAlbum(album.name, album.artist ?? '')
       .then((res: MVDto[]) => {
         if (res && res.length > 0) this.mvs = res;

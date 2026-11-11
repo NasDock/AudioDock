@@ -37,7 +37,7 @@ import { TrackType, type Album, type Track, type Mv } from "../../models";
 import { resolveArtworkUri } from "../../services/trackResolver";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
-import { isThirdPartySource } from "../../utils";
+import { isMvSupported, isThirdPartySource } from "../../utils";
 import styles from "./index.module.less";
 
 const { Title } = Typography;
@@ -142,6 +142,8 @@ const Cover: CoverComponent = ({
       return;
     }
     if (type === "mv") {
+      // 飞牛音乐没有 MV 能力，兜底阻止跳转（路由层已重定向）
+      if (!isMvSupported()) return;
       navigate(`/mv/${item.id}`);
       return;
     }

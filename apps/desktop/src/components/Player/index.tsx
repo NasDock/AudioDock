@@ -95,7 +95,7 @@ import { useSettingsStore } from "../../store/settings";
 import LazyImage from "../LazyImage";
 import { useSyncStore } from "../../store/sync";
 import { formatDuration } from "../../utils/formatDuration";
-import { isFnosSource } from "../../utils";
+import { isFnosSource, isMvSupported } from "../../utils";
 import { isTauri, tauriGetDeviceName, getOrCreateDeviceId, computeStableDeviceId, tauriMaximizeWindow } from "../../utils/platform";
 import { getCurrentPlaybackQualityPreference } from "../../utils/playbackQuality";
 import { getPlayMode, setPlayMode, usePlayMode } from "../../utils/playMode";
@@ -211,7 +211,8 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
     let cancelled = false;
 
     const checkMv = async () => {
-      if (!currentTrack || currentTrack.type === TrackType.AUDIOBOOK) {
+      // 飞牛音乐没有 MV 能力，直接跳过探测请求
+      if (!isMvSupported() || !currentTrack || currentTrack.type === TrackType.AUDIOBOOK) {
         if (!cancelled) setHasMv(false);
         return;
       }
@@ -1597,7 +1598,25 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         className={styles.songInfo}
         onClick={() => expandable && setIsFullPlayerVisible(true)}
       >
-        <div className={styles.coverWrapper}>
+        <div
+          className={
+            !expandable && isTauri()
+              ? `${styles.coverWrapper} ${styles.coverWrapperClickable}`
+              : styles.coverWrapper
+          }
+          title={!expandable && isTauri() ? t("header.miniPlayer") : undefined}
+          onClick={(e) => {
+            // 播放详情页底部的封面：点一下最小化到悬浮 mini 播放器。
+            // 主窗口底部条（expandable=true）不拦截，继续走 songInfo 的「展开详情页」。
+            // web / 非 Tauri 端没有悬浮窗，保持原来的无响应。
+            if (expandable || !isTauri()) return;
+            e.stopPropagation();
+            // 先收起 Drawer：create_mini_window 会 hide 主窗口，
+            // 否则从 mini 窗口返回时详情页还停在展开态。
+            setIsFullPlayerVisible(false);
+            invoke("create_mini_window").catch(console.error);
+          }}
+        >
           {currentTrack && (
             <LazyImage
               src={resolveArtworkUri(currentTrack, { width: 240, format: "webp" })}
@@ -1741,7 +1760,7 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
       </div>
       {/* Volume & Settings */}
       <div className={styles.settings}>
-        {appMode !== TrackType.AUDIOBOOK && currentTrack && hasMv && (
+        {isMvSupported() && appMode !== TrackType.AUDIOBOOK && currentTrack && hasMv && (
           <VideoCameraOutlined
             onClick={() => {
               if (isPlaying) pause();
