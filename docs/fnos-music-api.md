@@ -698,6 +698,57 @@ mobile 端原先没有这条链路 → 飞牛歌曲播放页永远是「无歌�
 - 带一个 `Map<trackId, lyrics>` 内存缓存，切回同一首不再重复请求；
 - 其它数据源的 `Track` 里已内建 `lyrics`，命中后直接跳过请求。
 
+### 6.10 小程序端（apps/mini）暂不接入飞牛（2026-11-11 决策）
+
+mini 是 Taro 3.6 的微信小程序（+ H5）。**它的其它数据源都是端侧直连第三方，不走 AudioDock 服务端**：
+
+| 数据源 | 凭据放哪 | 封面 / 音频 URL | 走 AudioDock 服务端？ |
+|---|---|---|---|
+| AudioDock 官方源 | 服务端 JWT | `/track/stream/:id`、`/covers/...` | 是 |
+| Subsonic | URL query `u`/`t`/`s` | 裸 URL 直连第三方 | 否 |
+| Emby | URL query `api_key` | 裸 URL 直连第三方 | 否 |
+| 飞牛 | 只能放 `Authorization` 头 | **裸 URL 必 401** | 媒体层无法直连 |
+
+关键差异：**Subsonic / Emby 能裸 URL 直连，是因为凭据能塞进 URL query**；
+飞牛的 userToken 只能进请求头（query / `Cookie: music-token` 实测全 401，见 4.7）。
+
+而小程序端**没有任何「带头发起媒体请求并直接播放」的能力**：
+
+- `<image src>` 不能带请求头；
+- `BackgroundAudioManager` **没有 header 属性**（Taro 类型定义 `background-audio.d.ts` 里只有
+  src/title/epname/singer/coverImgUrl/webUrl/protocol/playbackRate…），且真机社区实测
+  **只播网络地址**，下载到本地的临时文件也不播；
+- `wx.downloadFile` 虽支持自定义 header，但只能先落盘再播，音频要整首下载完，
+  后台播放还不成立；
+- 小程序**不能开本地回环服务**，desktop 那套 `fnos_media.rs` 本地代理搬不过来。
+
+所以飞牛的**业务层**（登录 / 曲库 / 专辑 / 歌手 / 搜索 / 歌词 / 收藏）其实可以端侧直连 NAS
+（`wx.request` 能带 `Authorization`），但**封面和音频必须再过一层代理**。
+为单个第三方源在 mini 引入「唯一走服务端」的架构不一致，**本次决定 mini 端不做飞牛**。
+
+> 代价可接受：mini 端已预埋的飞牛能力开关（`apps/mini/src/utils/mvSupport.ts`
+> 与各页面的 `isMvSupported()`）与飞牛源是否存在无关，非飞牛源行为不变，保留即可。
+
+**将来重新评估的触发条件**（满足其一即可重启）：
+
+1. AudioDock 服务端加一条通用媒体代理路由（契约可照抄 desktop 的
+   `fnos_media.rs`：`/fnos/{*rel}?__b=<origin>` + 服务端按 origin 存会话补 Cookie + Range 透传）；
+2. 端侧 `wx.downloadFile` 落盘方案在真机验证通过（尤其音频后台播放）。
+
+**如果将来要做，mini 端还需要额外处理**（调研结论，避免重复踩坑）：
+
+- `apps/mini/src/utils/sourceUtils.ts` 是 **mini 本地独立的 `SOURCEMAP`**（只有
+  AudioDock / Subsonic / Emby），公共常量里的 `Feiniu` 覆盖不到它；mini 的 `AuthContext`
+  反而用的是公共 `SOURCEMAP` —— 两处清单不一致，是飞牛在 mini「看不见」的直接原因；
+- **axios 在小程序不可用**：没有 `XMLHttpRequest`、没有全局 `fetch`，Taro runtime 只 polyfill 了
+  `URL` / `URLSearchParams` → 必须给飞牛注入 `setFnosTransport()`（`Taro.request` 实现）；
+- 飞牛登录的 `sha256Hex` 依赖 `TextEncoder`，小程序基础库 < 2.25.0 没有 → 需要 polyfill；
+- `buildTrackPlaybackUrl()`（`apps/mini/src/services/trackQuality.ts`）会把「host 与 baseURL 不同」的
+  绝对 path 改写成自家 `/track/stream/<id>`，飞牛的直链要特判；
+- 飞牛没有搜索历史接口 → 要给 `setSearchRecordStorage()` 注入 Taro storage；
+- 微信小程序的域名白名单：NAS 内网地址走 `http` 需要在后台配「不校验合法域名」，
+  正式版则要求 HTTPS 域名。
+
 ---
 
 ## 7. 待确认清单（联调时优先补）
