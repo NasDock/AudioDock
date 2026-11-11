@@ -189,22 +189,32 @@ const applyComponentCssVars = (
 };
 
 /**
+ * 当前生效的主题插件（纯读取，无 CSS 变量副作用）。
+ * - useUiTheme 内部复用它；
+ * - 局部需要「强制按某个模式渲染」的组件（如背景恒为暗色的播放详情页）也可以
+ *   单独调用，不会重复写 :root CSS 变量、也不会在卸载时清掉别人的变量。
+ */
+export function useActiveUiPlugin(): UiThemePlugin | null {
+  const themes = useUiThemeStore((s) => s.themes);
+  const activeId = useUiThemeStore((s) => s.activeId);
+  const isPlusVip = useLocalVipStatus();
+  return useMemo(
+    () => (isPlusVip ? activePluginFor(themes, activeId) : null),
+    [themes, activeId, isPlusVip],
+  );
+}
+
+/**
  * 主题应用层。返回当前模式下的合并后 antd ThemeConfig + 副作用（注入 CSS 变量）。
  * 调用方只需把它给的 themeConfig 传给 antd ConfigProvider。
  */
 export function useUiTheme() {
   const { mode } = useTheme();
-  const themes = useUiThemeStore((s) => s.themes);
-  const activeId = useUiThemeStore((s) => s.activeId);
-  const isPlusVip = useLocalVipStatus();
   const skinCoverStyle = usePlayerSkinStore((s) => s.coverStyle);
   const skinLyricsAlign = usePlayerSkinStore((s) => s.lyricsAlign);
   const skinLyricsFontSize = usePlayerSkinStore((s) => s.lyricsFontSize);
 
-  const plugin = useMemo(
-    () => (isPlusVip ? activePluginFor(themes, activeId) : null),
-    [themes, activeId, isPlusVip],
-  );
+  const plugin = useActiveUiPlugin();
 
   // 本地皮肤设置 → 与用户插件同构的 tokens（内置插件层，优先级低于用户插件）
   const skinTokens = useMemo<ThemeTokens>(

@@ -614,14 +614,18 @@ const Login: React.FC = () => {
       {contextHolder}
 
       <div
-        className={styles.card}
+        className={`${styles.card} ${supportsScanLogin ? "" : styles.cardSingle}`}
         style={
           mode === "dark"
             ? { background: "transparent", border: "none", boxShadow: "none" }
             : {}
         }
       >
-        <div className={styles.contentGrid}>
+        <div
+          className={`${styles.contentGrid} ${
+            supportsScanLogin ? "" : styles.contentGridSingle
+          }`}
+        >
           {supportsScanLogin && (
           <div className={styles.scanSection}>
             {scanStatus?.status === "waiting_confirm" ? (
