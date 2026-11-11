@@ -40,6 +40,7 @@ import { emitTo, listen } from "@tauri-apps/api/event";
 import {
   Avatar,
   Button,
+  ConfigProvider,
   Drawer,
   Flex,
   InputNumber,
@@ -54,7 +55,7 @@ import {
   Tooltip,
   Typography,
 } from "antd";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import ClockOutlined from "../../assets/clock.svg?react";
@@ -63,7 +64,9 @@ import MusiclistOutlined from "../../assets/musiclist.svg?react";
 import RandomOutlined from "../../assets/random.svg?react";
 import SinglecycleOutlined from "../../assets/singlecycle.svg?react";
 import XiaoAiOutlined from "../../assets/xiaoai.svg?react";
+import { getThemeConfig } from "../../config/themeConfig";
 import { useMessage } from "../../context/MessageContext";
+import { useActiveUiPlugin } from "../../hooks/useUiTheme";
 import {
   rgba,
   shade,
@@ -1004,6 +1007,26 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
   }, [isPlaying]);
 
   const { token } = theme.useToken();
+
+  // 播放详情页背景恒为深色（模糊封面 + 深色渐变罩层，取色失败时是中性黑渐变），
+  // 但里面的文字默认继承 App 当前主题的 token —— 浅色主题下 colorText 是黑色，
+  // 黑字压深色背景几乎看不见。这里单独算一份「深色主题」的 token/themeConfig，
+  // 把详情页内容的 antd 组件（Title/Text/Tabs/Lyrics…）固定在深色 token 下渲染。
+  const activeUiPlugin = useActiveUiPlugin();
+  const detailTheme = useMemo(
+    () => ({
+      ...getThemeConfig("dark", activeUiPlugin),
+      // 不继承外层（浅色）主题的 token：主题插件只配了 light 段时，
+      // 它的浅色 global.token 会顺着嵌套 ConfigProvider 合并进来把深色字色又染回去。
+      inherit: false,
+    }),
+    [activeUiPlugin],
+  );
+  // 用来给少量内联样式（详情页里的按钮、Drawer body 的基础文字色）取深色值。
+  const detailToken = useMemo(
+    () => theme.getDesignToken(detailTheme),
+    [detailTheme],
+  );
 
   const lastTimeUpdateRef = useRef(0);
 
@@ -2724,293 +2747,299 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
         classNames={{ body: styles.fullPlayerBody }}
         styles={{
           header: { display: "none" },
+          // 详情页背景恒为暗色：body 基础文字色固定取深色主题的 colorText，
+          // 供没有 antd Typography 包裹的裸文本/图标（如关闭按钮）继承。
+          body: { color: detailToken.colorText },
         }}
         closeIcon={null}
         destroyOnClose={false}
       >
-        {/* 播放详情页背景：模糊放大封面打底 + 封面主题色渐变罩层
-            （取色失败时用中性暗渐变兜底，保证文字可读）。
-            模糊层 scale(1.2) 的 transform 会计入 scrollable overflow，
-            必须用裁剪容器包住，否则 Drawer body 会被撑出滚动条 */}
-        <div className={styles.fullPlayerBg}>
-          <div
-            className={styles.fullPlayerBgImage}
-            style={
-              coverUri ? { backgroundImage: `url(${coverUri})` } : undefined
-            }
-          />
-        </div>
-        <div
-          className={styles.fullPlayerBgTint}
-          style={{
-            background: coverColor
-              ? `linear-gradient(160deg, ${rgba(coverColor, 0.5)} 0%, ${rgba(
-                  shade(coverColor, 0.22),
-                  0.94,
-                )} 100%)`
-              : "linear-gradient(160deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.85) 100%)",
-          }}
-        />
-        {/* 顶部窗口拖动区：全屏 Drawer 盖住了 Header 的拖动区，
-            mac（Overlay 红绿灯）会无处可拖；双击与 TitleBar 一致切换最大化 */}
-        <div
-          className={styles.fullPlayerDragRegion}
-          data-tauri-drag-region
-          onDoubleClick={() => void tauriMaximizeWindow()}
-        />
-        {/* Skin Settings + Close Button。
-            必须是 fullPlayerContent 的兄弟节点而非子节点：
-            content 自身 z-index:1 会形成层叠上下文，内部 z-index:10 也压不过
-            外层的拖动区（z-index:2），win 上按钮上半截会被挡住点不到 */}
-        <div className={styles.fullPlayerClose}>
-          <SkinSettings className={styles.fullPlayerCloseIcon} />
-          <DownOutlined
-            onClick={() => setIsFullPlayerVisible(false)}
-            className={styles.fullPlayerCloseIcon}
-          />
-        </div>
-        <div className={styles.fullPlayerContent}>
-          {/* Left Side - Cover (1/3) */}
-          <div className={styles.fullPlayerLeft}>
-            {/* Background Blur Effect */}
-            {/* <div
-                className={styles.fullPlayerBackground}
-                style={{ backgroundImage: drawerBgImage }}
-              /> */}
-
-            <Flex vertical align="center" gap={20}>
-              <div
-                className={
-                  coverStyle === "vinyl"
-                    ? `${styles.fullPlayerCoverVinyl} ${
-                        isPlaying ? styles.spinning : ""
-                      }`
-                    : styles.fullPlayerCoverSquare
-                }
-              >
-                <LazyImage
-                  src={resolveArtworkUri(currentTrack, { width: 600, format: "webp", quality: 80 })}
-                  alt="Current Cover"
-                  // 方形封面固定最大 220px；黑胶模式是 130px 圆形中央标签
-                  // （LazyImage 的 className 落在外层 wrapper div 上，
-                  //   less 里对应选择器是 .fullPlayerCover 而非 img.fullPlayerCover）
-                  width={coverStyle === "vinyl" ? 130 : 220}
-                  height={coverStyle === "vinyl" ? 130 : 220}
-                  style={coverStyle === "vinyl" ? undefined : { maxWidth: "100%" }}
-                  className={styles.fullPlayerCover}
-                />
-                {coverStyle === "vinyl" && tonearm === "basic" && (
-                  <div
-                    className={`${styles.tonearm} ${
-                      isPlaying ? styles.tonearmPlaying : styles.tonearmPaused
-                    }`}
-                    aria-hidden
-                  >
-                    <div className={styles.tonearmPivot} />
-                    <div className={styles.tonearmArm}>
-                      <div className={styles.tonearmHead} />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Flex>
-          </div>
-
-          {/* Right Side - Info & Playlist/Lyrics (2/3) */}
-          <div
-            className={styles.fullPlayerRight}
-            style={{
-              textAlign: appMode !== TrackType.MUSIC ? "left" : "center",
-            }}
-          >
-            {/* Top: Title */}
+        <ConfigProvider theme={detailTheme}>
+          {/* 播放详情页背景：模糊放大封面打底 + 封面主题色渐变罩层
+              （取色失败时用中性暗渐变兜底，保证文字可读）。
+              模糊层 scale(1.2) 的 transform 会计入 scrollable overflow，
+              必须用裁剪容器包住，否则 Drawer body 会被撑出滚动条 */}
+          <div className={styles.fullPlayerBg}>
             <div
+              className={styles.fullPlayerBgImage}
               style={
-                {
-                  marginBottom: "24px",
-                  textAlign: "var(--ad-detail-lyrics-align, inherit)",
-                } as unknown as React.CSSProperties
+                coverUri ? { backgroundImage: `url(${coverUri})` } : undefined
               }
-            >
-              <Title level={3} style={{ margin: "0 0 10px 0" }}>
-                {currentTrack?.name || "No Track"}
-              </Title>
-              <Text type="secondary">
-                <Flex
-                  justify={appMode !== TrackType.MUSIC ? "start" : "center"}
-                  gap={16}
-                  style={{
-                    justifyContent:
-                      "var(--ad-detail-lyrics-justify, " +
-                      (appMode !== TrackType.MUSIC ? "flex-start" : "center") +
-                      ")",
-                  }}
+            />
+          </div>
+          <div
+            className={styles.fullPlayerBgTint}
+            style={{
+              background: coverColor
+                ? `linear-gradient(160deg, ${rgba(coverColor, 0.5)} 0%, ${rgba(
+                    shade(coverColor, 0.22),
+                    0.94,
+                  )} 100%)`
+                : "linear-gradient(160deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.85) 100%)",
+            }}
+          />
+          {/* 顶部窗口拖动区：全屏 Drawer 盖住了 Header 的拖动区，
+              mac（Overlay 红绿灯）会无处可拖；双击与 TitleBar 一致切换最大化 */}
+          <div
+            className={styles.fullPlayerDragRegion}
+            data-tauri-drag-region
+            onDoubleClick={() => void tauriMaximizeWindow()}
+          />
+          {/* Skin Settings + Close Button。
+              必须是 fullPlayerContent 的兄弟节点而非子节点：
+              content 自身 z-index:1 会形成层叠上下文，内部 z-index:10 也压不过
+              外层的拖动区（z-index:2），win 上按钮上半截会被挡住点不到 */}
+          <div className={styles.fullPlayerClose}>
+            <SkinSettings className={styles.fullPlayerCloseIcon} />
+            <DownOutlined
+              onClick={() => setIsFullPlayerVisible(false)}
+              className={styles.fullPlayerCloseIcon}
+            />
+          </div>
+          <div className={styles.fullPlayerContent}>
+            {/* Left Side - Cover (1/3) */}
+            <div className={styles.fullPlayerLeft}>
+              {/* Background Blur Effect */}
+              {/* <div
+                  className={styles.fullPlayerBackground}
+                  style={{ backgroundImage: drawerBgImage }}
+                /> */}
+
+              <Flex vertical align="center" gap={20}>
+                <div
+                  className={
+                    coverStyle === "vinyl"
+                      ? `${styles.fullPlayerCoverVinyl} ${
+                          isPlaying ? styles.spinning : ""
+                        }`
+                      : styles.fullPlayerCoverSquare
+                  }
                 >
-                  <Flex
-                    align="center"
-                    justify={appMode !== TrackType.MUSIC ? "start" : "center"}
-                    gap={8}
-                    style={{
-                      cursor: "pointer",
-                      justifyContent:
-                        "var(--ad-detail-lyrics-justify, " +
-                        (appMode !== TrackType.MUSIC ? "flex-start" : "center") +
-                        ")",
-                    }}
-                    onClick={() => {
-                      setIsFullPlayerVisible(false);
-                      navigator(`/artist/${currentTrack?.artistEntity?.id}`);
-                    }}
-                  >
-                    <LazyImage
-                      src={resolveArtworkUri(
-                        {
-                          cover: currentTrack?.artistEntity?.avatar,
-                          id: currentTrack?.id,
-                          name: currentTrack?.artist,
-                        } as any,
-                        { width: 30, format: "webp" },
-                      )}
-                      alt="Current Cover"
-                      width={15}
-                      height={15}
-                      style={{ borderRadius: "50%" }}
-                    />
-                    <Text ellipsis className={styles.artistText}>
-                      {currentTrack?.artist || "Unknown Artist"}
-                    </Text>
-                    {currentTrack?.type !== TrackType.AUDIOBOOK && (
-                      <button
-                        type="button"
-                        className={`${styles.qualityButton} ${
-                          availableAudioQualities.length <= 1
-                            ? styles.qualityButtonDisabled
-                            : ""
-                        }`}
-                        style={{ color: token.colorTextSecondary }}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void cycleAudioQuality();
-                        }}
-                        disabled={availableAudioQualities.length <= 1}
-                      >
-                        {availableAudioQualities.find(
-                          (item) => item.quality === currentAudioQuality,
-                        )?.label || "无损"}
-                      </button>
-                    )}
-                  </Flex>
-                  <Flex
-                    align="center"
-                    justify={appMode !== TrackType.MUSIC ? "start" : "center"}
-                    gap={8}
-                    style={{
-                      cursor: "pointer",
-                      justifyContent:
-                        "var(--ad-detail-lyrics-justify, " +
-                        (appMode !== TrackType.MUSIC ? "flex-start" : "center") +
-                        ")",
-                    }}
-                    onClick={() => {
-                      setIsFullPlayerVisible(false);
-                      navigator(`/detail?id=${currentTrack?.albumEntity?.id}`);
-                    }}
-                  >
-                    <LazyImage
-                      src={resolveArtworkUri(
-                        {
-                          cover: currentTrack?.albumEntity?.cover,
-                          id: currentTrack?.id,
-                          name: currentTrack?.album,
-                        } as any,
-                        { width: 30, format: "webp" },
-                      )}
-                      alt="Current Cover"
-                      width={15}
-                      height={15}
-                      style={{ borderRadius: "1px" }}
-                    />
-                    <Text ellipsis>
-                      {currentTrack?.album || "Unknown Album"}
-                    </Text>
-                  </Flex>
-                </Flex>
-              </Text>
+                  <LazyImage
+                    src={resolveArtworkUri(currentTrack, { width: 600, format: "webp", quality: 80 })}
+                    alt="Current Cover"
+                    // 方形封面固定最大 220px；黑胶模式是 130px 圆形中央标签
+                    // （LazyImage 的 className 落在外层 wrapper div 上，
+                    //   less 里对应选择器是 .fullPlayerCover 而非 img.fullPlayerCover）
+                    width={coverStyle === "vinyl" ? 130 : 220}
+                    height={coverStyle === "vinyl" ? 130 : 220}
+                    style={coverStyle === "vinyl" ? undefined : { maxWidth: "100%" }}
+                    className={styles.fullPlayerCover}
+                  />
+                  {coverStyle === "vinyl" && tonearm === "basic" && (
+                    <div
+                      className={`${styles.tonearm} ${
+                        isPlaying ? styles.tonearmPlaying : styles.tonearmPaused
+                      }`}
+                      aria-hidden
+                    >
+                      <div className={styles.tonearmPivot} />
+                      <div className={styles.tonearmArm}>
+                        <div className={styles.tonearmHead} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Flex>
             </div>
 
-            {/* Tab Switcher - Only for non-MUSIC mode */}
-            {appMode !== TrackType.MUSIC && (
-              <div className={styles.tabHeader}>
-                <Tabs
-                  activeKey={activeTab}
-                  onChange={(e) => setActiveTab(e as "playlist" | "lyrics")}
-                  tabBarExtraContent={
-                    activeTab === "playlist" ? (
-                      <Button
-                        type="text"
-                        icon={<AimOutlined />}
-                        onClick={handleLocateFullTrack}
-                        title={t("player.locateCurrentTrack")}
-                      />
-                    ) : undefined
-                  }
-                  items={[
-                    { key: "lyrics", label: t("player.lyrics") },
-                    {
-                      key: "playlist",
-                      label: t("player.playlistCount", {
-                        count: playlist.length,
-                      }),
-                    },
-                  ].filter((item) => item.key !== "lyrics")}
-                />
-              </div>
-            )}
-
-            {/* Content */}
+            {/* Right Side - Info & Playlist/Lyrics (2/3) */}
             <div
+              className={styles.fullPlayerRight}
               style={{
-                flex: 1,
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column",
+                textAlign: appMode !== TrackType.MUSIC ? "left" : "center",
               }}
             >
-              {appMode === TrackType.MUSIC ? (
-                <Lyrics
-                  lyrics={currentLyrics || null}
-                  currentTime={currentTime}
-                />
-              ) : activeTab === "playlist" ? (
-                <div
-                  style={{ flex: 1, overflowY: "auto", paddingRight: "10px" }}
-                >
-                  <QueueList
-                    ref={fullQueueListRef}
-                    tracks={playlist}
-                    currentTrack={currentTrack}
-                    isPlaying={isPlaying}
-                    hasMore={playlistSource?.hasMore}
-                    isLoadingMore={isLoadingMore}
-                    onLoadMore={loadMoreSourceTracks}
-                    onPuse={pause}
-                    onPlay={handlePlay}
-                    onAddToPlaylist={openAddToPlaylistModal}
-                    onToggleLike={(_, track, type) =>
-                      toggleLike(track.id, type)
+              {/* Top: Title */}
+              <div
+                style={
+                  {
+                    marginBottom: "24px",
+                    textAlign: "var(--ad-detail-lyrics-align, inherit)",
+                  } as unknown as React.CSSProperties
+                }
+              >
+                <Title level={3} style={{ margin: "0 0 10px 0" }}>
+                  {currentTrack?.name || "No Track"}
+                </Title>
+                <Text type="secondary">
+                  <Flex
+                    justify={appMode !== TrackType.MUSIC ? "start" : "center"}
+                    gap={16}
+                    style={{
+                      justifyContent:
+                        "var(--ad-detail-lyrics-justify, " +
+                        (appMode !== TrackType.MUSIC ? "flex-start" : "center") +
+                        ")",
+                    }}
+                  >
+                    <Flex
+                      align="center"
+                      justify={appMode !== TrackType.MUSIC ? "start" : "center"}
+                      gap={8}
+                      style={{
+                        cursor: "pointer",
+                        justifyContent:
+                          "var(--ad-detail-lyrics-justify, " +
+                          (appMode !== TrackType.MUSIC ? "flex-start" : "center") +
+                          ")",
+                      }}
+                      onClick={() => {
+                        setIsFullPlayerVisible(false);
+                        navigator(`/artist/${currentTrack?.artistEntity?.id}`);
+                      }}
+                    >
+                      <LazyImage
+                        src={resolveArtworkUri(
+                          {
+                            cover: currentTrack?.artistEntity?.avatar,
+                            id: currentTrack?.id,
+                            name: currentTrack?.artist,
+                          } as any,
+                          { width: 30, format: "webp" },
+                        )}
+                        alt="Current Cover"
+                        width={15}
+                        height={15}
+                        style={{ borderRadius: "50%" }}
+                      />
+                      <Text ellipsis className={styles.artistText}>
+                        {currentTrack?.artist || "Unknown Artist"}
+                      </Text>
+                      {currentTrack?.type !== TrackType.AUDIOBOOK && (
+                        <button
+                          type="button"
+                          className={`${styles.qualityButton} ${
+                            availableAudioQualities.length <= 1
+                              ? styles.qualityButtonDisabled
+                              : ""
+                          }`}
+                          // 详情页在深色背景上，文字色取深色主题 token（同 Drawer body）
+                          style={{ color: detailToken.colorTextSecondary }}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void cycleAudioQuality();
+                          }}
+                          disabled={availableAudioQualities.length <= 1}
+                        >
+                          {availableAudioQualities.find(
+                            (item) => item.quality === currentAudioQuality,
+                          )?.label || "无损"}
+                        </button>
+                      )}
+                    </Flex>
+                    <Flex
+                      align="center"
+                      justify={appMode !== TrackType.MUSIC ? "start" : "center"}
+                      gap={8}
+                      style={{
+                        cursor: "pointer",
+                        justifyContent:
+                          "var(--ad-detail-lyrics-justify, " +
+                          (appMode !== TrackType.MUSIC ? "flex-start" : "center") +
+                          ")",
+                      }}
+                      onClick={() => {
+                        setIsFullPlayerVisible(false);
+                        navigator(`/detail?id=${currentTrack?.albumEntity?.id}`);
+                      }}
+                    >
+                      <LazyImage
+                        src={resolveArtworkUri(
+                          {
+                            cover: currentTrack?.albumEntity?.cover,
+                            id: currentTrack?.id,
+                            name: currentTrack?.album,
+                          } as any,
+                          { width: 30, format: "webp" },
+                        )}
+                        alt="Current Cover"
+                        width={15}
+                        height={15}
+                        style={{ borderRadius: "1px" }}
+                      />
+                      <Text ellipsis>
+                        {currentTrack?.album || "Unknown Album"}
+                      </Text>
+                    </Flex>
+                  </Flex>
+                </Text>
+              </div>
+
+              {/* Tab Switcher - Only for non-MUSIC mode */}
+              {appMode !== TrackType.MUSIC && (
+                <div className={styles.tabHeader}>
+                  <Tabs
+                    activeKey={activeTab}
+                    onChange={(e) => setActiveTab(e as "playlist" | "lyrics")}
+                    tabBarExtraContent={
+                      activeTab === "playlist" ? (
+                        <Button
+                          type="text"
+                          icon={<AimOutlined />}
+                          onClick={handleLocateFullTrack}
+                          title={t("player.locateCurrentTrack")}
+                        />
+                      ) : undefined
                     }
-                    onDelete={handleDeleteSubTrack}
+                    items={[
+                      { key: "lyrics", label: t("player.lyrics") },
+                      {
+                        key: "playlist",
+                        label: t("player.playlistCount", {
+                          count: playlist.length,
+                        }),
+                      },
+                    ].filter((item) => item.key !== "lyrics")}
                   />
                 </div>
-              ) : (
-                <Lyrics
-                  lyrics={currentLyrics || null}
-                  currentTime={currentTime}
-                />
               )}
+
+              {/* Content */}
+              <div
+                style={{
+                  flex: 1,
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                {appMode === TrackType.MUSIC ? (
+                  <Lyrics
+                    lyrics={currentLyrics || null}
+                    currentTime={currentTime}
+                  />
+                ) : activeTab === "playlist" ? (
+                  <div
+                    style={{ flex: 1, overflowY: "auto", paddingRight: "10px" }}
+                  >
+                    <QueueList
+                      ref={fullQueueListRef}
+                      tracks={playlist}
+                      currentTrack={currentTrack}
+                      isPlaying={isPlaying}
+                      hasMore={playlistSource?.hasMore}
+                      isLoadingMore={isLoadingMore}
+                      onLoadMore={loadMoreSourceTracks}
+                      onPuse={pause}
+                      onPlay={handlePlay}
+                      onAddToPlaylist={openAddToPlaylistModal}
+                      onToggleLike={(_, track, type) =>
+                        toggleLike(track.id, type)
+                      }
+                      onDelete={handleDeleteSubTrack}
+                    />
+                  </div>
+                ) : (
+                  <Lyrics
+                    lyrics={currentLyrics || null}
+                    currentTime={currentTime}
+                  />
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </ConfigProvider>
         <div className={styles.miniPlayer}>
           {renderMiniPlayer(false, coverColor)}
         </div>
