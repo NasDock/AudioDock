@@ -31,12 +31,25 @@
   -webkit-app-region: no-drag;
 }
 
+// 不支持扫码登录的数据源（Emby / Subsonic / 飞牛）只有表单，
+// 卡片按单列表单宽度收窄，否则大卡片里只有一小块内容。
+.cardSingle {
+  width: min(560px, calc(100vw - 64px));
+}
+
 .contentGrid {
   width: 100%;
   display: grid;
   grid-template-columns: minmax(320px, 380px) minmax(360px, 1fr);
   gap: 24px;
   align-items: center;
+}
+
+// 无扫码区时不能保留第二列：单列 + 居中，
+// 否则表单一律落在左侧窄列里，看起来整体偏左。
+.contentGridSingle {
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: center;
 }
 
 .scanSection {
@@ -132,6 +145,10 @@
     margin-bottom: 0;
     align-self: center;
     padding: 22px 18px;
+  }
+
+  .cardSingle {
+    width: min(560px, calc(100vw - 32px));
   }
 
   .contentGrid {
