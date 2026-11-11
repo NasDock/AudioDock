@@ -5,6 +5,8 @@ export interface ServiceConfig {
   clientName?: string;
   baseUrl?: string;
   userId?: string;
+  /** 稳定设备标识（飞牛登录等需要上报设备信息的协议用） */
+  deviceId?: string;
 }
 
 let globalConfig: ServiceConfig = {

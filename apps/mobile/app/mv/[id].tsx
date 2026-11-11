@@ -17,7 +17,7 @@ import { Slider } from "@miblanchard/react-native-slider";
 import SkeletonBlock from "@/src/components/SkeletonBlock";
 import { useTheme } from "../../src/context/ThemeContext";
 import { getMvById, getMvByTrackId, type Mv } from "@soundx/services";
-import { getImageUrl } from "../../src/utils/image";
+import { getImageSource } from "../../src/utils/image";
 import { getBaseURL } from "../../src/https";
 import { usePlayer } from "../../src/context/PlayerContext";
 import { mvPlaylistStore } from "../../src/store/mvPlaylist";
@@ -422,13 +422,11 @@ export default function MvScreen() {
                       {index + 1}
                     </Text>
                     <Image
-                      source={{
-                        uri: getImageUrl(
-                          item.cover,
-                          `https://picsum.photos/seed/mv-${item.id}/80/45`,
-                          96,
-                        ),
-                      }}
+                      source={getImageSource(
+                        item.cover,
+                        `https://picsum.photos/seed/mv-${item.id}/80/45`,
+                        96,
+                      )}
                       style={styles.playlistItemCover}
                     />
                     <View style={styles.playlistItemInfo}>

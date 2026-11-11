@@ -33,3 +33,12 @@ export const isEmbySource = () => {
   const sourceType = SOURCEMAP[sourceName];
   return sourceType === SOURCEMAP.Emby;
 };
+
+/** 飞牛音乐（fnOS trim.music）：desktop 端独有，见 constants/sources.ts */
+export const isFnosSource = () => {
+  return localStorage.getItem("selectedSourceType") === "Feiniu";
+};
+
+/** 外部数据源（非 AudioDock 官方服务端）：扫描/整理/文件夹/有声书等能力都不可用 */
+export const isThirdPartySource = () =>
+  isSubsonicSource() || isEmbySource() || isFnosSource();

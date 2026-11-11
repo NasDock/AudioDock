@@ -37,7 +37,7 @@ import { TrackType, type Album, type Track, type Mv } from "../../models";
 import { resolveArtworkUri } from "../../services/trackResolver";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
-import { isEmbySource, isSubsonicSource } from "../../utils";
+import { isThirdPartySource } from "../../utils";
 import styles from "./index.module.less";
 
 const { Title } = Typography;
@@ -76,7 +76,7 @@ const Cover: CoverComponent = ({
   const [newCollectionName, setNewCollectionName] = useState("");
   const { user } = useAuthStore();
   const { token: themeToken } = theme.useToken();
-  const isAudioDockSource = !isSubsonicSource() && !isEmbySource();
+  const isAudioDockSource = !isThirdPartySource();
   const suppressClickRef = useRef(false);
 
   // 取实际展示尺寸：列表封面通常用 170/45，进入页面拿更大的；这里根据 size 数值推断

@@ -5,6 +5,7 @@ import {
   SOURCEMAP,
 } from "@soundx/services";
 import { useAuthStore } from "../store/auth";
+import { enforceSourcePlayMode } from "./playMode";
 import { tauriGetDeviceName } from "./platform";
 
 export const getFirstSourceSelection = (
@@ -129,6 +130,7 @@ export async function applyDesktopScanLoginResult(result: ScanLoginConfirmResult
     localStorage.setItem("serverAddress", baseUrl);
     localStorage.setItem(`serverAddress_${sourceType}`, baseUrl);
     localStorage.setItem("selectedSourceType", sourceType);
+    enforceSourcePlayMode(sourceType);
     localStorage.setItem(`token_${baseUrl}`, token);
     localStorage.setItem(`user_${baseUrl}`, JSON.stringify(user));
     if (device) {
@@ -142,6 +144,7 @@ export async function applyDesktopScanLoginResult(result: ScanLoginConfirmResult
   const fallback = getFirstSourceSelection(result.sourceBundles);
   if (fallback) {
     localStorage.setItem("selectedSourceType", fallback.type);
+    enforceSourcePlayMode(fallback.type);
     localStorage.setItem(`serverAddress_${fallback.type}`, fallback.address);
     localStorage.setItem("serverAddress", fallback.address);
     useAuthStore.getState().switchServer(fallback.address);

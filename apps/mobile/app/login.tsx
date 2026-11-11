@@ -12,11 +12,10 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { getSourceLogo, SOURCE_LABELS } from "../src/constants/sources";
 import { useTheme } from "../src/context/ThemeContext";
 
 const logo = require("../assets/images/logo.webp");
-const subsonicLogo = require("../assets/images/subsonic.webp");
-const embyLogo = require("../assets/images/emby.webp");
 
 export default function LoginSelectionScreen() {
   const { colors } = useTheme();
@@ -24,14 +23,6 @@ export default function LoginSelectionScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
-
-  const getLogo = (key: string) => {
-    switch (key) {
-      case "Emby": return embyLogo;
-      case "Subsonic": return subsonicLogo;
-      default: return logo;
-    }
-  };
 
   const handleSelect = (type: string) => {
     router.push({
@@ -68,10 +59,10 @@ export default function LoginSelectionScreen() {
                 onPress={() => !isDisabled && handleSelect(key)}
                 disabled={isDisabled}
               >
-                <View style={styles.cardContent}>
-                    <Image source={getLogo(key)} style={styles.cardIcon} />
+                    <View style={styles.cardContent}>
+                    <Image source={getSourceLogo(key)} style={styles.cardIcon} />
                     <View style={styles.cardText}>
-                        <Text style={[styles.cardTitle, { color: colors.text }]}>{key}</Text>
+                        <Text style={[styles.cardTitle, { color: colors.text }]}>{SOURCE_LABELS[key] || key}</Text>
                         <Text style={[styles.cardDesc, { color: colors.secondary }]} numberOfLines={2}>
                             {SOURCETIPSMAP[key as keyof typeof SOURCETIPSMAP]}
                         </Text>

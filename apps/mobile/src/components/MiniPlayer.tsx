@@ -5,7 +5,7 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { usePlayer } from "../context/PlayerContext";
 import { useTheme } from "../context/ThemeContext";
 import { TrackType } from "../models";
-import { getImageUrl } from "../utils/image";
+import { getImageSource } from "../utils/image";
 
 export const MINI_PLAYER_HEIGHT = 60;
 
@@ -50,10 +50,7 @@ export const MiniPlayer = () => {
     >
       <View style={styles.infoContaer}>
         <Image
-          source={{
-            // 迷你播放条封面，走 96 档（恒压缩）——见 utils/image.ts 分级规则
-            uri: getImageUrl(currentTrack.cover, "https://picsum.photos/100", 96),
-          }}
+          source={getImageSource(currentTrack.cover, "https://picsum.photos/100", 96)}
           style={styles.artwork}
         />
         <View style={styles.info}>

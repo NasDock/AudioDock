@@ -9,6 +9,10 @@ import { PlayerProvider, usePlayer } from "../src/context/PlayerContext";
 import { getAlbumHistory, getAlbumTracks, getLatestTracks, getPlaylistById, getTrackHistory, plusGetMe, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
 import { ThemeProvider, useTheme } from "../src/context/ThemeContext";
 import { PlayModeProvider, usePlayMode } from "../src/utils/playMode";
+import { initSearchRecordStorage } from "../src/services/searchRecord";
+
+// 飞牛音乐的搜索历史走端侧存储（适配器要求注入实现），启动即注册
+initSearchRecordStorage();
 
 export const unstable_settings = {
   anchor: "(tabs)",

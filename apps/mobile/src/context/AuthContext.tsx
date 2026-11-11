@@ -8,15 +8,16 @@ import {
     setPlusUnauthorizedHandler,
     setServiceConfig,
     SOURCEMAP,
-    useEmbyAdapter,
-    useNativeAdapter,
-    useSubsonicAdapter
+    useEmbyAdapter as activateEmbyAdapter,
+    useFnosAdapter as activateFnosAdapter,
+    useNativeAdapter as activateNativeAdapter,
+    useSubsonicAdapter as activateSubsonicAdapter
 } from "@soundx/services";
 import * as Device from 'expo-device';
 import { addNetworkStateListener } from 'expo-network';
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { getBaseURL, initBaseURL, setBaseURL } from "../https";
+import { getBaseURL, initBaseURL, setBaseURL, setCurrentSourceType } from "../https";
 import { refreshNetworkMode } from "../utils/networkMode";
 import { User } from "../models";
 import { selectBestServer } from "../utils/networkUtils";
@@ -192,6 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       let savedAddress = getBaseURL();
       const savedType = (await AsyncStorage.getItem("selectedSourceType")) || "AudioDock";
       setSourceTypeDirectly(savedType);
+      setCurrentSourceType(savedType);
 
       // --- Auto Switch Data Source (Internal/External) on Startup ---
       await autoSwitchServer();
@@ -242,11 +244,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       });
 
       if (mappedType === "subsonic") {
-        useSubsonicAdapter();
+        activateSubsonicAdapter();
       } else if (mappedType === "emby") {
-        useEmbyAdapter();
+        activateEmbyAdapter();
+      } else if (mappedType === "fnos") {
+        // 飞牛：地址 + 账号 + 会话 token（登录返回的 userToken）
+        activateFnosAdapter({
+          baseUrl: savedAddress,
+          username,
+          password,
+          token: savedToken || undefined,
+        });
       } else {
-        useNativeAdapter();
+        activateNativeAdapter();
       }
 
       if (savedToken) {
@@ -359,6 +369,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       await AsyncStorage.setItem(`serverAddress_${targetType}`, url);
       await AsyncStorage.setItem("selectedSourceType", targetType);
       setSourceTypeDirectly(targetType);
+      setCurrentSourceType(targetType);
       // 手动切换服务器也要重新判定内网/外网
       await refreshNetworkMode();
 
@@ -374,13 +385,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       // Ensure baseUrl is passed to ServiceConfig for Subsonic etc.
-      setServiceConfig({ username, password, clientName: "SoundX Mobile", baseUrl: url });
+      // token 显式置空：换源时上一源的 token 不能带过去
+      // （飞牛只认自己的 userToken，带错会直接 401）。
+      setServiceConfig({
+        username,
+        password,
+        token: undefined,
+        clientName: "SoundX Mobile",
+        baseUrl: url,
+      });
       if (mappedType === "subsonic") {
-        useSubsonicAdapter();
+        activateSubsonicAdapter();
       } else if (mappedType === "emby") {
-        useEmbyAdapter();
+        activateEmbyAdapter();
+      } else if (mappedType === "fnos") {
+        activateFnosAdapter({ baseUrl: url, username, password });
       } else {
-        useNativeAdapter();
+        activateNativeAdapter();
       }
 
       if (skipToken) {

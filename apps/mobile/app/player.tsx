@@ -9,7 +9,8 @@ import { Track, TrackType, UserTrackLike } from "@/src/models";
 import { useCoverVisual } from "@/src/hooks/useCoverDominantColor";
 import { usePlayerSkin } from "@/src/store/playerSkin";
 import { rgba, shade } from "@/src/utils/dominantColor";
-import { getBlurredCoverUrl, getImageUrl } from "@/src/utils/image";
+import { getBlurredCoverUrl, getImageSource, getImageUrl } from "@/src/utils/image";
+import { getMediaHeaders, hasMediaHeaders } from "@/src/utils/mediaAuth";
 import { getOrCreateDeviceId } from "@/src/utils/platform";
 import { trackEvent } from "@/src/services/tracking";
 import {
@@ -187,10 +188,7 @@ const CoverFlowItem = React.memo(
         ]}
       >
         <Image
-          source={{
-            // 300 恒压缩档（webp 缩略图）：>300 的档位在内网会直连原图（几 MB），轮播加载慢
-            uri: getImageUrl(track.cover, "https://picsum.photos/seed/placeholder/300/300", 300),
-          }}
+          source={getImageSource(track.cover, "https://picsum.photos/seed/placeholder/300/300", 300)}
           // Android 默认 fadeDuration=300ms：新滑入的封面会"慢慢显形"，
           // 快速切换时这就是"卡顿感"的来源之一；已有 prefetch 兜底，关掉淡入
           fadeDuration={0}
@@ -299,6 +297,8 @@ export function PlayerDetailView({
   renderPlaylistModal = true,
 }: PlayerDetailViewProps) {
   const { colors: themeColors, theme } = useTheme();
+  // 飞牛封面只认 Authorization 头，图片请求要带上（其它源为空对象）
+  const mediaHeaders = getMediaHeaders();
   // 播放详情页背景恒为深色（对齐 desktop 全屏播放页：模糊封面 + 深色主题色渐变），
   // 因此前景配色必须强制走暗色板 —— 否则亮色主题下会出现「深底深字」看不清。
   // 全局主题只影响播放页以外的界面（列表/设置等）。
@@ -808,7 +808,9 @@ export function PlayerDetailView({
       const idx = coverFlowVisualIndex + p;
       if (idx < 0 || idx >= trackList.length) continue;
       const cover = trackList[idx]?.cover;
-      if (cover) {
+      if (cover && !hasMediaHeaders(mediaHeaders)) {
+        // 飞牛封面必须带 Authorization 头，而 expo-image.prefetch 不支持请求头，
+        // 预取会 401 —— 这类源交给 <Image source={{uri, headers}}> 按需加载。
         Image.prefetch(getImageUrl(cover, "https://picsum.photos/seed/placeholder/300/300", 300)).catch(
           () => {},
         );
@@ -1859,9 +1861,7 @@ export function PlayerDetailView({
               )}
             </View>
             <Image
-              source={{
-                uri: getImageUrl(item.cover, `https://picsum.photos/seed/${item.id}/20/20`, 96),
-              }}
+              source={getImageSource(item.cover, `https://picsum.photos/seed/${item.id}/20/20`, 96)}
               style={styles.playlistItemCover}
             />
             <View style={{ flex: 1, marginLeft: 10 }}>
@@ -2381,6 +2381,7 @@ export function PlayerDetailView({
                       >
                         <VinylCover
                           uri={getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900)}
+                          headers={mediaHeaders}
                           size={landscapeVinylSize}
                           isPlaying={isPlaying}
                           tonearm={tonearm}
@@ -2388,9 +2389,7 @@ export function PlayerDetailView({
                       </View>
                     ) : (
                       <Image
-                        source={{
-                          uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
-                        }}
+                        source={getImageSource(currentTrack.cover, "https://picsum.photos/400", 900)}
                         onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
                         style={[
                           styles.artwork,
@@ -2631,15 +2630,14 @@ export function PlayerDetailView({
                   {coverStyle === "vinyl" ? (
                     <VinylCover
                       uri={getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900)}
+                      headers={mediaHeaders}
                       size={vinylSize}
                       isPlaying={isPlaying}
                       tonearm={tonearm}
                     />
                   ) : (
                     <Image
-                      source={{
-                        uri: getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900),
-                      }}
+                      source={getImageSource(currentTrack.cover, "https://picsum.photos/400", 900)}
                       style={[
                         styles.artwork,
                         coverRadius !== undefined && { borderRadius: coverRadius },

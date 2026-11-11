@@ -27,6 +27,7 @@ import * as jpeg from "jpeg-js";
 import * as UPNG from "upng-js";
 import { getBaseURL } from "../https";
 import type { Rgb } from "./dominantColor";
+import { getMediaHeaders } from "./mediaAuth";
 
 /** 采样网格边长（与 desktop canvas 的 size 一致） */
 const GRID = 32;
@@ -223,7 +224,8 @@ function decodeImage(bytes: Uint8Array): DecodedImage | null {
 /** 把封面解析成按精度排序的下载候选 */
 function resolveSourceCandidates(cover: string): SourceCandidate[] {
   if (/^https?:\/\//i.test(cover)) {
-    // 外链封面（Emby/Subsonic）：服务端白名单不含这些域，只能取原图
+    // 外链封面（Emby/Subsonic/飞牛）：服务端白名单不含这些域，只能取原图。
+    // 飞牛的封面必须带鉴权头才能下（见 resolveCandidate 里的 getMediaHeaders）。
     return [{ url: cover, maxBytes: MAX_ORIGINAL_BYTES }];
   }
   const cleanPath = cover.startsWith("/") ? cover.substring(1) : cover;
@@ -411,8 +413,22 @@ async function resolveCandidate(
   target: string,
 ): Promise<LocalCoverVisual | null> {
   try {
-    const download = await FileSystem.downloadAsync(candidate.url, target);
+    // 必须带鉴权头：飞牛的 `/static/cover` 只认 `Authorization`（中继还要
+    // `Cookie: mode=relay`），裸下载必然 401 → 主题色/磨砂图整条链路失效。
+    // 其它数据源 `getMediaHeaders()` 返回空对象，不受影响。
+    const headers = getMediaHeaders();
+    const download = await FileSystem.downloadAsync(candidate.url, target, {
+      headers,
+    });
     if (download.status < 200 || download.status >= 300) return null;
+
+    // 中继缺 `Cookie: mode=relay` 时网关会 302 到 FN Connect 登录页，
+    // 跟随后拿到的是一段 HTML（200）—— 按 content-type 提前判掉，
+    // 免得把登录页当图片解码（还白占一次 IO）。
+    const contentType = String(
+      download.headers?.["content-type"] || download.headers?.["Content-Type"] || "",
+    ).toLowerCase();
+    if (contentType && !contentType.startsWith("image/")) return null;
 
     const info = await FileSystem.getInfoAsync(target);
     if (!info.exists) return null;

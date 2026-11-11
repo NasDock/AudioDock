@@ -47,10 +47,10 @@ import {
   searchAll,
   setPlusToken as setPlusServiceToken,
   setServiceConfig,
-  SOURCEMAP,
   speechToText,
   TaskStatus,
   uploadUserAvatar,
+  useFnosAdapter,
   useNativeAdapter,
   useSubsonicAdapter,
   type ImportTask,
@@ -75,6 +75,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
+import { SOURCEMAP, SOURCE_LABELS } from "../../constants/sources";
 import { useTheme } from "../../context/ThemeContext";
 import { TrackType } from "../../models";
 import { trackEvent } from "../../services/tracking";
@@ -83,15 +84,16 @@ import { invoke } from "@tauri-apps/api/core";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { useSettingsStore } from "../../store/settings";
-import { isEmbySource, isSubsonicSource } from "../../utils";
+import { isEmbySource, isFnosSource, isSubsonicSource, isThirdPartySource } from "../../utils";
 // isWindows/tauriMinimizeWindow/tauriMaximizeWindow/tauriCloseWindow 已随 winControls 迁移到 TitleBar
 import { isTauri, isWeb, tauriOpenExternal } from "../../utils/platform";
-import { usePlayMode } from "../../utils/playMode";
+import { enforceSourcePlayMode, usePlayMode } from "../../utils/playMode";
 import { requestHomeRefresh } from "../../utils/refreshHome";
 import SearchResults from "../SearchResults";
 import styles from "./index.module.less";
 
 import emby from "../../assets/emby.png";
+import fnos from "../../assets/fnos.png";
 import logo from "../../assets/logo.png";
 import subsonic from "../../assets/subsonic.png";
 
@@ -221,8 +223,14 @@ const ServerSwitcherModal: React.FC<{
             const currentSource = localStorage.getItem("selectedSourceType");
             const isSourceMatch = currentSource === type;
             const sourceLogo =
-              type === "Emby" ? emby : type === "Subsonic" ? subsonic : logo;
-            const displayName = `${type}${t("header.dataSource")}[${index + 1}]`;
+              type === "Emby"
+                ? emby
+                : type === "Subsonic"
+                  ? subsonic
+                  : type === "Feiniu"
+                    ? fnos
+                    : logo;
+            const displayName = `${SOURCE_LABELS[type] || type}${t("header.dataSource")}[${index + 1}]`;
 
             const renderAddressRow = (label: string, address: string) => {
               if (!address) return null;
@@ -491,6 +499,9 @@ const Header: React.FC = () => {
     try {
       await clearSearchHistory();
       setSearchHistory([]);
+      // 飞牛没有服务端热榜，热搜是用本地历史累计次数算出来的，
+      // 历史清空后热词必须一起清，否则会残留刚被清掉的关键词。
+      if (isFnosSource()) setHotSearches([]);
     } catch (e) {
       message.error(t("header.clearHistoryFailed"));
     }
@@ -995,8 +1006,7 @@ const Header: React.FC = () => {
       {/* User Actions */}
       <div className={styles.userActions} data-tauri-no-drag>
         {playMode === TrackType.MUSIC &&
-          !isSubsonicSource() &&
-          !isEmbySource() && (
+          !isThirdPartySource() && (
             <Tooltip title={t("header.scenarioRadio")}>
               <div
                 className={`${styles.actionIcon} ${isRadioMode ? styles.radioActive : ""}`}
@@ -1007,7 +1017,7 @@ const Header: React.FC = () => {
               </div>
             </Tooltip>
           )}
-        {playMode !== TrackType.MUSIC && !isEmbySource() && (
+        {playMode !== TrackType.MUSIC && !isEmbySource() && !isFnosSource() && (
           <Tooltip title="TTS">
             <div
               className={styles.actionIcon}
@@ -1039,7 +1049,7 @@ const Header: React.FC = () => {
             </div>
           </Tooltip>
         )}
-        {!isSubsonicSource() && (
+        {!isSubsonicSource() && !isFnosSource() && (
           <Tooltip
             title={
               playMode === TrackType.MUSIC
@@ -1075,7 +1085,7 @@ const Header: React.FC = () => {
           </Tooltip>
         )}
 
-        {!isSubsonicSource() && (
+        {!isSubsonicSource() && !isFnosSource() && (
           <Tooltip title={t("header.folder")}>
             <div
               className={styles.actionIcon}
@@ -1108,6 +1118,8 @@ const Header: React.FC = () => {
                 localStorage.setItem("serverAddress", url);
                 localStorage.setItem("selectedSourceType", type);
                 localStorage.setItem(`serverAddress_${type}`, url);
+                // 飞牛只有音乐：切过去时把「有声书」模式纠正回音乐
+                enforceSourcePlayMode(type);
 
                 // 2. Load credentials if available
                 const credsKey = `creds_${type}_${url}`;
@@ -1129,6 +1141,8 @@ const Header: React.FC = () => {
 
                 if (mappedType === "subsonic") {
                   useSubsonicAdapter();
+                } else if (mappedType === "fnos") {
+                  useFnosAdapter({ baseUrl: url, username, password });
                 } else {
                   useNativeAdapter();
                 }

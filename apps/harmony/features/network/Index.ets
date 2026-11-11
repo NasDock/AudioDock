@@ -1,5 +1,11 @@
 export { HarmonyHttpClient, httpClient } from './src/main/ets/HarmonyHttpClient';
 export { HttpError } from './src/main/ets/HttpError';
+export {
+  fnosClient, fnosAdapter, FnosApiError, resolveFnosServer,
+  isFnosSource, enableFnos, disableFnos, resolveFnosAddress, probeFnos, loginFnos,
+  isFnosMediaUrl, fetchFnosMediaBytes, fetchFnosLyrics, getFnosPlaybackHeaders,
+} from './src/main/ets/fnos';
+export type { FnosSessionInfo, FnosLoginOutcome, FnosResolvedServer } from './src/main/ets/fnos';
 export { authApi, userApi, trackApi, albumApi, artistApi, playlistApi, collectionApi, mvApi, userDataApi,
   plusApi, setPlusAuthToken, getPlusAuthToken, miApi, ttsApi, ttsConfigApi, taskApi, deviceApi,
   scanLoginApi, subscribeScanLoginSession, reportScanLoginResultViaSocket }

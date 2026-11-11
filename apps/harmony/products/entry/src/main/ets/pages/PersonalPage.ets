@@ -4,7 +4,7 @@ import picker from '@ohos.file.picker';
 import { kvStore } from 'features_storage';
 import { t } from 'features_i18n';
 import { Logger } from 'audiodock_common';
-import { playlistApi, userDataApi, plusApi, setPlusAuthToken, userApi, taskApi } from 'features_network';
+import { playlistApi, userDataApi, plusApi, setPlusAuthToken, userApi, taskApi, isFnosSource } from 'features_network';
 import type { PlaylistDto, TrackDto, AlbumDto, ImportTask, ImportTaskMode } from 'features_network';
 import { AppIcon, AppIconName } from '../components/AppIcon';
 import { XiaoAiIcon } from '../components/XiaoAiIcon';
@@ -628,6 +628,9 @@ export struct PersonalTab {
   // ─────────────── 库导入（增量/全量/精简） ───────────────
 
   private async checkRunningImportTask(): Promise<void> {
+    // 库导入是 AudioDock 服务端的能力，飞牛音乐源下没有这个接口（baseURL 也是空的），
+    // 不拦就会每秒打一次非法 URL 请求。
+    if (isFnosSource()) return;
     try {
       const running = await taskApi.getRunningImportTask();
       if (running !== null) {
@@ -642,6 +645,7 @@ export struct PersonalTab {
 
   private startTasksPoll(): void {
     this.clearTasksPollTimer();
+    if (isFnosSource()) return;
     const tick = async (): Promise<void> => {
       try {
         const active = await taskApi.hasActiveImportTasks();

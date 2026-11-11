@@ -23,11 +23,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
+import {
+  getMappedSourceType,
+  getSourceLogo,
+  isFnosRelayAddress,
+  SOURCE_LABELS,
+} from "../src/constants/sources";
 import { selectBestServer } from "../src/utils/networkUtils";
-
-const logo = require("../assets/images/logo.webp");
-const subsonicLogo = require("../assets/images/subsonic.webp");
-const embyLogo = require("../assets/images/emby.webp");
 
 export default function SourceManageScreen() {
   const { colors } = useTheme();
@@ -192,9 +194,16 @@ export default function SourceManageScreen() {
 
       if (!bestAddress) {
         setExpanded((prev) => ({ ...prev, [id]: true }));
+        // 中继域名连不上，八成是 FN Connect 没给这台设备放行
+        const isRelay =
+          getMappedSourceType(key) === "fnos" &&
+          (isFnosRelayAddress(config.internal) ||
+            isFnosRelayAddress(config.external));
         Alert.alert(
           "连接失败",
-          "无法连接到该数据源的任一地址，请检查网络或配置",
+          isRelay
+            ? "无法连接飞牛音乐。若用的是 FN Connect 中继域名（*.fnos.net），请确认中继已放行本设备；也可以改填 NAS 内网地址。"
+            : "无法连接到该数据源的任一地址，请检查网络或配置",
         );
         return;
       }
@@ -250,16 +259,7 @@ export default function SourceManageScreen() {
               const isLoading = loadingId === uniqueId;
               const isDisabled = false;
 
-              const getLogo = (k: string) => {
-                switch (k) {
-                  case "Emby":
-                    return embyLogo;
-                  case "Subsonic":
-                    return subsonicLogo;
-                  default:
-                    return logo;
-                }
-              };
+              const getLogo = (k: string) => getSourceLogo(k);
 
               const hasValue = !!(config.internal || config.external);
               const isExpanded = expanded[uniqueId] ?? !hasValue;
@@ -316,7 +316,7 @@ export default function SourceManageScreen() {
                         <Text
                           style={[styles.cardTitle, { color: colors.text }]}
                         >
-                          {key}
+                          {SOURCE_LABELS[key] || key}
                         </Text>
                         <Text
                           style={[

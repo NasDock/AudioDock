@@ -47,6 +47,8 @@ pub struct AppState {
     pub player_state: Mutex<PlayerState>,
     pub download_path: Arc<Mutex<String>>,
     pub media_origin: String,
+    /// 飞牛音乐媒体代理的会话 Cookie（origin -> Cookie 头），见 fnos_media.rs
+    pub fnos_sessions: crate::fnos_media::FnosSessions,
 }
 
 #[tauri::command]
@@ -207,6 +209,15 @@ pub async fn cache_download(
 #[tauri::command]
 pub fn get_media_origin(state: State<'_, AppState>) -> String {
     state.media_origin.clone()
+}
+
+/// 同步飞牛音乐的会话 Cookie，供 `/fnos/*` 媒体转发使用。
+///
+/// 前端在每次业务请求时调用（内部去重，Token 不变不会重复同步）；
+/// `cookie` 传空串表示清除该 origin 的会话（退出登录）。
+#[tauri::command]
+pub fn fnos_set_media_session(state: State<'_, AppState>, origin: String, cookie: String) {
+    crate::fnos_media::set_session(&state.fnos_sessions, &origin, &cookie);
 }
 
 #[tauri::command]

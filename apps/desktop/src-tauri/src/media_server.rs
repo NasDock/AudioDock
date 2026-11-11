@@ -13,6 +13,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
 use crate::cache::expand_tilde;
+use crate::fnos_media::FnosSessions;
 use crate::protocol::{mime_for, parse_range};
 
 /// A local, loopback-only HTTP server that streams cached audio files to the
@@ -26,11 +27,22 @@ use crate::protocol::{mime_for, parse_range};
 #[derive(Clone)]
 struct MediaState {
     download_path: Arc<Mutex<String>>,
+    /// 飞牛音乐的会话 Cookie，`/fnos/*` 转发用（见 `fnos_media.rs`）
+    fnos_sessions: FnosSessions,
+}
+
+impl axum::extract::FromRef<MediaState> for FnosSessions {
+    fn from_ref(state: &MediaState) -> Self {
+        state.fnos_sessions.clone()
+    }
 }
 
 /// Binds a loopback listener, spawns the server on the Tauri async runtime, and
 /// returns the origin (`http://127.0.0.1:<port>`) the renderer should use.
-pub fn start(download_path: Arc<Mutex<String>>) -> Result<String, String> {
+pub fn start(
+    download_path: Arc<Mutex<String>>,
+    fnos_sessions: FnosSessions,
+) -> Result<String, String> {
     // Bind on the calling (main) thread so we can return the port synchronously.
     // `set_nonblocking` is required for `TcpListener::from_std` later.
     let listener =
@@ -45,7 +57,12 @@ pub fn start(download_path: Arc<Mutex<String>>) -> Result<String, String> {
 
     let app = Router::new()
         .route("/audio/{*rel}", get(serve_audio))
-        .with_state(MediaState { download_path });
+        // 飞牛音乐：封面 / 音频流转发（带 Cookie + Range），见 fnos_media.rs
+        .route("/fnos/{*rel}", get(crate::fnos_media::serve))
+        .with_state(MediaState {
+            download_path,
+            fnos_sessions,
+        });
 
     // `from_std` (and the accept loop) need a Tokio reactor, which only exists
     // inside the runtime - so do it from within the spawned task, not here.

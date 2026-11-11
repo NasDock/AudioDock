@@ -6,7 +6,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { Playlist } from "@/src/models";
 import { downloadTracks } from "@/src/services/downloadManager";
 import { trackEvent } from "@/src/services/tracking";
-import { getImageUrl } from "@/src/utils/image";
+import { getImageSource } from "@/src/utils/image";
 import { Ionicons } from "@expo/vector-icons";
 import {
     deletePlaylist,
@@ -328,9 +328,7 @@ export default function PlaylistDetailScreen() {
                   style={[styles.photoWallItem, itemStyle as ViewStyle]}
                 >
                   <ExpoImage
-                    source={{
-                      uri: getImageUrl(album.cover, `https://picsum.photos/seed/${album.id}/400/400`),
-                    }}
+                    source={getImageSource(album.cover, `https://picsum.photos/seed/${album.id}/400/400`)}
                     style={styles.photoWallImage}
                     contentFit="cover"
                     cachePolicy="memory-disk"
@@ -390,9 +388,7 @@ export default function PlaylistDetailScreen() {
               )}
             </View>
             <ExpoImage
-              source={{
-                uri: getImageUrl(track.cover, `https://picsum.photos/seed/${track.id}/40/40`, 96),
-              }}
+              source={getImageSource(track.cover, `https://picsum.photos/seed/${track.id}/40/40`, 96)}
               style={{ width: 40, height: 40, borderRadius: 4 }}
               contentFit="cover"
               cachePolicy="memory-disk"

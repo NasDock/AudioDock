@@ -18,8 +18,27 @@ export const setPlayMode = (mode: PlayMode) => {
   window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: mode }));
 };
 
-export const usePlayMode = () => {
-  const [mode, setMode] = useState<PlayMode>(getPlayMode());
+/**
+ * 按数据源校正播放模式。
+ *
+ * 飞牛音乐（fnOS trim.music）只有音乐：曲目 type 恒为 MUSIC、没有有声书分类。
+ * 若本地残留 `playMode=audiobook`（上次在官方源听的），进飞牛后列表会按
+ * AUDIOBOOK 过滤成空 —— 所以进入该源时强制切回音乐模式。
+ *
+ * 传 `sourceType` 表示「刚刚切到这个源」，不传则读当前已选的源（启动时用）。
+ */
+export const enforceSourcePlayMode = (sourceType?: string | null) => {
+  if (typeof localStorage === "undefined") return;
+  const type =
+    sourceType !== undefined
+      ? sourceType
+      : localStorage.getItem("selectedSourceType");
+  if (type !== "Feiniu") return;
+  if (getPlayMode() === TrackType.MUSIC) return;
+  setPlayMode(TrackType.MUSIC);
+};
+
+export const usePlayMode = () => {  const [mode, setMode] = useState<PlayMode>(getPlayMode());
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {

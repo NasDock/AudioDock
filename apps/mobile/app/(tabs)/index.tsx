@@ -36,7 +36,7 @@ import { useAuth } from "../../src/context/AuthContext";
 import { useSettings } from "../../src/context/SettingsContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { cacheUtils } from "../../src/utils/cache";
-import { getImageUrl } from "../../src/utils/image";
+import { getImageSource } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
 
 interface Section {
@@ -523,13 +523,11 @@ export default function HomeScreen() {
                         }}
                       >
                         <CachedImage
-                          source={{
-                            uri: getImageUrl(
-                              track.cover,
-                              `https://picsum.photos/seed/${track.id}/200/200`,
-                              128,
-                            ),
-                          }}
+                          source={getImageSource(
+                            track.cover,
+                            `https://picsum.photos/seed/${track.id}/200/200`,
+                            128,
+                          )}
                           style={styles.trackImage}
                         />
                         <View style={styles.trackInfo}>
@@ -694,13 +692,11 @@ export default function HomeScreen() {
                         }}
                       >
                         <CachedImage
-                          source={{
-                            uri: getImageUrl(
-                              item.avatar || item.cover,
-                              `https://picsum.photos/seed/${item.id}/200/200`,
-                              128,
-                            ),
-                          }}
+                          source={getImageSource(
+                            item.avatar || item.cover,
+                            `https://picsum.photos/seed/${item.id}/200/200`,
+                            128,
+                          )}
                           style={styles.artistImage}
                         />
                         <Text
@@ -771,12 +767,10 @@ export default function HomeScreen() {
                       >
                         <View style={styles.albumImageContainer}>
                           <CachedImage
-                            source={{
-                              uri: getImageUrl(
-                                item.cover,
-                                `https://picsum.photos/seed/${item.id}/200/200`,
-                              ),
-                            }}
+                            source={getImageSource(
+                              item.cover,
+                              `https://picsum.photos/seed/${item.id}/200/200`,
+                            )}
                             style={styles.albumImage}
                           />
                           {(item.type === "AUDIOBOOK" ||

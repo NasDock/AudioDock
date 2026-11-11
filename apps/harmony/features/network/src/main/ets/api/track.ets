@@ -1,4 +1,5 @@
 import { httpClient } from '../HarmonyHttpClient';
+import { fnosAdapter, isFnosSource } from '../fnos';
 import type { LoadMoreResp } from '../types';
 
 /**
@@ -61,10 +62,14 @@ export interface TrackApi {
 
 class TrackApiImpl implements TrackApi {
   async list(): Promise<TrackDto[]> {
+    if (isFnosSource()) return fnosAdapter.trackList();
     return httpClient.get<TrackDto[]>('/track/list');
   }
 
   async loadMore(params: TrackLoadMoreParams): Promise<LoadMoreResp<TrackDto>> {
+    if (isFnosSource()) {
+      return fnosAdapter.trackLoadMore(params.pageSize, params.loadCount, params.sortBy ?? '');
+    }
     const q: Record<string, string | number | boolean> = {};
     q['pageSize'] = params.pageSize;
     q['loadCount'] = params.loadCount;
@@ -74,16 +79,24 @@ class TrackApiImpl implements TrackApi {
   }
 
   async getById(id: string): Promise<TrackDto> {
+    if (isFnosSource()) return fnosAdapter.trackById(id);
     return httpClient.get<TrackDto>(`/track/${id}`);
   }
 
   async byArtist(artist: string): Promise<TrackDto[]> {
+    if (isFnosSource()) {
+      const resp: LoadMoreResp<TrackDto> = await fnosAdapter.tracksByArtist(artist, 0, 100);
+      return resp.list;
+    }
     const q: Record<string, string | number | boolean> = {};
     q['artist'] = artist;
     return httpClient.get<TrackDto[]>('/track/artist', q);
   }
 
   async search(params: TrackSearchParams): Promise<TrackDto[]> {
+    if (isFnosSource()) {
+      return fnosAdapter.trackSearch(params.keyword, params.limit ?? 24);
+    }
     const q: Record<string, string | number | boolean> = {};
     q['keyword'] = params.keyword;
     if (params.type !== undefined) q['type'] = params.type;
@@ -92,6 +105,9 @@ class TrackApiImpl implements TrackApi {
   }
 
   async latest(params: TrackLatestParams): Promise<TrackDto[]> {
+    if (isFnosSource()) {
+      return fnosAdapter.trackLatest(params.pageSize ?? 20);
+    }
     const q: Record<string, string | number | boolean> = {};
     if (params.type !== undefined) q['type'] = params.type;
     if (params.random !== undefined) q['random'] = params.random;
@@ -100,6 +116,10 @@ class TrackApiImpl implements TrackApi {
   }
 
   async recommend(params: TrackLatestParams): Promise<TrackDto[]> {
+    if (isFnosSource()) {
+      // 飞牛没有推荐接口，「最近添加」是最接近的口径
+      return fnosAdapter.trackLatest(params.pageSize ?? 20);
+    }
     const q: Record<string, string | number | boolean> = {};
     if (params.type !== undefined) q['type'] = params.type;
     if (params.pageSize !== undefined) q['pageSize'] = params.pageSize;
@@ -107,10 +127,12 @@ class TrackApiImpl implements TrackApi {
   }
 
   async playbackQualities(id: string): Promise<PlaybackQualityProfile> {
+    if (isFnosSource()) return fnosAdapter.playbackQualities();
     return httpClient.get<PlaybackQualityProfile>(`/track/${id}/playback-qualities`);
   }
 
   streamUrl(id: string, quality: string): string {
+    if (isFnosSource()) return fnosAdapter.streamUrl(id);
     const base = httpClient.getBaseURL();
     return `${base}/track/stream/${id}?quality=${encodeURIComponent(quality)}`;
   }

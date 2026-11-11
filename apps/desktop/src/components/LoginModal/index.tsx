@@ -11,9 +11,8 @@ import {
   login,
   register,
   setServiceConfig,
-  SOURCEMAP,
-  SOURCETIPSMAP,
   useEmbyAdapter,
+  useFnosAdapter,
   useNativeAdapter,
   useSubsonicAdapter,
 } from "@soundx/services";
@@ -33,9 +32,11 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import emby from "../../assets/emby.png";
 import logo from "../../assets/logo.png";
+import { FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP } from "../../constants/sources";
 import subsonic from "../../assets/subsonic.png";
 import { useMessage } from "../../context/MessageContext";
 import { useAuthStore } from "../../store/auth";
+import { enforceSourcePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
 
 const { Title, Text } = Typography;
@@ -186,6 +187,8 @@ const LoginModal: React.FC = () => {
       useSubsonicAdapter();
     } else if (mappedType === "emby") {
       useEmbyAdapter();
+    } else if (mappedType === "fnos") {
+      useFnosAdapter({ baseUrl: address, username, password });
     } else {
       useNativeAdapter();
     }
@@ -198,6 +201,8 @@ const LoginModal: React.FC = () => {
 
     localStorage.setItem(addressKey, values.serverAddress);
     localStorage.setItem("selectedSourceType", type);
+    // 飞牛只有音乐，残留的有声书模式会让列表变空
+    enforceSourcePlayMode(type);
     saveToHistory(values.serverAddress, type);
 
     const baseURL = values.serverAddress;
@@ -277,17 +282,18 @@ const LoginModal: React.FC = () => {
     }
   };
 
+  const renderSourceIcon = (key: string) => {
+    if (key === "Emby") return <img style={{ width: 24 }} src={emby} />;
+    if (key === "Subsonic") return <img style={{ width: 24 }} src={subsonic} />;
+    if (key === "Feiniu") return <img style={{ width: 24 }} src={FNOS_LOGO} />;
+    return <img style={{ width: 24 }} src={logo} />;
+  };
+
   const sourceOptions = Object.keys(SOURCEMAP).map((key) => ({
     label: (
       <Flex gap={8} align="center">
-        {key === "Emby" ? (
-          <img style={{ width: 24 }} src={emby} />
-        ) : key === "Subsonic" ? (
-          <img style={{ width: 24 }} src={subsonic} />
-        ) : (
-          <img style={{ width: 24 }} src={logo} />
-        )}
-        <span>{key}</span>
+        {renderSourceIcon(key)}
+        <span>{SOURCE_LABELS[key] || key}</span>
       </Flex>
     ),
     value: key,
@@ -328,6 +334,7 @@ const LoginModal: React.FC = () => {
           onChange={(val) => {
             setSourceType(val as string);
             localStorage.setItem("selectedSourceType", val as string);
+            enforceSourcePlayMode(val as string);
           }}
         />
       </div>

@@ -7,6 +7,7 @@ import { authStore } from '../context/AuthStore';
 import { buildTheme, CommonNavBar } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
 import { t } from 'features_i18n';
+import { SOURCE_LABELS } from '../utils/networkUtils';
 
 /**
  * 数据源管理页，对齐 mobile source-manage.tsx：
@@ -14,11 +15,12 @@ import { t } from 'features_i18n';
  * 每条配置有内网/外网地址，支持展开编辑、连接、删除，底部添加新数据源。
  */
 
-const SOURCE_TYPES: string[] = ['AudioDock', 'Subsonic', 'Emby'];
+const SOURCE_TYPES: string[] = ['AudioDock', 'Subsonic', 'Emby', 'Feiniu'];
 const SOURCE_TIPS: Record<string, string> = {
   'AudioDock': '所有支持 AudioDock 官方服务端',
   'Subsonic': '所有支持 Subsonic 协议的服务端，例如：Navidrome、Gonic 等',
   'Emby': '所有支持 Emby 协议的服务端',
+  'Feiniu': '飞牛 fnOS 自带的音乐应用（trim.music），地址填 NAS，如 http://192.168.1.10:5666',
 };
 
 class SourceConfig {
@@ -208,9 +210,20 @@ struct SourceManagePage {
     this.loadingId = cfg.id;
     try {
       await this.saveConfig(key);
+      // 飞牛音乐切换服务器必须重新登录（会话 token 绑在具体 NAS 上）：
+      // 先落地址，再带去登录页，成功后由 LoginPage 写会话并打开 fnos 分发开关。
+      if (key === 'Feiniu') {
+        router.pushUrl({
+          url: 'pages/LoginPage',
+          params: { sourceType: 'Feiniu', address: cfg.external.length > 0 ? cfg.external : cfg.internal },
+        });
+        return;
+      }
+      // 从飞牛切回 AudioDock 系数据源：先关掉 fnos 分发并复位 sourceType，
+      // 否则下面的 switchServer 会被 fnos 分支拦下（baseURL 不会被更新）
+      await authStore.leaveFnosSource();
       // 优先内网，失败则尝试外网
-      let address = '';
-      if (cfg.internal.length > 0) {
+      let address = '';      if (cfg.internal.length > 0) {
         const ok = await this.checkConnectivity(cfg.internal);
         if (ok) address = cfg.internal;
       }
@@ -310,7 +323,7 @@ struct SourceManagePage {
       // 头部：类型名 + tips + 展开/收起
       Row() {
         Column({ space: 2 }) {
-          Text(key).fontSize(16).fontWeight(FontWeight.Bold).fontColor(this.theme.colors.text)
+          Text(SOURCE_LABELS[key] ?? key).fontSize(16).fontWeight(FontWeight.Bold).fontColor(this.theme.colors.text)
           Text(SOURCE_TIPS[key] ?? '').fontSize(12).fontColor(this.theme.colors.textSecondary)
         }
         .layoutWeight(1).alignItems(HorizontalAlign.Start)

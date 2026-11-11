@@ -31,6 +31,7 @@ import { usePlayerStore } from "../../store/player";
 import { usePlayMode } from "../../utils/playMode";
 import { useTranslation } from "react-i18next";
 import { formatTimeLabel } from "../../utils/timeFormat";
+import { isFnosSource } from "../../utils";
 import styles from "./index.module.less";
 
 const { Title } = Typography;
@@ -38,7 +39,12 @@ const { Title } = Typography;
 const Listened: React.FC = () => {
   const { t } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
-  const [viewMode, setViewMode] = useState<"album" | "track">("album");
+  // 飞牛音乐只有单曲维度的播放历史（专辑历史接口返回空），因此只保留单曲视图
+  const fnosSource = isFnosSource();
+  const [viewMode, setViewMode] = useState<"album" | "track">(
+    fnosSource ? "track" : "album",
+  );
+  const effectiveViewMode: "album" | "track" = fnosSource ? "track" : viewMode;
   const { token } = theme.useToken();
   const { play, setPlaylist } = usePlayerStore();
   const { user } = useAuthStore();
@@ -55,7 +61,7 @@ const Listened: React.FC = () => {
   }>({
     fetcher: async ({ pageSize, skip }) => {
       const loadCount = Math.floor(skip / pageSize);
-      if (viewMode === "album") {
+      if (effectiveViewMode === "album") {
         const res = await getAlbumHistory(user?.id || 0, loadCount, pageSize, type);
         return toPagedResult<any>(res.data as ILoadMoreData<any>, pageSize);
       } else {
@@ -64,7 +70,7 @@ const Listened: React.FC = () => {
       }
     },
     pageSize: PAGE_SIZE,
-    deps: [viewMode, type, user?.id],
+    deps: [effectiveViewMode, type, user?.id],
     uniqueKey: (item) => item.id,
   });
 
@@ -107,7 +113,7 @@ const Listened: React.FC = () => {
         <Title level={4} className={styles.timelineTitle}>
           {formatTimeLabel(item.time)}
         </Title>
-        {viewMode === "album" ? (
+        {effectiveViewMode === "album" ? (
           <Row gutter={[24, 24]}>
             {item.items.map((album) => (
               <Col key={album.id}>
@@ -141,15 +147,29 @@ const Listened: React.FC = () => {
         <Flex gap={8} align="center">
           {type === "MUSIC" && (
             <Segmented
-              options={[
-                { value: "album", icon: <AppstoreOutlined />, label: t("listened.album") },
-                {
-                  value: "track",
-                  icon: <UnorderedListOutlined />,
-                  label: t("listened.songs"),
-                },
-              ]}
-              value={viewMode}
+              options={
+                fnosSource
+                  ? [
+                      {
+                        value: "track",
+                        icon: <UnorderedListOutlined />,
+                        label: t("listened.songs"),
+                      },
+                    ]
+                  : [
+                      {
+                        value: "album",
+                        icon: <AppstoreOutlined />,
+                        label: t("listened.album"),
+                      },
+                      {
+                        value: "track",
+                        icon: <UnorderedListOutlined />,
+                        label: t("listened.songs"),
+                      },
+                    ]
+              }
+              value={effectiveViewMode}
               onChange={(value) => setViewMode(value as "album" | "track")}
             />
           )}

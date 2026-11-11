@@ -8,6 +8,7 @@ import {
 import { useTranslation } from "react-i18next";
 import {
   useEmbyAdapter as activateEmbyAdapter,
+  useFnosAdapter as activateFnosAdapter,
   useNativeAdapter as activateNativeAdapter,
   useSubsonicAdapter as activateSubsonicAdapter,
   check,
@@ -21,8 +22,6 @@ import {
   type ScanLoginSession,
   type ScanLoginSessionStatus,
   setServiceConfig,
-  SOURCEMAP,
-  SOURCETIPSMAP,
   subscribeScanLoginSession,
 } from "@soundx/services";
 import {
@@ -41,11 +40,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import emby from "../../assets/emby.png";
 import logo from "../../assets/logo.png";
 import subsonic from "../../assets/subsonic.png";
+import { FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP } from "../../constants/sources";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuthStore } from "../../store/auth";
 import { trackEvent } from "../../services/tracking";
 import { isWeb, tauriGetDeviceName, getDevicePlatform, computeStableDeviceId } from "../../utils/platform";
 import { applyDesktopScanLoginResult } from "../../utils/scanLogin";
+import { enforceSourcePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
 
 const { Title, Text } = Typography;
@@ -92,6 +93,11 @@ const Login: React.FC = () => {
   const [serverHistory, setServerHistory] = useState<ServerHistoryItem[]>([]);
   const [rememberMe, setRememberMe] = useState(false);
 
+  // 飞牛音乐：没有扫码登录、也不能自助注册（账号在 fnOS 里建）
+  const mappedSourceType = SOURCEMAP[sourceType as keyof typeof SOURCEMAP] || "audiodock";
+  const isFnos = mappedSourceType === "fnos";
+  const supportsScanLogin = mappedSourceType === "audiodock";
+
   const normalizeLoginUser = (payload: Record<string, unknown> | null | undefined) => {
     if (payload?.user && typeof payload.user === "object" && "id" in payload.user) {
       return payload.user;
@@ -123,6 +129,8 @@ const Login: React.FC = () => {
         return emby;
       case "Subsonic":
         return subsonic;
+      case "Feiniu":
+        return FNOS_LOGO;
       default:
         return logo;
     }
@@ -164,6 +172,7 @@ const Login: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!supportsScanLogin) return;
     createTargetSession();
   }, []);
 
@@ -383,6 +392,7 @@ const Login: React.FC = () => {
     });
     if (mappedType === "subsonic") activateSubsonicAdapter();
     else if (mappedType === "emby") activateEmbyAdapter();
+    else if (mappedType === "fnos") activateFnosAdapter({ baseUrl: address, username, password });
     else activateNativeAdapter();
   };
 
@@ -393,6 +403,8 @@ const Login: React.FC = () => {
     password?: string,
   ) => {
     const type = sourceType;
+    // 收集每个地址的真实失败原因，避免只抛一句笼统的「连接失败」查不动
+    const failures: string[] = [];
 
     const tryAddress = async (addr: string) => {
       if (!addr) return false;
@@ -403,12 +415,21 @@ const Login: React.FC = () => {
       configureAdapter(type, addr, username, password);
       try {
         const response = await check();
+        const code = (response as { code?: number } | null)?.code;
+        if (code !== undefined && code !== 200) {
+          failures.push(
+            `${addr}：${(response as { message?: string } | null)?.message || "连接失败"}`,
+          );
+          return false;
+        }
         if (response) return true;
         if (SOURCEMAP[type as keyof typeof SOURCEMAP] === "subsonic") {
           return true;
         }
+        failures.push(`${addr}：服务未响应`);
         return false;
-      } catch {
+      } catch (error) {
+        failures.push(`${addr}：${error instanceof Error ? error.message : String(error)}`);
         return false;
       }
     };
@@ -422,7 +443,11 @@ const Login: React.FC = () => {
       return external;
     }
 
-    throw new Error(t("login.connectionFailed"));
+    throw new Error(
+      failures.length
+        ? `${t("login.connectionFailed")}（${failures.join("；")}）`
+        : t("login.connectionFailed"),
+    );
   };
 
   const handleFinish = async (values: LoginFormValues) => {
@@ -462,6 +487,8 @@ const Login: React.FC = () => {
 
       localStorage.setItem(`serverAddress_${type}`, activeAddress);
       localStorage.setItem("selectedSourceType", type);
+      // 飞牛只有音乐，残留的有声书模式会让列表变空
+      enforceSourcePlayMode(type);
       saveConfig(internalAddress, externalAddress, type);
 
       const tokenKey = `token_${activeAddress}`;
@@ -550,7 +577,14 @@ const Login: React.FC = () => {
           message: error instanceof Error ? error.message : "unknown_error",
         },
       });
-      messageApi.error(error instanceof Error ? error.message : t("login.operationFailed"));
+      const message =
+        error instanceof Error ? error.message : t("login.operationFailed");
+      // 浏览器里直连飞牛必被 CORS 拦，直接把原因写清楚，别让人以为是账号问题
+      messageApi.error(
+        isWeb() && type === "Feiniu"
+          ? `${message}（浏览器环境无法直连飞牛，请用桌面客户端登录）`
+          : message,
+      );
     } finally {
       setLoading(false);
     }
@@ -588,6 +622,7 @@ const Login: React.FC = () => {
         }
       >
         <div className={styles.contentGrid}>
+          {supportsScanLogin && (
           <div className={styles.scanSection}>
             {scanStatus?.status === "waiting_confirm" ? (
               <div
@@ -616,12 +651,14 @@ const Login: React.FC = () => {
               </div>
             )}
           </div>
+          )}
 
           <div className={styles.formSection}>
           <div className={styles.header} style={{ marginBottom: isWeb() ? 20 : 0 }}>
             <img src={getLogo(sourceType)} alt={sourceType} className={styles.logo} />
             <Title style={{ margin: 0 }} level={4}>
-              {sourceType} {isLogin ? t("login.login") : t("login.register")}
+              {SOURCE_LABELS[sourceType] || sourceType}{" "}
+              {isLogin ? t("login.login") : t("login.register")}
             </Title>
             <Text type="secondary">
               {SOURCETIPSMAP[sourceType as keyof typeof SOURCETIPSMAP]}
@@ -655,7 +692,13 @@ const Login: React.FC = () => {
               >
                 <Input
                   prefix={<HddOutlined />}
-                  placeholder={isWeb() ? "/api" : "http://192.168.x.x"}
+                  placeholder={
+                    isFnos
+                      ? "http://192.168.1.10:5666"
+                      : isWeb()
+                        ? "/api"
+                        : "http://192.168.x.x"
+                  }
                   autoCapitalize="off"
                 />
               </AutoComplete>
@@ -741,14 +784,16 @@ const Login: React.FC = () => {
               </Button>
             )}
 
-            <Button
-              type="link"
-              block
-              onClick={() => setIsLogin((prev) => !prev)}
-              style={{ marginTop: 12 }}
-            >
-              {isLogin ? t("login.noAccount") : t("login.hasAccount")}
-            </Button>
+            {!isFnos && (
+              <Button
+                type="link"
+                block
+                onClick={() => setIsLogin((prev) => !prev)}
+                style={{ marginTop: 12 }}
+              >
+                {isLogin ? t("login.noAccount") : t("login.hasAccount")}
+              </Button>
+            )}
           </Form>
           </div>
         </div>

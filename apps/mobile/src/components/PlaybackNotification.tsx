@@ -5,7 +5,7 @@ import { Animated, Image, StyleSheet, Text, Modal, TouchableOpacity, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNotification } from '../context/NotificationContext';
 import { useTheme } from '../context/ThemeContext';
-import { getImageUrl } from '../utils/image';
+import { getImageSource } from '../utils/image';
 
 const PlaybackNotification: React.FC = () => {
   const { notification, hideNotification } = useNotification();
@@ -56,7 +56,7 @@ const PlaybackNotification: React.FC = () => {
 
   // 通知中心封面走 128 档（恒压缩）——见 utils/image.ts 分级规则
   const artwork = notification.track.cover
-    ? getImageUrl(notification.track.cover, undefined, 128)
+    ? getImageSource(notification.track.cover, undefined, 128)
     : null;
 
   return (
@@ -78,7 +78,7 @@ const PlaybackNotification: React.FC = () => {
 
           <View style={[styles.trackCard, { backgroundColor: colors.background + '80' }]}>
             {artwork && (
-              <Image source={{ uri: artwork }} style={styles.cover} />
+              <Image source={artwork} style={styles.cover} />
             )}
             <View style={styles.trackInfo}>
               <Text style={[styles.trackName, { color: colors.text }]} numberOfLines={1}>

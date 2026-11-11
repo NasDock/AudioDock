@@ -68,7 +68,16 @@ export const getCachedCover = async (url: string): Promise<string | null> => {
   }
 };
 
-export const cacheCover = async (url: string): Promise<string> => {
+/**
+ * 缓存封面到本地。
+ *
+ * `headers` 用于飞牛这类「媒体接口只认 Authorization 头」的数据源：
+ * 不带头下载会 401（fnos 的 /static/cover 实测只认头）。
+ */
+export const cacheCover = async (
+  url: string,
+  headers?: Record<string, string>,
+): Promise<string> => {
   if (!url) return url;
   if (!url.startsWith("http://") && !url.startsWith("https://")) return url;
 
@@ -84,7 +93,7 @@ export const cacheCover = async (url: string): Promise<string> => {
       if (exists.exists) return localPath;
 
       const tempPath = `${localPath}.tmp`;
-      const result = await FileSystem.downloadAsync(url, tempPath);
+      const result = await FileSystem.downloadAsync(url, tempPath, { headers });
       if (result.status === 200) {
         await FileSystem.moveAsync({ from: tempPath, to: localPath });
         return localPath;
@@ -205,7 +214,11 @@ const downloadPromises = new Map<string, Promise<string | null>>();
 /**
  * Download a track to the local cache and save metadata
  */
-export const downloadTrack = async (track: Track, url: string): Promise<string | null> => {
+export const downloadTrack = async (
+  track: Track,
+  url: string,
+  headers?: Record<string, string>,
+): Promise<string | null> => {
   // 下载去重 key 按源隔离（不同源同 track_id 是两场独立下载）
   const dlKey = cacheKey(track.id);
   if (downloadPromises.has(dlKey)) {
@@ -229,7 +242,7 @@ export const downloadTrack = async (track: Track, url: string): Promise<string |
       }
 
       console.log(`[Cache] Starting download for track ${track.id}: ${url} to temp path`);
-      const downloadRes = await FileSystem.downloadAsync(url, tempPath);
+      const downloadRes = await FileSystem.downloadAsync(url, tempPath, { headers });
 
       if (downloadRes.status === 200) {
         // Atomic move to final destination

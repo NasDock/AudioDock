@@ -3,7 +3,7 @@ import { kvStore, fileCache } from 'features_storage';
 import { audioBackend, findActiveLine, parseLRC } from 'features_player';
 import { socketService } from 'features_socket';
 import type { LyricLine } from 'features_player';
-import { userDataApi } from 'features_network';
+import { isFnosSource, getFnosPlaybackHeaders, userDataApi } from 'features_network';
 import type { TrackDto } from 'features_network';
 import { syncStore } from './SyncStore';
 import { authStore } from './AuthStore';
@@ -469,7 +469,9 @@ export class PlayerStore {
     try {
       // contentType 透传给 AVPlayerBackend，用于设置 AVPlayer.audioRendererInfo.usage，
       // 系统靠它把发声流和 AVSession 关联，通知栏/锁屏才展示媒体播控卡片。
-      await audioBackend.load(t.url, undefined, t.contentType ?? this.contentMode);
+      // 外部源（飞牛音乐）的流需要带鉴权头：现取而不是存到 Track 上，避免 token 进持久化文件。
+      const headers: Record<string, string> | undefined = isFnosSource() ? getFnosPlaybackHeaders() : undefined;
+      await audioBackend.load(t.url, headers, t.contentType ?? this.contentMode);
       await audioBackend.play();
       this.loadedTrackId = t.id;
       this.state = 'playing'; this.isPlaying = true;
@@ -525,6 +527,8 @@ export class PlayerStore {
    * 失败静默（FileCache 内部已打日志），不影响当前播放。
    */
   private async triggerCacheWhilePlaying(t: Track): Promise<void> {
+    // 飞牛音乐的流要带鉴权头，fileCache 的裸 URL 下载会 401：该源不做本地缓存
+    if (isFnosSource()) return;
     // 只缓存远程 URL（本地 file:// 已经是缓存，无需再下载）
     if (!t.url.startsWith('http')) return;
     // 对齐 mobile SettingsContext 默认值 true：未显式存过时视为开启
@@ -552,6 +556,8 @@ export class PlayerStore {
    * 用户显式关闭时才存 'false'，此时跳过预下载。
    */
   private async triggerPreloadAround(current: Track): Promise<void> {
+    // 飞牛音乐的流要带鉴权头，预下载会 401：该源跳过预下载
+    if (isFnosSource()) return;
     // 对齐 mobile SettingsContext 默认值 true：未显式存过时视为开启
     const cacheEnabled = await kvStore.get('cacheEnabled');
     if (cacheEnabled === 'false') return;

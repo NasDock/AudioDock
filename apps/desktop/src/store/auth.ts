@@ -3,12 +3,13 @@ import {
   setServiceConfig,
   setPlusToken as setPlusServiceToken,
   setPlusUnauthorizedHandler,
-  SOURCEMAP,
   useEmbyAdapter,
+  useFnosAdapter,
   useNativeAdapter,
   useSubsonicAdapter,
 } from "@soundx/services";
 import { create } from "zustand";
+import { SOURCEMAP } from "../constants/sources";
 import type { User } from "../models";
 
 const resolveStoredUser = (raw: string | null): User | null => {
@@ -58,6 +59,7 @@ const initService = (address: string, type: string) => {
     SOURCEMAP[type as keyof typeof SOURCEMAP] || "audiodock";
   if (mappedType === "subsonic") useSubsonicAdapter();
   else if (mappedType === "emby") useEmbyAdapter();
+  else if (mappedType === "fnos") useFnosAdapter({ baseUrl: address, username, password });
   else useNativeAdapter();
 };
 

@@ -18,7 +18,7 @@ import { addAlbumToCollection, createCollection, getCollectionMembership, getCol
 import { Album, AudiobookCollection } from "../models";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import { getImageUrl } from "../utils/image";
+import { getImageSource } from "../utils/image";
 import { CachedImage } from "./CachedImage";
 
 interface CollectionSelectModalProps {
@@ -168,13 +168,11 @@ export const CollectionSelectModal: React.FC<CollectionSelectModalProps> = ({
                             disabled={selected}
                           >
                             <CachedImage
-                              source={{
-                                uri: getImageUrl(
-                                  previewCover,
-                                  `https://picsum.photos/seed/collection-${item.id}/200/200`,
-                                  128,
-                                ),
-                              }}
+                              source={getImageSource(
+                                previewCover,
+                                `https://picsum.photos/seed/collection-${item.id}/200/200`,
+                                128,
+                              )}
                               style={styles.cover}
                             />
                             <View style={{ flex: 1 }}>

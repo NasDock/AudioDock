@@ -29,7 +29,8 @@ export const PlayModeProvider: React.FC<{ children: React.ReactNode }> = ({
   const { sourceType } = useAuth();
 
   useEffect(() => {
-    if (sourceType === "Subsonic") {
+    // Subsonic / 飞牛 都只有音乐：残留的「有声书」模式会让列表空掉
+    if (sourceType === "Subsonic" || sourceType === "Feiniu") {
       setModeState("MUSIC");
       setModeLoaded(true);
     } else {

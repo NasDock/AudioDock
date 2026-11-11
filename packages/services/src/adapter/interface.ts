@@ -98,6 +98,35 @@ export interface IAudioCollectionAdapter {
   getCollectionMembership(albumId: number | string, userId: number | string): Promise<ISuccessResponse<number[]>>;
 }
 
+/**
+ * 搜索能力（可选）。
+ *
+ * 目前只有飞牛音乐实现了它：native / subsonic / emby 在对接时都没有做搜索，
+ * 调用方（`services/search.ts`）拿不到实现时会回退到官方服务端的 request，
+ * 所以这里是**可选成员**，不要求每个适配器都实现。
+ */
+export interface ISearchAdapter {
+  /** 曲目搜索。`limit` 是期望条数（不是翻页步长），`type` 用于 MUSIC/AUDIOBOOK 分流，非官方源可忽略 */
+  searchTracks(keyword: string, limit?: number, type?: string): Promise<ISuccessResponse<Track[]>>;
+  searchAlbums(keyword: string, limit?: number, type?: string): Promise<ISuccessResponse<Album[]>>;
+  searchArtists(keyword: string, limit?: number, type?: string): Promise<ISuccessResponse<Artist[]>>;
+  /** 歌单搜索：不支持的源直接返回空数组，不要抛错（UI 会把空数组当成「没有歌单结果」） */
+  searchPlaylists(keyword: string, limit?: number): Promise<ISuccessResponse<Playlist[]>>;
+}
+
+/**
+ * 搜索历史能力（可选）。
+ *
+ * 官方服务端有 `/search-record/*` 三件套；飞牛没有这类接口，走端侧本地存储。
+ * 未实现时调用方回退到 request，行为与改造前一致。
+ */
+export interface ISearchRecordAdapter {
+  addSearchRecord(keyword: string): Promise<ISuccessResponse<any>>;
+  getSearchHistory(): Promise<ISuccessResponse<string[]>>;
+  getHotSearches(): Promise<ISuccessResponse<{ keyword: string; count: number }[]>>;
+  clearSearchHistory(): Promise<ISuccessResponse<any>>;
+}
+
 import { IAuthAdapter, IUserAdapter } from "./interface-user-auth";
 
 // ... existing code ...
@@ -111,4 +140,8 @@ export interface IMusicAdapter {
   user: IUserAdapter;
   auth: IAuthAdapter;
   mv: IMvAdapter;
+  /** 可选：未实现时 services 层回退到官方服务端接口 */
+  search?: ISearchAdapter;
+  /** 可选：未实现时 services 层回退到官方服务端接口 */
+  searchRecord?: ISearchRecordAdapter;
 }

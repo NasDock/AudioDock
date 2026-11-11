@@ -1,6 +1,6 @@
 import { RightOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
-import { SOURCEMAP, SOURCETIPSMAP } from "@soundx/services";
+import { FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP } from "../../constants/sources";
 import { Card, Flex, theme, Typography } from "antd";
 import React from "react";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +22,8 @@ const SourceManage: React.FC = () => {
         return emby;
       case "Subsonic":
         return subsonic;
+      case "Feiniu":
+        return FNOS_LOGO;
       default:
         return logo;
     }
@@ -62,7 +64,7 @@ const SourceManage: React.FC = () => {
                     />
                     <Flex vertical align="flex-start">
                       <Text strong style={{ fontSize: 16 }}>
-                        {key}
+                        {SOURCE_LABELS[key] || key}
                       </Text>
                       <Text type="secondary" style={{ fontSize: 12 }}>
                         {SOURCETIPSMAP[key as keyof typeof SOURCETIPSMAP]}

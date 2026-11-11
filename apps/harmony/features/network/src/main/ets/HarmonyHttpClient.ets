@@ -144,6 +144,13 @@ export class HarmonyHttpClient {
   private async attempt(config: RequestConfig): Promise<HttpResponse<Object>> {
     const httpReq = http.createHttp();
     const fullUrl = this.buildUrl(config);
+    // 外部数据源（飞牛音乐等）下 baseURL 为空，误走 AudioDock 接口时 URL 会拼成 `/xxx`，
+    // 系统 http 只报 2300003「Invalid URL format」，看不出是哪个接口。
+    // 这里提前拦截，报错里带上路径，便于定位该补 isFnosSource() 分发的位置。
+    if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
+      httpReq.destroy();
+      throw new HttpError(0, `请求地址无效（当前数据源没有服务端地址）：${fullUrl}`);
+    }
     try {
       const mergedHeaders: Record<string, string> = this.mergeHeaders(this.defaultHeaders, config.headers);
       const opts: http.HttpRequestOptions = {
