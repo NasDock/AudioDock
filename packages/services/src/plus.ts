@@ -162,7 +162,9 @@ export interface ConsumePointsDto {
   description?: string;
 }
 
-export type TrackingPlatform = "mobile" | "desktop" | "web" | "mini";
+// 服务端 platform 是自由字符串（@IsString 无枚举校验）。
+// mobile 端细分到操作系统：ios / android；历史数据里的 "mobile" 为未细分时期的存量值。
+export type TrackingPlatform = "mobile" | "ios" | "android" | "desktop" | "web" | "mini";
 
 export interface TrackingEventDto {
   platform: TrackingPlatform;

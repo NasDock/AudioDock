@@ -1,5 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 import { plusTrackEvent, type TrackingEventDto } from "@soundx/services";
+
+// mobile 上报细分到操作系统（ios/android），非手机形态（未来若有）回退 "mobile"
+const resolvePlatform = (): TrackingEventDto["platform"] =>
+  Platform.OS === "ios" || Platform.OS === "android" ? Platform.OS : "mobile";
 
 let trackingEnabledCache: boolean | null = null;
 let memberUserIdCache: string | null | undefined = undefined;
@@ -61,7 +66,7 @@ export const trackEvent = async (
     if (!enabled) return;
     const memberUserId = await resolveMemberUserId();
     await plusTrackEvent({
-      platform: payload.platform ?? "mobile",
+      platform: payload.platform ?? resolvePlatform(),
       ...payload,
       userId: memberUserId ?? null,
     });
