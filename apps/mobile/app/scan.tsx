@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { Camera, CameraView } from "expo-camera";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -19,7 +19,9 @@ export default function ScanScreen() {
   const onlyType = (params.sourceType as string) || undefined;
   const [permission, setPermission] = useState<any>(null);
   const [scanBusy, setScanBusy] = useState(false);
-  const [hasScanned, setHasScanned] = useState(false);
+  // 必须用 ref 做同步去重：onBarcodeScanned 按帧连续回调，useState 更新是异步的，
+  // 重渲染前所有帧读到的都是旧值 false → claim/埋点被重复触发 N 次（埋点量翻倍的根因）
+  const hasScannedRef = useRef(false);
 
   useEffect(() => {
     Camera.getCameraPermissionsAsync().then(setPermission);
@@ -35,13 +37,9 @@ export default function ScanScreen() {
   };
 
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
-    if (hasScanned) return;
-    setHasScanned(true);
+    if (hasScannedRef.current) return;
+    hasScannedRef.current = true;
     console.log("[scan-login] qr detected", data);
-    trackEvent({
-      feature: "scan_login",
-      eventName: "scan_login_qr_detected",
-    });
 
     try {
       setScanBusy(true);
@@ -76,7 +74,7 @@ export default function ScanScreen() {
         },
       });
       Alert.alert("扫码失败", error.message || "请重试");
-      setHasScanned(false);
+      hasScannedRef.current = false;
     } finally {
       setScanBusy(false);
     }
