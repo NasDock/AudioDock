@@ -1,8 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 import type { ComponentProps, MouseEvent } from 'react';
 import remarkGfm from 'remark-gfm';
-import { open } from "@tauri-apps/plugin-shell";
-import { isTauri } from "../utils/platform";
+import { tauriOpenExternal } from "../utils/platform";
 
 type MarkdownComponents = NonNullable<ComponentProps<typeof ReactMarkdown>['components']>;
 
@@ -27,12 +26,8 @@ const openInDefaultBrowser = (url?: string) => {
   const externalUrl = toExternalUrl(url);
   if (!externalUrl) return;
 
-  if (isTauri()) {
-    open(externalUrl).catch(console.error);
-    return;
-  }
-
-  window.open(externalUrl, '_blank', 'noopener,noreferrer');
+  // Tauri 走 Rust open_url 命令，web 走 window.open（内部已做分流）
+  void tauriOpenExternal(externalUrl);
 };
 
 const getDownloadFileName = (src?: string, alt?: string) => {

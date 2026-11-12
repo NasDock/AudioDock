@@ -1,7 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { platform } from "@tauri-apps/plugin-os";
-import { open } from "@tauri-apps/plugin-shell";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -60,15 +59,24 @@ export const tauriListen = async (event: string, handler: (payload: any) => void
   }
 };
 
+/**
+ * 用系统默认浏览器打开外链
+ *
+ * Tauri 侧走 Rust 的 `open_url` 命令（内部是 tauri-plugin-opener，
+ * 已在 capabilities 里授权）。⚠️ 不要用 @tauri-apps/plugin-shell 的 open：
+ * 主程序只注册了 opener 插件，shell 的 IPC 命令不存在，调用必失败且无声。
+ */
 export const tauriOpenExternal = async (url: string): Promise<void> => {
   if (!isTauri()) {
     window.open(url, "_blank", "noopener,noreferrer");
     return;
   }
   try {
-    await open(url);
+    // 注意：open_url 成功时返回 null（Rust 侧 Ok(())），失败才 reject
+    await invoke("open_url", { url });
   } catch (e) {
-    console.error("Tauri openExternal error:", e);
+    // 命令失败时兜底，避免用户点了没反应
+    console.error("Tauri openExternal failed, fallback to window.open:", e);
     window.open(url, "_blank", "noopener,noreferrer");
   }
 };

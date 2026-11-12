@@ -53,6 +53,8 @@
 
 ## desktop (React)
 - 严禁模块顶层调 React hook；token 在组件函数体内取。
+- **打开外链一律用 `tauriOpenExternal`（内部 `invoke('open_url')` → tauri-plugin-opener）**：主程序没注册 plugin-shell，`@tauri-apps/plugin-shell` 的 `open()` 必无声失败（2026-11-12 修「点去下载没反应」的根因）。
+- **版本更新走后端 `GET /download/latest?product=audiodock`**（`src/services/update.ts`，与 mobile 同构），`files[].platform` = `macos-arm64/macos-x64/windows-x64/windows-arm64/linux-appimage/linux-deb/android`；GitHub Release 只用来取 changelog body。直链是 MinIO 预签名（5 分钟过期）→ 点下载时重新拉一次再打开。
 - backdrop-filter 会毁掉 position:fixed（给 fixed 后代创建包含块）→ 浮层移出该容器。
 - LazyImage width/height 内联 style 会盖掉 less 类尺寸 → 固定尺寸传数字 px。
 - 封面自适应统一用 `hooks/useAdaptiveCoverSize.ts`（ResizeObserver 实测）；CarMode 容器已含媒体栏压缩，别再手动扣宽。

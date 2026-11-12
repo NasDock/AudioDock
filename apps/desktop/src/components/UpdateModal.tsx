@@ -2,11 +2,10 @@ import { DownloadOutlined } from '@ant-design/icons';
 import { useTranslation } from "react-i18next";
 import { Button, Modal, Typography } from 'antd';
 import React from 'react';
-import { open } from "@tauri-apps/plugin-shell";
 import type { UpdateInfo } from '../hooks/useCheckUpdate';
 
 import MarkdownContent from './MarkdownContent';
-import { isWeb, isTauri } from '../utils/platform';
+import { isWeb } from '../utils/platform';
 
 const { Paragraph, Text } = Typography;
 
@@ -14,9 +13,19 @@ interface UpdateModalProps {
   visible: boolean;
   updateInfo: UpdateInfo | null;
   onCancel: () => void;
+  /** 点击「去下载」：由 hook 负责刷新下载直链并交给系统浏览器 */
+  onDownload: () => void;
 }
 
-const UpdateModal: React.FC<UpdateModalProps> = ({ visible, updateInfo, onCancel }) => {
+/** 字节数转可读大小（弹窗里展示安装包体积） */
+const formatFileSize = (bytes?: number): string => {
+  if (!bytes || bytes <= 0) return '';
+  const mb = bytes / 1024 / 1024;
+  if (mb >= 1) return `${mb.toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+};
+
+const UpdateModal: React.FC<UpdateModalProps> = ({ visible, updateInfo, onCancel, onDownload }) => {
   const { t } = useTranslation();
   if (!updateInfo) return null;
   const isWebRuntime = isWeb();
@@ -51,15 +60,8 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ visible, updateInfo, onCancel
     );
   }
 
-  const handleDownload = () => {
-    if (updateInfo.downloadUrl) {
-        if (isTauri()) {
-            open(updateInfo.downloadUrl).catch(console.error);
-        } else {
-            window.open(updateInfo.downloadUrl, '_blank');
-        }
-    }
-  };
+  const packageSize = formatFileSize(updateInfo.fileSize);
+  const packageSummary = [updateInfo.fileName, packageSize].filter(Boolean).join(' · ');
 
   return (
     <Modal
@@ -76,7 +78,7 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ visible, updateInfo, onCancel
                 key="download"
                 type="primary"
                 icon={<DownloadOutlined />}
-                onClick={handleDownload}
+                onClick={onDownload}
               >
                 {t('updateModal.goToDownload')}
               </Button>,
@@ -89,6 +91,11 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ visible, updateInfo, onCancel
           <Text type="secondary">
             {t('updateModal.webUpdateNote')}
           </Text>
+        </Paragraph>
+      )}
+      {!isWebRuntime && packageSummary && (
+        <Paragraph>
+          <Text type="secondary">{packageSummary}</Text>
         </Paragraph>
       )}
       <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '10px 0' }}>
