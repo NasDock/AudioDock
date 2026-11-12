@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { claimScanLoginSession } from "@soundx/services";
 import { collectMobileScanLoginPayload } from "../src/utils/scanLogin";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { StatusBar } from "expo-status-bar";
 import { trackEvent } from "../src/services/tracking";
 
 export default function ScanScreen() {
@@ -85,17 +86,16 @@ export default function ScanScreen() {
     );
   }
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>扫码登录</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      {!permission.granted ? (
+  if (!permission.granted) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: colors.text }]}>扫码登录</Text>
+          <View style={{ width: 24 }} />
+        </View>
         <View style={styles.content}>
           <Text style={[styles.desc, { color: colors.secondary }]}>
             需要开启相机权限，用于扫码快捷登录，无需手动填写多个服务器地址信息。
@@ -107,25 +107,48 @@ export default function ScanScreen() {
             <Text style={[styles.buttonText, { color: colors.background }]}>去扫码</Text>
           </TouchableOpacity>
         </View>
-      ) : (
-        <View style={styles.content}>
-          <Text style={[styles.desc, { color: colors.secondary }]}>
-            请对准桌面端或横屏设备上的二维码
-          </Text>
-          <View style={styles.cameraBox}>
-            <CameraView
-              style={styles.camera}
-              facing="back"
-              barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-              onBarcodeScanned={handleBarcodeScanned}
-            />
-            {scanBusy && (
-              <View style={styles.overlay}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={[styles.overlayText, { color: colors.text }]}>处理中...</Text>
-              </View>
-            )}
-          </View>
+      </View>
+    );
+  }
+
+  // 已授权：相机全屏预览（对齐 hm ScanKit 全屏扫码），头部/提示悬浮在预览之上
+  return (
+    <View style={styles.container}>
+      {/* 相机预览为深色背景，状态栏强制浅色图标（同 player.tsx 全屏页） */}
+      <StatusBar style="light" />
+      <CameraView
+        style={StyleSheet.absoluteFill}
+        facing="back"
+        barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+        onBarcodeScanned={handleBarcodeScanned}
+      />
+
+      {/* 顶部渐变遮罩 + 头部栏 */}
+      <View style={[styles.headerOverlay, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <MaterialIcons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.titleOverlay}>扫码登录</Text>
+          <View style={{ width: 24 }} />
+        </View>
+      </View>
+
+      {/* 扫描框引导 */}
+      <View style={styles.frameContainer} pointerEvents="none">
+        <View style={styles.scanFrame}>
+          <View style={[styles.corner, styles.cornerTopLeft]} />
+          <View style={[styles.corner, styles.cornerTopRight]} />
+          <View style={[styles.corner, styles.cornerBottomLeft]} />
+          <View style={[styles.corner, styles.cornerBottomRight]} />
+        </View>
+        <Text style={styles.hintOverlay}>请对准桌面端或横屏设备上的二维码</Text>
+      </View>
+
+      {scanBusy && (
+        <View style={styles.overlay}>
+          <ActivityIndicator size="large" color="#FFFFFF" />
+          <Text style={styles.overlayText}>处理中...</Text>
         </View>
       )}
     </View>
@@ -162,15 +185,72 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  cameraBox: {
-    width: "100%",
-    aspectRatio: 1,
-    borderRadius: 24,
-    overflow: "hidden",
-    maxWidth: 400,
+  // ── 全屏预览悬浮层 ──
+  headerOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  titleOverlay: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  frameContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  scanFrame: {
+    width: 240,
+    height: 240,
     position: "relative",
   },
-  camera: { flex: 1 },
+  corner: {
+    position: "absolute",
+    width: 28,
+    height: 28,
+    borderColor: "#FFFFFF",
+  },
+  cornerTopLeft: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopLeftRadius: 8,
+  },
+  cornerTopRight: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderTopRightRadius: 8,
+  },
+  cornerBottomLeft: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderBottomLeftRadius: 8,
+  },
+  cornerBottomRight: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomRightRadius: 8,
+  },
+  hintOverlay: {
+    marginTop: 24,
+    fontSize: 14,
+    color: "#FFFFFF",
+    textAlign: "center",
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.6)",
@@ -181,5 +261,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     fontWeight: "bold",
+    color: "#FFFFFF",
   },
 });
