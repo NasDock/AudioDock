@@ -59,6 +59,27 @@ const mergeServerHistory = (type: string, configs: Array<{ internal: string; ext
   localStorage.setItem(key, JSON.stringify(Array.from(map.values())));
 };
 
+// 第三方源（Subsonic/Emby/飞牛）没有 nativeAuth token，扫码迁移必须随配置携带凭据
+const loadConfigCreds = (
+  type: string,
+  config: { internal: string; external: string },
+): { username?: string; password?: string } => {
+  for (const address of [config.internal, config.external]) {
+    if (!address) continue;
+    const raw = localStorage.getItem(`creds_${type}_${address}`);
+    if (!raw) continue;
+    try {
+      const creds = JSON.parse(raw);
+      if (creds?.username) {
+        return { username: creds.username, password: creds.password };
+      }
+    } catch {
+      // 忽略坏数据，继续尝试下一个地址
+    }
+  }
+  return {};
+};
+
 export async function collectDesktopScanLoginPayload(): Promise<ScanLoginClaimPayload> {
   const savedAddress = localStorage.getItem("serverAddress") || "";
   const sourceType = localStorage.getItem("selectedSourceType") || "AudioDock";
@@ -72,9 +93,14 @@ export async function collectDesktopScanLoginPayload(): Promise<ScanLoginClaimPa
     .map((type) => {
       const raw = localStorage.getItem(`sourceConfig_${type}`);
       const parsed = raw ? JSON.parse(raw) : [];
+      const configs: Array<{ id: string; internal: string; external: string; name?: string }> =
+        Array.isArray(parsed) ? parsed : [];
       return {
         type,
-        configs: Array.isArray(parsed) ? parsed : [],
+        configs: configs.map((config) => ({
+          ...config,
+          ...loadConfigCreds(type, config),
+        })),
       };
     })
     .filter((bundle) => bundle.configs.length > 0);
@@ -114,9 +140,23 @@ export async function applyDesktopScanLoginResult(result: ScanLoginConfirmResult
     const key = `sourceConfig_${bundle.type}`;
     const raw = localStorage.getItem(key);
     const current = raw ? JSON.parse(raw) : [];
-    const merged = dedupeConfigs(Array.isArray(current) ? current : [], bundle.configs);
+    // 凭据不进 sourceConfig 存储（单独走 creds_ key），先剥离再合并
+    const configsWithoutCreds = bundle.configs.map(({ username, password, ...rest }) => rest);
+    const merged = dedupeConfigs(Array.isArray(current) ? current : [], configsWithoutCreds);
     localStorage.setItem(key, JSON.stringify(merged));
-    mergeServerHistory(bundle.type, bundle.configs);
+    mergeServerHistory(bundle.type, configsWithoutCreds);
+
+    // 随配置同步过来的第三方源凭据按 `creds_${type}_${address}` 落盘（内/外网地址各存一份），
+    // 与登录页/LoginModal 的存储约定一致，目标端免密直接可用
+    bundle.configs.forEach((config) => {
+      if (!config.username) return;
+      const creds = JSON.stringify({ username: config.username, password: config.password || "" });
+      [config.internal, config.external].forEach((address) => {
+        if (address) {
+          localStorage.setItem(`creds_${bundle.type}_${address}`, creds);
+        }
+      });
+    });
   });
 
   if (result.plusAuth) {

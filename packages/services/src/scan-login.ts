@@ -7,6 +7,13 @@ export interface ScanLoginSourceConfig {
   internal: string;
   external: string;
   name?: string;
+  /**
+   * 可选凭据：Subsonic/Emby/飞牛等第三方数据源没有 nativeAuth token，
+   * 扫码迁移时必须随配置携带用户名密码，目标端才能直接登录。
+   * 仅经 HTTPS 在扫码会话内透传（5 分钟 TTL，consume 后即失效）。
+   */
+  username?: string;
+  password?: string;
 }
 
 export interface ScanLoginSourceBundle {

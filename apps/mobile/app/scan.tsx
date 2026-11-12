@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { Camera, CameraView } from "expo-camera";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "../src/context/ThemeContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { claimScanLoginSession } from "@soundx/services";
@@ -14,6 +14,9 @@ export default function ScanScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams();
+  // 从具体数据源登录页进入时只同步该数据源；个人中心进入不同步该参数 → 全量
+  const onlyType = (params.sourceType as string) || undefined;
   const [permission, setPermission] = useState<any>(null);
   const [scanBusy, setScanBusy] = useState(false);
   const [hasScanned, setHasScanned] = useState(false);
@@ -47,8 +50,9 @@ export default function ScanScreen() {
         throw new Error("不是有效的扫码登录二维码");
       }
 
-      const payload = await collectMobileScanLoginPayload();
-      if (!payload.nativeAuth && !payload.plusAuth) {
+      const payload = await collectMobileScanLoginPayload(onlyType);
+      const hasBundles = payload.sourceBundles.some((bundle) => bundle.configs.length > 0);
+      if (!payload.nativeAuth && !payload.plusAuth && !hasBundles) {
         throw new Error("当前设备还没有可供迁移的登录态，请先在本机登录");
       }
 
