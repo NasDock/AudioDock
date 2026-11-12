@@ -183,6 +183,10 @@ export default function MemberLoginScreen() {
     return getScanLoginSession(session.sessionId, session.secret);
   };
 
+  // consume 一次性闸门（同步 ref）：TTL 自动刷新重建会话会使 consume effect 重跑，
+  // 无闸门时会对同一次 confirmed 重复 consume 并重复上报 success/failed
+  const scanConsumedRef = React.useRef(false);
+
   const createTargetSession = async () => {
     try {
       trackEvent({
@@ -195,6 +199,9 @@ export default function MemberLoginScreen() {
         role: "target",
         deviceKind: "mobile",
       });
+      // 新会话：重置 consume 闸门并清掉旧状态，避免残留 confirmed 触发误消费
+      scanConsumedRef.current = false;
+      setScanStatus(null);
       setScanSession(res.data);
     } catch (error) {
       console.error(error);
@@ -225,18 +232,22 @@ export default function MemberLoginScreen() {
     return () => unsubscribe();
   }, [scanSession]);
 
-  // 二维码会话 TTL 只有 5 分钟，到期前自动刷新，避免扫到已过期二维码
+  // 二维码会话 TTL 只有 5 分钟，到期前自动刷新，避免扫到已过期二维码。
+  // 已进入 confirmed（手机已确认、本端正在消费）时不能刷新，否则会顶掉进行中的会话
   React.useEffect(() => {
     if (!scanSession || !isLandscape) return;
+    if (scanStatus?.status === "confirmed") return;
     const ms = scanSession.expiresAt - Date.now() - 10000;
     const timer = setTimeout(() => {
       createTargetSession();
     }, Math.max(ms, 5000));
     return () => clearTimeout(timer);
-  }, [scanSession, isLandscape]);
+  }, [scanSession, isLandscape, scanStatus?.status]);
 
   React.useEffect(() => {
     if (!scanSession || scanStatus?.status !== "confirmed") return;
+    if (scanConsumedRef.current) return;
+    scanConsumedRef.current = true;
 
     const consumeConfirmedScan = async () => {
       try {
