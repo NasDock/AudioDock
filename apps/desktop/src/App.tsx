@@ -87,7 +87,7 @@ const AppContent = () => {
   const [messageApi, contextHolder] = message.useMessage();
   const { token, user } = useAuthStore();
 
-  const { checkUpdate, updateInfo, cancelUpdate } = useCheckUpdate();
+  const { checkUpdate, updateInfo, cancelUpdate, startDownload } = useCheckUpdate();
   const { promotion, checkPromotion, ignorePromotion, dismissPromotion } =
     useCheckPromotion();
 
@@ -346,6 +346,7 @@ const AppContent = () => {
                           visible={!!updateInfo}
                           updateInfo={updateInfo}
                           onCancel={cancelUpdate}
+                          onDownload={startDownload}
                         />
                         <PromotionModal
                           visible={!!promotion}

@@ -15,6 +15,9 @@ export interface ScanLoginSourceConfig {
   internal: string;
   external: string;
   name?: string;
+  /** 可选凭据：第三方数据源（Subsonic/Emby/飞牛）扫码迁移时随配置透传 */
+  username?: string;
+  password?: string;
 }
 
 export interface ScanLoginSourceBundle {

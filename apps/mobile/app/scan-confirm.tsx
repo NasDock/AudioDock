@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "../src/context/ThemeContext";
@@ -20,8 +20,12 @@ export default function ScanConfirmScreen() {
   const [selectedConfigIds, setSelectedConfigIds] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
+  // 终态一次性闸门（同步 ref）：WS 重推/补发终态时 trackEvent+Alert 不得执行第二次
+  const terminalHandledRef = useRef(false);
 
   const handleTerminalStatus = (status: ScanLoginSessionStatus) => {
+    if (terminalHandledRef.current) return;
+    terminalHandledRef.current = true;
     setScanStatus(status);
     setConfirming(false);
 

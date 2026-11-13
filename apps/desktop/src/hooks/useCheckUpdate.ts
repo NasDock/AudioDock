@@ -1,7 +1,14 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import pkg from '../../package.json';
-import { isWeb } from '../utils/platform';
+import {
+  getLatestVersion,
+  pickDesktopDownloadFile,
+  resolveDesktopPlatformKey,
+} from '../services/update';
+import { tauriOpenExternal } from '../utils/platform';
 
+/** GitHub 仓库：只用来取 Release 正文作为更新说明（版本号/安装包走自有后端） */
 const GITHUB_USER = 'mmdctjj';
 const GITHUB_REPO = 'AudioDock';
 
@@ -9,7 +16,10 @@ export interface UpdateInfo {
   version: string;
   body: string;
   downloadUrl: string;
-  assets: any[];
+  /** 安装包文件名（如 AudioDock_1.2.9_aarch64.dmg），弹窗里展示给用户看 */
+  fileName?: string;
+  /** 安装包大小（字节） */
+  fileSize?: number;
   /** true = 本次发布仅服务端（api）更新，客户端无需升级，只弹提醒 */
   serverOnly?: boolean;
 }
@@ -61,94 +71,105 @@ export function classifyRelease(body: string, platform: 'desktop' | 'mobile' | '
 }
 
 export const useCheckUpdate = () => {
+  const { t } = useTranslation();
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const checkUpdate = async (manual = false) => {
+  /** 拉 GitHub Release 正文作为更新说明，失败时用兜底文案 */
+  const fetchReleaseBody = async (version: string): Promise<string> => {
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/releases/tags/v${version}`,
+      );
+      const data = await res.json();
+      if (data?.body) return data.body as string;
+    } catch (e) {
+      console.warn('[update] 拉取 GitHub Release 说明失败:', e);
+    }
+    return t('update.defaultReleaseNotes');
+  };
+
+  const checkUpdate = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/releases/latest`);
-      const data = await res.json();
-      const remoteVersion = data.tag_name?.replace(/^v/, '');
-      const localVersion = pkg.version;
+      // 1. 版本号 + 安装包列表统一由后端下发（与 mobile 端一致）
+      const { version: remoteVersion, files } = await getLatestVersion();
+      if (!remoteVersion) return;
+      if (compareVersions(remoteVersion, pkg.version) <= 0) return;
 
-      if (remoteVersion && compareVersions(remoteVersion, localVersion) > 0) {
-        // 按平台过滤 changelog：仅服务端更新时只弹提醒；与当前端无关时不弹窗
-        const target = classifyRelease(data.body || '', 'desktop');
-        if (target === 'none') {
-          console.log(`Version ${remoteVersion} has no desktop-related changes, skip popup`);
-          return;
-        }
-        if (target === 'server') {
-          setUpdateInfo({
-            version: remoteVersion,
-            body: data.body || '',
-            downloadUrl: "",
-            assets: [],
-            serverOnly: true,
-          });
-          return;
-        }
+      // 2. 更新说明
+      const body = await fetchReleaseBody(remoteVersion);
 
-        if (isWeb()) {
-          setUpdateInfo({
-            version: remoteVersion,
-            body: data.body,
-            downloadUrl: "",
-            assets: data.assets || []
-          });
-          return;
-        }
-
-        // Find asset based on platform
-        const platform = getPlatform();
-        let asset = null;
-        if (data.assets && Array.isArray(data.assets)) {
-          if (platform === 'win') {
-             // Prefer setup exe, exclude blockmap
-             asset = data.assets.find((a: any) => a.name.endsWith('.exe') && !a.name.includes('blockmap'));
-          } else if (platform === 'mac') {
-             // Prefer dmg
-             asset = data.assets.find((a: any) => a.name.endsWith('.dmg'));
-             if (!asset) asset = data.assets.find((a: any) => a.name.endsWith('.zip') && !a.name.includes('source'));
-          } else if (platform === 'linux') {
-             asset = data.assets.find((a: any) => a.name.endsWith('.AppImage'));
-             if (!asset) asset = data.assets.find((a: any) => a.name.endsWith('.deb'));
-          }
-        }
-
-        if (!asset) {
-          console.log(`No matching asset found for platform ${platform} in version ${remoteVersion}`);
-          return;
-        }
-
-        const downloadUrl = asset.browser_download_url;
-
+      // 3. 按平台过滤 changelog：仅服务端更新时只弹提醒；与当前端无关时不弹窗
+      const target = classifyRelease(body || '', 'desktop');
+      if (target === 'none') {
+        console.log(`Version ${remoteVersion} has no desktop-related changes, skip popup`);
+        return;
+      }
+      if (target === 'server') {
         setUpdateInfo({
           version: remoteVersion,
-          body: data.body,
-          downloadUrl: downloadUrl,
-          assets: data.assets
+          body,
+          downloadUrl: '',
+          serverOnly: true,
         });
-      } else {
-         if(manual) {
-             // We can return a status or let the caller handle 'no update' logic if needed,
-             // currently just doing nothing for manual check 'no update' case in hook state.
-             // Ideally we should have a callback or return value.
-         }
+        return;
       }
+
+      // 4. 按当前系统 + 架构挑安装包（macOS/Windows/Linux 各自一份）
+      const platformKey = await resolveDesktopPlatformKey();
+      const file = pickDesktopDownloadFile(files, platformKey);
+      if (!file) {
+        console.warn(`[update] 后端未下发 ${platformKey} 的安装包，跳过弹窗`);
+        return;
+      }
+
+      setUpdateInfo({
+        version: remoteVersion,
+        body,
+        downloadUrl: file.url,
+        fileName: file.filename,
+        fileSize: file.size,
+      });
     } catch (e) {
-      console.error("Check update failed", e);
+      console.error('Check update failed', e);
     } finally {
       setLoading(false);
     }
+  };
+
+  /**
+   * 点击「去下载」：交给系统浏览器打开安装包直链
+   *
+   * 后端下发的是 MinIO 预签名地址，有效期只有几分钟，
+   * 所以点按钮时重新拉一次链接（拿不到才退回弹窗里那份），避免用户停留久了点开是 403。
+   */
+  const startDownload = async () => {
+    const info = updateInfo;
+    if (!info || info.serverOnly) return;
+    let url = info.downloadUrl;
+    try {
+      const platformKey = await resolveDesktopPlatformKey();
+      const { version, files } = await getLatestVersion();
+      if (version === info.version) {
+        const fresh = pickDesktopDownloadFile(files, platformKey);
+        if (fresh?.url) url = fresh.url;
+      }
+    } catch (e) {
+      console.warn('[update] 刷新下载链接失败，使用弹窗中的链接:', e);
+    }
+    if (!url) {
+      console.warn('[update] 没有可用的下载链接');
+      return;
+    }
+    await tauriOpenExternal(url);
   };
 
   const cancelUpdate = () => {
     setUpdateInfo(null);
   };
 
-  return { checkUpdate, updateInfo, cancelUpdate, loading };
+  return { checkUpdate, updateInfo, cancelUpdate, startDownload, loading };
 };
 
 /**
@@ -205,12 +226,4 @@ function splitVersion(v: string): [number[], string[]] {
     core.split('.').map((n) => Number(n) || 0),
     pre ? pre.split('.') : [],
   ];
-}
-
-function getPlatform() {
-  const ua = navigator.userAgent.toLowerCase();
-  if (ua.includes('win')) return 'win';
-  if (ua.includes('mac')) return 'mac';
-  if (ua.includes('linux')) return 'linux';
-  return 'unknown';
 }

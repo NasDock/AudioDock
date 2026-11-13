@@ -51,7 +51,36 @@ const sanitizeConfigs = (
     }))
     .filter((config) => config.internal && config.external);
 
-export async function collectMobileScanLoginPayload(): Promise<ScanLoginClaimPayload> {
+// 读取某数据源配置在本机的登录凭据（登录时按 `creds_${type}_${address}` 落盘，
+// 内/外网地址各试一次），第三方源（Subsonic/Emby/飞牛）没有 token，扫码迁移必须带上
+const loadConfigCreds = async (
+  type: string,
+  config: { internal: string; external: string },
+): Promise<{ username?: string; password?: string }> => {
+  for (const address of [config.internal, config.external]) {
+    if (!address) continue;
+    const raw = await AsyncStorage.getItem(`creds_${type}_${address}`);
+    if (!raw) continue;
+    try {
+      const creds = JSON.parse(raw);
+      if (creds?.username) {
+        return { username: creds.username, password: creds.password };
+      }
+    } catch {
+      // 忽略坏数据，继续尝试下一个地址
+    }
+  }
+  return {};
+};
+
+/**
+ * 收集扫码登录 payload。
+ * @param onlyType 只同步指定数据源（从具体数据源登录页进入扫码时传入）；
+ *                 不传则同步全部数据源（个人中心入口）。
+ */
+export async function collectMobileScanLoginPayload(
+  onlyType?: string,
+): Promise<ScanLoginClaimPayload> {
   const savedAddress = (await AsyncStorage.getItem("serverAddress")) || "";
   const sourceType = (await AsyncStorage.getItem("selectedSourceType")) || "AudioDock";
   const token = savedAddress ? await AsyncStorage.getItem(`token_${savedAddress}`) : null;
@@ -60,29 +89,40 @@ export async function collectMobileScanLoginPayload(): Promise<ScanLoginClaimPay
   const plusToken = await AsyncStorage.getItem("plus_token");
   const plusUserId = await AsyncStorage.getItem("plus_user_id");
 
+  const types = onlyType ? [onlyType] : Object.keys(SOURCEMAP);
   const sourceBundles = await Promise.all(
-    Object.keys(SOURCEMAP).map(async (type) => {
+    types.map(async (type) => {
       const raw = await AsyncStorage.getItem(`sourceConfig_${type}`);
       const parsed = raw ? JSON.parse(raw) : [];
+      const configs = sanitizeConfigs(Array.isArray(parsed) ? parsed : []);
       return {
         type,
-        configs: sanitizeConfigs(Array.isArray(parsed) ? parsed : []),
+        configs: await Promise.all(
+          configs.map(async (config) => ({
+            ...config,
+            ...(await loadConfigCreds(type, config)),
+          })),
+        ),
       };
     }),
   );
 
+  const nativeAuth =
+    token && user && savedAddress
+      ? {
+          baseUrl: savedAddress,
+          sourceType,
+          token,
+          user: JSON.parse(user),
+          device: device ? JSON.parse(device) : undefined,
+        }
+      : null;
+
   return {
     deviceName: Device.modelName || "Mobile Device",
-    nativeAuth:
-      token && user && savedAddress
-        ? {
-            baseUrl: savedAddress,
-            sourceType,
-            token,
-            user: JSON.parse(user),
-            device: device ? JSON.parse(device) : undefined,
-          }
-        : null,
+    // 单源同步时，若当前登录态不属于该数据源则不下发，
+    // 避免目标端被切到无关的 AudioDock 服务器
+    nativeAuth: !onlyType || nativeAuth?.sourceType === onlyType ? nativeAuth : null,
     plusAuth:
       plusToken && plusUserId
         ? {
@@ -105,8 +145,22 @@ export async function applyMobileScanLoginResult(
     const key = `sourceConfig_${bundle.type}`;
     const raw = await AsyncStorage.getItem(key);
     const current = raw ? JSON.parse(raw) : [];
-    const merged = dedupeConfigs(Array.isArray(current) ? current : [], bundle.configs);
+    // 凭据不进 sourceConfig 存储（单独走 creds_ key），先剥离再合并
+    const configsWithoutCreds = bundle.configs.map(({ username, password, ...rest }) => rest);
+    const merged = dedupeConfigs(Array.isArray(current) ? current : [], configsWithoutCreds);
     await AsyncStorage.setItem(key, JSON.stringify(merged));
+
+    // 随配置同步过来的第三方源凭据按 `creds_${type}_${address}` 落盘（内/外网地址各存一份），
+    // 与登录页 handleSubmit 的存储约定一致，目标端免密直接可用
+    for (const config of bundle.configs) {
+      if (!config.username) continue;
+      const creds = JSON.stringify({ username: config.username, password: config.password || "" });
+      for (const address of [config.internal, config.external]) {
+        if (address) {
+          await AsyncStorage.setItem(`creds_${bundle.type}_${address}`, creds);
+        }
+      }
+    }
   }
 
   if (result.plusAuth) {

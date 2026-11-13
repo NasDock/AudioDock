@@ -404,7 +404,7 @@ export default function LoginFormScreen() {
         </Text>
         <TouchableOpacity
           style={[styles.button, { backgroundColor: colors.primary }]}
-          onPress={() => router.push("/scan" as any)}
+          onPress={() => router.push(`/scan?sourceType=${encodeURIComponent(sourceType)}` as any)}
         >
           <Text style={[styles.buttonText, { color: colors.background }]}>去扫描二维码</Text>
         </TouchableOpacity>
