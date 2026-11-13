@@ -82,3 +82,10 @@
 - services/mi 小爱音箱：sqlite3（data/xiaoai.db）操作走 asyncio.to_thread；唤醒词 DB 优先；API 前缀 /api；docker 挂 auth.json/.mi.token/data/。
 - CI：Android job 不用 android-actions/setup-android@v3，ubuntu-latest 自带 SDK。
 - 本机 bash `grep` 静默无输出（检索一律用 Grep 工具）；`eslint .` 多目录会撞 WorkBuddy broker socket EPIPE（分目录跑）。
+
+## mobile 歌词滚动交互（2026-11-14，仅 mobile）
+- 歌词渲染/滚动统一在 `apps/mobile/src/components/LyricsScrollArea.tsx`（横屏右栏 / 竖屏 / 车机分栏共用）；`app/player.tsx` 只留 `parseLyrics`（LyricsFontSizeModal 依赖）+ `parsedLyrics` useMemo + `renderLyricsArea()`。
+- **上下半屏留白必须放在行容器自身**，不能放 `contentContainerStyle`：后者会让行 `onLayout.y` 少掉 H/2 偏移，中心行判定与回弹整体错半屏。
+- 手动拖动 `onScrollBeginDrag` 接管（自动跟随 effect 用 `interactingRef` 闸门让位）；`onScrollEndDrag`/`onMomentumScrollEnd` 起 2s 倒计时，超时**显式 scrollTo 当前播放行**（暂停时 position 不变、effect 不跑，只能靠这条显式路径回弹）。中心行左侧时间 + 右侧播放按钮 → `seekTo(line.time)` + 未播放时 `resume()`。
+- 自动跟随节流键 `trackId|index|fontSize|round(H)`；行 y 重排用 rAF 合并重新定位，避免锁死错误位置。操作条 `absoluteFill + 居中 + maxWidth 560 + 高度随字号` 自适应手机/Pad/横屏/分栏。
+- desktop / harmony / mini 三端歌词**尚未**接入此交互，后续按同语义移植。
