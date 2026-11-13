@@ -81,6 +81,7 @@
     width: 100%;
     height: calc(100vh - 600rpx);
     overflow: hidden;
+    position: relative; // 中心操作条（时间 + 播放按钮）的定位基准
   }
 
   .player-lyrics-scroll {
@@ -113,6 +114,54 @@
       align-items: center;
       height: 100%;
       color: #999;
+  }
+
+  // 手动滚动接管期间的中心操作条：左侧行时间戳、右侧从这行播放。
+  // 故意不加全宽覆盖层（小程序 pointer-events 行为不一致会挡住滚动），
+  // 只放两条 1rpx 细线 + 左右两个小块，中间区域保持可拖动。
+  .player-lyrics-seek-edge {
+    position: absolute;
+    left: 32rpx;
+    right: 32rpx;
+    height: 1rpx;
+    background-color: rgba(0, 0, 0, 0.18);
+  }
+
+  .player-lyrics-seek-edge-top {
+    top: calc(50% - 56rpx);
+  }
+
+  .player-lyrics-seek-edge-bottom {
+    top: calc(50% + 56rpx);
+  }
+
+  .player-lyrics-seek-time {
+    position: absolute;
+    left: 32rpx;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 26rpx;
+    font-weight: 600;
+    color: #fff;
+    padding: 6rpx 14rpx;
+    border-radius: 8rpx;
+    background-color: rgba(0, 0, 0, 0.72);
+  }
+
+  .player-lyrics-seek-play {
+    position: absolute;
+    right: 32rpx;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 72rpx;
+    height: 72rpx;
+    border-radius: 50%;
+    background-color: #333;
+    font-size: 32rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
   }
 
   .player-bottom-controls {

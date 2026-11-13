@@ -1207,6 +1207,13 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
     }
   };
 
+  /** 歌词中心行「从这行播放」：seek 到该行时间，暂停时一并恢复播放 */
+  const handleLyricSeekPlay = (time: number) => {
+    handleSeek(time);
+    const state = usePlayerStore.getState();
+    if (!state.isPlaying) state.play();
+  };
+
   // 顶部边框式进度条：自绘实现，pointer 事件拖动 seek
   const progressBarRef = useRef<HTMLDivElement>(null);
   const [isSeeking, setIsSeeking] = useState(false);
@@ -3008,6 +3015,8 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
                   <Lyrics
                     lyrics={currentLyrics || null}
                     currentTime={currentTime}
+                    onSeekPlay={handleLyricSeekPlay}
+                    trackId={currentTrackId}
                   />
                 ) : activeTab === "playlist" ? (
                   <div
@@ -3034,6 +3043,8 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
                   <Lyrics
                     lyrics={currentLyrics || null}
                     currentTime={currentTime}
+                    onSeekPlay={handleLyricSeekPlay}
+                    trackId={currentTrackId}
                   />
                 )}
               </div>

@@ -39,6 +39,13 @@ export struct EmbeddedPlayerPanel {
   // 歌词滚动状态：activeLyricIndex 变化时 scrollToIndex 居中当前行（对齐 PlayerPage 横屏右列的处理）。
   private lyricScroller: Scroller = new Scroller();
   private lastLyricIndex: number = -1;
+  // ─── 歌词手动滚动接管（与 PlayerPage.lyricsView 同语义） ───
+  @State private lyricInteracting: boolean = false;
+  @State private lyricCenteredIndex: number = -1;
+  private lyricInteractingRef: boolean = false;
+  private lyricCenteredIndexRef: number = -1;
+  private lyricIdleTimerId: number = -1;
+  private lyricSeekPlayAt: number = 0;
 
   onThemeModeChange(): void {
     this.theme = buildTheme(this.themeMode);
@@ -53,10 +60,13 @@ export struct EmbeddedPlayerPanel {
       if (curId !== this.lastTrackId) {
         this.lastTrackId = curId;
         this.refreshLike();
+        this.resetLyricInteraction();
       }
       // 歌词滚动：activeLyricIndex 变化时自动滚动到当前行（对齐 PlayerPage 横屏右列）。
       // 9:16 窄面板里歌词区只占少量高度，scrollToIndex 居中即可。
-      if (this.view.activeLyricIndex !== this.lastLyricIndex &&
+      // ★ 用户接管期间完全让位，避免手动滚动被自动跟随抢回去。
+      if (!this.lyricInteractingRef &&
+          this.view.activeLyricIndex !== this.lastLyricIndex &&
           this.view.activeLyricIndex >= 0) {
         this.lastLyricIndex = this.view.activeLyricIndex;
         this.lyricScroller.scrollToIndex(this.lastLyricIndex, true, ScrollAlign.CENTER);
@@ -75,6 +85,7 @@ export struct EmbeddedPlayerPanel {
   aboutToDisappear(): void {
     this.unsub();
     this.unsubLike();
+    this.clearLyricIdleTimer();
   }
 
   private current(): Track | null {
@@ -118,6 +129,85 @@ export struct EmbeddedPlayerPanel {
     if (this.view.lyrics.length > 0) {
       this.showLyrics = !this.showLyrics;
     }
+  }
+
+  // ─── 歌词手动滚动接管 ───
+  private clearLyricIdleTimer(): void {
+    if (this.lyricIdleTimerId !== -1) {
+      clearTimeout(this.lyricIdleTimerId);
+      this.lyricIdleTimerId = -1;
+    }
+  }
+
+  private resetLyricInteraction(): void {
+    this.clearLyricIdleTimer();
+    this.lyricInteractingRef = false;
+    this.lyricInteracting = false;
+    this.lyricCenteredIndex = -1;
+    this.lyricCenteredIndexRef = -1;
+  }
+
+  private lyricCenteredTime(): string {
+    const idx: number = this.lyricCenteredIndex;
+    if (idx < 0 || idx >= this.view.lyrics.length) return '0:00';
+    return formatDuration(this.view.lyrics[idx].time);
+  }
+
+  private beginLyricInteract(): void {
+    this.clearLyricIdleTimer();
+    this.lyricInteractingRef = true;
+    this.lyricInteracting = true;
+    if (this.lyricCenteredIndexRef < 0) {
+      const idx: number = this.view.activeLyricIndex >= 0 ? this.view.activeLyricIndex : 0;
+      this.lyricCenteredIndexRef = idx;
+      this.lyricCenteredIndex = idx;
+    }
+    this.scheduleLyricIdleReset();
+  }
+
+  /** 2s 显式回弹，不依赖 timeUpdate —— 暂停 / 停止播放时拖动同样生效 */
+  private scheduleLyricIdleReset(): void {
+    if (!this.lyricInteractingRef) return;
+    this.clearLyricIdleTimer();
+    this.lyricIdleTimerId = setTimeout((): void => {
+      this.lyricIdleTimerId = -1;
+      this.lyricInteractingRef = false;
+      this.lyricInteracting = false;
+      this.lyricCenteredIndex = -1;
+      this.lyricCenteredIndexRef = -1;
+      const target: number = this.view.activeLyricIndex >= 0 ? this.view.activeLyricIndex : 0;
+      this.lastLyricIndex = target;
+      this.lyricScroller.scrollToIndex(target, true, ScrollAlign.CENTER);
+    }, 2000) as number;
+  }
+
+  private async handleLyricSeekPlay(): Promise<void> {
+    const idx: number = this.lyricCenteredIndexRef;
+    if (idx < 0 || idx >= this.view.lyrics.length) return;
+    const line: LyricLine = this.view.lyrics[idx];
+    this.clearLyricIdleTimer();
+    this.lyricInteractingRef = false;
+    this.lyricInteracting = false;
+    this.lyricCenteredIndex = -1;
+    this.lyricCenteredIndexRef = -1;
+    this.lyricSeekPlayAt = Date.now();
+    this.lastLyricIndex = idx;
+    this.lyricScroller.scrollToIndex(idx, true, ScrollAlign.CENTER);
+    try {
+      await playerStore.seek(line.time);
+      if (!this.view.isPlaying) {
+        await playerStore.resume();
+      }
+    } catch (e) {
+      console.info(`seek from lyric failed: ${String(e)}`);
+    }
+  }
+
+  /** 接管期间 / 刚点过播放按钮时，屏蔽点歌词切回封面 */
+  private onLyricsAreaClick(): void {
+    if (this.lyricInteractingRef) return;
+    if (Date.now() - this.lyricSeekPlayAt < 400) return;
+    this.toggleCoverLyrics();
   }
 
   build() {
@@ -180,27 +270,67 @@ export struct EmbeddedPlayerPanel {
         // 封面/歌词切换区（点击切换显示，不进入详情页）
         Stack() {
           if (this.showLyrics && this.view.lyrics.length > 0) {
-            // 歌词视图（车机模式左侧 9:16 面板里的简化版，对齐 mobile landscape 右列）：
-            // 自动滚动当前行居中；无字号调节。点击切回封面。
-            List({ scroller: this.lyricScroller }) {
-              ForEach(this.view.lyrics, (line: LyricLine, index: number) => {
-                ListItem() {
-                  Text(line.text)
-                    .fontSize(index === this.view.activeLyricIndex ? 14 : 12)
-                    .fontWeight(index === this.view.activeLyricIndex
-                      ? FontWeight.Bold : FontWeight.Medium)
-                    .fontColor(index === this.view.activeLyricIndex
-                      ? this.theme.colors.primary : this.theme.colors.text)
-                    .opacity(index === this.view.activeLyricIndex ? 1 : 0.5)
-                    .textAlign(TextAlign.Center)
-                    .width('100%')
-                    .padding({ top: 4, bottom: 4, left: 12, right: 12 })
+            // 歌词视图（车机模式左侧 9:16 面板里的简化版）：
+            // 自动滚动当前行居中；手动拖动接管 + 中心行时间/播放按钮 + 2s 回弹。
+            Stack() {
+              List({ scroller: this.lyricScroller }) {
+                ForEach(this.view.lyrics, (line: LyricLine, index: number) => {
+                  ListItem() {
+                    Text(line.text)
+                      .fontSize(index === this.view.activeLyricIndex ? 14 : 12)
+                      .fontWeight(index === this.view.activeLyricIndex
+                        ? FontWeight.Bold : FontWeight.Medium)
+                      .fontColor(index === this.view.activeLyricIndex
+                        ? this.theme.colors.primary : this.theme.colors.text)
+                      .opacity(index === this.view.activeLyricIndex ? 1 : 0.5)
+                      .textAlign(TextAlign.Center)
+                      .width('100%')
+                      .padding({ top: 4, bottom: 4, left: 12, right: 12 })
+                  }
+                }, (line: LyricLine, index: number) => `${index}_${line.time}`);
+              }
+              .width('100%')
+              .height('100%')
+              .scrollBar(BarState.Off)
+              .onScrollIndex((_start: number, _end: number, center: number): void => {
+                if (this.lyricInteractingRef && center >= 0 && center < this.view.lyrics.length) {
+                  this.lyricCenteredIndexRef = center;
+                  this.lyricCenteredIndex = center;
                 }
-              }, (line: LyricLine, index: number) => `${index}_${line.time}`);
+              })
+              .onScrollStop(() => { this.scheduleLyricIdleReset(); })
+              .onTouch((event: TouchEvent): void => {
+                if (event.type === TouchType.Down) this.beginLyricInteract();
+              });
+
+              if (this.lyricInteracting && this.lyricCenteredIndex >= 0) {
+                Row() {
+                  Text(this.lyricCenteredTime())
+                    .fontSize(11)
+                    .fontColor(this.theme.colors.text)
+                    .padding({ left: 6, right: 6, top: 3, bottom: 3 })
+                    .borderRadius(5)
+                    .backgroundColor(this.theme.colors.surface);
+                  Blank();
+                  Stack() {
+                    AppIcon({ name: 'play', iconSize: 14, color: this.theme.colors.onPrimary });
+                  }
+                  .width(28)
+                  .height(28)
+                  .borderRadius(14)
+                  .backgroundColor(this.theme.colors.primary)
+                  .onClick(() => {
+                    this.handleLyricSeekPlay().catch((): void => undefined);
+                  });
+                }
+                .width('100%')
+                .height(40)
+                .padding({ left: 10, right: 10 })
+                .hitTestBehavior(HitTestMode.None);
+              }
             }
             .width('100%')
-            .height('100%')
-            .scrollBar(BarState.Off)
+            .height('100%');
           } else {
             // 封面
             CoverImage({
@@ -215,7 +345,7 @@ export struct EmbeddedPlayerPanel {
         .layoutWeight(1)
         .width('100%')
         .alignContent(Alignment.Center)
-        .onClick((): void => this.toggleCoverLyrics())
+        .onClick((): void => this.onLyricsAreaClick())
 
         // 进度 + 控制行
         Column() {

@@ -1,7 +1,7 @@
 import { getFavoriteTracks, getMvByTrackId, toggleTrackLike, toggleTrackUnLike, transferSession, type Device as OnlineDevice, type MiDevice, playMiDeviceByUrl } from '@soundx/services';
 import { Image, ScrollView, Slider, Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AddToPlaylistModal from '../../components/AddToPlaylistModal';
 import MiDeviceSelector from '../../components/MiDeviceSelector';
@@ -21,6 +21,34 @@ interface LyricLine {
   time: number;
   text: string;
 }
+
+/** 歌词行在滚动内容坐标系里的位置（px） */
+interface LyricLayout {
+  y: number;
+  height: number;
+}
+
+/** 手动滚动停止后，多久没点播放就回到当前播放行 */
+const LYRIC_IDLE_TIMEOUT_MS = 2000;
+/** scroll-into-view 平滑动画期间屏蔽「用户滚动」误判 */
+const LYRIC_SCROLL_GUARD_MS = 1000;
+
+const resolveActiveLyricIndex = (lines: LyricLine[], time: number): number => {
+  if (lines.length === 0) return -1;
+  for (let i = 0; i < lines.length; i += 1) {
+    if (lines[i].time <= time && (i === lines.length - 1 || lines[i + 1].time > time)) {
+      return i;
+    }
+  }
+  return 0;
+};
+
+const formatLyricTime = (seconds: number): string => {
+  const total = Math.max(0, Math.floor(seconds || 0));
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+};
 
 // Match mobile parseLyrics logic
 const parseLyrics = (lyrics: string): LyricLine[] => {
@@ -84,8 +112,22 @@ export default function Player() {
   const mvSupported = isMvSupported();
   const [showLyrics, setShowLyrics] = useState(false);
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
-  const [currentLyricIndex, setCurrentLyricIndex] = useState(-1);
   const [liked, setLiked] = useState(false);
+
+  // 歌词手动滚动接管：ref 供原生滚动回调/定时器同步读取，state 只驱动操作条显隐
+  const [lyricInteracting, setLyricInteracting] = useState(false);
+  const [lyricCenteredIndex, setLyricCenteredIndex] = useState(-1);
+  const [lyricAnchor, setLyricAnchor] = useState('');
+  const lyricInteractingRef = useRef(false);
+  const lyricAutoScrollingRef = useRef(false);
+  const lyricIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lyricAnchorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lyricGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lyricLayoutsRef = useRef<LyricLayout[]>([]);
+  const lyricContainerHRef = useRef(0);
+  const lyricScrollTopRef = useRef(0);
+  const lyricAutoKeyRef = useRef('');
+  const lyricSeekPlayAtRef = useRef(0);
   const [hasMv, setHasMv] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showAddToPlaylist, setShowAddToPlaylist] = useState(false);
@@ -135,20 +177,204 @@ export default function Player() {
     };
   }, [currentTrack?.id, currentTrack?.type, mvSupported]);
 
-  useEffect(() => {
-    if (lyrics.length > 0) {
-      const activeIndex = lyrics.findIndex((line, index) => {
-        return (
-          line.time <= currentTime &&
-          (index === lyrics.length - 1 || lyrics[index + 1].time > currentTime)
-        );
-      });
+  // 当前播放行：position 落在 [line[i].time, line[i+1].time) 区间
+  const currentLyricIndex = useMemo(
+    () => resolveActiveLyricIndex(lyrics, currentTime),
+    [lyrics, currentTime],
+  );
 
-      if (activeIndex !== -1 && activeIndex !== currentLyricIndex) {
-        setCurrentLyricIndex(activeIndex);
+  // 定时器 / 原生 scroll 回调里必须拿最新值，不能依赖创建时的闭包快照
+  const lyricsRef = useRef(lyrics);
+  lyricsRef.current = lyrics;
+  const currentTimeRef = useRef(currentTime);
+  currentTimeRef.current = currentTime;
+  const isPlayingRef = useRef(isPlaying);
+  isPlayingRef.current = isPlaying;
+  const trackIdRef = useRef(currentTrack?.id);
+  trackIdRef.current = currentTrack?.id;
+
+  const clearLyricIdleTimer = useCallback(() => {
+    if (lyricIdleTimerRef.current) {
+      clearTimeout(lyricIdleTimerRef.current);
+      lyricIdleTimerRef.current = null;
+    }
+  }, []);
+
+  /**
+   * 把目标行滚到视口中心。小程序 scroll-into-view 是「值变化才触发」的受控属性，
+   * 同值不会重新滚动，因此必须先清空、下一 tick 再设回（仓库既有模式）。
+   */
+  const scrollToLyricLine = useCallback((index: number) => {
+    const target = `line-${Math.max(0, index)}`;
+    lyricAutoScrollingRef.current = true;
+    if (lyricGuardTimerRef.current) clearTimeout(lyricGuardTimerRef.current);
+    lyricGuardTimerRef.current = setTimeout(() => {
+      lyricAutoScrollingRef.current = false;
+      lyricGuardTimerRef.current = null;
+    }, LYRIC_SCROLL_GUARD_MS);
+
+    setLyricAnchor('');
+    if (lyricAnchorTimerRef.current) clearTimeout(lyricAnchorTimerRef.current);
+    lyricAnchorTimerRef.current = setTimeout(() => {
+      lyricAnchorTimerRef.current = null;
+      setLyricAnchor(target);
+    }, 30);
+  }, []);
+
+  /**
+   * 小程序没有 RN 的 onLayout：启动时用 createSelectorQuery 实测每行在内容坐标系
+   * 里的 y/height（boundingClientRect.top + 当时的 scrollTop），实测未就绪时
+   * 按 rpx 估算行高兜底，避免为固定行高而截断长歌词。
+   */
+  const measureLyricLayout = useCallback(() => {
+    if (!showLyrics || lyrics.length === 0) return;
+    Taro.nextTick(() => {
+      const query = Taro.createSelectorQuery();
+      query.select('.player-lyrics-scroll').boundingClientRect();
+      query.select('.player-lyrics-scroll').scrollOffset();
+      query.selectAll('.player-lyric-line').boundingClientRect();
+      query.exec((res: any) => {
+        const container = Array.isArray(res) ? res[0] : undefined;
+        const offset = Array.isArray(res) ? res[1] : undefined;
+        const rects = Array.isArray(res) ? res[2] : undefined;
+        if (container && typeof container.height === 'number') {
+          lyricContainerHRef.current = container.height;
+        }
+        if (Array.isArray(rects) && rects.length === lyricsRef.current.length) {
+          const base = offset && typeof offset.scrollTop === 'number' ? offset.scrollTop : 0;
+          lyricLayoutsRef.current = rects.map((r: any) => ({
+            y: (r.top || 0) + base,
+            height: r.height || 0,
+          }));
+        }
+      });
+    });
+  }, [showLyrics, lyrics.length]);
+
+  useEffect(() => {
+    if (!showLyrics || lyrics.length === 0) return;
+    measureLyricLayout();
+    // 字号 / 排版稳定后再测一次，避免首帧拿到旧布局
+    const timer = setTimeout(measureLyricLayout, 200);
+    return () => clearTimeout(timer);
+  }, [showLyrics, lyrics.length, lyricFontSize, measureLyricLayout]);
+
+  /** 视口垂直中心落在哪一行 */
+  const findLyricCenteredIndex = useCallback((scrollTop: number): number => {
+    const list = lyricsRef.current;
+    if (list.length === 0) return -1;
+    const layouts = lyricLayoutsRef.current;
+    const measured = lyricContainerHRef.current > 0 && layouts.length === list.length;
+    let containerH = lyricContainerHRef.current;
+    let rowH = 0;
+    if (!measured) {
+      const sys = Taro.getSystemInfoSync();
+      const pxPerRpx = sys.windowWidth / 750;
+      rowH = (lyricFontSize * 1.4 + 40) * pxPerRpx;
+      containerH = Math.max(1, sys.windowHeight - 600 * pxPerRpx);
+    }
+    const targetY = scrollTop + containerH / 2;
+    let nearest = -1;
+    let nearestDistance = Infinity;
+    for (let i = 0; i < list.length; i += 1) {
+      const layout = layouts[i];
+      const y = layout ? layout.y : i * rowH;
+      const h = layout ? layout.height : rowH;
+      if (h <= 0) continue;
+      if (targetY >= y && targetY < y + h) return i;
+      const distance = Math.abs(y + h / 2 - targetY);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearest = i;
       }
     }
-  }, [currentTime, lyrics, currentLyricIndex]);
+    return nearest;
+  }, [lyricFontSize]);
+
+  // 自动跟随：只在「换行的那一刻」滚一次；手动接管期间完全让位
+  useEffect(() => {
+    if (!showLyrics || lyrics.length === 0 || currentLyricIndex < 0) return;
+    if (lyricInteractingRef.current) return;
+    const key = `${trackIdRef.current ?? ''}|${currentLyricIndex}|${lyricFontSize}`;
+    if (lyricAutoKeyRef.current === key) return;
+    lyricAutoKeyRef.current = key;
+    scrollToLyricLine(currentLyricIndex);
+  }, [showLyrics, lyrics.length, currentLyricIndex, lyricFontSize, scrollToLyricLine]);
+
+  /**
+   * 所有滚动来源（手指 / 惯性 / 滚动条）最终都落到 scroll 事件：
+   * 在这里接管、实时更新中心行，并以最后一次滚动为起点做 2s 防抖回弹。
+   */
+  const onLyricScroll = useCallback((e: any) => {
+    const scrollTop = Number(e?.detail?.scrollTop ?? 0);
+    lyricScrollTopRef.current = scrollTop;
+    if (lyricAutoScrollingRef.current) return;
+
+    if (!lyricInteractingRef.current) {
+      lyricInteractingRef.current = true;
+      setLyricInteracting(true);
+    }
+    const index = findLyricCenteredIndex(scrollTop);
+    if (index >= 0) {
+      setLyricCenteredIndex((prev) => (prev === index ? prev : index));
+    }
+
+    clearLyricIdleTimer();
+    lyricIdleTimerRef.current = setTimeout(() => {
+      lyricIdleTimerRef.current = null;
+      lyricInteractingRef.current = false;
+      setLyricInteracting(false);
+      setLyricCenteredIndex(-1);
+      // 显式回弹，不依赖 currentTime 变化 —— 暂停 / 停止播放时拖动同样生效
+      const target = resolveActiveLyricIndex(lyricsRef.current, currentTimeRef.current);
+      if (target >= 0) {
+        scrollToLyricLine(target);
+        lyricAutoKeyRef.current = `${trackIdRef.current ?? ''}|${target}|${lyricFontSize}`;
+      }
+    }, LYRIC_IDLE_TIMEOUT_MS);
+  }, [findLyricCenteredIndex, clearLyricIdleTimer, scrollToLyricLine, lyricFontSize]);
+
+  /** 点中心行右侧播放按钮：从该行时间开始播放 */
+  const handleLyricSeekPlay = useCallback(() => {
+    const index = lyricCenteredIndex >= 0
+      ? lyricCenteredIndex
+      : findLyricCenteredIndex(lyricScrollTopRef.current);
+    const line = lyricsRef.current[index];
+    if (!line) return;
+    clearLyricIdleTimer();
+    lyricInteractingRef.current = false;
+    setLyricInteracting(false);
+    setLyricCenteredIndex(-1);
+    scrollToLyricLine(index);
+    lyricAutoKeyRef.current = `${trackIdRef.current ?? ''}|${index}|${lyricFontSize}`;
+    // 阻止紧随其后的父层点击把歌词页关掉（小程序 stopPropagation 并非所有基础库都可靠）
+    lyricSeekPlayAtRef.current = Date.now();
+    seek(line.time);
+    if (!isPlayingRef.current) resume();
+  }, [lyricCenteredIndex, findLyricCenteredIndex, clearLyricIdleTimer, scrollToLyricLine, lyricFontSize, seek, resume]);
+
+  /** 拖动中 / 2s 倒计时内 / 刚点过播放按钮时，点歌词区不切回封面 */
+  const handleLyricsBackgroundClick = useCallback(() => {
+    if (lyricInteractingRef.current) return;
+    if (Date.now() - lyricSeekPlayAtRef.current < 400) return;
+    setShowLyrics(false);
+  }, []);
+
+  // 切歌复位：清掉接管状态、测量缓存与倒计时
+  useEffect(() => {
+    clearLyricIdleTimer();
+    lyricInteractingRef.current = false;
+    setLyricInteracting(false);
+    setLyricCenteredIndex(-1);
+    lyricLayoutsRef.current = [];
+    lyricAutoKeyRef.current = '';
+  }, [currentTrack?.id, clearLyricIdleTimer]);
+
+  useEffect(() => () => {
+    clearLyricIdleTimer();
+    if (lyricAnchorTimerRef.current) clearTimeout(lyricAnchorTimerRef.current);
+    if (lyricGuardTimerRef.current) clearTimeout(lyricGuardTimerRef.current);
+  }, [clearLyricIdleTimer]);
 
   // Load controlsBottomOffset from storage
   useEffect(() => {
@@ -465,25 +691,46 @@ const handleOpenMore = () => {
                         )}
                     </View>
                 ) : (
-                    <View className='player-lyrics-container' onClick={() => setShowLyrics(false)}>
+                    <View className='player-lyrics-container' onClick={handleLyricsBackgroundClick}>
                         {lyrics.length > 0 ? (
-                            <ScrollView 
-                                scrollY 
-                                className='player-lyrics-scroll' 
-                                scrollIntoView={`line-${currentLyricIndex > 3 ? currentLyricIndex - 3 : 0}`}
-                                scrollWithAnimation
-                            >
-                                {lyrics.map((line, index) => (
-                                    <View key={index} id={`line-${index}`} className={`player-lyric-line ${index === currentLyricIndex ? 'active' : ''}`}>
-                                        <Text
-                                          className='player-lyric-text'
-                                          style={{ fontSize: `${index === currentLyricIndex ? lyricFontSize + 4 : lyricFontSize}rpx` }}
-                                        >
-                                          {line.text}
+                            <>
+                                <ScrollView
+                                    scrollY
+                                    className='player-lyrics-scroll'
+                                    scrollIntoView={lyricAnchor}
+                                    scrollIntoViewAlignment='center'
+                                    scrollWithAnimation
+                                    onScroll={onLyricScroll}
+                                >
+                                    {lyrics.map((line, index) => (
+                                        <View key={index} id={`line-${index}`} className={`player-lyric-line ${index === currentLyricIndex ? 'active' : ''}`}>
+                                            <Text
+                                              className='player-lyric-text'
+                                              style={{ fontSize: `${index === currentLyricIndex ? lyricFontSize + 4 : lyricFontSize}rpx` }}
+                                            >
+                                              {line.text}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                                {/* 中心操作条：拆成几个绝对定位的小块，不加全宽覆盖层，
+                                    避免小程序里 pointer-events 行为不一致挡住滚动手势 */}
+                                {lyricInteracting && lyricCenteredIndex >= 0 && (
+                                    <>
+                                        <View className='player-lyrics-seek-edge player-lyrics-seek-edge-top' />
+                                        <View className='player-lyrics-seek-edge player-lyrics-seek-edge-bottom' />
+                                        <Text className='player-lyrics-seek-time'>
+                                          {formatLyricTime(lyrics[lyricCenteredIndex].time)}
                                         </Text>
-                                    </View>
-                                ))}
-                            </ScrollView>
+                                        <View
+                                          className='player-lyrics-seek-play'
+                                          onClick={(e) => { e.stopPropagation(); handleLyricSeekPlay(); }}
+                                        >
+                                          <Text className='icon icon-play-white' />
+                                        </View>
+                                    </>
+                                )}
+                            </>
                         ) : (
                             <View className='player-no-lyrics'>
                                 <Text>{t('player.noLyrics')}</Text>

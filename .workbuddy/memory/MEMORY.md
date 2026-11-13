@@ -88,4 +88,10 @@
 - **上下半屏留白必须放在行容器自身**，不能放 `contentContainerStyle`：后者会让行 `onLayout.y` 少掉 H/2 偏移，中心行判定与回弹整体错半屏。
 - 手动拖动 `onScrollBeginDrag` 接管（自动跟随 effect 用 `interactingRef` 闸门让位）；`onScrollEndDrag`/`onMomentumScrollEnd` 起 2s 倒计时，超时**显式 scrollTo 当前播放行**（暂停时 position 不变、effect 不跑，只能靠这条显式路径回弹）。中心行左侧时间 + 右侧播放按钮 → `seekTo(line.time)` + 未播放时 `resume()`。
 - 自动跟随节流键 `trackId|index|fontSize|round(H)`；行 y 重排用 rAF 合并重新定位，避免锁死错误位置。操作条 `absoluteFill + 居中 + maxWidth 560 + 高度随字号` 自适应手机/Pad/横屏/分栏。
-- desktop / harmony / mini 三端歌词**尚未**接入此交互，后续按同语义移植。
+
+## 其余三端歌词交互（2026-11-14 已补齐）
+- 四端统一语义：手动拖动接管（自动跟随让位）→ 中心行左时间 + 右播放按钮 → 点击 seek 并恢复播放 → 2s 未点**显式** scroll 回弹（暂停也生效，不依赖进度变化）。
+- **desktop**：`components/Player/Lyrics.tsx` 用 DOM `onScroll` 统一接管 + `getBoundingClientRect` 实测中心行；`autoScrollingRef` + `scrollend` 区分程序化滚动（`scrollend` 监听 effect 依赖必须带 `parsedLyrics.length`，否则异步解析后容器才出现、空依赖注册不上）；`CarMode` 父层 `cycleMergedView` 要在接管期间 stopPropagation；`onSeekPlay` 由 Player（`handleSeek` + `play()`）/ CarMode（`seekBridge` + `play()`）注入。独立歌词窗口/MiniPlayer 只有单行歌词，未改。
+- **mini**：`pages/player/index.tsx` 原地增强；`scrollIntoView` 同值不触发（先清空再 30ms 设回）+ `scrollIntoViewAlignment='center'`；**无 onLayout/命令式 scrollTo** → `createSelectorQuery` 实测行 y/height + rpx 估算兜底；操作条**不要全宽覆盖层**（小程序 pointer-events 会挡滚动），拆成独立绝对定位小块；父层退出歌词用 `lyricSeekPlayAt` 时间戳兜底。
+- **hm**：`PlayerPage.ets`（竖/横屏共用 lyricsView）+ `EmbeddedPlayerPanel.ets`（车机 9:16）；`List.onScrollIndex` 的 `center` 直接给中心行（零测量，程序化滚动也会回调需 ref 屏蔽）；`onTouch(Down)` 接管、`onScrollStop` 起 2s、`subscribe` 自动跟随加 `!lyricInteractingRef` 闸门；**LRCParser.time 是毫秒**（mobile 是秒），`playerStore.seek(line.time)` 别再 ×1000，显示才 /1000；接管状态必须独立 @State（不能塞 `view` 快照）；`Stack` 兄弟层 + `hitTestBehavior(None)`。系统级 AVSession 桌面歌词/小部件不适用，未改。
+- 验证：desktop `tsc -p tsconfig.app.json --noEmit` + `vite build` 通过；mini `npm run build:weapp` 通过；hm `hvigorw assembleHap` BUILD SUCCESSFUL（构建后跑 `scripts/harmony-cleanup.sh`）。三端均未真机验证。
