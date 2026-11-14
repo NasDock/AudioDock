@@ -216,6 +216,15 @@ struct PlayerPage {
   private lyricScroller: Scroller = new Scroller();
   private lastTrackId: string = '';
   private lastLyricIndex: number = -1;
+  // ─── 歌词手动滚动接管（对齐 mobile LyricsScrollArea） ───
+  // @State 独立字段：view 是 playerStore 快照，@State 不深度观察其嵌套属性
+  @State private lyricInteracting: boolean = false;
+  @State private lyricCenteredIndex: number = -1;
+  // ref 形态：原生滚动回调 / 定时器 / subscribe 闸门需要同步读最新值
+  private lyricInteractingRef: boolean = false;
+  private lyricCenteredIndexRef: number = -1;
+  private lyricIdleTimerId: number = -1;
+  private lyricSeekPlayAt: number = 0;
   private unsub: () => void = () => {};
   private unsubLike: () => void = () => {};
   // ─── 横屏布局状态（对齐 mobile player.tsx landscape 逻辑） ───
@@ -452,10 +461,14 @@ struct PlayerPage {
         this.refreshQualityProfile();
         // 曲目变化时刷新封面主题色（对齐 mobile useCoverDominantColor）
         this.refreshCoverColor();
+        // 切歌复位歌词接管状态，避免新歌沿用上一首的中心行
+        this.resetLyricInteraction();
       }
       // 横屏时右侧歌词常驻（对齐 mobile: isLandscape ? type !== AUDIOBOOK : showLyrics）
+      // ★ 接管闸门：用户手动拖歌词期间，activeLyricIndex 再怎么变也不能把位置抢回去
       const lyricsVisible = this.isLandscape || this.showLyrics;
-      if (lyricsVisible && this.view.activeLyricIndex !== this.lastLyricIndex) {
+      if (lyricsVisible && !this.lyricInteractingRef &&
+          this.view.activeLyricIndex !== this.lastLyricIndex) {
         this.lastLyricIndex = this.view.activeLyricIndex;
         if (this.lastLyricIndex >= 0) {
           this.lyricScroller.scrollToIndex(this.lastLyricIndex, true, ScrollAlign.CENTER);
@@ -530,6 +543,7 @@ struct PlayerPage {
       clearTimeout(this.hideTimerId);
       this.hideTimerId = -1;
     }
+    this.clearLyricIdleTimer();
     this.stopMiPolling();
   }
 
@@ -1871,42 +1885,177 @@ struct PlayerPage {
   }
 
 
+  // ─── 歌词手动滚动接管（对齐 mobile LyricsScrollArea 的交互语义） ───
+  private clearLyricIdleTimer(): void {
+    if (this.lyricIdleTimerId !== -1) {
+      clearTimeout(this.lyricIdleTimerId);
+      this.lyricIdleTimerId = -1;
+    }
+  }
+
+  private resetLyricInteraction(): void {
+    this.clearLyricIdleTimer();
+    this.lyricInteractingRef = false;
+    this.lyricInteracting = false;
+    this.lyricCenteredIndex = -1;
+    this.lyricCenteredIndexRef = -1;
+  }
+
+  /** LRCParser 的 time 单位是毫秒，显示时换算成分秒 */
+  private formatLyricClock(ms: number): string {
+    const total: number = Math.max(0, Math.floor(ms / 1000));
+    const hours: number = Math.floor(total / 3600);
+    const mins: number = Math.floor((total % 3600) / 60);
+    const secs: number = total % 60;
+    const secStr: string = secs < 10 ? `0${secs}` : `${secs}`;
+    if (hours > 0) {
+      const minStr: string = mins < 10 ? `0${mins}` : `${mins}`;
+      return `${hours}:${minStr}:${secStr}`;
+    }
+    return `${mins}:${secStr}`;
+  }
+
+  private lyricCenteredTime(): string {
+    const idx: number = this.lyricCenteredIndex;
+    if (idx < 0 || idx >= this.view.lyrics.length) return '0:00';
+    return this.formatLyricClock(this.view.lyrics[idx].time);
+  }
+
+  /** 手指按下：立刻接管，自动跟随让位；轻点不滚动时也要能靠这个 timer 回弹 */
+  private beginLyricInteract(): void {
+    this.clearLyricIdleTimer();
+    this.lyricInteractingRef = true;
+    this.lyricInteracting = true;
+    if (this.lyricCenteredIndexRef < 0) {
+      const idx: number = this.view.activeLyricIndex >= 0 ? this.view.activeLyricIndex : 0;
+      this.lyricCenteredIndexRef = idx;
+      this.lyricCenteredIndex = idx;
+    }
+    this.scheduleLyricIdleReset();
+  }
+
+  /** 滚动停止后 2s 没点播放，显式回弹到当前播放行（暂停时也生效，不依赖 timeUpdate） */
+  private scheduleLyricIdleReset(): void {
+    if (!this.lyricInteractingRef) return;
+    this.clearLyricIdleTimer();
+    this.lyricIdleTimerId = setTimeout((): void => {
+      this.lyricIdleTimerId = -1;
+      this.lyricInteractingRef = false;
+      this.lyricInteracting = false;
+      this.lyricCenteredIndex = -1;
+      this.lyricCenteredIndexRef = -1;
+      const target: number = this.view.activeLyricIndex >= 0 ? this.view.activeLyricIndex : 0;
+      this.lastLyricIndex = target;
+      this.lyricScroller.scrollToIndex(target, true, ScrollAlign.CENTER);
+    }, 2000) as number;
+  }
+
+  /** 点中心行右侧播放按钮：seek 到该行时间并恢复播放 */
+  private async handleLyricSeekPlay(): Promise<void> {
+    const idx: number = this.lyricCenteredIndexRef;
+    if (idx < 0 || idx >= this.view.lyrics.length) return;
+    const line: LyricLine = this.view.lyrics[idx];
+    this.clearLyricIdleTimer();
+    this.lyricInteractingRef = false;
+    this.lyricInteracting = false;
+    this.lyricCenteredIndex = -1;
+    this.lyricCenteredIndexRef = -1;
+    this.lyricSeekPlayAt = Date.now();
+    this.lastLyricIndex = idx;
+    this.lyricScroller.scrollToIndex(idx, true, ScrollAlign.CENTER);
+    try {
+      await playerStore.seek(line.time);
+      if (!this.view.isPlaying) {
+        await playerStore.resume();
+      }
+    } catch (e) {
+      Logger.w('PlayerPage', `seek from lyric failed: ${String(e)}`);
+    }
+  }
+
+  /** 接管期间 / 刚点过播放按钮时，屏蔽点歌词切回封面 */
+  private onLyricsBackgroundClick(): void {
+    if (this.lyricInteractingRef) return;
+    if (Date.now() - this.lyricSeekPlayAt < 400) return;
+    if (!this.isLandscape) this.showLyrics = false;
+  }
+
   @Builder lyricsView() {
     if (this.view.lyrics.length === 0) {
       Text(t('player.noLyrics'))
         .fontSize(16)
         .fontColor(this.theme.colors.textSecondary)
-        .onClick(() => {
-          // 横屏时歌词常驻右列，不做切换（对齐 mobile 横屏无点按切回）
-          if (!this.isLandscape) this.showLyrics = false;
-        });
+        .onClick(() => { this.onLyricsBackgroundClick(); });
     } else {
-      List({ scroller: this.lyricScroller }) {
-        ForEach(this.view.lyrics, (line: LyricLine, index: number) => {
-          ListItem() {
-            Text(line.text)
-              // 修复：之前用硬编码 17/15，导致即使 lyricFontSize 已持久化、弹层里 +/- 也实际不会改变歌词大小
-              // 现在以 lyricFontSize 为基线，活动行 +1、非活动行 -1，对齐 mobile player.tsx 的 ActiveLyricLine.fontSize 处理
-              .fontSize(index === this.view.activeLyricIndex
-                ? this.ptLyricBase() + 1
-                : this.ptLyricBase() - 1)
-              .fontWeight(index === this.view.activeLyricIndex ? FontWeight.Bold : FontWeight.Medium)
-              .fontColor(index === this.view.activeLyricIndex
-                ? this.ptLyricActive()
-                : this.ptLyric())
-              .opacity(index === this.view.activeLyricIndex ? 1 : 0.4)
-              .textAlign(this.ptLyricAlign())
-              .width('100%')
-              .padding({ top: 10, bottom: 10, left: 20, right: 20 });
+      // Stack 兄弟层承载中心操作条（悬浮层不进 List 的滚动内容）
+      Stack() {
+        List({ scroller: this.lyricScroller }) {
+          ForEach(this.view.lyrics, (line: LyricLine, index: number) => {
+            ListItem() {
+              Text(line.text)
+                // 修复：之前用硬编码 17/15，导致即使 lyricFontSize 已持久化、弹层里 +/- 也实际不会改变歌词大小
+                // 现在以 lyricFontSize 为基线，活动行 +1、非活动行 -1，对齐 mobile player.tsx 的 ActiveLyricLine.fontSize 处理
+                .fontSize(index === this.view.activeLyricIndex
+                  ? this.ptLyricBase() + 1
+                  : this.ptLyricBase() - 1)
+                .fontWeight(index === this.view.activeLyricIndex ? FontWeight.Bold : FontWeight.Medium)
+                .fontColor(index === this.view.activeLyricIndex
+                  ? this.ptLyricActive()
+                  : this.ptLyric())
+                .opacity(index === this.view.activeLyricIndex ? 1 : 0.4)
+                .textAlign(this.ptLyricAlign())
+                .width('100%')
+                .padding({ top: 10, bottom: 10, left: 20, right: 20 });
+            }
+          }, (line: LyricLine, index: number) => `${index}_${line.time}`);
+        }
+        .width('100%')
+        .height('100%')
+        .scrollBar(BarState.Off)
+        // List 直接上报视口中心 item 索引，省掉逐行布局测量
+        .onScrollIndex((_start: number, _end: number, center: number): void => {
+          if (this.lyricInteractingRef && center >= 0 && center < this.view.lyrics.length) {
+            this.lyricCenteredIndexRef = center;
+            this.lyricCenteredIndex = center;
           }
-        }, (line: LyricLine, index: number) => `${index}_${line.time}`);
+        })
+        .onScrollStop(() => { this.scheduleLyricIdleReset(); })
+        .onTouch((event: TouchEvent): void => {
+          if (event.type === TouchType.Down) this.beginLyricInteract();
+        })
+        .onClick(() => { this.onLyricsBackgroundClick(); });
+
+        if (this.lyricInteracting && this.lyricCenteredIndex >= 0) {
+          Row() {
+            Text(this.lyricCenteredTime())
+              .fontSize(13)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#FFFFFFFF')
+              .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+              .borderRadius(6)
+              .backgroundColor('#59000000');
+            Blank();
+            Stack() {
+              AppIcon({ name: 'play', iconSize: 18, color: '#FFFFFFFF' });
+            }
+            .width(36)
+            .height(36)
+            .borderRadius(18)
+            .backgroundColor('#40FFFFFF')
+            .border({ width: 1, color: '#73FFFFFF' })
+            .onClick(() => {
+              this.handleLyricSeekPlay().catch((): void => undefined);
+            });
+          }
+          .width('100%')
+          .height(56)
+          .padding({ left: 16, right: 16 })
+          // None 只禁 Row 自身、子组件仍可点击，避免整条覆盖层挡住 List 的滚动手势
+          .hitTestBehavior(HitTestMode.None);
+        }
       }
       .width('100%')
-      .height('100%')
-      .scrollBar(BarState.Off)
-      .onClick(() => {
-        if (!this.isLandscape) this.showLyrics = false;
-      });
+      .height('100%');
     }
   }
 

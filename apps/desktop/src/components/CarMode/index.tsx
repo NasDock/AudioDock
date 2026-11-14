@@ -185,6 +185,13 @@ const CarMode: React.FC<CarModeProps> = ({ children, seekBridge }) => {
     seekBridge.current?.(value);
   };
 
+  /** 歌词中心行「从这行播放」：走主窗口暴露的 seek 桥，暂停时一并恢复播放 */
+  const handleLyricSeekPlay = (time: number) => {
+    seekBridge.current?.(time);
+    const state = usePlayerStore.getState();
+    if (!state.isPlaying) state.play();
+  };
+
   const isLiked = currentTrack?.likedByUsers?.some(
     (l) => l.userId === (user?.id || 0),
   );
@@ -378,6 +385,8 @@ const CarMode: React.FC<CarModeProps> = ({ children, seekBridge }) => {
         lyrics={currentTrack?.lyrics ?? null}
         currentTime={currentTime}
         hideScrollbar
+        onSeekPlay={handleLyricSeekPlay}
+        trackId={currentTrack?.id}
       />
       {clickToSwitch && (
         <div className={styles.switchHint}>
@@ -419,6 +428,8 @@ const CarMode: React.FC<CarModeProps> = ({ children, seekBridge }) => {
           lyrics={currentTrack?.lyrics ?? null}
           currentTime={currentTime}
           hideScrollbar
+          onSeekPlay={handleLyricSeekPlay}
+          trackId={currentTrack?.id}
         />
       </div>
       <div className={styles.switchHint}>{t("settings.carModeTapToCover")}</div>

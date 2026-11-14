@@ -56,6 +56,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PlayerMoreModal } from "../src/components/PlayerMoreModal";
 import { PlaylistModal } from "../src/components/PlaylistModal";
+import { LyricsScrollArea } from "@/src/components/LyricsScrollArea";
 import { FloatingActionButtons } from "../src/components/FloatingActionButtons";
 import SyncModal from "../src/components/SyncModal";
 import { isCached } from "../src/services/cache";
@@ -211,87 +212,8 @@ const CoverFlowItem = React.memo(
     prev.track.cover === next.track.cover,
 );
 
-const AnimatedLyricLine = ({
-  text,
-  isActive,
-  colors,
-  lyricFontSize,
-  lyricsColor,
-  lyricsActiveColor,
-  lyricsAlign,
-  onLayout,
-}: {
-  text: string;
-  isActive: boolean;
-  colors: any;
-  lyricFontSize: number;
-  /** 播放器主题插件覆盖：普通行颜色（默认 colors.text） */
-  lyricsColor?: string;
-  /** 播放器主题插件覆盖：当前行颜色（默认 colors.primary） */
-  lyricsActiveColor?: string;
-  /** 播放器主题插件覆盖：对齐（默认 center） */
-  lyricsAlign?: "left" | "center" | "right";
-  onLayout?: (e: any) => void;
-}) => {
-  const animatedValue = useRef(new Animated.Value(isActive ? 1 : 0)).current;
-
-  useEffect(() => {
-    Animated.spring(animatedValue, {
-      toValue: isActive ? 1 : 0,
-      useNativeDriver: false,
-      friction: 8,
-      tension: 40,
-    }).start();
-  }, [isActive]);
-
-  const color = animatedValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [lyricsColor ?? colors.text, lyricsActiveColor ?? colors.primary],
-  });
-
-  const scale = animatedValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.1],
-  });
-
-  const opacity = animatedValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.4, 1],
-  });
-
-  const alignItems =
-    lyricsAlign === "left" ? "flex-start" : lyricsAlign === "right" ? "flex-end" : "center";
-
-  return (
-    <Animated.View
-      onLayout={onLayout}
-      style={{
-        transform: [{ scale }],
-        opacity,
-        marginVertical: 4,
-        paddingHorizontal: 20,
-        width: "100%",
-        alignItems,
-      }}
-    >
-      <Animated.Text
-        style={[
-          styles.lyricsLine,
-          {
-            color,
-            fontSize: lyricFontSize,
-            lineHeight: lyricFontSize * 2,
-            fontWeight: isActive ? "800" : "500",
-            marginVertical: 0, // Remove margin to avoid extra spacing
-            textAlign: lyricsAlign ?? "center",
-          },
-        ]}
-      >
-        {text}
-      </Animated.Text>
-    </Animated.View>
-  );
-};
+// 歌词渲染与滚动交互统一收敛到 LyricsScrollArea（手机 / Pad / 横屏 / 车机分栏共用），
+// 见 src/components/LyricsScrollArea.tsx：手动拖动接管、中心行时间+播放按钮、2s 回弹。
 
 export function PlayerDetailView({
   embedded = false,
@@ -497,10 +419,7 @@ export function PlayerDetailView({
   const [miLoading, setMiLoading] = useState(false);
   const [miCasting, setMiCasting] = useState(false);
   const miPollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
   const playlistRef = useRef<FlatList>(null);
-  const [currentLyricIndex, setCurrentLyricIndex] = useState(-1);
-  const [lyricContainerHeight, setLyricContainerHeight] = useState(0);
   const [liked, setLiked] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -516,7 +435,12 @@ export function PlayerDetailView({
   const [skipModalVisible, setSkipModalVisible] = useState(false);
   const [skipModalType, setSkipModalType] = useState<"intro" | "outro" | null>(null);
   const [tempSkipTime, setTempSkipTime] = useState<number>(0);
-  const lineLayouts = useRef<{ [key: number]: any }>({});
+  // 歌词只解析一次，横屏 / 竖屏 / 车机分栏共用同一份数据，
+  // 行定位、拖动接管、2s 回弹全部由 LyricsScrollArea 内部按 index 完成。
+  const parsedLyrics = useMemo(
+    () => parseLyrics(currentTrack?.lyrics || ""),
+    [currentTrack?.lyrics],
+  );
 
   const closePlayer = useCallback(() => {
     const navigateBack = () => {
@@ -1113,51 +1037,8 @@ export function PlayerDetailView({
     }
   };
 
-  useEffect(() => {
-    const shouldShowLyrics = isLandscape
-      ? currentTrack?.type !== TrackType.AUDIOBOOK
-      : showLyrics;
-
-    if (
-      !shouldShowLyrics ||
-      !currentTrack?.lyrics ||
-      lyricContainerHeight === 0
-    )
-      return;
-
-    const lyrics = parseLyrics(currentTrack.lyrics);
-    const activeIndex = lyrics.findIndex((line, index) => {
-      return (
-        line.time <= position &&
-        (index === lyrics.length - 1 || lyrics[index + 1].time > position)
-      );
-    });
-
-    if (activeIndex !== -1) {
-      const layout = lineLayouts.current[activeIndex];
-      if (layout) {
-        const scrollToY =
-          layout.y + layout.height / 2 - lyricContainerHeight / 2;
-
-        if (activeIndex !== currentLyricIndex || lyricFontSize) {
-          setCurrentLyricIndex(activeIndex);
-          scrollViewRef.current?.scrollTo({
-            y: Math.max(0, scrollToY),
-            animated: true,
-          });
-        }
-      }
-    }
-  }, [
-    position,
-    showLyrics,
-    isLandscape,
-    currentTrack?.lyrics,
-    currentTrack?.type,
-    currentLyricIndex,
-    lyricContainerHeight,
-    lyricFontSize,
-  ]);
+  // 歌词自动跟随 / 手动拖动接管 / 回弹逻辑已移到 LyricsScrollArea 内部，
+  // 这里不再持有 scrollViewRef、行 layout 和容器高度 —— 避免两个分支状态打架。
 
   const scrollToCurrentInPlaylist = (animated: boolean = true) => {
     if (!currentTrack || trackList.length === 0) return;
@@ -1824,6 +1705,29 @@ export function PlayerDetailView({
     );
   }
 
+  /**
+   * 歌词区（横屏右栏 / 竖屏全屏 / 车机分栏共用）。
+   * withBackgroundPress 仅竖屏为 true：点歌词空白区切回封面；
+   * 组件内部在手动拖动 + 2s 倒计时期间会屏蔽它，避免误触退出。
+   */
+  const renderLyricsArea = (withBackgroundPress: boolean) => (
+    <LyricsScrollArea
+      lyrics={parsedLyrics}
+      position={position}
+      isPlaying={isPlaying}
+      colors={colors}
+      lyricFontSize={lyricFontSize}
+      lyricsColor={lyricsColor}
+      lyricsActiveColor={lyricsActiveColor}
+      lyricsAlign={lyricsAlign}
+      seekTo={seekTo}
+      resume={resume}
+      trackId={currentTrack?.id}
+      noLyricsText={t("player.noLyrics")}
+      onBackgroundPress={withBackgroundPress ? () => setShowLyrics(false) : undefined}
+    />
+  );
+
   const renderPlaylist = () => (
     <View style={styles.playlistContainer}>
       <FlatList
@@ -2454,59 +2358,9 @@ export function PlayerDetailView({
 
           <View style={styles.landscapeRight}>
             <View style={styles.landscapeContent}>
-              {currentTrack.type === TrackType.AUDIOBOOK ? (
-                renderPlaylist()
-              ) : (
-                <ScrollView
-                  ref={scrollViewRef}
-                  style={styles.lyricsScroll}
-                  showsVerticalScrollIndicator={false}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={[
-                    styles.lyricsScrollContent,
-                    {
-                      paddingTop: lyricContainerHeight / 2,
-                      paddingBottom: lyricContainerHeight / 2,
-                    },
-                  ]}
-                  onLayout={(e) =>
-                    setLyricContainerHeight(e.nativeEvent.layout.height)
-                  }
-                >
-                  {(() => {
-                    const lyrics = parseLyrics(currentTrack.lyrics || "");
-                    return lyrics.map((line, index) => {
-                      const isActive =
-                        line.time <= position &&
-                        (index === lyrics.length - 1 ||
-                          lyrics[index + 1].time > position);
-
-                      return (
-                        <AnimatedLyricLine
-                          key={index}
-                          text={line.text}
-                          isActive={isActive}
-                          colors={colors}
-                          lyricFontSize={lyricFontSize}
-                          lyricsColor={lyricsColor}
-                          lyricsActiveColor={lyricsActiveColor}
-                          lyricsAlign={lyricsAlign}
-                          onLayout={(e) => {
-                            lineLayouts.current[index] = e.nativeEvent.layout;
-                          }}
-                        />
-                      );
-                    });
-                  })()}
-                  {!currentTrack.lyrics && (
-                    <Text
-                      style={[styles.lyricsText, { color: colors.secondary }]}
-                    >
-                      {t("player.noLyrics")}
-                    </Text>
-                  )}
-                </ScrollView>
-              )}
+              {currentTrack.type === TrackType.AUDIOBOOK
+                ? renderPlaylist()
+                : renderLyricsArea(false)}
             </View>
           </View>
         </View>
@@ -2556,72 +2410,7 @@ export function PlayerDetailView({
           >
             {showLyrics ? (
               <View style={styles.lyricsContainer}>
-                {currentTrack.lyrics ? (
-                  <ScrollView
-                    ref={scrollViewRef}
-                    style={styles.lyricsScroll}
-                    showsVerticalScrollIndicator={false}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={[
-                      styles.lyricsScrollContent,
-                      {
-                        minHeight: "100%",
-                      },
-                    ]}
-                    onLayout={(e) =>
-                      setLyricContainerHeight(e.nativeEvent.layout.height)
-                    }
-                  >
-                    <TouchableOpacity
-                      activeOpacity={1}
-                      onPress={() => setShowLyrics(false)}
-                      style={{ 
-                        width: "100%", 
-                        alignItems: "center",
-                        paddingTop: lyricContainerHeight / 2,
-                        paddingBottom: lyricContainerHeight / 2,
-                      }}
-                    >
-                      {(() => {
-                        const lyrics = parseLyrics(currentTrack.lyrics || "");
-                        return lyrics.map((line, index) => {
-                          const isActive =
-                            line.time <= position &&
-                            (index === lyrics.length - 1 ||
-                              lyrics[index + 1].time > position);
-
-                          return (
-                            <AnimatedLyricLine
-                              key={index}
-                              text={line.text}
-                              isActive={isActive}
-                              colors={colors}
-                              lyricFontSize={lyricFontSize}
-                              lyricsColor={lyricsColor}
-                              lyricsActiveColor={lyricsActiveColor}
-                              lyricsAlign={lyricsAlign}
-                              onLayout={(e) => {
-                                lineLayouts.current[index] =
-                                  e.nativeEvent.layout;
-                              }}
-                            />
-                          );
-                        });
-                      })()}
-                    </TouchableOpacity>
-                  </ScrollView>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.noLyricsContainer}
-                    onPress={() => setShowLyrics(false)}
-                  >
-                    <Text
-                      style={[styles.lyricsText, { color: colors.secondary }]}
-                    >
-                      {t("player.noLyrics")}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                {renderLyricsArea(true)}
               </View>
             ) : (
               <View style={{ alignItems: "center" }}>
@@ -2787,44 +2576,8 @@ const styles = StyleSheet.create({
     padding: 0,
     paddingBottom: 20,
   },
-  lyricsToggleButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    alignSelf: "center",
-    marginBottom: 10,
-  },
-  lyricsToggleText: {
-    fontSize: 12,
-    opacity: 0.6,
-  },
-  noLyricsContainer: {
-    flex: 1,
-    justifyContent: "center",
-    width: "100%",
-    alignItems: "center",
-  },
-  lyricsScroll: {
-    flex: 2,
-    width: "100%",
-  },
-  lyricsScrollContent: {
-    alignItems: "center",
-    width: "100%",
-  },
-  lyricsLine: {
-    textAlign: "center",
-    marginVertical: 8,
-    opacity: 0.6,
-  },
-  activeLyricsLine: {
-    fontWeight: "600",
-    opacity: 1,
-  },
-  lyricsText: {
-    fontSize: 16,
-    textAlign: "center",
-    lineHeight: 24,
-  },
+  // 歌词行 / 滚动容器 / 中心操作条样式已随渲染一起迁到
+  // src/components/LyricsScrollArea.tsx，这里只保留竖屏外层容器。
   trackInfo: {
     alignItems: "center",
     marginTop: 0,
