@@ -6,7 +6,9 @@ class SocketService extends SharedSocketService {
   async connect() {
     // 1. Get Dependencies
     const { token, user } = useAuthStore.getState();
-    if (!token || !user || this.connected) return;
+    if (!token || !user) return;
+    // 不再用 `this.connected` 早退：token 刷新 / 服务器地址切换时，
+    // SharedSocketService 会按 url|token|userId|deviceId 判断是否需要断开重连。
 
     // 2. Get Device Name (Desktop Specific)
     // 纯 web 环境直接解析 UA 得到友好名（避免整段 UA 被其他端显示成 unknown device）

@@ -12,11 +12,22 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      // 用 127.0.0.1 而不是 localhost：macOS 上 localhost 会优先解析到 ::1，
+      // 而后端默认只监听 IPv4（*:3000），代理会直接 Connection refused。
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
-      }
+      },
+      // ⚠️ 播放流转 / 在线设备列表全靠这条 WS 长连接。
+      // 之前只代理了 /api，dev 模式下 socket.io 请求 /socket.io/ 会落到 Vite 的
+      // SPA fallback（或 404）→ WS 永远连不上 → 设备不注册、transfer_session 必然失败。
+      // 必须显式代理并开 ws:true，否则 WebSocket 升级握手不会转发。
+      '/socket.io': {
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   plugins: [

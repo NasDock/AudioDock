@@ -23,6 +23,7 @@ import {
   type MiDevice,
   getUserDevices,
   playMiDeviceByUrl,
+  transferSession,
 } from "@soundx/services";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
@@ -1554,55 +1555,77 @@ export function PlayerDetailView({
       return;
     }
     const { socketService } = require("../src/services/socket");
-    if (!socketService.connected) {
-      console.warn("[Transfer] socket not connected, cannot emit transfer_session");
-      Alert.alert(t("playerPage.transferFailed"));
-      return;
-    }
+    const positionSec = Math.floor(position || 0);
+    const transferPayload = {
+      targetDeviceId,
+      // 兜底匹配维度：deviceId 漂移时服务端按 deviceName+platform 回退匹配
+      targetDeviceName: targetDevice.name,
+      targetPlatform: targetDevice.platform,
+      currentTrack,
+      playlist: { list: trackList, index: trackList.findIndex((t) => t.id === currentTrack.id) },
+      progress: positionSec,
+    };
+
+    // WS 掉线（Android 后台常见）时改走后端 REST 转发，由服务端投递或暂存，
+    // 不再因为本地 socket 断开就直接判「流转失败」。
+    const restFallback = async (): Promise<boolean> => {
+      try {
+        const res = await transferSession(transferPayload);
+        const ok = res?.code === 200 && !!res?.data?.delivered;
+        console.log(`[Transfer] REST 兜底结果: ${ok ? "已投递/已暂存" : "失败"}`);
+        return ok;
+      } catch (e) {
+        console.warn("[Transfer] REST 兜底异常:", e);
+        return false;
+      }
+    };
+
     setTransferring(targetDeviceId);
     try {
-      const positionSec = Math.floor(position || 0);
-      console.log(`[Transfer] emit transfer_session: target=${targetDeviceId} (${targetDevice.name}) track=${currentTrack.name} progress=${positionSec}s`);
-
-      // 等服务端 ack（transfer_sent / transfer_failed），5s 超时兜底
-      const delivered = await new Promise<boolean>((resolve) => {
-        let settled = false;
-        const cleanup = () => {
-          settled = true;
-          socketService.off("transfer_sent", onSent);
-          socketService.off("transfer_failed", onFailed);
-          clearTimeout(timer);
-        };
-        const onSent = (p: any) => {
-          if (settled || p?.targetDeviceId !== targetDeviceId) return;
-          console.log(`[Transfer] ✅ transfer_sent ack for ${targetDeviceId}`);
-          cleanup();
-          resolve(true);
-        };
-        const onFailed = (p: any) => {
-          if (settled || p?.targetDeviceId !== targetDeviceId) return;
-          console.warn(`[Transfer] ❌ transfer_failed: reason=${p?.reason} target=${p?.targetDeviceId} 服务端在线 deviceIds=[${(p?.onlineDeviceIds ?? []).join(", ") || "空"}]`);
-          cleanup();
-          resolve(false);
-        };
-        const timer = setTimeout(() => {
-          if (settled) return;
-          console.warn(`[Transfer] ⏱ ack timeout for ${targetDeviceId}（服务端 5s 未回，按未送达处理）`);
-          cleanup();
-          resolve(false);
-        }, 5000);
-        socketService.on("transfer_sent", onSent);
-        socketService.on("transfer_failed", onFailed);
-        socketService.emit("transfer_session", {
-          targetDeviceId,
-          // 兜底匹配维度：deviceId 漂移时服务端按 deviceName+platform 回退匹配
-          targetDeviceName: targetDevice.name,
-          targetPlatform: targetDevice.platform,
-          currentTrack,
-          playlist: { list: trackList, index: trackList.findIndex((t) => t.id === currentTrack.id) },
-          progress: positionSec,
+      let delivered = false;
+      if (!socketService.connected) {
+        console.warn("[Transfer] WS 未连接，改走 REST 转发兜底");
+        delivered = await restFallback();
+      } else {
+        console.log(`[Transfer] emit transfer_session: target=${targetDeviceId} (${targetDevice.name}) track=${currentTrack.name} progress=${positionSec}s`);
+        // ack 三态：timeout 结果未知，不能重发，避免目标端重复起播
+        const ack = await new Promise<"sent" | "failed" | "timeout">((resolve) => {
+          let settled = false;
+          const cleanup = () => {
+            settled = true;
+            socketService.off("transfer_sent", onSent);
+            socketService.off("transfer_failed", onFailed);
+            clearTimeout(timer);
+          };
+          const onSent = (p: any) => {
+            if (settled || p?.targetDeviceId !== targetDeviceId) return;
+            console.log(`[Transfer] ✅ transfer_sent ack for ${targetDeviceId}${p?.queued ? "（目标暂离线，服务端已暂存，上线后自动送达）" : ""}`);
+            cleanup();
+            resolve("sent");
+          };
+          const onFailed = (p: any) => {
+            if (settled || p?.targetDeviceId !== targetDeviceId) return;
+            console.warn(`[Transfer] ❌ transfer_failed: reason=${p?.reason} target=${p?.targetDeviceId} 服务端在线 deviceIds=[${(p?.onlineDeviceIds ?? []).join(", ") || "空"}]`);
+            cleanup();
+            resolve("failed");
+          };
+          const timer = setTimeout(() => {
+            if (settled) return;
+            console.warn(`[Transfer] ⏱ ack timeout for ${targetDeviceId}（服务端 5s 未回，结果未知，不重发）`);
+            cleanup();
+            resolve("timeout");
+          }, 5000);
+          socketService.on("transfer_sent", onSent);
+          socketService.on("transfer_failed", onFailed);
+          socketService.emit("transfer_session", transferPayload);
         });
-      });
+
+        if (ack === "sent") {
+          delivered = true;
+        } else if (ack === "failed") {
+          delivered = await restFallback();
+        }
+      }
 
       if (!delivered) {
         Alert.alert(t("playerPage.transferFailed"));

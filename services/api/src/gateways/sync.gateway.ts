@@ -18,6 +18,25 @@ interface SocketMeta {
   username?: string;
 }
 
+/** 目标设备暂时不在线时暂存的流转请求，等它上线（或重连）后补投 */
+interface PendingTransfer {
+  targetDeviceId: string;
+  targetDeviceName?: string;
+  targetPlatform?: string;
+  payload: {
+    fromDeviceName: string;
+    fromDeviceId: string | null;
+    currentTrack?: any;
+    playlist?: any;
+    progress?: number;
+    timestamp: Date;
+  };
+  createdAt: number;
+}
+
+/** 暂存有效期：10 分钟，超过就不再补投（避免几天后突然开始播放） */
+const PENDING_TRANSFER_TTL_MS = 10 * 60 * 1000;
+
 @WebSocketGateway({
   cors: {
     origin: '*',
@@ -46,6 +65,60 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   private userSockets = new Map<number, string[]>();
   // Map<SocketId, SocketMeta>
   private socketMetadata = new Map<string, SocketMeta>();
+  // Map<`${userId}:${targetDeviceId}`, PendingTransfer[]> - 目标离线时暂存，上线后补投
+  private pendingTransfers = new Map<string, PendingTransfer[]>();
+
+  private pendingKey(userId: number, deviceId: string): string {
+    return `${userId}:${deviceId}`;
+  }
+
+  private queuePendingTransfer(userId: number, entry: PendingTransfer): void {
+    const key = this.pendingKey(userId, entry.targetDeviceId);
+    const now = Date.now();
+    const alive = (this.pendingTransfers.get(key) || []).filter(
+      (p) => now - p.createdAt < PENDING_TRANSFER_TTL_MS,
+    );
+    alive.push(entry);
+    this.pendingTransfers.set(key, alive);
+  }
+
+  /**
+   * 设备刚连上 WS 时，把之前因它离线而暂存的流转请求补投给它。
+   * deviceId 漂移时按 deviceName + platform 兜底匹配（与在线匹配策略一致）。
+   */
+  private flushPendingTransfers(
+    userId: number,
+    deviceId: string | undefined,
+    deviceName: string,
+    platform: string | undefined,
+    client: Socket,
+  ): number {
+    const now = Date.now();
+    let delivered = 0;
+    for (const [key, list] of this.pendingTransfers.entries()) {
+      if (!key.startsWith(`${userId}:`)) continue;
+      const rest: PendingTransfer[] = [];
+      for (const p of list) {
+        if (now - p.createdAt >= PENDING_TRANSFER_TTL_MS) continue;
+        const matched =
+          (!!deviceId && p.targetDeviceId === deviceId) ||
+          (!!p.targetDeviceName && p.targetDeviceName === deviceName &&
+            (!p.targetPlatform || p.targetPlatform === platform));
+        if (matched) {
+          client.emit('transfer_received', p.payload);
+          delivered += 1;
+        } else {
+          rest.push(p);
+        }
+      }
+      if (rest.length > 0) this.pendingTransfers.set(key, rest);
+      else this.pendingTransfers.delete(key);
+    }
+    if (delivered > 0) {
+      console.log(`[WS][Transfer] 设备 ${deviceName}(${deviceId}) 上线，补投 ${delivered} 条暂存流转`);
+    }
+    return delivered;
+  }
 
   /**
    * 从 handshake 中解析并校验用户身份。
@@ -122,6 +195,9 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect, On
           platform: device.platform ?? platform ?? null,
           lastSeen: device.lastSeen,
         });
+        // 移动端（尤其 Android）后台会掉线，期间其它端发起的流转先暂存，
+        // 这里在设备重新注册成功后立刻补投，避免「点流转必失败」。
+        this.flushPendingTransfers(uid, device.deviceId ?? deviceId, device.name, device.platform ?? platform, client);
       } catch (e) {
         console.error(`[WS] Failed to set device online: ${e}`);
       }
@@ -164,7 +240,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
       if (!deviceStillConnected) {
         try {
-          await this.userService.setDeviceOffline(uid, meta.deviceName, meta.deviceId);
+          await this.userService.setDeviceOffline(uid, meta.deviceName, meta.deviceId, meta.platform);
           this.server.to(`user_${uid}`).emit('device_offline', {
             deviceId: meta.deviceId ?? null,
             deviceName: meta.deviceName,
@@ -301,27 +377,51 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect, On
    */
   async forwardTransfer(userId: number, payload: {
     targetDeviceId: string;
+    targetDeviceName?: string;
+    targetPlatform?: string;
     currentTrack?: any;
     playlist?: any;
     progress?: number;
     fromDeviceName?: string;
   }): Promise<boolean> {
     const all = this.userSockets.get(userId) || [];
-    const targetSockets = all.filter((sid) => {
+    let targetSockets = all.filter((sid) => {
       const m = this.socketMetadata.get(sid);
       return m?.deviceId === payload.targetDeviceId;
     });
-    console.log(`[WS][Transfer] REST forwardTransfer: user=${userId} targetDeviceId=${payload.targetDeviceId} online=[${this.describeSockets(all)}] matched=${targetSockets.length}`);
-    if (targetSockets.length === 0) return false;
-    targetSockets.forEach((sid) => {
-      this.server.to(sid).emit('transfer_received', {
-        fromDeviceName: payload.fromDeviceName ?? 'Unknown Device',
-        fromDeviceId: null,
-        currentTrack: payload.currentTrack,
-        playlist: payload.playlist,
-        progress: payload.progress,
-        timestamp: new Date(),
+    // 与 WS 版保持一致的 deviceName + platform 兜底匹配
+    if (targetSockets.length === 0 && payload.targetDeviceName) {
+      targetSockets = all.filter((sid) => {
+        const m = this.socketMetadata.get(sid);
+        return m?.deviceName === payload.targetDeviceName &&
+          (!payload.targetPlatform || m?.platform === payload.targetPlatform);
       });
+    }
+    console.log(`[WS][Transfer] REST forwardTransfer: user=${userId} targetDeviceId=${payload.targetDeviceId} online=[${this.describeSockets(all)}] matched=${targetSockets.length}`);
+
+    const eventPayload = {
+      fromDeviceName: payload.fromDeviceName ?? 'Unknown Device',
+      fromDeviceId: null,
+      currentTrack: payload.currentTrack,
+      playlist: payload.playlist,
+      progress: payload.progress,
+      timestamp: new Date(),
+    };
+
+    if (targetSockets.length === 0) {
+      // 目标不在线时同样暂存，避免 REST 兜底链路也直接失败
+      this.queuePendingTransfer(userId, {
+        targetDeviceId: payload.targetDeviceId,
+        targetDeviceName: payload.targetDeviceName,
+        targetPlatform: payload.targetPlatform,
+        createdAt: Date.now(),
+        payload: eventPayload,
+      });
+      console.log(`[WS][Transfer] REST 目标离线，已暂存，等待设备上线补投`);
+      return true;
+    }
+    targetSockets.forEach((sid) => {
+      this.server.to(sid).emit('transfer_received', eventPayload);
     });
     return true;
   }
@@ -377,12 +477,30 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
     if (targetSockets.length === 0) {
       const onlineDeviceIds = all.map((sid) => this.socketMetadata.get(sid)?.deviceId ?? '∅');
-      console.warn(`[WS][Transfer] ❌ no match for targetDeviceId=${payload.targetDeviceId}，用户 ${uid} 在线设备 deviceIds=[${onlineDeviceIds.join(', ')}]`);
-      // 把服务端视角的在线 deviceIds 一并回给发起端，前端日志可直接对比，不用翻服务端日志
-      client.emit('transfer_failed', {
+      console.warn(`[WS][Transfer] ⚠️ no live match for targetDeviceId=${payload.targetDeviceId}，用户 ${uid} 在线设备 deviceIds=[${onlineDeviceIds.join(', ')}]`);
+
+      // 目标设备 WS 当前不在线（移动端后台掉线 / 刚启动还没注册完成 / 服务端重启后
+      // 尚未重连）。不再直接判失败：把请求暂存，目标上线（handleConnection）时补投。
+      // 这样「手机锁过屏 / 服务端刚重启」这类高频场景不会再表现为「流转总是失败」。
+      this.queuePendingTransfer(uid, {
         targetDeviceId: payload.targetDeviceId,
-        reason: 'device_offline',
-        onlineDeviceIds: onlineDeviceIds,
+        targetDeviceName: payload.targetDeviceName,
+        targetPlatform: payload.targetPlatform,
+        createdAt: Date.now(),
+        payload: {
+          fromDeviceName: meta.deviceName,
+          fromDeviceId: meta.deviceId ?? null,
+          currentTrack: payload.currentTrack,
+          playlist: payload.playlist,
+          progress: payload.progress,
+          timestamp: new Date(),
+        },
+      });
+      client.emit('transfer_sent', {
+        targetDeviceId: payload.targetDeviceId,
+        queued: true,
+        reason: 'target_offline_queued',
+        onlineDeviceIds,
       });
       return;
     }

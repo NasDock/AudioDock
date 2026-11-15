@@ -19,22 +19,77 @@ export interface SocketConnectOptions {
     query?: Record<string, any>;
 }
 
+/**
+ * 把服务器地址归一化为 socket.io 可识别的「协议 + 主机」。
+ *
+ * ⚠️ socket.io-client 会把 URL 里的 path 当成 **namespace**：
+ *   io("http://192.168.1.6:3000/api") → namespace "/api"（服务端没有这个 namespace，直接连不上）
+ *   io("/api")                        → 相对路径在 RN / Tauri 下根本无法解析
+ * 而各端 HTTP 客户端允许把服务器地址填成 "http://x/api" 或 "/api"（nginx 同源代理形态），
+ * 之前 socket 直接沿用该地址，导致这些端 WS 永远注册不上 → 设备列表看不到、流转必然 device_offline。
+ *
+ * 这里纯字符串解析（RN 全局 URL 是存根，只有 getter，不能用 new URL / 赋值 protocol）。
+ */
+export function normalizeSocketUrl(raw: string): string {
+    const s = (raw || "").trim();
+    if (!s) return "http://localhost:3000";
+
+    // 相对路径（同源部署时 serverAddress 常填 "/api"）→ 回落到当前站点 origin
+    if (s.startsWith("/")) {
+        const origin = typeof window !== "undefined" ? (window as any).location?.origin : undefined;
+        return origin || "http://localhost:3000";
+    }
+
+    const match = s.match(/^(wss?|https?):\/\/[^\/?#]+/i);
+    if (!match) return s.replace(/\/+$/, "");
+    return match[0]
+        .replace(/^ws:\/\//i, "http://")
+        .replace(/^wss:\/\//i, "https://");
+}
+
 export class SharedSocketService {
   private socket: Socket | null = null;
   private listeners: Map<string, Function[]> = new Map();
+  /** 上一次连接的关键参数，用于判断是否需要断开重连 */
+  private signature: string = "";
+  private lastOptions: SocketConnectOptions | null = null;
 
   /**
-   * Initialize a connection. 
-   * Safe to call multiple times; will ignore if already connected with same socket instance (but usually you should check connected status).
+   * Initialize a connection.
+   * 关键参数（服务器地址 / token / 用户 / deviceId）变化时会自动断开重连，
+   * 否则切服务器或换账号后 socket 仍挂在旧连接上，服务端设备表与端侧永远对不上。
    */
   connect(options: SocketConnectOptions) {
-    if (this.socket?.connected) {
-        // Optional: logic to disconnect if options changed significantly?
-        // For now, assume single connection per instance lifecycle or manual disconnect first.
+    const { token, userId, deviceName, deviceId, platform, query } = options;
+    const url = normalizeSocketUrl(options.url);
+    const signature = `${url}|${token}|${userId}|${deviceId ?? ""}`;
+
+    if (this.socket && this.signature === signature) {
+        // 参数没变：已连接直接返回；尚未连上 / 正在重连时绝不重建 socket，
+        // 否则 React StrictMode、AppState 回前台等重复调用会不断销毁刚发起的握手，
+        // 连接永远建不起来（移动端尤其容易踩）。
+        if (!this.socket.connected) this.socket.connect();
         return;
     }
+    // 关键参数变化（切源 / 换账号 / 服务器地址变化）才彻底断开旧连接，
+    // 避免两个 socket 并存导致服务端 userSockets 里出现「同设备多条」并互相挤下线。
+    if (this.socket) {
+        this.socket.disconnect();
+        this.socket = null;
+    }
+    this.signature = signature;
+    this.lastOptions = options;
 
-    const { url, token, userId, deviceName, deviceId, platform, query } = options;
+    // 业务参数双通道：query 给所有已部署服务端读，auth 给新版服务端 / 对 URL query
+    // 校验严格的客户端（HarmonyOS webSocket、部分 Android OkHttp 链路）兜底。
+    // 服务端 handleConnection 已实现 query → auth 逐字段回退读取。
+    const auth: Record<string, any> = {
+        token,
+        userId,
+        deviceName,
+        ...(deviceId ? { deviceId } : {}),
+        ...(platform ? { platform } : {}),
+    };
 
     this.socket = io(url, {
       query: {
@@ -45,13 +100,16 @@ export class SharedSocketService {
         ...query
       },
       transports: ["websocket"],
-      auth: {
-        token,
-      }
+      auth,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      timeout: 10000,
     });
 
     this.socket.on("connect", () => {
-      console.log(`[SharedSocket] Connected: ${this.socket?.id} (deviceId=${deviceId}, deviceName=${deviceName}, platform=${platform})`);
+      console.log(`[SharedSocket] Connected: ${this.socket?.id} (deviceId=${deviceId}, deviceName=${deviceName}, platform=${platform}, url=${url})`);
     });
 
     this.socket.on("disconnect", (reason: string) => {
@@ -70,10 +128,30 @@ export class SharedSocketService {
       console.log(`[SharedSocket] transfer_received: from=${payload?.fromDeviceName} track=${payload?.currentTrack?.name ?? "(none)"} progress=${payload?.progress}s`);
     });
 
+    // 重连时也重新带上最新 auth（token 刷新 / 切源后不会被旧 auth 卡住）
+    this.socket.io.on("reconnect_attempt", () => {
+      if (this.socket) this.socket.auth = { ...auth };
+    });
+
     // Re-attach listeners if any were added before connection
     this.listeners.forEach((callbacks, event) => {
       callbacks.forEach(cb => this.socket?.on(event, cb as any));
     });
+  }
+
+  /**
+   * 确保连接可用。供 App 从后台回前台、网络切换等场景调用：
+   * WS 断开后 socket.io 自身会重连，但移动端（尤其 Android）系统可能冻结定时器，
+   * 需要显式补一次 connect() 才能恢复。
+   */
+  ensureConnected() {
+    if (this.socket?.connected) return;
+    if (this.socket) {
+      this.socket.connect();
+      console.log(`[SharedSocket] ensureConnected: 主动恢复断开的连接 (url=${(this.lastOptions && normalizeSocketUrl(this.lastOptions.url)) || "?"})`);
+    } else if (this.lastOptions) {
+      this.connect(this.lastOptions);
+    }
   }
 
   disconnect() {
@@ -81,6 +159,9 @@ export class SharedSocketService {
       this.socket.disconnect();
       this.socket = null;
     }
+    this.signature = "";
+    // 登出后不能让 ensureConnected() 用旧凭据把连接拉回来
+    this.lastOptions = null;
   }
 
   emit(event: string, data: any) {
