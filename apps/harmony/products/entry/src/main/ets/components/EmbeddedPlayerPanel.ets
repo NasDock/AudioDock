@@ -46,6 +46,11 @@ export struct EmbeddedPlayerPanel {
   private lyricCenteredIndexRef: number = -1;
   private lyricIdleTimerId: number = -1;
   private lyricSeekPlayAt: number = 0;
+  // 轻点 / 拖动判别：Down 只记起点，Move 位移超阈值才算「手动滚动」
+  private lyricTouchStartY: number = 0;
+  private lyricTouchingRef: boolean = false;
+  private lyricDragActiveRef: boolean = false;
+  private lyricDragEndAt: number = 0;
 
   onThemeModeChange(): void {
     this.theme = buildTheme(this.themeMode);
@@ -145,6 +150,8 @@ export struct EmbeddedPlayerPanel {
     this.lyricInteracting = false;
     this.lyricCenteredIndex = -1;
     this.lyricCenteredIndexRef = -1;
+    this.lyricTouchingRef = false;
+    this.lyricDragActiveRef = false;
   }
 
   private lyricCenteredTime(): string {
@@ -153,6 +160,7 @@ export struct EmbeddedPlayerPanel {
     return formatDuration(this.view.lyrics[idx].time);
   }
 
+  /** 确认是拖动后才接管：自动跟随让位 + 起 2s 回弹计时 */
   private beginLyricInteract(): void {
     this.clearLyricIdleTimer();
     this.lyricInteractingRef = true;
@@ -203,11 +211,40 @@ export struct EmbeddedPlayerPanel {
     }
   }
 
-  /** 接管期间 / 刚点过播放按钮时，屏蔽点歌词切回封面 */
+  /** 轻点封面/歌词区始终切换显示；拖动抬手、点播放按钮的冒泡用时间戳挡掉 */
   private onLyricsAreaClick(): void {
-    if (this.lyricInteractingRef) return;
+    if (Date.now() - this.lyricDragEndAt < 400) return;
     if (Date.now() - this.lyricSeekPlayAt < 400) return;
+    this.resetLyricInteraction();
+    // 下次进入歌词时让 subscribe 重新滚到当前播放行
+    this.lastLyricIndex = -1;
     this.toggleCoverLyrics();
+  }
+
+  /**
+   * 轻点 / 拖动判别。不能一按下就接管：车机点歌词原本是切回封面，
+   * 立刻置 interactingRef 会弹出时间条并把切封面的点击一起挡掉。
+   */
+  private handleLyricTouch(event: TouchEvent): void {
+    if (event.type === TouchType.Down) {
+      this.lyricTouchStartY = event.touches.length > 0 ? event.touches[0].y : 0;
+      this.lyricTouchingRef = true;
+      this.lyricDragActiveRef = false;
+      return;
+    }
+    if (event.type === TouchType.Move) {
+      if (!this.lyricDragActiveRef && this.lyricTouchingRef &&
+          event.touches.length > 0 &&
+          Math.abs(event.touches[0].y - this.lyricTouchStartY) > 8) {
+        this.lyricDragActiveRef = true;
+        this.beginLyricInteract();
+      }
+      return;
+    }
+    // Up / Cancel：拖动抬起记时间戳，防止抬手被识别成点击切回封面
+    if (this.lyricDragActiveRef) this.lyricDragEndAt = Date.now();
+    this.lyricTouchingRef = false;
+    this.lyricDragActiveRef = false;
   }
 
   build() {
@@ -293,6 +330,8 @@ export struct EmbeddedPlayerPanel {
               .height('100%')
               .scrollBar(BarState.Off)
               .onScrollIndex((_start: number, _end: number, center: number): void => {
+                // 手指仍按着且列表确实滚动了：Move 被 List 手势吞掉时的兜底接管
+                if (this.lyricTouchingRef && !this.lyricInteractingRef) this.beginLyricInteract();
                 if (this.lyricInteractingRef && center >= 0 && center < this.view.lyrics.length) {
                   this.lyricCenteredIndexRef = center;
                   this.lyricCenteredIndex = center;
@@ -300,7 +339,7 @@ export struct EmbeddedPlayerPanel {
               })
               .onScrollStop(() => { this.scheduleLyricIdleReset(); })
               .onTouch((event: TouchEvent): void => {
-                if (event.type === TouchType.Down) this.beginLyricInteract();
+                this.handleLyricTouch(event);
               });
 
               if (this.lyricInteracting && this.lyricCenteredIndex >= 0) {

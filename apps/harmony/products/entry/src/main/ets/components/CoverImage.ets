@@ -1,5 +1,6 @@
 import { bucketWidth, getImageUrl } from '../utils/image';
 import { resolveFnosCover } from '../utils/fnosCover';
+import { getCachedCoverUri } from '../utils/coverCache';
 import { IS_INTERNAL_KEY } from '../utils/networkMode';
 import { isFnosMediaUrl } from 'features_network';
 import { buildTheme } from 'features_ui';
@@ -47,6 +48,11 @@ export struct CoverImage {
   /** imgWidth 是 vp，按 2 倍估算目标设备像素宽度 */
   private buildUrl(): string {
     const url: string = getImageUrl(this.path, bucketWidth(this.imgWidth * 2));
+    // mini 态闲时已预下载落盘的封面（尤其 600 档全屏大图）：同步用 file://，
+    // 进 PlayerPage 首帧即可显示，不再走网络从头下载。
+    // 飞牛源也走这里 —— 预热复用 fnosCover 的落盘路径，命中后连异步解析都省了。
+    const local: string = getCachedCoverUri(url);
+    if (local.length > 0) return local;
     // 飞牛封面只认 Cookie/Authorization，Image 加不了请求头：
     // 先带鉴权下载落盘，再用本地 file:// 地址渲染（见 utils/fnosCover.ets）
     if (isFnosMediaUrl(url)) {

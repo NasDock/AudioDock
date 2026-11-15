@@ -1,8 +1,14 @@
 import { Image, Text, View } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePlayer } from '../../context/PlayerContext';
 import { getImageUrl as buildImageUrl } from '../../utils/image';
+import {
+  buildPlayerCoverUrl,
+  IDLE_DELAY_MS,
+  prefetchPlayerCover,
+  shouldPrefetchPlayerCover,
+} from '../../utils/coverPrefetch';
 import PlaylistModal from '../PlaylistModal';
 import './index.scss';
 
@@ -19,6 +25,29 @@ const MiniPlayer: React.FC = () => {
     availableAudioQualities,
   } = usePlayer();
   const router = useRouter();
+  const cover = currentTrack?.cover;
+
+  /**
+   * mini 态闲时预热播放页 600 档大封面。
+   *
+   * mini 条是 128 档，播放页是 600 档，URL 不同 → 微信按 URL 的图片缓存不命中，
+   * navigateTo 进 player 页才从头下载大图，封面先露 #eee 灰底。这里延迟到闲时
+   * 挂一个 2rpx 隐藏 image 把大图拉进客户端缓存，并顺带试一次 getImageInfo 拿本地路径。
+   *
+   * 放在 mini 条（mini 态载体）而不是 PlayerProvider：隐藏 image 需要真实节点，
+   * 而 player 页本身不挂 mini 条 —— 大图在那一页直接可见、无需预热。
+   */
+  const [prefetchCoverUrl, setPrefetchCoverUrl] = useState('');
+  useEffect(() => {
+    setPrefetchCoverUrl('');
+    if (!shouldPrefetchPlayerCover(cover)) return;
+    const url = buildPlayerCoverUrl(cover);
+    const timer = setTimeout(() => {
+      setPrefetchCoverUrl(url);
+      void prefetchPlayerCover(url);
+    }, IDLE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [cover]);
 
   const isTabPage = router.path === '/pages/index/index' ||
                     router.path === '/pages/library/index' ||
@@ -92,6 +121,14 @@ const MiniPlayer: React.FC = () => {
         </View>
         <PlaylistModal />
       </View>
+      {/* 闲时把播放页 600 档大图拉进微信图片缓存；2rpx 且几乎全透明，不影响布局与点击 */}
+      {prefetchCoverUrl ? (
+        <Image
+          src={prefetchCoverUrl}
+          className='mini-cover-prefetch'
+          mode='aspectFill' webp
+        />
+      ) : null}
     </>
   );
 };

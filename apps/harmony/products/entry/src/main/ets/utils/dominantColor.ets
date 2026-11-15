@@ -90,6 +90,18 @@ export function getCachedDominantColor(cover?: string | null): Rgb | null {
 }
 
 /**
+ * 丢弃某封面的缓存结果（mini 态预热失败时调用）。
+ *
+ * notify() 在冷启动恢复播放状态时就会触发预热，此刻源地址 / 鉴权可能还没就绪，
+ * 取色会返回 null；若把 null 留在缓存里，PlayerPage.refreshCoverColor() 会一直读到
+ * 「已解析但无色」，反而彻底丢失主题色 —— 比闪一下更糟。清掉后播放页会重新解析。
+ */
+export function invalidateDominantColor(cover?: string | null): void {
+  const key: string | null = normalizeCover(cover);
+  if (key !== null) cache.delete(key);
+}
+
+/**
  * 按封面取主题色：本地下载 + 本地解码 + 本地取色，失败一律 null。
  * 同封面并发请求复用同一个 Promise；结果（含失败）进内存缓存。
  */
