@@ -159,16 +159,23 @@ export class UserService {
     return res.count;
   }
 
-  async setDeviceOffline(userId: number, deviceName: string, deviceId?: string): Promise<void> {
+  async setDeviceOffline(userId: number, deviceName: string, deviceId?: string, platform?: string): Promise<void> {
     let device: Device | null = null;
     if (deviceId) {
       device = await this.prisma.device.findFirst({
         where: { userId, deviceId },
       });
     }
+    // ⚠️ name 兜底必须带 platform，与 saveDevice 的兜底规则保持一致。
+    // 否则同名不同端（例如两台都叫 "Mobile Device" 的 phone / tablet，或同主机名的
+    // desktop 与 web）里一台断开时会把另一台记录误置离线 → 设备从列表里莫名消失。
     if (!device) {
       device = await this.prisma.device.findFirst({
-        where: { userId, name: deviceName },
+        where: {
+          userId,
+          name: deviceName,
+          ...(platform ? { platform } : {}),
+        },
       });
     }
 

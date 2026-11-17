@@ -20,6 +20,18 @@
   }
 }
 
+/* 闲时预加载播放页大封面：留在可视区内（避免被渲染层跳过下载），
+   但只有 2rpx 且几乎全透明；不接收点击，不影响 mini 条布局 */
+.mini-cover-prefetch {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 2rpx;
+  height: 2rpx;
+  opacity: 0.01;
+  pointer-events: none;
+}
+
 .mini-content {
   display: flex;
   flex-direction: row;

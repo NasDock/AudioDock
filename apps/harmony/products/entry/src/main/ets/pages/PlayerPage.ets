@@ -18,6 +18,7 @@ import { getCurrentQuality } from '../services/trackQuality';
 import type { Quality } from '../services/trackQuality';
 import { getOrCreateDeviceId } from '../utils/device';
 import { getImageUrl } from '../utils/image';
+import { coverDisplayUri } from '../utils/coverCache';
 import { socketService } from 'features_socket';
 import { likesHistory } from '../services/LikesHistoryService';
 import { downloadTrack, isTrackDownloaded } from '../services/downloadService';
@@ -225,6 +226,11 @@ struct PlayerPage {
   private lyricCenteredIndexRef: number = -1;
   private lyricIdleTimerId: number = -1;
   private lyricSeekPlayAt: number = 0;
+  // 轻点 / 拖动判别：Down 只记起点，Move 位移超阈值才算「手动滚动」
+  private lyricTouchStartY: number = 0;
+  private lyricTouchingRef: boolean = false;
+  private lyricDragActiveRef: boolean = false;
+  private lyricDragEndAt: number = 0;
   private unsub: () => void = () => {};
   private unsubLike: () => void = () => {};
   // ─── 横屏布局状态（对齐 mobile player.tsx landscape 逻辑） ───
@@ -1200,7 +1206,8 @@ struct PlayerPage {
       if (this.themeTokens?.background === undefined &&
         (this.current()?.coverUrl !== undefined || this.coverColor !== null)) {
         if (this.current()?.coverUrl !== undefined) {
-          Image(getImageUrl(this.current()?.coverUrl, 300))
+          // mini 态闲时已预下载落盘：同步拿 file://，首帧就有磨砂底图，不再等网络
+          Image(coverDisplayUri(getImageUrl(this.current()?.coverUrl, 300)))
             .width('100%')
             .height('100%')
             .objectFit(ImageFit.Cover)
@@ -1899,6 +1906,8 @@ struct PlayerPage {
     this.lyricInteracting = false;
     this.lyricCenteredIndex = -1;
     this.lyricCenteredIndexRef = -1;
+    this.lyricTouchingRef = false;
+    this.lyricDragActiveRef = false;
   }
 
   /** LRCParser 的 time 单位是毫秒，显示时换算成分秒 */
@@ -1921,7 +1930,7 @@ struct PlayerPage {
     return this.formatLyricClock(this.view.lyrics[idx].time);
   }
 
-  /** 手指按下：立刻接管，自动跟随让位；轻点不滚动时也要能靠这个 timer 回弹 */
+  /** 确认是拖动后才接管：自动跟随让位 + 起 2s 回弹计时 */
   private beginLyricInteract(): void {
     this.clearLyricIdleTimer();
     this.lyricInteractingRef = true;
@@ -1973,11 +1982,44 @@ struct PlayerPage {
     }
   }
 
-  /** 接管期间 / 刚点过播放按钮时，屏蔽点歌词切回封面 */
+  /**
+   * 轻点歌词始终切回封面（横屏歌词常驻，不做切换）。
+   * 拖动抬手、点播放按钮的冒泡用时间戳挡掉，避免误切。
+   */
   private onLyricsBackgroundClick(): void {
-    if (this.lyricInteractingRef) return;
+    if (Date.now() - this.lyricDragEndAt < 400) return;
     if (Date.now() - this.lyricSeekPlayAt < 400) return;
-    if (!this.isLandscape) this.showLyrics = false;
+    if (this.isLandscape) return;
+    this.resetLyricInteraction();
+    // 下次进入歌词时让 subscribe 重新滚到当前播放行
+    this.lastLyricIndex = -1;
+    this.showLyrics = false;
+  }
+
+  /**
+   * 轻点 / 拖动判别。不能一按下就接管：竖屏点歌词原本是切回封面，
+   * 立刻置 interactingRef 会弹出时间条并把切封面的点击一起挡掉。
+   */
+  private handleLyricTouch(event: TouchEvent): void {
+    if (event.type === TouchType.Down) {
+      this.lyricTouchStartY = event.touches.length > 0 ? event.touches[0].y : 0;
+      this.lyricTouchingRef = true;
+      this.lyricDragActiveRef = false;
+      return;
+    }
+    if (event.type === TouchType.Move) {
+      if (!this.lyricDragActiveRef && this.lyricTouchingRef &&
+          event.touches.length > 0 &&
+          Math.abs(event.touches[0].y - this.lyricTouchStartY) > 8) {
+        this.lyricDragActiveRef = true;
+        this.beginLyricInteract();
+      }
+      return;
+    }
+    // Up / Cancel：拖动抬起记时间戳，防止抬手被识别成点击切回封面
+    if (this.lyricDragActiveRef) this.lyricDragEndAt = Date.now();
+    this.lyricTouchingRef = false;
+    this.lyricDragActiveRef = false;
   }
 
   @Builder lyricsView() {
@@ -2014,6 +2056,8 @@ struct PlayerPage {
         .scrollBar(BarState.Off)
         // List 直接上报视口中心 item 索引，省掉逐行布局测量
         .onScrollIndex((_start: number, _end: number, center: number): void => {
+          // 手指仍按着且列表确实滚动了：Move 被 List 手势吞掉时的兜底接管
+          if (this.lyricTouchingRef && !this.lyricInteractingRef) this.beginLyricInteract();
           if (this.lyricInteractingRef && center >= 0 && center < this.view.lyrics.length) {
             this.lyricCenteredIndexRef = center;
             this.lyricCenteredIndex = center;
@@ -2021,7 +2065,7 @@ struct PlayerPage {
         })
         .onScrollStop(() => { this.scheduleLyricIdleReset(); })
         .onTouch((event: TouchEvent): void => {
-          if (event.type === TouchType.Down) this.beginLyricInteract();
+          this.handleLyricTouch(event);
         })
         .onClick(() => { this.onLyricsBackgroundClick(); });
 

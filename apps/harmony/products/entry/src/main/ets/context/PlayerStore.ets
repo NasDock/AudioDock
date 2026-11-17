@@ -8,6 +8,10 @@ import type { TrackDto } from 'features_network';
 import { syncStore } from './SyncStore';
 import { authStore } from './AuthStore';
 import { getSourceKey } from '../utils/device';
+import { getImageUrl } from '../utils/image';
+import { fetchDominantColor, invalidateDominantColor } from '../utils/dominantColor';
+import type { Rgb } from '../utils/dominantColor';
+import { hydrateCachedCoverUri, prefetchCoverToDisk } from '../utils/coverCache';
 
 export interface Track {
   id: string;
@@ -151,6 +155,8 @@ export class PlayerStore {
   private isSkippingOutro: boolean = false;
   /** 预下载去重标记：记录已触发过预下载的 trackId，播放列表变化时清空重新计算。 */
   private preDownloadedIds: Set<string> = new Set();
+  /** 已预热过播放页视觉的封面，避免 notify() 高频重复调度（进度 tick ~50ms 一次） */
+  private primedCoverKey: string = '';
 
   private listeners = new Set<Listener>();
 
@@ -1074,7 +1080,50 @@ export class PlayerStore {
     syncStore.leaveSession();
   }
 
+  /**
+   * mini 态闲时预热播放页视觉（主题色 + 全屏大封面）。
+   *
+   * PlayerPage 是独立 @Entry 页，router.pushUrl 时才首次挂载：此前只有它的
+   * refreshCoverColor() 会调用 fetchDominantColor，内存缓存必为空 → 首帧 coverColor=null
+   * 退中性黑渐变，异步取色回来才跳成主题色；大封面（600 档 / 背景 300 档）也要重新下载。
+   *
+   * 这里挂在 notify() 上按封面去重，覆盖起播、切歌、冷启动恢复（loadPersistedState
+   * 也会 notify）、车机 embedded 等全部入口，mini 隐藏时同样生效：
+   *  ① 主题色立即起步 —— 它决定「闪不闪」，不能等闲时延迟；
+   *  ② 先只查磁盘补内存索引（冷启动零网络就能复用上次落盘的封面）；
+   *  ③ 大图下载延迟 3s，对齐 triggerCacheWhilePlaying / triggerPreloadAround 的
+   *     「让当前曲目优先完成初始缓冲」原则，不与音频流抢带宽。
+   * 落盘结果由 utils/coverCache.ets 的同步索引交给 CoverImage / PlayerPage 背景图读取。
+   */
+  private primePlayerVisuals(): void {
+    const cur: Track | undefined = this.queue[this.currentIndex];
+    const cover: string = cur?.coverUrl ?? '';
+    if (cover.length === 0 || cover === this.primedCoverKey) return;
+    this.primedCoverKey = cover;
+
+    fetchDominantColor(cover)
+      .then((c: Rgb | null): void => {
+        // 冷启动早期源配置可能还没水合，取色会失败。别把 null 留在缓存里，
+        // 否则 PlayerPage 首帧会一直读到「已解析但无色」，反而彻底没有主题色；
+        // 清掉后播放页挂载时会重新解析一次（那时配置已就绪）。
+        if (c === null) invalidateDominantColor(cover);
+      })
+      .catch(() => undefined);
+
+    // 与 CoverImage(imgWidth:200 → bucketWidth(400)=600) 和 PlayerPage 背景图(300) 保持一致
+    const bigUrl: string = getImageUrl(cover, 600);
+    const bgUrl: string = getImageUrl(cover, 300);
+    hydrateCachedCoverUri(bigUrl).catch(() => undefined);
+    hydrateCachedCoverUri(bgUrl).catch(() => undefined);
+    setTimeout((): void => {
+      prefetchCoverToDisk(bigUrl).catch(() => undefined);
+      prefetchCoverToDisk(bgUrl).catch(() => undefined);
+    }, 3000);
+  }
+
   private notify(): void {
+    // 曲目确定后尽早备好播放页视觉（内部按 cover 去重，高频 tick 只有一次字符串比较）
+    this.primePlayerVisuals();
     for (const l of this.listeners) l();
     // 状态变化时主动推卡片（不依赖 widgetBridge.install 的订阅时机，
     // 对齐 iOS 的 commit() 三连：写 Preferences → 批量 updateForm）

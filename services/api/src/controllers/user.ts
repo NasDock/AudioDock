@@ -167,7 +167,16 @@ export class UserController {
   @Post('/user/devices/transfer')
   async transferToDevice(
     @Req() req: Request,
-    @Body() body: { targetDeviceId: string; currentTrack?: any; playlist?: any; progress?: number; fromDeviceName?: string },
+    @Body() body: {
+      targetDeviceId: string;
+      /** deviceId 漂移时的兜底匹配维度（与 WS 版 transfer_session 一致） */
+      targetDeviceName?: string;
+      targetPlatform?: string;
+      currentTrack?: any;
+      playlist?: any;
+      progress?: number;
+      fromDeviceName?: string;
+    },
   ): Promise<ISuccessResponse<{ delivered: boolean }> | IErrorResponse | IAuthFaildResponse> {
     try {
       const userId = Number((req.user as any)?.userId);

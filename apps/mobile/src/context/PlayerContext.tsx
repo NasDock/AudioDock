@@ -79,6 +79,7 @@ import { useSettings } from "./SettingsContext";
 import { useSync } from "./SyncContext";
 import { trackEvent } from "../services/tracking";
 import { getCurrentPlaybackQualityPreference, getPlaybackQualityPreferenceSync } from "../utils/playbackQuality";
+import { primePlayerVisuals } from "../utils/playerVisualPrefetch";
 
 export enum PlayMode {
   SEQUENCE = "SEQUENCE",
@@ -340,6 +341,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     currentTrackRef.current = track;
     setCurrentTrack(track);
   }, []);
+
+  /**
+   * mini 态闲时预热播放页视觉（主题色 + 全屏大封面）。
+   *
+   * /player 是首次挂载时才会触发取色，若不预热，进全屏首帧拿不到主题色 → 背景先中性黑
+   * 再跳色；900 档大封面也才从头下载。这里按 cover（而非 track 对象）触发，
+   * 飞牛歌词懒加载并回 currentTrack 时不会重复调度。
+   */
+  useEffect(() => {
+    primePlayerVisuals(currentTrack?.cover);
+  }, [currentTrack?.cover]);
 
   /**
    * 飞牛歌词懒加载。

@@ -79,6 +79,18 @@ export function getCachedCoverVisual(cover?: string | null): CoverVisual | null 
   return cleanPath ? cache.get(cleanPath) ?? null : null;
 }
 
+/**
+ * 丢弃某封面的缓存结果（mini 态预热失败时调用）。
+ *
+ * 预热可能在冷启动早期触发，此时源地址 / 鉴权还没水合，取色会返回 null；
+ * 若把 `{ color: null, resolved: true }` 留在缓存里，播放页首帧会一直读到
+ * 「已解析但无色」，反而彻底丢失主题色 —— 比闪一下更糟。清掉后播放页会重新解析。
+ */
+export function invalidateCoverVisual(cover?: string | null): void {
+  const cleanPath = normalizeCover(cover);
+  if (cleanPath) cache.delete(cleanPath);
+}
+
 const toCoverVisual = (local: LocalCoverVisual | null): Omit<CoverVisual, "resolved"> =>
   local
     ? { color: local.color, blurredCoverUri: local.blurredCoverUri }
