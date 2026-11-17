@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { AuthService } from './auth/auth.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import jwtConfig from './config/jwt.config';
+import { AccessTokenController } from './controllers/access-token.controller';
 import { AdminController } from './controllers/admin.controller';
 import { AlbumController } from './controllers/album';
 import { ArtistController } from './controllers/artist';
@@ -36,6 +37,7 @@ import { WebDavSyncController } from './controllers/webdav-sync.controller';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { SyncGateway } from './gateways/sync.gateway';
 import { ResponseInterceptor } from './interceptors/response.interceptor';
+import { AccessTokenService } from './services/access-token.service';
 import { AlbumService } from './services/album';
 import { ArtistService } from './services/artist';
 import { AudiobookService } from './services/audiobook';
@@ -89,6 +91,7 @@ import { ImageOptimizeService } from './services/image-optimize.service';
   ],
   controllers: [
     UserController,
+    AccessTokenController,
     AdminController,
     AuthController,
     AlbumController,
@@ -118,6 +121,7 @@ import { ImageOptimizeService } from './services/image-optimize.service';
   providers: [
     UserService,
     AuthService,
+    AccessTokenService,
     AlbumService,
     ArtistService,
     TrackService,

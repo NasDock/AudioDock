@@ -288,6 +288,29 @@ model User {
   devices          Device[]
   /// 用户搜索记录
   searchRecords    SearchRecord[]
+  /// 用户的 API 访问令牌
+  accessTokens     AccessToken[]
+}
+
+/// API 访问令牌：用于第三方/远程脚本调用接口（如修改元数据）。
+/// 只存 SHA-256 哈希，完整令牌仅在创建时返回一次。
+model AccessToken {
+  id          Int       @id @default(autoincrement())
+  /// 备注名，便于识别用途
+  name        String
+  /// 令牌的 SHA-256 哈希（hex）
+  tokenHash   String    @unique
+  /// 令牌前缀（展示用，如 adk_a1b2c3）
+  tokenPrefix String
+  /// 是否启用（可临时停用而不删除）
+  enabled     Boolean   @default(true)
+  /// 最近一次使用时间
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+
+  @@index([userId])
 }
 
 model SystemSetting {

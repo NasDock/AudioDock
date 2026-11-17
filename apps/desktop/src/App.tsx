@@ -27,6 +27,7 @@ const Settings = lazy(() => import("./pages/Settings/index"));
 const Folder = lazy(() => import("./pages/Folder/index"));
 const Downloads = lazy(() => import("./pages/Downloads/index"));
 const UserManagement = lazy(() => import("./pages/Admin/UserManagement/index"));
+const AccessTokenManagement = lazy(() => import("./pages/Admin/AccessTokenManagement/index"));
 const Songs = lazy(() => import("./pages/Songs/index"));
 const Login = lazy(() => import("./pages/Login/index"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword/index"));
@@ -230,6 +231,7 @@ const AppContent = () => {
         <Route path="/folder/:id" element={<Folder />} />
         <Route path="/downloads" element={<Downloads />} />
         <Route path="/admin/users" element={<UserManagement />} />
+        <Route path="/admin/access-tokens" element={<AccessTokenManagement />} />
         <Route path="/tts/tasks" element={<TaskList />} />
         <Route path="/tts/create" element={<CreateTask />} />
         <Route path="/product-updates" element={<ProductUpdates />} />
