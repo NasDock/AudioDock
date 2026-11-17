@@ -1,4 +1,5 @@
 export * from "./adapter/manager";
+export * from "./accessToken";
 export * from "./admin";
 export * from "./album";
 export * from "./artist";

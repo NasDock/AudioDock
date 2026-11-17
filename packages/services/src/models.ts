@@ -199,6 +199,29 @@ export interface Playlist {
   };
 }
 
+/**
+ * API 访问令牌（安全视图，不含 tokenHash）。
+ * 完整令牌仅在创建接口的返回里出现一次（AccessTokenWithSecret）。
+ */
+export interface AccessToken {
+  id: number;
+  /** 备注名 */
+  name: string;
+  /** 令牌前缀（展示用，如 adk_a1b2c3） */
+  tokenPrefix: string;
+  /** 是否启用 */
+  enabled: boolean;
+  /** 最近使用时间 */
+  lastUsedAt?: string | Date | null;
+  createdAt: string | Date;
+  userId: number;
+}
+
+/** 创建令牌时的返回：token 字段为完整明文，仅本次可见 */
+export interface AccessTokenWithSecret extends AccessToken {
+  token: string;
+}
+
 export interface AudiobookCollection {
   id: number | string;
   name: string;

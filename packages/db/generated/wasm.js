@@ -251,6 +251,17 @@ exports.Prisma.UserScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.AccessTokenScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  tokenHash: 'tokenHash',
+  tokenPrefix: 'tokenPrefix',
+  enabled: 'enabled',
+  lastUsedAt: 'lastUsedAt',
+  createdAt: 'createdAt',
+  userId: 'userId'
+};
+
 exports.Prisma.SystemSettingScalarFieldEnum = {
   id: 'id',
   key: 'key',
@@ -400,6 +411,7 @@ exports.Prisma.ModelName = {
   UserAudiobookLike: 'UserAudiobookLike',
   UserAudiobookHistory: 'UserAudiobookHistory',
   User: 'User',
+  AccessToken: 'AccessToken',
   SystemSetting: 'SystemSetting',
   SearchRecord: 'SearchRecord',
   Device: 'Device',

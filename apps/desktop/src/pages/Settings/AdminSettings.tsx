@@ -49,6 +49,7 @@ const AdminSettings: React.FC = () => {
                <span>{t("settings.allowNewUserRegistration")}:</span>
                <Switch checked={registrationAllowed} onChange={toggleRegistration} loading={settingLoading} />
                <Button onClick={() => navigate("/admin/users")}>{t("adminUserManagement.title")}</Button>
+               <Button onClick={() => navigate("/admin/access-tokens")}>{t("accessTokenManagement.title")}</Button>
            </Space>
         </div>
     );
