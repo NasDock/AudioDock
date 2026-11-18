@@ -796,6 +796,13 @@ struct SettingsPage {
             () => router.pushUrl({ url: 'pages/SourceManagePage' }),
           )
 
+          // API 访问令牌管理
+          this.ActionRow(
+            t('accessToken.title'),
+            t('accessToken.description'),
+            () => router.pushUrl({ url: 'pages/AccessTokenPage' }),
+          )
+
           // ═══ 通用 Section ═══
           this.SectionTitle(t('settings.general'))
 

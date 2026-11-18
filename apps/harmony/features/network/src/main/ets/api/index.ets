@@ -14,6 +14,7 @@ export { ttsConfigApi } from './ttsConfig';
 export { taskApi } from './task';
 export { deviceApi } from './device';
 export { scanLoginApi, subscribeScanLoginSession, reportScanLoginResultViaSocket } from './scanLogin';
+export { accessTokenApi } from './accessToken';
 
 export type { LoginDto, RegisterDto, AuthMe, LoginResponse, CheckResponse, AuthApi } from './auth';
 export type { UserItem, UserApi } from './user';
@@ -74,3 +75,6 @@ export type {
   ScanLoginClaimPayload, ScanLoginConfirmResult, ScanLoginSelection,
   ScanLoginApi, ScanLoginSubscribeOptions, ScanLoginUnsubscribe,
 } from './scanLogin';
+export type {
+  AccessToken, AccessTokenWithSecret, UpdateAccessTokenDto, AccessTokenApi,
+} from './accessToken';

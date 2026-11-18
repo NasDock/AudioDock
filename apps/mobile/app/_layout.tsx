@@ -574,6 +574,7 @@ function RootLayoutNav() {
       <Stack.Screen name="player-theme" options={{ headerShown: false, animation: 'slide_from_right' }} />
       <Stack.Screen name="task-center" options={{ headerShown: false, animation: 'slide_from_right' }} />
       <Stack.Screen name="mi-speaker" options={{ headerShown: false, animation: 'slide_from_right' }} />
+      <Stack.Screen name="access-tokens" options={{ headerShown: false, animation: 'slide_from_right' }} />
     </Stack>
   );
 
