@@ -416,7 +416,9 @@ const Login: React.FC = () => {
       try {
         const response = await check();
         const code = (response as { code?: number } | null)?.code;
-        if (code !== undefined && code !== 200) {
+        // 401 也算可达：探测发生在登录前（或本地还残留着过期 token），
+        // 服务能给出鉴权拒绝的响应就说明地址是通的
+        if (code !== undefined && code !== 200 && code !== 401) {
           failures.push(
             `${addr}：${(response as { message?: string } | null)?.message || "连接失败"}`,
           );
