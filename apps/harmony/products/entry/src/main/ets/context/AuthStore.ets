@@ -2,7 +2,7 @@ import { kvStore } from 'features_storage';
 import { httpClient } from 'features_network';
 import { authApi } from 'features_network';
 import {
-  enableFnos, disableFnos, isFnosSource,
+  enableFnos, disableFnos, isFnosSource, setPlatformConfig, clearPlatformConfig,
 } from 'features_network';
 import type { FnosLoginOutcome, FnosSessionInfo } from 'features_network';
 import { socketService, SocketConnectOptions, SocketConnectQuery } from 'features_socket';
@@ -16,6 +16,15 @@ type Listener = () => void;
 
 /** 飞牛音乐会话（origin/apiBase/token/用户）落盘 key —— 飞牛只保持一个当前会话 */
 const FNOS_SESSION_KEY = 'fnos_session';
+
+/**
+ * AudioDock 平台服务（设备列表/播放流转依赖的服务端账号体系）落盘 key。
+ * AudioDock 源登录成功时快照一份（persist()），飞牛源下恢复出来继续用。
+ * JWT 100 年有效，重新登录 AudioDock 源即刷新。
+ */
+const PLATFORM_ADDRESS_KEY = 'platform_audiodock_address';
+const PLATFORM_TOKEN_KEY = 'platform_audiodock_token';
+const PLATFORM_USER_ID_KEY = 'platform_audiodock_user_id';
 
 export type SourceType = 'audiodock' | 'subsonic' | 'emby' | 'fnos';
 
@@ -91,11 +100,26 @@ export class AuthStore {
     await refreshNetworkMode();
   }
 
+  /** 恢复 AudioDock 平台服务配置（飞牛源下设备列表/流转/WS 注册依赖它） */
+  private async restorePlatformConfig(): Promise<void> {
+    try {
+      const address = await kvStore.get(PLATFORM_ADDRESS_KEY);
+      const token = await kvStore.get(PLATFORM_TOKEN_KEY);
+      if (address && token) {
+        setPlatformConfig(address, token);
+        Logger.i('AuthStore', `platform config restored: ${address}`);
+      } else {
+        clearPlatformConfig();
+      }
+    } catch (e) {
+      Logger.w('AuthStore', `restorePlatformConfig failed: ${String(e)}`);
+    }
+  }
+
   async login(dto: LoginDto): Promise<void> {
     const res = await authApi.login(await this.withDeviceInfo(dto));
     await this.persist(res);
   }
-
   // ────────────────────────────────────────────────────────────
   // 飞牛音乐（fnos）会话
   // ────────────────────────────────────────────────────────────
@@ -120,6 +144,8 @@ export class AuthStore {
     await kvStore.set('serverAddress', info.origin);
     await kvStore.set('selectedSourceType', 'fnos');
     await kvStore.set(FNOS_SESSION_KEY, JSON.stringify(info));
+    // 飞牛源下设备列表/流转/WS 注册走 AudioDock 平台服务
+    await this.restorePlatformConfig();
     this.notify();
   }
 
@@ -144,6 +170,8 @@ export class AuthStore {
     } catch (e) {
       Logger.w('AuthStore', `restoreFnosSession failed: ${String(e)}`);
     }
+    // 飞牛源下设备列表/流转/WS 注册走 AudioDock 平台服务
+    await this.restorePlatformConfig();
   }
 
   /** 清除飞牛会话（退出登录 / 切回 AudioDock 源时调用） */
@@ -251,6 +279,13 @@ export class AuthStore {
     await kvStore.set(`user_${url}`, JSON.stringify(user));
     if (res.device) await kvStore.set(`device_${url}`, String(res.device.id));
     httpClient.setAuthToken(res.token);
+    // AudioDock 源登录成功：快照为平台服务配置，供飞牛源下设备列表/流转复用
+    if (this.state.sourceType === 'audiodock' && url.length > 0) {
+      await kvStore.set(PLATFORM_ADDRESS_KEY, url);
+      await kvStore.set(PLATFORM_TOKEN_KEY, res.token);
+      await kvStore.set(PLATFORM_USER_ID_KEY, String(res.id));
+      setPlatformConfig(url, res.token);
+    }
     this.notify();
   }
 
@@ -299,14 +334,27 @@ export class AuthStore {
    * 幂等：已连接则直接返回；切换账号/重新登录由调用方先 disconnectSyncSocket 再 connect。
    */
   async connectSyncSocket(): Promise<void> {
-    // 飞牛音乐不是 AudioDock 服务端，没有 sync socket 网关
-    if (this.state.sourceType === 'fnos') return;
+    let url = this.state.serverAddress;
+    let token = this.state.token;
+    let userId = this.state.user?.id ?? '';
+    // 飞牛音乐不是 AudioDock 服务端，没有 sync socket 网关；
+    // 但设备注册/播放流转挂在 AudioDock 平台服务上，有平台登录态时改连平台服务。
+    if (this.state.sourceType === 'fnos') {
+      await this.restorePlatformConfig();
+      const pAddress = await kvStore.get(PLATFORM_ADDRESS_KEY);
+      const pToken = await kvStore.get(PLATFORM_TOKEN_KEY);
+      const pUserId = await kvStore.get(PLATFORM_USER_ID_KEY);
+      if (!pAddress || !pToken || !pUserId) {
+        Logger.w('AuthStore', 'connectSyncSocket skipped: fnos 源且无 AudioDock 平台登录态');
+        return;
+      }
+      url = pAddress;
+      token = pToken;
+      userId = pUserId;
+    }
     if (socketService.isConnected()) return;
-    const user = this.state.user;
-    const token = this.state.token;
-    const url = this.state.serverAddress;
-    if (!user || !token || !url) {
-      Logger.w('AuthStore', `connectSyncSocket skipped: user=${user ? 'ok' : 'null'} token=${token ? 'ok' : 'null'} url=${url ?? 'null'}`);
+    if (!userId || !token || !url) {
+      Logger.w('AuthStore', `connectSyncSocket skipped: user=${userId ? 'ok' : 'null'} token=${token ? 'ok' : 'null'} url=${url ?? 'null'}`);
       return;
     }
     const name = this.resolveDeviceName();
@@ -320,7 +368,7 @@ export class AuthStore {
       const opts = new SocketConnectOptions();
       opts.url = url;
       opts.token = token;
-      opts.userId = user.id;
+      opts.userId = userId;
       opts.deviceName = name;
       opts.query = query;
       await socketService.connect(opts);

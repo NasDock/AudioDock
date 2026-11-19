@@ -4,6 +4,7 @@ import { SOURCEMAP } from "../constants/sources";
 import { registerFnosTransport } from "../services/fnosTransport";
 import { useAuthStore } from "../store/auth";
 import { enforceSourcePlayMode } from "../utils/playMode";
+import { syncPlatformConfig } from "../utils/platformServer";
 
 // 飞牛网关没有 CORS 头，必须先把请求切到 Tauri 的 Rust 侧再发（web 环境下自动跳过）
 registerFnosTransport();
@@ -146,6 +147,9 @@ const initAdapter = () => {
 
     // 飞牛只有音乐：把上次残留的「有声书」模式纠正回来
     enforceSourcePlayMode(mappedType === "fnos" ? "Feiniu" : sourceType);
+
+    // 第三方音乐源下，设备列表/播放流转走 AudioDock 平台服务（最近一次 AudioDock 源登录态）
+    syncPlatformConfig();
   } catch (e) {
     console.error("初始化适配器失败", e);
     useNativeAdapter();

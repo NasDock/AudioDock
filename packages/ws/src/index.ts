@@ -47,6 +47,40 @@ export function normalizeSocketUrl(raw: string): string {
         .replace(/^wss:\/\//i, "https://");
 }
 
+/**
+ * 把服务器地址拆成 socket.io 客户端需要的 origin + path：
+ *
+ * - 无路径（`http://192.168.1.6:8865`）→ 默认 `/socket.io`；
+ * - 相对路径 `/api`（自建 nginx 同源部署：`/api` 只是 HTTP 前缀，`/socket.io` 在根路径单独代理）
+ *   → 回落当前站点 origin + 默认 `/socket.io`；
+ * - 其他路径前缀（云端按租户路径挂载，如 `https://cloud.audiodock.cn/<user>/ad`）
+ *   → `path = <前缀>/socket.io`。
+ *
+ * ⚠️ 云端网关按路径路由到租户后端，根路径 `/socket.io` 会被拒绝（实测返回
+ * `{"error":"User not found"}`）：此前一律剥掉路径，导致云端部署下所有端 WS
+ * 永远注册不上 → 设备表全离线 → 在线设备列表为空、流转必败。
+ */
+export function resolveSocketEndpoint(raw: string): { url: string; path?: string } {
+    const s = (raw || "").trim();
+    if (!s) return { url: "http://localhost:3000" };
+
+    // 相对路径（同源部署时 serverAddress 常填 "/api"）→ 回落到当前站点 origin
+    if (s.startsWith("/")) {
+        const origin = typeof window !== "undefined" ? (window as any).location?.origin : undefined;
+        return { url: origin || "http://localhost:3000" };
+    }
+
+    const match = s.match(/^((?:wss?|https?):\/\/[^\/?#]+)(\/[^?#]*)?/i);
+    if (!match) return { url: s.replace(/\/+$/, "") };
+    const origin = match[1]
+        .replace(/^ws:\/\//i, "http://")
+        .replace(/^wss:\/\//i, "https://");
+    const p = (match[2] || "").replace(/\/+$/, "");
+    // "/api" 是自建 nginx 的 HTTP 前缀约定（/socket.io 在根路径单独代理），不带进 socket path
+    if (!p || p === "/api") return { url: origin };
+    return { url: origin, path: `${p}/socket.io` };
+}
+
 export class SharedSocketService {
   private socket: Socket | null = null;
   private listeners: Map<string, Function[]> = new Map();
@@ -59,10 +93,12 @@ export class SharedSocketService {
    * 关键参数（服务器地址 / token / 用户 / deviceId）变化时会自动断开重连，
    * 否则切服务器或换账号后 socket 仍挂在旧连接上，服务端设备表与端侧永远对不上。
    */
-  connect(options: SocketConnectOptions) {
-    const { token, userId, deviceName, deviceId, platform, query } = options;
-    const url = normalizeSocketUrl(options.url);
-    const signature = `${url}|${token}|${userId}|${deviceId ?? ""}`;
+    connect(options: SocketConnectOptions) {
+        const { token, userId, deviceName, deviceId, platform, query } = options;
+        const endpoint = resolveSocketEndpoint(options.url);
+        const url = endpoint.url;
+        const socketPath = endpoint.path;
+        const signature = `${url}|${socketPath ?? ""}|${token}|${userId}|${deviceId ?? ""}`;
 
     if (this.socket && this.signature === signature) {
         // 参数没变：已连接直接返回；尚未连上 / 正在重连时绝不重建 socket，
@@ -91,15 +127,20 @@ export class SharedSocketService {
         ...(platform ? { platform } : {}),
     };
 
-    this.socket = io(url, {
-      query: {
-        userId,
-        deviceName,
-        ...(deviceId ? { deviceId } : {}),
-        ...(platform ? { platform } : {}),
-        ...query
-      },
-      transports: ["websocket"],
+        this.socket = io(url, {
+          // 云端按租户路径挂载时（如 /mmdctjj/ad），socket.io 必须走 <前缀>/socket.io
+          ...(socketPath ? { path: socketPath } : {}),
+          query: {
+            userId,
+            deviceName,
+            ...(deviceId ? { deviceId } : {}),
+            ...(platform ? { platform } : {}),
+            ...query
+          },
+      // polling 起手再升级 websocket（socket.io 默认顺序）：
+      // 云端网关（cloud.audiodock.cn 按租户路径挂载）实测不支持 websocket 直连
+      // （upgrade 请求无响应直至超时），polling 握手则正常；直连后端两种都行。
+      transports: ["polling", "websocket"],
       auth,
       reconnection: true,
       reconnectionAttempts: Infinity,

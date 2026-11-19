@@ -913,11 +913,6 @@ struct PlayerPage {
       promptAction.showToast({ message: t('player.transferFailed') });
       return;
     }
-    if (!socketService.isConnected()) {
-      Logger.w('PlayerPage', '[Transfer] socket not connected, cannot emit transfer_session');
-      promptAction.showToast({ message: t('player.transferFailed') });
-      return;
-    }
     this.transferringId = targetDeviceId;
     try {
       // harmony 内部用毫秒，流转协议统一用秒（对齐 mobile/desktop）
@@ -932,6 +927,22 @@ struct PlayerPage {
       payload.currentTrack = cur;
       payload.playlist = pl;
       payload.progress = progressSec;
+
+      if (!socketService.isConnected()) {
+        // WS 不可用（云端网关不支持 WebSocket upgrade，ohos 原生 WS 无法直连）时
+        // 走 REST 兜底，与 desktop/mobile 的策略一致：服务端网关负责在线投递
+        // （新版服务端对暂离线目标还会暂存 10min 补投），统一按成功提示。
+        Logger.i('PlayerPage', `[Transfer] socket 未连接，走 REST 兜底: target=${targetDeviceId} (${target.name})`);
+        const delivered = await deviceApi.transferSession(payload);
+        Logger.i('PlayerPage', `[Transfer] REST 兜底完成: delivered=${delivered}`);
+        if (this.view.isPlaying) {
+          await playerStore.togglePlay();
+        }
+        promptAction.showToast({ message: t('player.transferSuccess', [['device', target.name]]) });
+        this.handleCloseMiCast();
+        return;
+      }
+
       Logger.i('PlayerPage', `[Transfer] emit transfer_session: target=${targetDeviceId} (${target.name}) trackId=${cur.id} progress=${progressSec}s`);
 
       // 等服务端 ack（transfer_sent / transfer_failed），5s 超时兜底

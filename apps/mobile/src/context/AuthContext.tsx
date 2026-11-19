@@ -19,6 +19,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from "r
 import { AppState } from "react-native";
 import { getBaseURL, initBaseURL, setBaseURL, setCurrentSourceType } from "../https";
 import { refreshNetworkMode } from "../utils/networkMode";
+import { syncPlatformConfig } from "../utils/platformServer";
 import { User } from "../models";
 import { selectBestServer } from "../utils/networkUtils";
 import { getDevicePlatform, getOrCreateDeviceId } from "../utils/platform";
@@ -259,6 +260,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         activateNativeAdapter();
       }
 
+      // 第三方音乐源下，设备列表/播放流转走 AudioDock 平台服务（最近一次 AudioDock 源登录态）
+      await syncPlatformConfig();
+
       if (savedToken) {
         await refreshCurrentUser(savedAddress, savedToken);
       }
@@ -403,6 +407,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } else {
         activateNativeAdapter();
       }
+
+      // 第三方音乐源下，设备列表/播放流转走 AudioDock 平台服务（最近一次 AudioDock 源登录态）
+      await syncPlatformConfig();
 
       if (skipToken) {
         setToken(null);
