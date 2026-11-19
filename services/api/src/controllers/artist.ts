@@ -23,7 +23,6 @@ import {
   ISuccessResponse,
   ITableData,
 } from 'src/common/const';
-import { Public } from 'src/common/public.decorator';
 import { LogMethod } from '../common/log-method.decorator';
 import { createCoverUploadOptions, toCoverUrl } from '../common/cover-upload';
 import { ArtistService } from '../services/artist';
@@ -121,7 +120,7 @@ export class ArtistController {
     }
   }
 
-  @Public()
+  // 元数据写入需要凭证（JWT 或 access token），不允许匿名创建
   @Post('/artist')
   @LogMethod()
   async createArtist(

@@ -119,7 +119,7 @@ export class TrackController {
     }
   }
 
-  @Public()
+  // 元数据写入需要凭证（JWT 或 access token），不允许匿名创建
   @Post('/track')
   async createTrack(
     @Body() track: Omit<Track, 'id'>,
