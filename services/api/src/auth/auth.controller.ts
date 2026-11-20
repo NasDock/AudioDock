@@ -6,12 +6,14 @@ import { Public } from '../common/public.decorator';
 import { AuthService } from './auth.service';
 
 import { UserService } from '../services/user';
+import { AccessTokenService } from '../services/access-token.service';
 
 @Controller()
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly userService: UserService,
+    private readonly accessTokenService: AccessTokenService,
   ) { }
 
   @Public()
@@ -95,13 +97,45 @@ export class AuthController {
     }
   }
 
+  /**
+   * 连通性 + 凭证有效性探针。
+   * - 未带任何凭证：纯连通性探测（登录页验证服务器地址可达），直接放行；
+   * - 带了凭证：顺带校验有效性，失效返回 code 401
+   *   （desktop Header / mobile tab 页据此自动登出）。
+   */
+  @Public()
   @Get('/auth/check')
-  async check(): Promise<ISuccessResponse<boolean>> {
-    return {
-      code: 200,
-      message: 'success',
-      data: true,
-    };
+  async check(@Req() req: Request): Promise<ISuccessResponse<boolean> | IAuthFaildResponse> {
+    const authHeader = req.headers.authorization;
+    const accessToken = req.headers['x-access-token'];
+
+    if (!authHeader && !accessToken) {
+      return {
+        code: 200,
+        message: 'success',
+        data: true,
+      };
+    }
+
+    if (typeof accessToken === 'string' && accessToken) {
+      const user = await this.accessTokenService.resolve(accessToken);
+      if (user) {
+        return { code: 200, message: 'success', data: true };
+      }
+      return { code: 401, message: '访问令牌无效或已停用' };
+    }
+
+    const token = (authHeader as string).replace(/^Bearer\s+/i, '');
+    try {
+      this.authService.verifyToken(token);
+      return {
+        code: 200,
+        message: 'success',
+        data: true,
+      };
+    } catch {
+      return { code: 401, message: '登录已过期，请重新登录' };
+    }
   }
 
   @Get('/auth/me')

@@ -11,6 +11,7 @@ import {
 import { create } from "zustand";
 import { SOURCEMAP } from "../constants/sources";
 import type { User } from "../models";
+import { syncPlatformConfig } from "../utils/platformServer";
 
 const resolveStoredUser = (raw: string | null): User | null => {
   if (!raw) return null;
@@ -61,6 +62,9 @@ const initService = (address: string, type: string) => {
   else if (mappedType === "emby") useEmbyAdapter();
   else if (mappedType === "fnos") useFnosAdapter({ baseUrl: address, username, password });
   else useNativeAdapter();
+
+  // 第三方音乐源下，设备列表/播放流转走 AudioDock 平台服务（最近一次 AudioDock 源登录态）
+  syncPlatformConfig();
 };
 
 // Initialize on load

@@ -1,0 +1,184 @@
+.access-tokens {
+  min-height: 100vh;
+  padding-bottom: 80rpx;
+}
+
+.list {
+  padding: 16rpx 30rpx;
+  box-sizing: border-box;
+}
+
+.description {
+  font-size: 26rpx;
+  line-height: 38rpx;
+  opacity: 0.7;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.empty {
+  padding: 60rpx 30rpx;
+  text-align: center;
+  font-size: 28rpx;
+  opacity: 0.7;
+}
+
+.token-card {
+  border: 1rpx solid #ddd;
+  border-radius: 16rpx;
+  padding: 24rpx 28rpx;
+  margin-bottom: 24rpx;
+}
+
+.token-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.token-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.token-name {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.token-prefix {
+  font-size: 24rpx;
+  margin-top: 8rpx;
+  opacity: 0.7;
+  font-family: monospace;
+}
+
+.token-meta {
+  font-size: 24rpx;
+  margin-top: 8rpx;
+  opacity: 0.8;
+  display: block;
+}
+
+.token-actions {
+  margin-top: 24rpx;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.btn {
+  padding: 14rpx 24rpx;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+  text-align: center;
+}
+
+.btn-mini {
+  padding: 8rpx 20rpx;
+  font-size: 22rpx;
+}
+
+.btn-primary {
+  background: #000;
+  color: #fff;
+}
+
+.btn-secondary {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.btn-danger {
+  background: #fff1f0;
+  color: #cf1322;
+  border: 1rpx solid #ffccc7;
+}
+
+.btn-disabled {
+  opacity: 0.5;
+}
+
+.add-btn {
+  border: 1rpx dashed #999;
+  border-radius: 16rpx;
+  padding: 28rpx;
+  text-align: center;
+}
+
+.add-btn-text {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.editor-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+}
+
+.editor-card {
+  position: fixed;
+  top: 20%;
+  left: 8%;
+  right: 8%;
+  background: #fff;
+  border-radius: 16rpx;
+  z-index: 110;
+  padding: 32rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-bottom: 24rpx;
+}
+
+.editor-input {
+  border: 1rpx solid #ddd;
+  border-radius: 10rpx;
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.editor-footer {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  margin-top: 24rpx;
+  gap: 16rpx;
+}
+
+.created-hint {
+  font-size: 26rpx;
+  line-height: 38rpx;
+  opacity: 0.7;
+  margin-bottom: 16rpx;
+  display: block;
+}
+
+.token-box {
+  border: 1rpx solid #ddd;
+  border-radius: 10rpx;
+  padding: 20rpx;
+  background: #f5f5f5;
+  margin-bottom: 24rpx;
+}
+
+.token-box-text {
+  font-size: 24rpx;
+  font-family: monospace;
+  word-break: break-all;
+}
+
+.copy-btn {
+  margin-bottom: 16rpx;
+}

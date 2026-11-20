@@ -114,7 +114,8 @@ function RootLayoutNav() {
       segmentName === "plugin-center" ||
       segmentName === "player-theme" ||
       segmentName === "task-center" ||
-      segmentName === "mi-speaker";
+      segmentName === "mi-speaker" ||
+      segmentName === "access-tokens";
 
     if (!token && inAuthGroup) {
       router.replace("/login");
@@ -382,6 +383,7 @@ function RootLayoutNav() {
     rootSegment === "player-theme" ||
     rootSegment === "task-center" ||
     rootSegment === "mi-speaker" ||
+    rootSegment === "access-tokens" ||
     rootSegment === "player" ||
     rootSegment === "product-updates" ||
     rootSegment === "member-detail" ||
@@ -574,6 +576,7 @@ function RootLayoutNav() {
       <Stack.Screen name="player-theme" options={{ headerShown: false, animation: 'slide_from_right' }} />
       <Stack.Screen name="task-center" options={{ headerShown: false, animation: 'slide_from_right' }} />
       <Stack.Screen name="mi-speaker" options={{ headerShown: false, animation: 'slide_from_right' }} />
+      <Stack.Screen name="access-tokens" options={{ headerShown: false, animation: 'slide_from_right' }} />
     </Stack>
   );
 

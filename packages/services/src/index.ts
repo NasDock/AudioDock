@@ -1,4 +1,5 @@
 export * from "./adapter/manager";
+export * from "./accessToken";
 export * from "./admin";
 export * from "./album";
 export * from "./artist";
@@ -15,6 +16,7 @@ export * from "./metadataPlugins";
 export * from "./mi";
 export * from "./models";
 export * from "./mv";
+export * from "./platform";
 export * from "./playlist";
 export * from "./plus";
 export * from "./request";

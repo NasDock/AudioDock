@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { User } from '../models'
 import { setBaseURL, getBaseURL } from '../utils/request'
+import { capturePlatformSession, syncPlatformConfig } from '../utils/platformServer'
 import { selectBestServer } from '../utils/sourceUtils'
 
 // ── 设备信息（在线设备列表 / 播放流转） ──
@@ -128,6 +129,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         useNativeAdapter()
       }
 
+      // 第三方音乐源下，设备列表/播放流转走 AudioDock 平台服务（最近一次 AudioDock 源登录态）
+      syncPlatformConfig()
+
       const savedToken = Taro.getStorageSync('token')
       const savedUser = Taro.getStorageSync('user')
       const savedDevice = Taro.getStorageSync('device')
@@ -172,6 +176,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setDevice(newDevice)
           Taro.setStorageSync('device', JSON.stringify(newDevice))
         }
+        // AudioDock 源登录成功：快照为平台服务配置，供第三方源下设备列表/流转复用
+        const mapped = SOURCEMAP[(Taro.getStorageSync('currentSourceType') || 'AudioDock') as keyof typeof SOURCEMAP] || 'audiodock'
+        if (mapped === 'audiodock') {
+          capturePlatformSession(getBaseURL(), newToken, userData?.id ?? userData?.user?.id)
+        }
+        syncPlatformConfig()
       } else {
         throw new Error(res.message || 'Login failed')
       }
@@ -199,6 +209,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setDevice(newDevice)
           Taro.setStorageSync('device', JSON.stringify(newDevice))
         }
+        // AudioDock 源注册成功：快照为平台服务配置，供第三方源下设备列表/流转复用
+        const mappedReg = SOURCEMAP[(Taro.getStorageSync('currentSourceType') || 'AudioDock') as keyof typeof SOURCEMAP] || 'audiodock'
+        if (mappedReg === 'audiodock') {
+          capturePlatformSession(getBaseURL(), newToken, userData?.id ?? userData?.user?.id)
+        }
+        syncPlatformConfig()
       } else {
         throw new Error(res.message || 'Registration failed')
       }
@@ -254,6 +270,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } else {
         useNativeAdapter()
       }
+
+      // 切源后刷新平台服务配置（第三方源下设备列表/流转依赖它）
+      syncPlatformConfig()
 
       // 清除当前用户信息（需要重新登录）
       setToken(null)

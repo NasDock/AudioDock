@@ -21,6 +21,7 @@ export default defineAppConfig({
     'pages/admin/index',
     'pages/source-manage/index',
     'pages/webdav-sources/index',
+    'pages/access-tokens/index',
     'pages/llm-config/index',
     'pages/tts-config/index',
     'pages/mi-speaker/index',

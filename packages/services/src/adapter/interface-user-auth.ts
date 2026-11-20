@@ -10,6 +10,9 @@ export interface DeviceLoginInfo {
 /** 播放流转 payload（HTTP 版，供无常驻 WS 的端使用） */
 export interface TransferSessionPayload {
   targetDeviceId: string;
+  /** deviceId 漂移时的兜底匹配维度（与 WS 版 transfer_session 一致） */
+  targetDeviceName?: string;
+  targetPlatform?: string | null;
   currentTrack?: any;
   playlist?: any;
   progress?: number;

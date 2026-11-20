@@ -258,6 +258,11 @@ export default function Settings() {
             () => Taro.navigateTo({ url: '/pages/tts-config/index' })
           )}
           {user?.is_admin && renderActionRow(
+            t('accessTokenManagement.title'),
+            t('accessTokenManagement.description'),
+            () => Taro.navigateTo({ url: '/pages/access-tokens/index' })
+          )}
+          {user?.is_admin && renderActionRow(
             t('settings.pluginCenter'),
             t('settings.pluginCenterDescription'),
             () => Taro.navigateTo({ url: '/pages/plugin-center/index' })

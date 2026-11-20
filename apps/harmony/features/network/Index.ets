@@ -1,5 +1,6 @@
 export { HarmonyHttpClient, httpClient } from './src/main/ets/HarmonyHttpClient';
 export { HttpError } from './src/main/ets/HttpError';
+export { platformClient, setPlatformConfig, clearPlatformConfig, hasPlatformConfig } from './src/main/ets/platform';
 export {
   fnosClient, fnosAdapter, FnosApiError, resolveFnosServer,
   isFnosSource, isMvSupported, enableFnos, disableFnos, resolveFnosAddress, probeFnos, loginFnos,
@@ -8,7 +9,7 @@ export {
 export type { FnosSessionInfo, FnosLoginOutcome, FnosResolvedServer } from './src/main/ets/fnos';
 export { authApi, userApi, trackApi, albumApi, artistApi, playlistApi, collectionApi, mvApi, userDataApi,
   plusApi, setPlusAuthToken, getPlusAuthToken, miApi, ttsApi, ttsConfigApi, taskApi, deviceApi,
-  scanLoginApi, subscribeScanLoginSession, reportScanLoginResultViaSocket }
+  scanLoginApi, subscribeScanLoginSession, reportScanLoginResultViaSocket, accessTokenApi }
   from './src/main/ets/api';
 export type {
   RequestConfig, HttpResponse,
@@ -80,3 +81,6 @@ export type {
   ScanLoginApi, ScanLoginSubscribeOptions, ScanLoginUnsubscribe,
 } from './src/main/ets/api';
 export type { OnlineDevice, DevicePlatform, DeviceApi } from './src/main/ets/api';
+export type {
+  AccessToken, AccessTokenWithSecret, UpdateAccessTokenDto, AccessTokenApi,
+} from './src/main/ets/api';

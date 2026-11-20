@@ -589,6 +589,32 @@ export default function SettingsScreen() {
           {user?.is_admin && (
             <TouchableOpacity
               style={[styles.settingRow, { borderBottomColor: colors.border }]}
+              onPress={() => router.push("/access-tokens" as any)}
+            >
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.text }]}>
+                  {t("accessTokenManagement.title")}
+                </Text>
+                <Text
+                  style={[
+                    styles.settingDescription,
+                    { color: colors.secondary },
+                  ]}
+                >
+                  {t("accessTokenManagement.description")}
+                </Text>
+              </View>
+              <Ionicons
+                name="key-outline"
+                size={20}
+                color={colors.secondary}
+              />
+            </TouchableOpacity>
+          )}
+
+          {user?.is_admin && (
+            <TouchableOpacity
+              style={[styles.settingRow, { borderBottomColor: colors.border }]}
               onPress={() => router.push("/plugin-center" as any)}
             >
               <View style={styles.settingInfo}>

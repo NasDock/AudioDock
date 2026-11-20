@@ -1,6 +1,10 @@
 import { getServiceConfig } from "../../config";
 import { Device, ISuccessResponse, User } from "../../models";
-import { IAuthAdapter, IUserAdapter } from "../interface-user-auth";
+import {
+  getPlatformUserDevices,
+  platformTransferSession,
+} from "../../platform";
+import { IAuthAdapter, IUserAdapter, TransferSessionPayload } from "../interface-user-auth";
 import { SubsonicClient } from "./client";
 
 export class SubsonicUserAdapter implements IUserAdapter {
@@ -76,13 +80,20 @@ export class SubsonicUserAdapter implements IUserAdapter {
     } as User);
   }
 
-  /** Subsonic 源不支持设备列表，返回空数组 */
+  /**
+   * 设备列表/播放流转是 AudioDock 服务端的账号体系能力，与音乐源无关。
+   * Subsonic 源下委托到平台服务通道（端侧用最近一次 AudioDock 源登录态初始化）；
+   * 未配置平台服务时保持原行为（空列表/不支持）。
+   */
   async getUserDevices(): Promise<ISuccessResponse<Device[]>> {
+    const platformRes = await getPlatformUserDevices();
+    if (platformRes) return platformRes;
     return { code: 200, message: "success", data: [] };
   }
 
-  /** Subsonic 源不支持播放流转 */
-  async transferSession(): Promise<ISuccessResponse<{ delivered: boolean }>> {
+  async transferSession(payload: TransferSessionPayload): Promise<ISuccessResponse<{ delivered: boolean }>> {
+    const platformRes = await platformTransferSession(payload);
+    if (platformRes) return platformRes;
     return { code: 500, message: "not supported", data: { delivered: false } };
   }
 

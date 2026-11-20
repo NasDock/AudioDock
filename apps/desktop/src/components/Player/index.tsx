@@ -1631,21 +1631,17 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
       >
         <div
           className={
-            !expandable && isTauri()
+            !expandable
               ? `${styles.coverWrapper} ${styles.coverWrapperClickable}`
               : styles.coverWrapper
           }
-          title={!expandable && isTauri() ? t("header.miniPlayer") : undefined}
           onClick={(e) => {
-            // 播放详情页底部的封面：点一下最小化到悬浮 mini 播放器。
-            // 主窗口底部条（expandable=true）不拦截，继续走 songInfo 的「展开详情页」。
-            // web / 非 Tauri 端没有悬浮窗，保持原来的无响应。
-            if (expandable || !isTauri()) return;
+            // 播放详情页底部的封面：点一下关闭详情页（详情页本就是点底部条封面展开的，
+            // 再点一次封面即收起，进出一个入口）。主窗口底部条（expandable=true）不拦截，
+            // 继续走 songInfo 的「展开详情页」。
+            if (expandable) return;
             e.stopPropagation();
-            // 先收起 Drawer：create_mini_window 会 hide 主窗口，
-            // 否则从 mini 窗口返回时详情页还停在展开态。
             setIsFullPlayerVisible(false);
-            invoke("create_mini_window").catch(console.error);
           }}
         >
           {currentTrack && (

@@ -74,6 +74,12 @@ export type UserAudiobookHistory = $Result.DefaultSelection<Prisma.$UserAudioboo
  */
 export type User = $Result.DefaultSelection<Prisma.$UserPayload>
 /**
+ * Model AccessToken
+ * API 访问令牌：用于第三方/远程脚本调用接口（如修改元数据）。
+ * 只存 SHA-256 哈希，完整令牌仅在创建时返回一次。
+ */
+export type AccessToken = $Result.DefaultSelection<Prisma.$AccessTokenPayload>
+/**
  * Model SystemSetting
  * 
  */
@@ -422,6 +428,16 @@ export class PrismaClient<
     * ```
     */
   get user(): Prisma.UserDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.accessToken`: Exposes CRUD operations for the **AccessToken** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AccessTokens
+    * const accessTokens = await prisma.accessToken.findMany()
+    * ```
+    */
+  get accessToken(): Prisma.AccessTokenDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.systemSetting`: Exposes CRUD operations for the **SystemSetting** model.
@@ -974,6 +990,7 @@ export namespace Prisma {
     UserAudiobookLike: 'UserAudiobookLike',
     UserAudiobookHistory: 'UserAudiobookHistory',
     User: 'User',
+    AccessToken: 'AccessToken',
     SystemSetting: 'SystemSetting',
     SearchRecord: 'SearchRecord',
     Device: 'Device',
@@ -1002,7 +1019,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "track" | "album" | "artist" | "audiobookCollection" | "audiobookCollectionAlbum" | "userTrackLike" | "userTrackHistory" | "userAlbumLike" | "userAlbumHistory" | "userAudiobookLike" | "userAudiobookHistory" | "user" | "systemSetting" | "searchRecord" | "device" | "playlist" | "folder" | "ttsUserConfig" | "ttsTask" | "mv" | "ttsChapterTask" | "pluginLog"
+      modelProps: "track" | "album" | "artist" | "audiobookCollection" | "audiobookCollectionAlbum" | "userTrackLike" | "userTrackHistory" | "userAlbumLike" | "userAlbumHistory" | "userAudiobookLike" | "userAudiobookHistory" | "user" | "accessToken" | "systemSetting" | "searchRecord" | "device" | "playlist" | "folder" | "ttsUserConfig" | "ttsTask" | "mv" | "ttsChapterTask" | "pluginLog"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1894,6 +1911,80 @@ export namespace Prisma {
           }
         }
       }
+      AccessToken: {
+        payload: Prisma.$AccessTokenPayload<ExtArgs>
+        fields: Prisma.AccessTokenFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.AccessTokenFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AccessTokenPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.AccessTokenFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AccessTokenPayload>
+          }
+          findFirst: {
+            args: Prisma.AccessTokenFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AccessTokenPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.AccessTokenFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AccessTokenPayload>
+          }
+          findMany: {
+            args: Prisma.AccessTokenFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AccessTokenPayload>[]
+          }
+          create: {
+            args: Prisma.AccessTokenCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AccessTokenPayload>
+          }
+          createMany: {
+            args: Prisma.AccessTokenCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.AccessTokenCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AccessTokenPayload>[]
+          }
+          delete: {
+            args: Prisma.AccessTokenDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AccessTokenPayload>
+          }
+          update: {
+            args: Prisma.AccessTokenUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AccessTokenPayload>
+          }
+          deleteMany: {
+            args: Prisma.AccessTokenDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.AccessTokenUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.AccessTokenUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AccessTokenPayload>[]
+          }
+          upsert: {
+            args: Prisma.AccessTokenUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AccessTokenPayload>
+          }
+          aggregate: {
+            args: Prisma.AccessTokenAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateAccessToken>
+          }
+          groupBy: {
+            args: Prisma.AccessTokenGroupByArgs<ExtArgs>
+            result: $Utils.Optional<AccessTokenGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.AccessTokenCountArgs<ExtArgs>
+            result: $Utils.Optional<AccessTokenCountAggregateOutputType> | number
+          }
+        }
+      }
       SystemSetting: {
         payload: Prisma.$SystemSettingPayload<ExtArgs>
         fields: Prisma.SystemSettingFieldRefs
@@ -2730,6 +2821,7 @@ export namespace Prisma {
     userAudiobookLike?: UserAudiobookLikeOmit
     userAudiobookHistory?: UserAudiobookHistoryOmit
     user?: UserOmit
+    accessToken?: AccessTokenOmit
     systemSetting?: SystemSettingOmit
     searchRecord?: SearchRecordOmit
     device?: DeviceOmit
@@ -3058,6 +3150,7 @@ export namespace Prisma {
     audiobookCollections: number
     devices: number
     searchRecords: number
+    accessTokens: number
   }
 
   export type UserCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -3071,6 +3164,7 @@ export namespace Prisma {
     audiobookCollections?: boolean | UserCountOutputTypeCountAudiobookCollectionsArgs
     devices?: boolean | UserCountOutputTypeCountDevicesArgs
     searchRecords?: boolean | UserCountOutputTypeCountSearchRecordsArgs
+    accessTokens?: boolean | UserCountOutputTypeCountAccessTokensArgs
   }
 
   // Custom InputTypes
@@ -3152,6 +3246,13 @@ export namespace Prisma {
    */
   export type UserCountOutputTypeCountSearchRecordsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: SearchRecordWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountAccessTokensArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AccessTokenWhereInput
   }
 
 
@@ -16633,6 +16734,7 @@ export namespace Prisma {
     audiobookCollections?: boolean | User$audiobookCollectionsArgs<ExtArgs>
     devices?: boolean | User$devicesArgs<ExtArgs>
     searchRecords?: boolean | User$searchRecordsArgs<ExtArgs>
+    accessTokens?: boolean | User$accessTokensArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
 
@@ -16678,6 +16780,7 @@ export namespace Prisma {
     audiobookCollections?: boolean | User$audiobookCollectionsArgs<ExtArgs>
     devices?: boolean | User$devicesArgs<ExtArgs>
     searchRecords?: boolean | User$searchRecordsArgs<ExtArgs>
+    accessTokens?: boolean | User$accessTokensArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type UserIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -16726,6 +16829,10 @@ export namespace Prisma {
        * 用户搜索记录
        */
       searchRecords: Prisma.$SearchRecordPayload<ExtArgs>[]
+      /**
+       * 用户的 API 访问令牌
+       */
+      accessTokens: Prisma.$AccessTokenPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       /**
@@ -17160,6 +17267,7 @@ export namespace Prisma {
     audiobookCollections<T extends User$audiobookCollectionsArgs<ExtArgs> = {}>(args?: Subset<T, User$audiobookCollectionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AudiobookCollectionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     devices<T extends User$devicesArgs<ExtArgs> = {}>(args?: Subset<T, User$devicesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DevicePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     searchRecords<T extends User$searchRecordsArgs<ExtArgs> = {}>(args?: Subset<T, User$searchRecordsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SearchRecordPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    accessTokens<T extends User$accessTokensArgs<ExtArgs> = {}>(args?: Subset<T, User$accessTokensArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AccessTokenPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -17822,6 +17930,30 @@ export namespace Prisma {
   }
 
   /**
+   * User.accessTokens
+   */
+  export type User$accessTokensArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AccessToken
+     */
+    select?: AccessTokenSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AccessToken
+     */
+    omit?: AccessTokenOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AccessTokenInclude<ExtArgs> | null
+    where?: AccessTokenWhereInput
+    orderBy?: AccessTokenOrderByWithRelationInput | AccessTokenOrderByWithRelationInput[]
+    cursor?: AccessTokenWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: AccessTokenScalarFieldEnum | AccessTokenScalarFieldEnum[]
+  }
+
+  /**
    * User without action
    */
   export type UserDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -17837,6 +17969,1154 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: UserInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model AccessToken
+   */
+
+  export type AggregateAccessToken = {
+    _count: AccessTokenCountAggregateOutputType | null
+    _avg: AccessTokenAvgAggregateOutputType | null
+    _sum: AccessTokenSumAggregateOutputType | null
+    _min: AccessTokenMinAggregateOutputType | null
+    _max: AccessTokenMaxAggregateOutputType | null
+  }
+
+  export type AccessTokenAvgAggregateOutputType = {
+    id: number | null
+    userId: number | null
+  }
+
+  export type AccessTokenSumAggregateOutputType = {
+    id: number | null
+    userId: number | null
+  }
+
+  export type AccessTokenMinAggregateOutputType = {
+    id: number | null
+    name: string | null
+    tokenHash: string | null
+    tokenPrefix: string | null
+    enabled: boolean | null
+    lastUsedAt: Date | null
+    createdAt: Date | null
+    userId: number | null
+  }
+
+  export type AccessTokenMaxAggregateOutputType = {
+    id: number | null
+    name: string | null
+    tokenHash: string | null
+    tokenPrefix: string | null
+    enabled: boolean | null
+    lastUsedAt: Date | null
+    createdAt: Date | null
+    userId: number | null
+  }
+
+  export type AccessTokenCountAggregateOutputType = {
+    id: number
+    name: number
+    tokenHash: number
+    tokenPrefix: number
+    enabled: number
+    lastUsedAt: number
+    createdAt: number
+    userId: number
+    _all: number
+  }
+
+
+  export type AccessTokenAvgAggregateInputType = {
+    id?: true
+    userId?: true
+  }
+
+  export type AccessTokenSumAggregateInputType = {
+    id?: true
+    userId?: true
+  }
+
+  export type AccessTokenMinAggregateInputType = {
+    id?: true
+    name?: true
+    tokenHash?: true
+    tokenPrefix?: true
+    enabled?: true
+    lastUsedAt?: true
+    createdAt?: true
+    userId?: true
+  }
+
+  export type AccessTokenMaxAggregateInputType = {
+    id?: true
+    name?: true
+    tokenHash?: true
+    tokenPrefix?: true
+    enabled?: true
+    lastUsedAt?: true
+    createdAt?: true
+    userId?: true
+  }
+
+  export type AccessTokenCountAggregateInputType = {
+    id?: true
+    name?: true
+    tokenHash?: true
+    tokenPrefix?: true
+    enabled?: true
+    lastUsedAt?: true
+    createdAt?: true
+    userId?: true
+    _all?: true
+  }
+
+  export type AccessTokenAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AccessToken to aggregate.
+     */
+    where?: AccessTokenWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AccessTokens to fetch.
+     */
+    orderBy?: AccessTokenOrderByWithRelationInput | AccessTokenOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: AccessTokenWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AccessTokens from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AccessTokens.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned AccessTokens
+    **/
+    _count?: true | AccessTokenCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: AccessTokenAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AccessTokenSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AccessTokenMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AccessTokenMaxAggregateInputType
+  }
+
+  export type GetAccessTokenAggregateType<T extends AccessTokenAggregateArgs> = {
+        [P in keyof T & keyof AggregateAccessToken]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAccessToken[P]>
+      : GetScalarType<T[P], AggregateAccessToken[P]>
+  }
+
+
+
+
+  export type AccessTokenGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AccessTokenWhereInput
+    orderBy?: AccessTokenOrderByWithAggregationInput | AccessTokenOrderByWithAggregationInput[]
+    by: AccessTokenScalarFieldEnum[] | AccessTokenScalarFieldEnum
+    having?: AccessTokenScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AccessTokenCountAggregateInputType | true
+    _avg?: AccessTokenAvgAggregateInputType
+    _sum?: AccessTokenSumAggregateInputType
+    _min?: AccessTokenMinAggregateInputType
+    _max?: AccessTokenMaxAggregateInputType
+  }
+
+  export type AccessTokenGroupByOutputType = {
+    id: number
+    name: string
+    tokenHash: string
+    tokenPrefix: string
+    enabled: boolean
+    lastUsedAt: Date | null
+    createdAt: Date
+    userId: number
+    _count: AccessTokenCountAggregateOutputType | null
+    _avg: AccessTokenAvgAggregateOutputType | null
+    _sum: AccessTokenSumAggregateOutputType | null
+    _min: AccessTokenMinAggregateOutputType | null
+    _max: AccessTokenMaxAggregateOutputType | null
+  }
+
+  type GetAccessTokenGroupByPayload<T extends AccessTokenGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AccessTokenGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AccessTokenGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AccessTokenGroupByOutputType[P]>
+            : GetScalarType<T[P], AccessTokenGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type AccessTokenSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    tokenHash?: boolean
+    tokenPrefix?: boolean
+    enabled?: boolean
+    lastUsedAt?: boolean
+    createdAt?: boolean
+    userId?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["accessToken"]>
+
+  export type AccessTokenSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    tokenHash?: boolean
+    tokenPrefix?: boolean
+    enabled?: boolean
+    lastUsedAt?: boolean
+    createdAt?: boolean
+    userId?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["accessToken"]>
+
+  export type AccessTokenSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    tokenHash?: boolean
+    tokenPrefix?: boolean
+    enabled?: boolean
+    lastUsedAt?: boolean
+    createdAt?: boolean
+    userId?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["accessToken"]>
+
+  export type AccessTokenSelectScalar = {
+    id?: boolean
+    name?: boolean
+    tokenHash?: boolean
+    tokenPrefix?: boolean
+    enabled?: boolean
+    lastUsedAt?: boolean
+    createdAt?: boolean
+    userId?: boolean
+  }
+
+  export type AccessTokenOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "tokenHash" | "tokenPrefix" | "enabled" | "lastUsedAt" | "createdAt" | "userId", ExtArgs["result"]["accessToken"]>
+  export type AccessTokenInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type AccessTokenIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type AccessTokenIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $AccessTokenPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "AccessToken"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      /**
+       * 备注名，便于识别用途
+       */
+      name: string
+      /**
+       * 令牌的 SHA-256 哈希（hex）
+       */
+      tokenHash: string
+      /**
+       * 令牌前缀（展示用，如 adk_a1b2c3）
+       */
+      tokenPrefix: string
+      /**
+       * 是否启用（可临时停用而不删除）
+       */
+      enabled: boolean
+      /**
+       * 最近一次使用时间
+       */
+      lastUsedAt: Date | null
+      createdAt: Date
+      userId: number
+    }, ExtArgs["result"]["accessToken"]>
+    composites: {}
+  }
+
+  type AccessTokenGetPayload<S extends boolean | null | undefined | AccessTokenDefaultArgs> = $Result.GetResult<Prisma.$AccessTokenPayload, S>
+
+  type AccessTokenCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<AccessTokenFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: AccessTokenCountAggregateInputType | true
+    }
+
+  export interface AccessTokenDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AccessToken'], meta: { name: 'AccessToken' } }
+    /**
+     * Find zero or one AccessToken that matches the filter.
+     * @param {AccessTokenFindUniqueArgs} args - Arguments to find a AccessToken
+     * @example
+     * // Get one AccessToken
+     * const accessToken = await prisma.accessToken.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends AccessTokenFindUniqueArgs>(args: SelectSubset<T, AccessTokenFindUniqueArgs<ExtArgs>>): Prisma__AccessTokenClient<$Result.GetResult<Prisma.$AccessTokenPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one AccessToken that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {AccessTokenFindUniqueOrThrowArgs} args - Arguments to find a AccessToken
+     * @example
+     * // Get one AccessToken
+     * const accessToken = await prisma.accessToken.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends AccessTokenFindUniqueOrThrowArgs>(args: SelectSubset<T, AccessTokenFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AccessTokenClient<$Result.GetResult<Prisma.$AccessTokenPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AccessToken that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AccessTokenFindFirstArgs} args - Arguments to find a AccessToken
+     * @example
+     * // Get one AccessToken
+     * const accessToken = await prisma.accessToken.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends AccessTokenFindFirstArgs>(args?: SelectSubset<T, AccessTokenFindFirstArgs<ExtArgs>>): Prisma__AccessTokenClient<$Result.GetResult<Prisma.$AccessTokenPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AccessToken that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AccessTokenFindFirstOrThrowArgs} args - Arguments to find a AccessToken
+     * @example
+     * // Get one AccessToken
+     * const accessToken = await prisma.accessToken.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends AccessTokenFindFirstOrThrowArgs>(args?: SelectSubset<T, AccessTokenFindFirstOrThrowArgs<ExtArgs>>): Prisma__AccessTokenClient<$Result.GetResult<Prisma.$AccessTokenPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more AccessTokens that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AccessTokenFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all AccessTokens
+     * const accessTokens = await prisma.accessToken.findMany()
+     * 
+     * // Get first 10 AccessTokens
+     * const accessTokens = await prisma.accessToken.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const accessTokenWithIdOnly = await prisma.accessToken.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends AccessTokenFindManyArgs>(args?: SelectSubset<T, AccessTokenFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AccessTokenPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a AccessToken.
+     * @param {AccessTokenCreateArgs} args - Arguments to create a AccessToken.
+     * @example
+     * // Create one AccessToken
+     * const AccessToken = await prisma.accessToken.create({
+     *   data: {
+     *     // ... data to create a AccessToken
+     *   }
+     * })
+     * 
+     */
+    create<T extends AccessTokenCreateArgs>(args: SelectSubset<T, AccessTokenCreateArgs<ExtArgs>>): Prisma__AccessTokenClient<$Result.GetResult<Prisma.$AccessTokenPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many AccessTokens.
+     * @param {AccessTokenCreateManyArgs} args - Arguments to create many AccessTokens.
+     * @example
+     * // Create many AccessTokens
+     * const accessToken = await prisma.accessToken.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends AccessTokenCreateManyArgs>(args?: SelectSubset<T, AccessTokenCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many AccessTokens and returns the data saved in the database.
+     * @param {AccessTokenCreateManyAndReturnArgs} args - Arguments to create many AccessTokens.
+     * @example
+     * // Create many AccessTokens
+     * const accessToken = await prisma.accessToken.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many AccessTokens and only return the `id`
+     * const accessTokenWithIdOnly = await prisma.accessToken.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends AccessTokenCreateManyAndReturnArgs>(args?: SelectSubset<T, AccessTokenCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AccessTokenPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a AccessToken.
+     * @param {AccessTokenDeleteArgs} args - Arguments to delete one AccessToken.
+     * @example
+     * // Delete one AccessToken
+     * const AccessToken = await prisma.accessToken.delete({
+     *   where: {
+     *     // ... filter to delete one AccessToken
+     *   }
+     * })
+     * 
+     */
+    delete<T extends AccessTokenDeleteArgs>(args: SelectSubset<T, AccessTokenDeleteArgs<ExtArgs>>): Prisma__AccessTokenClient<$Result.GetResult<Prisma.$AccessTokenPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one AccessToken.
+     * @param {AccessTokenUpdateArgs} args - Arguments to update one AccessToken.
+     * @example
+     * // Update one AccessToken
+     * const accessToken = await prisma.accessToken.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends AccessTokenUpdateArgs>(args: SelectSubset<T, AccessTokenUpdateArgs<ExtArgs>>): Prisma__AccessTokenClient<$Result.GetResult<Prisma.$AccessTokenPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more AccessTokens.
+     * @param {AccessTokenDeleteManyArgs} args - Arguments to filter AccessTokens to delete.
+     * @example
+     * // Delete a few AccessTokens
+     * const { count } = await prisma.accessToken.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends AccessTokenDeleteManyArgs>(args?: SelectSubset<T, AccessTokenDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AccessTokens.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AccessTokenUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many AccessTokens
+     * const accessToken = await prisma.accessToken.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends AccessTokenUpdateManyArgs>(args: SelectSubset<T, AccessTokenUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AccessTokens and returns the data updated in the database.
+     * @param {AccessTokenUpdateManyAndReturnArgs} args - Arguments to update many AccessTokens.
+     * @example
+     * // Update many AccessTokens
+     * const accessToken = await prisma.accessToken.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more AccessTokens and only return the `id`
+     * const accessTokenWithIdOnly = await prisma.accessToken.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends AccessTokenUpdateManyAndReturnArgs>(args: SelectSubset<T, AccessTokenUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AccessTokenPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one AccessToken.
+     * @param {AccessTokenUpsertArgs} args - Arguments to update or create a AccessToken.
+     * @example
+     * // Update or create a AccessToken
+     * const accessToken = await prisma.accessToken.upsert({
+     *   create: {
+     *     // ... data to create a AccessToken
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the AccessToken we want to update
+     *   }
+     * })
+     */
+    upsert<T extends AccessTokenUpsertArgs>(args: SelectSubset<T, AccessTokenUpsertArgs<ExtArgs>>): Prisma__AccessTokenClient<$Result.GetResult<Prisma.$AccessTokenPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of AccessTokens.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AccessTokenCountArgs} args - Arguments to filter AccessTokens to count.
+     * @example
+     * // Count the number of AccessTokens
+     * const count = await prisma.accessToken.count({
+     *   where: {
+     *     // ... the filter for the AccessTokens we want to count
+     *   }
+     * })
+    **/
+    count<T extends AccessTokenCountArgs>(
+      args?: Subset<T, AccessTokenCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AccessTokenCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a AccessToken.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AccessTokenAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AccessTokenAggregateArgs>(args: Subset<T, AccessTokenAggregateArgs>): Prisma.PrismaPromise<GetAccessTokenAggregateType<T>>
+
+    /**
+     * Group by AccessToken.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AccessTokenGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends AccessTokenGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: AccessTokenGroupByArgs['orderBy'] }
+        : { orderBy?: AccessTokenGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, AccessTokenGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAccessTokenGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the AccessToken model
+   */
+  readonly fields: AccessTokenFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for AccessToken.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__AccessTokenClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the AccessToken model
+   */
+  interface AccessTokenFieldRefs {
+    readonly id: FieldRef<"AccessToken", 'Int'>
+    readonly name: FieldRef<"AccessToken", 'String'>
+    readonly tokenHash: FieldRef<"AccessToken", 'String'>
+    readonly tokenPrefix: FieldRef<"AccessToken", 'String'>
+    readonly enabled: FieldRef<"AccessToken", 'Boolean'>
+    readonly lastUsedAt: FieldRef<"AccessToken", 'DateTime'>
+    readonly createdAt: FieldRef<"AccessToken", 'DateTime'>
+    readonly userId: FieldRef<"AccessToken", 'Int'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * AccessToken findUnique
+   */
+  export type AccessTokenFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AccessToken
+     */
+    select?: AccessTokenSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AccessToken
+     */
+    omit?: AccessTokenOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AccessTokenInclude<ExtArgs> | null
+    /**
+     * Filter, which AccessToken to fetch.
+     */
+    where: AccessTokenWhereUniqueInput
+  }
+
+  /**
+   * AccessToken findUniqueOrThrow
+   */
+  export type AccessTokenFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AccessToken
+     */
+    select?: AccessTokenSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AccessToken
+     */
+    omit?: AccessTokenOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AccessTokenInclude<ExtArgs> | null
+    /**
+     * Filter, which AccessToken to fetch.
+     */
+    where: AccessTokenWhereUniqueInput
+  }
+
+  /**
+   * AccessToken findFirst
+   */
+  export type AccessTokenFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AccessToken
+     */
+    select?: AccessTokenSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AccessToken
+     */
+    omit?: AccessTokenOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AccessTokenInclude<ExtArgs> | null
+    /**
+     * Filter, which AccessToken to fetch.
+     */
+    where?: AccessTokenWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AccessTokens to fetch.
+     */
+    orderBy?: AccessTokenOrderByWithRelationInput | AccessTokenOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AccessTokens.
+     */
+    cursor?: AccessTokenWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AccessTokens from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AccessTokens.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AccessTokens.
+     */
+    distinct?: AccessTokenScalarFieldEnum | AccessTokenScalarFieldEnum[]
+  }
+
+  /**
+   * AccessToken findFirstOrThrow
+   */
+  export type AccessTokenFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AccessToken
+     */
+    select?: AccessTokenSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AccessToken
+     */
+    omit?: AccessTokenOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AccessTokenInclude<ExtArgs> | null
+    /**
+     * Filter, which AccessToken to fetch.
+     */
+    where?: AccessTokenWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AccessTokens to fetch.
+     */
+    orderBy?: AccessTokenOrderByWithRelationInput | AccessTokenOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AccessTokens.
+     */
+    cursor?: AccessTokenWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AccessTokens from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AccessTokens.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AccessTokens.
+     */
+    distinct?: AccessTokenScalarFieldEnum | AccessTokenScalarFieldEnum[]
+  }
+
+  /**
+   * AccessToken findMany
+   */
+  export type AccessTokenFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AccessToken
+     */
+    select?: AccessTokenSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AccessToken
+     */
+    omit?: AccessTokenOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AccessTokenInclude<ExtArgs> | null
+    /**
+     * Filter, which AccessTokens to fetch.
+     */
+    where?: AccessTokenWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AccessTokens to fetch.
+     */
+    orderBy?: AccessTokenOrderByWithRelationInput | AccessTokenOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing AccessTokens.
+     */
+    cursor?: AccessTokenWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AccessTokens from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AccessTokens.
+     */
+    skip?: number
+    distinct?: AccessTokenScalarFieldEnum | AccessTokenScalarFieldEnum[]
+  }
+
+  /**
+   * AccessToken create
+   */
+  export type AccessTokenCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AccessToken
+     */
+    select?: AccessTokenSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AccessToken
+     */
+    omit?: AccessTokenOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AccessTokenInclude<ExtArgs> | null
+    /**
+     * The data needed to create a AccessToken.
+     */
+    data: XOR<AccessTokenCreateInput, AccessTokenUncheckedCreateInput>
+  }
+
+  /**
+   * AccessToken createMany
+   */
+  export type AccessTokenCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many AccessTokens.
+     */
+    data: AccessTokenCreateManyInput | AccessTokenCreateManyInput[]
+  }
+
+  /**
+   * AccessToken createManyAndReturn
+   */
+  export type AccessTokenCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AccessToken
+     */
+    select?: AccessTokenSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AccessToken
+     */
+    omit?: AccessTokenOmit<ExtArgs> | null
+    /**
+     * The data used to create many AccessTokens.
+     */
+    data: AccessTokenCreateManyInput | AccessTokenCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AccessTokenIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AccessToken update
+   */
+  export type AccessTokenUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AccessToken
+     */
+    select?: AccessTokenSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AccessToken
+     */
+    omit?: AccessTokenOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AccessTokenInclude<ExtArgs> | null
+    /**
+     * The data needed to update a AccessToken.
+     */
+    data: XOR<AccessTokenUpdateInput, AccessTokenUncheckedUpdateInput>
+    /**
+     * Choose, which AccessToken to update.
+     */
+    where: AccessTokenWhereUniqueInput
+  }
+
+  /**
+   * AccessToken updateMany
+   */
+  export type AccessTokenUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update AccessTokens.
+     */
+    data: XOR<AccessTokenUpdateManyMutationInput, AccessTokenUncheckedUpdateManyInput>
+    /**
+     * Filter which AccessTokens to update
+     */
+    where?: AccessTokenWhereInput
+    /**
+     * Limit how many AccessTokens to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AccessToken updateManyAndReturn
+   */
+  export type AccessTokenUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AccessToken
+     */
+    select?: AccessTokenSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AccessToken
+     */
+    omit?: AccessTokenOmit<ExtArgs> | null
+    /**
+     * The data used to update AccessTokens.
+     */
+    data: XOR<AccessTokenUpdateManyMutationInput, AccessTokenUncheckedUpdateManyInput>
+    /**
+     * Filter which AccessTokens to update
+     */
+    where?: AccessTokenWhereInput
+    /**
+     * Limit how many AccessTokens to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AccessTokenIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AccessToken upsert
+   */
+  export type AccessTokenUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AccessToken
+     */
+    select?: AccessTokenSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AccessToken
+     */
+    omit?: AccessTokenOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AccessTokenInclude<ExtArgs> | null
+    /**
+     * The filter to search for the AccessToken to update in case it exists.
+     */
+    where: AccessTokenWhereUniqueInput
+    /**
+     * In case the AccessToken found by the `where` argument doesn't exist, create a new AccessToken with this data.
+     */
+    create: XOR<AccessTokenCreateInput, AccessTokenUncheckedCreateInput>
+    /**
+     * In case the AccessToken was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<AccessTokenUpdateInput, AccessTokenUncheckedUpdateInput>
+  }
+
+  /**
+   * AccessToken delete
+   */
+  export type AccessTokenDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AccessToken
+     */
+    select?: AccessTokenSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AccessToken
+     */
+    omit?: AccessTokenOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AccessTokenInclude<ExtArgs> | null
+    /**
+     * Filter which AccessToken to delete.
+     */
+    where: AccessTokenWhereUniqueInput
+  }
+
+  /**
+   * AccessToken deleteMany
+   */
+  export type AccessTokenDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AccessTokens to delete
+     */
+    where?: AccessTokenWhereInput
+    /**
+     * Limit how many AccessTokens to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * AccessToken without action
+   */
+  export type AccessTokenDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AccessToken
+     */
+    select?: AccessTokenSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AccessToken
+     */
+    omit?: AccessTokenOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AccessTokenInclude<ExtArgs> | null
   }
 
 
@@ -29349,6 +30629,20 @@ export namespace Prisma {
   export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
+  export const AccessTokenScalarFieldEnum: {
+    id: 'id',
+    name: 'name',
+    tokenHash: 'tokenHash',
+    tokenPrefix: 'tokenPrefix',
+    enabled: 'enabled',
+    lastUsedAt: 'lastUsedAt',
+    createdAt: 'createdAt',
+    userId: 'userId'
+  };
+
+  export type AccessTokenScalarFieldEnum = (typeof AccessTokenScalarFieldEnum)[keyof typeof AccessTokenScalarFieldEnum]
+
+
   export const SystemSettingScalarFieldEnum: {
     id: 'id',
     key: 'key',
@@ -30468,6 +31762,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionListRelationFilter
     devices?: DeviceListRelationFilter
     searchRecords?: SearchRecordListRelationFilter
+    accessTokens?: AccessTokenListRelationFilter
   }
 
   export type UserOrderByWithRelationInput = {
@@ -30488,6 +31783,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionOrderByRelationAggregateInput
     devices?: DeviceOrderByRelationAggregateInput
     searchRecords?: SearchRecordOrderByRelationAggregateInput
+    accessTokens?: AccessTokenOrderByRelationAggregateInput
   }
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -30511,6 +31807,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionListRelationFilter
     devices?: DeviceListRelationFilter
     searchRecords?: SearchRecordListRelationFilter
+    accessTokens?: AccessTokenListRelationFilter
   }, "id" | "username">
 
   export type UserOrderByWithAggregationInput = {
@@ -30539,6 +31836,78 @@ export namespace Prisma {
     is_admin?: BoolWithAggregatesFilter<"User"> | boolean
     expiresAt?: DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
+  }
+
+  export type AccessTokenWhereInput = {
+    AND?: AccessTokenWhereInput | AccessTokenWhereInput[]
+    OR?: AccessTokenWhereInput[]
+    NOT?: AccessTokenWhereInput | AccessTokenWhereInput[]
+    id?: IntFilter<"AccessToken"> | number
+    name?: StringFilter<"AccessToken"> | string
+    tokenHash?: StringFilter<"AccessToken"> | string
+    tokenPrefix?: StringFilter<"AccessToken"> | string
+    enabled?: BoolFilter<"AccessToken"> | boolean
+    lastUsedAt?: DateTimeNullableFilter<"AccessToken"> | Date | string | null
+    createdAt?: DateTimeFilter<"AccessToken"> | Date | string
+    userId?: IntFilter<"AccessToken"> | number
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }
+
+  export type AccessTokenOrderByWithRelationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    tokenHash?: SortOrder
+    tokenPrefix?: SortOrder
+    enabled?: SortOrder
+    lastUsedAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    userId?: SortOrder
+    user?: UserOrderByWithRelationInput
+  }
+
+  export type AccessTokenWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    tokenHash?: string
+    AND?: AccessTokenWhereInput | AccessTokenWhereInput[]
+    OR?: AccessTokenWhereInput[]
+    NOT?: AccessTokenWhereInput | AccessTokenWhereInput[]
+    name?: StringFilter<"AccessToken"> | string
+    tokenPrefix?: StringFilter<"AccessToken"> | string
+    enabled?: BoolFilter<"AccessToken"> | boolean
+    lastUsedAt?: DateTimeNullableFilter<"AccessToken"> | Date | string | null
+    createdAt?: DateTimeFilter<"AccessToken"> | Date | string
+    userId?: IntFilter<"AccessToken"> | number
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }, "id" | "tokenHash">
+
+  export type AccessTokenOrderByWithAggregationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    tokenHash?: SortOrder
+    tokenPrefix?: SortOrder
+    enabled?: SortOrder
+    lastUsedAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    userId?: SortOrder
+    _count?: AccessTokenCountOrderByAggregateInput
+    _avg?: AccessTokenAvgOrderByAggregateInput
+    _max?: AccessTokenMaxOrderByAggregateInput
+    _min?: AccessTokenMinOrderByAggregateInput
+    _sum?: AccessTokenSumOrderByAggregateInput
+  }
+
+  export type AccessTokenScalarWhereWithAggregatesInput = {
+    AND?: AccessTokenScalarWhereWithAggregatesInput | AccessTokenScalarWhereWithAggregatesInput[]
+    OR?: AccessTokenScalarWhereWithAggregatesInput[]
+    NOT?: AccessTokenScalarWhereWithAggregatesInput | AccessTokenScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"AccessToken"> | number
+    name?: StringWithAggregatesFilter<"AccessToken"> | string
+    tokenHash?: StringWithAggregatesFilter<"AccessToken"> | string
+    tokenPrefix?: StringWithAggregatesFilter<"AccessToken"> | string
+    enabled?: BoolWithAggregatesFilter<"AccessToken"> | boolean
+    lastUsedAt?: DateTimeNullableWithAggregatesFilter<"AccessToken"> | Date | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"AccessToken"> | Date | string
+    userId?: IntWithAggregatesFilter<"AccessToken"> | number
   }
 
   export type SystemSettingWhereInput = {
@@ -32140,6 +33509,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateInput = {
@@ -32160,6 +33530,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserUpdateInput = {
@@ -32179,6 +33550,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateInput = {
@@ -32199,6 +33571,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserCreateManyInput = {
@@ -32228,6 +33601,79 @@ export namespace Prisma {
     is_admin?: BoolFieldUpdateOperationsInput | boolean
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AccessTokenCreateInput = {
+    name: string
+    tokenHash: string
+    tokenPrefix: string
+    enabled?: boolean
+    lastUsedAt?: Date | string | null
+    createdAt?: Date | string
+    user: UserCreateNestedOneWithoutAccessTokensInput
+  }
+
+  export type AccessTokenUncheckedCreateInput = {
+    id?: number
+    name: string
+    tokenHash: string
+    tokenPrefix: string
+    enabled?: boolean
+    lastUsedAt?: Date | string | null
+    createdAt?: Date | string
+    userId: number
+  }
+
+  export type AccessTokenUpdateInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    tokenHash?: StringFieldUpdateOperationsInput | string
+    tokenPrefix?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastUsedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutAccessTokensNestedInput
+  }
+
+  export type AccessTokenUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    tokenHash?: StringFieldUpdateOperationsInput | string
+    tokenPrefix?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastUsedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    userId?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type AccessTokenCreateManyInput = {
+    id?: number
+    name: string
+    tokenHash: string
+    tokenPrefix: string
+    enabled?: boolean
+    lastUsedAt?: Date | string | null
+    createdAt?: Date | string
+    userId: number
+  }
+
+  export type AccessTokenUpdateManyMutationInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    tokenHash?: StringFieldUpdateOperationsInput | string
+    tokenPrefix?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastUsedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AccessTokenUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    tokenHash?: StringFieldUpdateOperationsInput | string
+    tokenPrefix?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastUsedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    userId?: IntFieldUpdateOperationsInput | number
   }
 
   export type SystemSettingCreateInput = {
@@ -33889,6 +35335,12 @@ export namespace Prisma {
     none?: SearchRecordWhereInput
   }
 
+  export type AccessTokenListRelationFilter = {
+    every?: AccessTokenWhereInput
+    some?: AccessTokenWhereInput
+    none?: AccessTokenWhereInput
+  }
+
   export type AudiobookCollectionOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
@@ -33898,6 +35350,10 @@ export namespace Prisma {
   }
 
   export type SearchRecordOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type AccessTokenOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -33937,6 +35393,49 @@ export namespace Prisma {
 
   export type UserSumOrderByAggregateInput = {
     id?: SortOrder
+  }
+
+  export type AccessTokenCountOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    tokenHash?: SortOrder
+    tokenPrefix?: SortOrder
+    enabled?: SortOrder
+    lastUsedAt?: SortOrder
+    createdAt?: SortOrder
+    userId?: SortOrder
+  }
+
+  export type AccessTokenAvgOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+  }
+
+  export type AccessTokenMaxOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    tokenHash?: SortOrder
+    tokenPrefix?: SortOrder
+    enabled?: SortOrder
+    lastUsedAt?: SortOrder
+    createdAt?: SortOrder
+    userId?: SortOrder
+  }
+
+  export type AccessTokenMinOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    tokenHash?: SortOrder
+    tokenPrefix?: SortOrder
+    enabled?: SortOrder
+    lastUsedAt?: SortOrder
+    createdAt?: SortOrder
+    userId?: SortOrder
+  }
+
+  export type AccessTokenSumOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
   }
 
   export type SystemSettingCountOrderByAggregateInput = {
@@ -35401,6 +36900,13 @@ export namespace Prisma {
     connect?: SearchRecordWhereUniqueInput | SearchRecordWhereUniqueInput[]
   }
 
+  export type AccessTokenCreateNestedManyWithoutUserInput = {
+    create?: XOR<AccessTokenCreateWithoutUserInput, AccessTokenUncheckedCreateWithoutUserInput> | AccessTokenCreateWithoutUserInput[] | AccessTokenUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AccessTokenCreateOrConnectWithoutUserInput | AccessTokenCreateOrConnectWithoutUserInput[]
+    createMany?: AccessTokenCreateManyUserInputEnvelope
+    connect?: AccessTokenWhereUniqueInput | AccessTokenWhereUniqueInput[]
+  }
+
   export type UserTrackLikeUncheckedCreateNestedManyWithoutUserInput = {
     create?: XOR<UserTrackLikeCreateWithoutUserInput, UserTrackLikeUncheckedCreateWithoutUserInput> | UserTrackLikeCreateWithoutUserInput[] | UserTrackLikeUncheckedCreateWithoutUserInput[]
     connectOrCreate?: UserTrackLikeCreateOrConnectWithoutUserInput | UserTrackLikeCreateOrConnectWithoutUserInput[]
@@ -35469,6 +36975,13 @@ export namespace Prisma {
     connectOrCreate?: SearchRecordCreateOrConnectWithoutUserInput | SearchRecordCreateOrConnectWithoutUserInput[]
     createMany?: SearchRecordCreateManyUserInputEnvelope
     connect?: SearchRecordWhereUniqueInput | SearchRecordWhereUniqueInput[]
+  }
+
+  export type AccessTokenUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<AccessTokenCreateWithoutUserInput, AccessTokenUncheckedCreateWithoutUserInput> | AccessTokenCreateWithoutUserInput[] | AccessTokenUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AccessTokenCreateOrConnectWithoutUserInput | AccessTokenCreateOrConnectWithoutUserInput[]
+    createMany?: AccessTokenCreateManyUserInputEnvelope
+    connect?: AccessTokenWhereUniqueInput | AccessTokenWhereUniqueInput[]
   }
 
   export type UserTrackLikeUpdateManyWithoutUserNestedInput = {
@@ -35611,6 +37124,20 @@ export namespace Prisma {
     deleteMany?: SearchRecordScalarWhereInput | SearchRecordScalarWhereInput[]
   }
 
+  export type AccessTokenUpdateManyWithoutUserNestedInput = {
+    create?: XOR<AccessTokenCreateWithoutUserInput, AccessTokenUncheckedCreateWithoutUserInput> | AccessTokenCreateWithoutUserInput[] | AccessTokenUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AccessTokenCreateOrConnectWithoutUserInput | AccessTokenCreateOrConnectWithoutUserInput[]
+    upsert?: AccessTokenUpsertWithWhereUniqueWithoutUserInput | AccessTokenUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: AccessTokenCreateManyUserInputEnvelope
+    set?: AccessTokenWhereUniqueInput | AccessTokenWhereUniqueInput[]
+    disconnect?: AccessTokenWhereUniqueInput | AccessTokenWhereUniqueInput[]
+    delete?: AccessTokenWhereUniqueInput | AccessTokenWhereUniqueInput[]
+    connect?: AccessTokenWhereUniqueInput | AccessTokenWhereUniqueInput[]
+    update?: AccessTokenUpdateWithWhereUniqueWithoutUserInput | AccessTokenUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: AccessTokenUpdateManyWithWhereWithoutUserInput | AccessTokenUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: AccessTokenScalarWhereInput | AccessTokenScalarWhereInput[]
+  }
+
   export type UserTrackLikeUncheckedUpdateManyWithoutUserNestedInput = {
     create?: XOR<UserTrackLikeCreateWithoutUserInput, UserTrackLikeUncheckedCreateWithoutUserInput> | UserTrackLikeCreateWithoutUserInput[] | UserTrackLikeUncheckedCreateWithoutUserInput[]
     connectOrCreate?: UserTrackLikeCreateOrConnectWithoutUserInput | UserTrackLikeCreateOrConnectWithoutUserInput[]
@@ -35749,6 +37276,34 @@ export namespace Prisma {
     update?: SearchRecordUpdateWithWhereUniqueWithoutUserInput | SearchRecordUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: SearchRecordUpdateManyWithWhereWithoutUserInput | SearchRecordUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: SearchRecordScalarWhereInput | SearchRecordScalarWhereInput[]
+  }
+
+  export type AccessTokenUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<AccessTokenCreateWithoutUserInput, AccessTokenUncheckedCreateWithoutUserInput> | AccessTokenCreateWithoutUserInput[] | AccessTokenUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AccessTokenCreateOrConnectWithoutUserInput | AccessTokenCreateOrConnectWithoutUserInput[]
+    upsert?: AccessTokenUpsertWithWhereUniqueWithoutUserInput | AccessTokenUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: AccessTokenCreateManyUserInputEnvelope
+    set?: AccessTokenWhereUniqueInput | AccessTokenWhereUniqueInput[]
+    disconnect?: AccessTokenWhereUniqueInput | AccessTokenWhereUniqueInput[]
+    delete?: AccessTokenWhereUniqueInput | AccessTokenWhereUniqueInput[]
+    connect?: AccessTokenWhereUniqueInput | AccessTokenWhereUniqueInput[]
+    update?: AccessTokenUpdateWithWhereUniqueWithoutUserInput | AccessTokenUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: AccessTokenUpdateManyWithWhereWithoutUserInput | AccessTokenUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: AccessTokenScalarWhereInput | AccessTokenScalarWhereInput[]
+  }
+
+  export type UserCreateNestedOneWithoutAccessTokensInput = {
+    create?: XOR<UserCreateWithoutAccessTokensInput, UserUncheckedCreateWithoutAccessTokensInput>
+    connectOrCreate?: UserCreateOrConnectWithoutAccessTokensInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type UserUpdateOneRequiredWithoutAccessTokensNestedInput = {
+    create?: XOR<UserCreateWithoutAccessTokensInput, UserUncheckedCreateWithoutAccessTokensInput>
+    connectOrCreate?: UserCreateOrConnectWithoutAccessTokensInput
+    upsert?: UserUpsertWithoutAccessTokensInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutAccessTokensInput, UserUpdateWithoutAccessTokensInput>, UserUncheckedUpdateWithoutAccessTokensInput>
   }
 
   export type UserCreateNestedOneWithoutSearchRecordsInput = {
@@ -37407,6 +38962,7 @@ export namespace Prisma {
     playlists?: PlaylistCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutAudiobookCollectionsInput = {
@@ -37426,6 +38982,7 @@ export namespace Prisma {
     playlists?: PlaylistUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutAudiobookCollectionsInput = {
@@ -37482,6 +39039,7 @@ export namespace Prisma {
     playlists?: PlaylistUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAudiobookCollectionsInput = {
@@ -37501,6 +39059,7 @@ export namespace Prisma {
     playlists?: PlaylistUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type AudiobookCollectionAlbumUpsertWithWhereUniqueWithoutCollectionInput = {
@@ -37679,6 +39238,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutLikedTracksInput = {
@@ -37698,6 +39258,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutLikedTracksInput = {
@@ -37808,6 +39369,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutLikedTracksInput = {
@@ -37827,6 +39389,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type TrackUpsertWithoutLikedByUsersInput = {
@@ -37927,6 +39490,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutListenedTracksInput = {
@@ -37946,6 +39510,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutListenedTracksInput = {
@@ -38084,6 +39649,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutListenedTracksInput = {
@@ -38103,6 +39669,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type TrackUpsertWithoutListenedByUsersInput = {
@@ -38237,6 +39804,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutLikedAlbumsInput = {
@@ -38256,6 +39824,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutLikedAlbumsInput = {
@@ -38332,6 +39901,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutLikedAlbumsInput = {
@@ -38351,6 +39921,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type AlbumUpsertWithoutLikedByUsersInput = {
@@ -38417,6 +39988,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutListenedAlbumsInput = {
@@ -38436,6 +40008,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutListenedAlbumsInput = {
@@ -38512,6 +40085,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutListenedAlbumsInput = {
@@ -38531,6 +40105,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type AlbumUpsertWithoutListenedByUsersInput = {
@@ -38597,6 +40172,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutLikedAudiobooksInput = {
@@ -38616,6 +40192,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutLikedAudiobooksInput = {
@@ -38726,6 +40303,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutLikedAudiobooksInput = {
@@ -38745,6 +40323,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type TrackUpsertWithoutLikedAsAudiobookByUsersInput = {
@@ -38845,6 +40424,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutListenedAudiobooksInput = {
@@ -38864,6 +40444,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutListenedAudiobooksInput = {
@@ -38974,6 +40555,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutListenedAudiobooksInput = {
@@ -38993,6 +40575,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type TrackUpsertWithoutListenedAsAudiobookByUsersInput = {
@@ -39313,6 +40896,34 @@ export namespace Prisma {
     data: SearchRecordCreateManyUserInput | SearchRecordCreateManyUserInput[]
   }
 
+  export type AccessTokenCreateWithoutUserInput = {
+    name: string
+    tokenHash: string
+    tokenPrefix: string
+    enabled?: boolean
+    lastUsedAt?: Date | string | null
+    createdAt?: Date | string
+  }
+
+  export type AccessTokenUncheckedCreateWithoutUserInput = {
+    id?: number
+    name: string
+    tokenHash: string
+    tokenPrefix: string
+    enabled?: boolean
+    lastUsedAt?: Date | string | null
+    createdAt?: Date | string
+  }
+
+  export type AccessTokenCreateOrConnectWithoutUserInput = {
+    where: AccessTokenWhereUniqueInput
+    create: XOR<AccessTokenCreateWithoutUserInput, AccessTokenUncheckedCreateWithoutUserInput>
+  }
+
+  export type AccessTokenCreateManyUserInputEnvelope = {
+    data: AccessTokenCreateManyUserInput | AccessTokenCreateManyUserInput[]
+  }
+
   export type UserTrackLikeUpsertWithWhereUniqueWithoutUserInput = {
     where: UserTrackLikeWhereUniqueInput
     update: XOR<UserTrackLikeUpdateWithoutUserInput, UserTrackLikeUncheckedUpdateWithoutUserInput>
@@ -39511,6 +41122,130 @@ export namespace Prisma {
     userId?: IntFilter<"SearchRecord"> | number
   }
 
+  export type AccessTokenUpsertWithWhereUniqueWithoutUserInput = {
+    where: AccessTokenWhereUniqueInput
+    update: XOR<AccessTokenUpdateWithoutUserInput, AccessTokenUncheckedUpdateWithoutUserInput>
+    create: XOR<AccessTokenCreateWithoutUserInput, AccessTokenUncheckedCreateWithoutUserInput>
+  }
+
+  export type AccessTokenUpdateWithWhereUniqueWithoutUserInput = {
+    where: AccessTokenWhereUniqueInput
+    data: XOR<AccessTokenUpdateWithoutUserInput, AccessTokenUncheckedUpdateWithoutUserInput>
+  }
+
+  export type AccessTokenUpdateManyWithWhereWithoutUserInput = {
+    where: AccessTokenScalarWhereInput
+    data: XOR<AccessTokenUpdateManyMutationInput, AccessTokenUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type AccessTokenScalarWhereInput = {
+    AND?: AccessTokenScalarWhereInput | AccessTokenScalarWhereInput[]
+    OR?: AccessTokenScalarWhereInput[]
+    NOT?: AccessTokenScalarWhereInput | AccessTokenScalarWhereInput[]
+    id?: IntFilter<"AccessToken"> | number
+    name?: StringFilter<"AccessToken"> | string
+    tokenHash?: StringFilter<"AccessToken"> | string
+    tokenPrefix?: StringFilter<"AccessToken"> | string
+    enabled?: BoolFilter<"AccessToken"> | boolean
+    lastUsedAt?: DateTimeNullableFilter<"AccessToken"> | Date | string | null
+    createdAt?: DateTimeFilter<"AccessToken"> | Date | string
+    userId?: IntFilter<"AccessToken"> | number
+  }
+
+  export type UserCreateWithoutAccessTokensInput = {
+    username: string
+    password: string
+    avatar?: string | null
+    is_admin?: boolean
+    expiresAt?: Date | string | null
+    createdAt?: Date | string
+    likedTracks?: UserTrackLikeCreateNestedManyWithoutUserInput
+    listenedTracks?: UserTrackHistoryCreateNestedManyWithoutUserInput
+    likedAlbums?: UserAlbumLikeCreateNestedManyWithoutUserInput
+    listenedAlbums?: UserAlbumHistoryCreateNestedManyWithoutUserInput
+    likedAudiobooks?: UserAudiobookLikeCreateNestedManyWithoutUserInput
+    listenedAudiobooks?: UserAudiobookHistoryCreateNestedManyWithoutUserInput
+    playlists?: PlaylistCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
+    devices?: DeviceCreateNestedManyWithoutUserInput
+    searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutAccessTokensInput = {
+    id?: number
+    username: string
+    password: string
+    avatar?: string | null
+    is_admin?: boolean
+    expiresAt?: Date | string | null
+    createdAt?: Date | string
+    likedTracks?: UserTrackLikeUncheckedCreateNestedManyWithoutUserInput
+    listenedTracks?: UserTrackHistoryUncheckedCreateNestedManyWithoutUserInput
+    likedAlbums?: UserAlbumLikeUncheckedCreateNestedManyWithoutUserInput
+    listenedAlbums?: UserAlbumHistoryUncheckedCreateNestedManyWithoutUserInput
+    likedAudiobooks?: UserAudiobookLikeUncheckedCreateNestedManyWithoutUserInput
+    listenedAudiobooks?: UserAudiobookHistoryUncheckedCreateNestedManyWithoutUserInput
+    playlists?: PlaylistUncheckedCreateNestedManyWithoutUserInput
+    audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
+    devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
+    searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutAccessTokensInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutAccessTokensInput, UserUncheckedCreateWithoutAccessTokensInput>
+  }
+
+  export type UserUpsertWithoutAccessTokensInput = {
+    update: XOR<UserUpdateWithoutAccessTokensInput, UserUncheckedUpdateWithoutAccessTokensInput>
+    create: XOR<UserCreateWithoutAccessTokensInput, UserUncheckedCreateWithoutAccessTokensInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutAccessTokensInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutAccessTokensInput, UserUncheckedUpdateWithoutAccessTokensInput>
+  }
+
+  export type UserUpdateWithoutAccessTokensInput = {
+    username?: StringFieldUpdateOperationsInput | string
+    password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
+    is_admin?: BoolFieldUpdateOperationsInput | boolean
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    likedTracks?: UserTrackLikeUpdateManyWithoutUserNestedInput
+    listenedTracks?: UserTrackHistoryUpdateManyWithoutUserNestedInput
+    likedAlbums?: UserAlbumLikeUpdateManyWithoutUserNestedInput
+    listenedAlbums?: UserAlbumHistoryUpdateManyWithoutUserNestedInput
+    likedAudiobooks?: UserAudiobookLikeUpdateManyWithoutUserNestedInput
+    listenedAudiobooks?: UserAudiobookHistoryUpdateManyWithoutUserNestedInput
+    playlists?: PlaylistUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
+    devices?: DeviceUpdateManyWithoutUserNestedInput
+    searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutAccessTokensInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    username?: StringFieldUpdateOperationsInput | string
+    password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
+    is_admin?: BoolFieldUpdateOperationsInput | boolean
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    likedTracks?: UserTrackLikeUncheckedUpdateManyWithoutUserNestedInput
+    listenedTracks?: UserTrackHistoryUncheckedUpdateManyWithoutUserNestedInput
+    likedAlbums?: UserAlbumLikeUncheckedUpdateManyWithoutUserNestedInput
+    listenedAlbums?: UserAlbumHistoryUncheckedUpdateManyWithoutUserNestedInput
+    likedAudiobooks?: UserAudiobookLikeUncheckedUpdateManyWithoutUserNestedInput
+    listenedAudiobooks?: UserAudiobookHistoryUncheckedUpdateManyWithoutUserNestedInput
+    playlists?: PlaylistUncheckedUpdateManyWithoutUserNestedInput
+    audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
+    devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
+    searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
+  }
+
   export type UserCreateWithoutSearchRecordsInput = {
     username: string
     password: string
@@ -39527,6 +41262,7 @@ export namespace Prisma {
     playlists?: PlaylistCreateNestedManyWithoutUserInput
     audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutSearchRecordsInput = {
@@ -39546,6 +41282,7 @@ export namespace Prisma {
     playlists?: PlaylistUncheckedCreateNestedManyWithoutUserInput
     audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutSearchRecordsInput = {
@@ -39580,6 +41317,7 @@ export namespace Prisma {
     playlists?: PlaylistUpdateManyWithoutUserNestedInput
     audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutSearchRecordsInput = {
@@ -39599,6 +41337,7 @@ export namespace Prisma {
     playlists?: PlaylistUncheckedUpdateManyWithoutUserNestedInput
     audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserCreateWithoutDevicesInput = {
@@ -39617,6 +41356,7 @@ export namespace Prisma {
     playlists?: PlaylistCreateNestedManyWithoutUserInput
     audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutDevicesInput = {
@@ -39636,6 +41376,7 @@ export namespace Prisma {
     playlists?: PlaylistUncheckedCreateNestedManyWithoutUserInput
     audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutDevicesInput = {
@@ -39698,6 +41439,7 @@ export namespace Prisma {
     playlists?: PlaylistUpdateManyWithoutUserNestedInput
     audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutDevicesInput = {
@@ -39717,6 +41459,7 @@ export namespace Prisma {
     playlists?: PlaylistUncheckedUpdateManyWithoutUserNestedInput
     audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserTrackHistoryUpsertWithWhereUniqueWithoutDeviceInput = {
@@ -39751,6 +41494,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionCreateNestedManyWithoutUserInput
     devices?: DeviceCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutPlaylistsInput = {
@@ -39770,6 +41514,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedCreateNestedManyWithoutUserInput
     devices?: DeviceUncheckedCreateNestedManyWithoutUserInput
     searchRecords?: SearchRecordUncheckedCreateNestedManyWithoutUserInput
+    accessTokens?: AccessTokenUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutPlaylistsInput = {
@@ -39880,6 +41625,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUpdateManyWithoutUserNestedInput
     devices?: DeviceUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutPlaylistsInput = {
@@ -39899,6 +41645,7 @@ export namespace Prisma {
     audiobookCollections?: AudiobookCollectionUncheckedUpdateManyWithoutUserNestedInput
     devices?: DeviceUncheckedUpdateManyWithoutUserNestedInput
     searchRecords?: SearchRecordUncheckedUpdateManyWithoutUserNestedInput
+    accessTokens?: AccessTokenUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type TrackUpsertWithWhereUniqueWithoutPlaylistsInput = {
@@ -41341,6 +43088,16 @@ export namespace Prisma {
     createdAt?: Date | string
   }
 
+  export type AccessTokenCreateManyUserInput = {
+    id?: number
+    name: string
+    tokenHash: string
+    tokenPrefix: string
+    enabled?: boolean
+    lastUsedAt?: Date | string | null
+    createdAt?: Date | string
+  }
+
   export type UserTrackLikeUpdateWithoutUserInput = {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     track?: TrackUpdateOneRequiredWithoutLikedByUsersNestedInput
@@ -41559,6 +43316,35 @@ export namespace Prisma {
   export type SearchRecordUncheckedUpdateManyWithoutUserInput = {
     id?: IntFieldUpdateOperationsInput | number
     keyword?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AccessTokenUpdateWithoutUserInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    tokenHash?: StringFieldUpdateOperationsInput | string
+    tokenPrefix?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastUsedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AccessTokenUncheckedUpdateWithoutUserInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    tokenHash?: StringFieldUpdateOperationsInput | string
+    tokenPrefix?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastUsedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AccessTokenUncheckedUpdateManyWithoutUserInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    tokenHash?: StringFieldUpdateOperationsInput | string
+    tokenPrefix?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastUsedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 

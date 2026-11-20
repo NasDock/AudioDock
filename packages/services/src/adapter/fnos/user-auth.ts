@@ -1,6 +1,10 @@
 import { setServiceConfig } from "../../config";
 import type { Device, ILoadMoreData, ISuccessResponse, User } from "../../models";
-import type { DeviceLoginInfo, IAuthAdapter, IUserAdapter } from "../interface-user-auth";
+import {
+  getPlatformUserDevices,
+  platformTransferSession,
+} from "../../platform";
+import type { DeviceLoginInfo, IAuthAdapter, IUserAdapter, TransferSessionPayload } from "../interface-user-auth";
 import { FnosClient, normalizeFnosDeviceId } from "./client";
 import { sha256Hex } from "./hash";
 import { fnosSecondsToIso, mapFnosTracks, mapFnosUser } from "./mapper";
@@ -130,12 +134,22 @@ export class FnosUserAdapter implements IUserAdapter {
     }
   }
 
-  /** 飞牛不提供设备列表，播放流转也不支持 */
+  /**
+   * 设备列表/播放流转是 AudioDock 服务端的账号体系能力，与音乐源无关。
+   * 飞牛源下委托到平台服务通道（端侧用最近一次 AudioDock 源登录态初始化）；
+   * 未配置平台服务时保持原行为（空列表/不支持）。
+   */
   async getUserDevices(): Promise<ISuccessResponse<Device[]>> {
+    const platformRes = await getPlatformUserDevices();
+    if (platformRes) return platformRes;
     return { code: 200, message: "success", data: [] };
   }
 
-  async transferSession(): Promise<ISuccessResponse<{ delivered: boolean }>> {
+  async transferSession(
+    payload: TransferSessionPayload,
+  ): Promise<ISuccessResponse<{ delivered: boolean }>> {
+    const platformRes = await platformTransferSession(payload);
+    if (platformRes) return platformRes;
     return { code: 500, message: "飞牛音乐数据源不支持播放流转", data: { delivered: false } };
   }
 

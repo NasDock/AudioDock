@@ -1,4 +1,4 @@
-import { setRequestInstance, plusRequest } from '@soundx/services';
+import { setPlatformAdapter, setRequestInstance, plusRequest } from '@soundx/services';
 import Taro from '@tarojs/taro';
 import axios, { AxiosAdapter, AxiosError, AxiosResponse } from 'axios';
 
@@ -166,5 +166,7 @@ instance.interceptors.response.use(
 
 setRequestInstance(instance);
 plusRequest.defaults.adapter = taroAdapter;
+// 平台服务通道（第三方音乐源下的设备列表/播放流转）同样没有 XHR，必须走 Taro 请求
+setPlatformAdapter(taroAdapter);
 
 export default instance;
