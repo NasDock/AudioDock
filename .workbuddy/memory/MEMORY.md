@@ -52,5 +52,5 @@
 - 歌词手动滚动（2026-11-14 四端统一）：拖动接管→中心行时间戳+播放键→点击 seek 恢复→2s 未操作**显式**回弹。mobile `LyricsScrollArea.tsx`（半屏留白放行容器自身，不能放 contentContainerStyle）；desktop `Player/Lyrics.tsx`（autoScrollingRef+scrollend）；mini `pages/player/index.tsx`（scrollIntoView 先清空再设回、无 onLayout 用 createSelectorQuery）；hm `PlayerPage.ets`（onScrollIndex center 需 ref 屏蔽、轻点≠拖动：Down 只记起点 Move 超阈值才接管）。
 - mini→全屏封面/主题色预热（2026-11-16）：mobile `PlayerProvider`+`playerVisualPrefetch.ts`；hm `PlayerStore.notify()`+`coverCache.ets`（ArkUI Image 与 http 不共享缓存须落盘）；预热失败即清缓存；预取与渲染 URL 必须同一构造函数。desktop 天然无问题（Player 常驻 Routes 外）。
 - mini 会员支付：plusWechatMpSession→openid；下单 clientType:'miniprogram'+openId；返回 wechatPay 喂 Taro.requestPayment。
-- services/mi 小爱音箱：sqlite3 走 asyncio.to_thread；唤醒词 DB 优先；API 前缀 /api；docker 挂 auth.json/.mi.token/data/。
+- services/mi 小爱音箱：sqlite3 走 asyncio.to_thread；唤醒词 DB 优先；API 前缀 /api；docker 挂 auth.json/.mi.token/data/。登录凭证存 SQLite `kv_store`（key=`mi_auth_data`，读库优先、auth.json 仅兜底迁移+备份），miservice 刷新后的 token 也会回写库 → 重新部署免扫码。
 - CI：Android job 不用 android-actions/setup-android@v3，ubuntu-latest 自带 SDK。
