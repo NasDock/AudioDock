@@ -141,6 +141,12 @@ class SpeakerPlayer:
 
         logger.info(f"MiAccount login(micoapi) 成功，token keys={list(self.account.token.keys())}")
 
+        # miservice 刷新了 ssecurity/serviceToken，回写数据库（下次启动直接用最新凭证）
+        try:
+            qr_auth.update_from_miservice_token(self.account.token)
+        except Exception as e:
+            logger.warning(f"回写刷新后的 token 到数据库失败: {e}")
+
         # 5) 创建 MiNAService 并发现设备
         self.service = MiNAService(self.account)
         try:

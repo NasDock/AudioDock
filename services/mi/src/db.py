@@ -58,11 +58,32 @@ CREATE TABLE IF NOT EXISTS cast_history (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_cast_ts ON cast_history(created_at DESC);
+CREATE TABLE IF NOT EXISTS kv_store (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
 """
 
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
+
+
+# kv_store 建表兜底：MiQRAuth 在模块 import 阶段（init_db 之前）就可能读库，
+# 因此 kv 操作自带建表，保证任意时序下都可用。
+_kv_ready = False
+
+
+def _ensure_kv_table(conn: sqlite3.Connection) -> None:
+    global _kv_ready
+    if not _kv_ready:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS kv_store ("
+            "key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)"
+        )
+        conn.commit()
+        _kv_ready = True
 
 
 def _get_conn() -> sqlite3.Connection:
@@ -94,6 +115,39 @@ def init_db() -> None:
             logger.info(f"[db] 种子唤醒词已写入: {Config.VOICE_KEYWORDS}")
 
     logger.info(f"[db] SQLite 初始化完成: {DB_PATH}")
+
+
+# ===================== KV 存储（登录凭证等） =====================
+
+
+def get_kv(key: str) -> str | None:
+    """读取 KV 值，不存在返回 None"""
+    with _lock:
+        conn = _get_conn()
+        _ensure_kv_table(conn)
+        row = conn.execute("SELECT value FROM kv_store WHERE key = ?", (key,)).fetchone()
+        return row["value"] if row else None
+
+
+def set_kv(key: str, value: str) -> None:
+    """写入/覆盖 KV 值"""
+    with _lock:
+        conn = _get_conn()
+        _ensure_kv_table(conn)
+        conn.execute(
+            "INSERT INTO kv_store (key, value, updated_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+            (key, value, _now_ms()),
+        )
+        conn.commit()
+
+
+def delete_kv(key: str) -> None:
+    with _lock:
+        conn = _get_conn()
+        _ensure_kv_table(conn)
+        conn.execute("DELETE FROM kv_store WHERE key = ?", (key,))
+        conn.commit()
 
 
 # ===================== 唤醒关键字 =====================

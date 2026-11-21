@@ -116,7 +116,8 @@ const AnimatedLyricLine = ({
 
   const color = animatedValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [lyricsColor ?? colors.text, lyricsActiveColor ?? colors.primary],
+    // 当前行恒为纯白（VIP 主题插件可用 lyricsActiveColor 覆盖）
+    outputRange: [lyricsColor ?? colors.text, lyricsActiveColor ?? "#FFFFFF"],
   });
   const scale = animatedValue.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] });
   const opacity = animatedValue.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] });
@@ -546,7 +547,8 @@ const styles = StyleSheet.create({
   lyricsLine: {
     textAlign: "center",
     marginVertical: 8,
-    opacity: 0.6,
+    // 不透明度由外层 Animated.View 按行状态驱动（0.4 → 1），
+    // 这里不能再叠基础透明度，否则当前行会发灰
   },
   lyricsText: {
     fontSize: 16,

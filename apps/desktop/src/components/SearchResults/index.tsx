@@ -295,7 +295,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
               data={artist}
               type="artist"
               onClick={() => handleArtistClick(artist.id)}
-              cover={getCoverUrl(artist, artist.id, 96)}
+              cover={getCoverUrl(artist.avatar, artist.id, 96)}
               title={artist.name}
               subtitle={artist.type === "MUSIC" ? t('searchResults.musician') : t('searchResults.voiceActor')}
               isArtist={true}

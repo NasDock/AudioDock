@@ -26,6 +26,8 @@ from urllib import parse
 
 import requests
 
+from src import db as _db
+
 logger = logging.getLogger(__name__)
 
 # 小米扫码登录相关 URL（与 xiaomusic 上游一致）
@@ -48,7 +50,14 @@ def _get_locale() -> str:
 
 
 class MiQRAuth:
-    """小米账号二维码登录（对齐 xiaomusic MiJiaAPI）"""
+    """小米账号二维码登录（对齐 xiaomusic MiJiaAPI）
+
+    认证数据持久化以 SQLite（kv_store，data/xiaoai.db）为主：
+    docker 重新部署后无需重新扫码。auth.json 仅作兼容备份与旧版迁移来源。
+    """
+
+    # kv_store 中认证数据的 key
+    _DB_KEY = "mi_auth_data"
 
     def __init__(self, auth_dir: str | None = None):
         if auth_dir is None:
@@ -63,13 +72,33 @@ class MiQRAuth:
             f"?_json=true&sid=mijia&_locale={self._locale}"
         )
 
+        self.auth_data = self._load_auth_data()
+
+    def _load_auth_data(self) -> dict:
+        """加载认证数据：数据库优先，auth.json 兜底并迁移入库"""
+        # 1) 数据库优先
+        try:
+            raw = _db.get_kv(self._DB_KEY)
+            if raw:
+                data = json.loads(raw)
+                if isinstance(data, dict) and data:
+                    logger.info("[MiQRAuth] 已从数据库加载认证数据")
+                    return data
+        except Exception as e:
+            logger.warning(f"[MiQRAuth] 从数据库读取认证数据失败: {e}")
+
+        # 2) auth.json 兜底（旧版数据迁移入库）
         if os.path.isfile(self.auth_path):
             try:
                 with open(self.auth_path, encoding="utf-8") as f:
-                    self.auth_data = json.load(f)
-                logger.info(f"[MiQRAuth] 已加载已有认证数据: {self.auth_path}")
+                    data = json.load(f)
+                if isinstance(data, dict) and data:
+                    logger.info(f"[MiQRAuth] 从 auth.json 加载并迁移到数据库: {self.auth_path}")
+                    self._save_to_db(data)
+                    return data
             except Exception as e:
                 logger.warning(f"[MiQRAuth] 加载 auth.json 失败: {e}")
+        return {}
 
     # ------------------------------------------------------------------ #
     #  懒加载属性（与 xiaomusic 一致）
@@ -109,13 +138,43 @@ class MiQRAuth:
     #  持久化
     # ------------------------------------------------------------------ #
 
+    def _save_to_db(self, data: dict):
+        """认证数据写入数据库（主存储）"""
+        _db.set_kv(self._DB_KEY, json.dumps(data, ensure_ascii=False))
+        logger.info("[MiQRAuth] 认证数据已保存到数据库")
+
     def _save_auth_data(self):
         self.auth_data["saveTime"] = int(time.time() * 1000)
-        os.makedirs(self.auth_dir, exist_ok=True)
-        with open(self.auth_path, "w", encoding="utf-8") as f:
-            json.dump(self.auth_data, f, indent=2, ensure_ascii=False)
-        os.chmod(self.auth_path, 0o600)
-        logger.info(f"[MiQRAuth] 认证数据已保存到: {self.auth_path}")
+        try:
+            self._save_to_db(self.auth_data)
+        except Exception as e:
+            logger.error(f"[MiQRAuth] 认证数据写入数据库失败: {e}")
+        # auth.json 仅作兼容备份，写失败（如 docker 挂载异常）不影响主流程
+        try:
+            os.makedirs(self.auth_dir, exist_ok=True)
+            with open(self.auth_path, "w", encoding="utf-8") as f:
+                json.dump(self.auth_data, f, indent=2, ensure_ascii=False)
+            os.chmod(self.auth_path, 0o600)
+            logger.info(f"[MiQRAuth] 认证数据已备份到: {self.auth_path}")
+        except Exception as e:
+            logger.warning(f"[MiQRAuth] auth.json 备份写入失败（不影响使用）: {e}")
+
+    def update_from_miservice_token(self, token: dict):
+        """miservice 刷新 token 后回写数据库
+
+        miservice login('micoapi') 会刷新 micoapi（ssecurity/serviceToken），
+        这里把最新值合并回 auth_data 并落库，保证下次启动直接用最新凭证。
+        """
+        if not token:
+            return
+        for key in ("userId", "passToken", "deviceId"):
+            if token.get(key):
+                self.auth_data[key] = token[key]
+        micoapi = token.get("micoapi") or []
+        if len(micoapi) >= 2 and micoapi[0]:
+            self.auth_data["ssecurity"] = micoapi[0]
+            self.auth_data["serviceToken"] = micoapi[1]
+        self._save_auth_data()
 
     @staticmethod
     def _parse_service_ret(response: requests.Response) -> dict:
@@ -321,6 +380,11 @@ class MiQRAuth:
 
     def clear(self):
         self.auth_data = {}
+        try:
+            _db.delete_kv(self._DB_KEY)
+            logger.info("[MiQRAuth] 已删除数据库中的认证数据")
+        except Exception as e:
+            logger.warning(f"[MiQRAuth] 删除数据库认证数据失败: {e}")
         if os.path.isfile(self.auth_path):
             try:
                 os.remove(self.auth_path)
