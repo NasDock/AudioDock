@@ -21,6 +21,7 @@ import { useArtistListCache } from "../../store/artist";
 import { useLibraryStore } from "../../store/library";
 import { getCoverUrl } from "../../utils";
 import { usePlayMode } from "../../utils/playMode";
+import { onHomeRefresh } from "../../utils/refreshHome";
 import styles from "./index.module.less";
 
 const { Text } = Typography;
@@ -122,6 +123,18 @@ const ArtistList: React.FC = () => {
       reload();
     }
   }, [key]); // Re-run when mode/sort mode changes
+
+  // Header 刷新按钮：重新拉取艺术家列表（reload 从第一页开始并覆盖缓存）。
+  // 用 ref 持有最新回调，避免每次渲染重新订阅；刷新后回到列表顶部。
+  const refreshRef = useRef<() => void>(() => {});
+  refreshRef.current = () => {
+    reload();
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    setScroll(key, 0);
+  };
+  useEffect(() => {
+    return onHomeRefresh(() => refreshRef.current());
+  }, []);
 
   // Save scroll on unmount or key change
   useEffect(() => {
