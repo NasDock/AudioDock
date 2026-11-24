@@ -16,7 +16,7 @@ import { useTheme } from "../context/ThemeContext";
  * - 挂载时若 `plus_token` 存在则异步调一次 plusGetMe，确保缓存与服务器一致。
  * - 跨窗口同步靠 storage 事件；同窗口内的覆盖由轻量轮询兜底。
  */
-const useLocalVipStatus = (): boolean => {
+export const useLocalVipStatus = (): boolean => {
   const [vip, setVip] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("plus_vip_status") === "true";

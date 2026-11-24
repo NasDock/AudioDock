@@ -780,12 +780,14 @@ export default function SettingsScreen() {
             (val) => handleToggleVoiceAssistant(val),
           )}
 
-          {renderSettingRow(
-            t("settings.activityNotify"),
-            t("settings.activityNotifyDescription"),
-            activityNotifyEnabled,
-            (val) => updateSetting("activityNotifyEnabled", val),
-          )}
+          {/* 会员用户不展示「活动通知」开关（会员不弹活动弹窗） */}
+          {!isVip &&
+            renderSettingRow(
+              t("settings.activityNotify"),
+              t("settings.activityNotifyDescription"),
+              activityNotifyEnabled,
+              (val) => updateSetting("activityNotifyEnabled", val),
+            )}
 
           <View
             style={[styles.settingRow, { borderBottomColor: colors.border }]}

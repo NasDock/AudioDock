@@ -921,18 +921,20 @@ struct SettingsPage {
             onChange: (val: boolean): void => this.handleVoiceAssistantChange(val),
           })
 
-          // 活动通知
-          SettingSwitchRow({
-            label: t('settings.activityNotify'),
-            description: t('settings.activityNotifyDescription'),
-            value: this.activityNotifyEnabled,
-            onChange: (val: boolean): void => {
-              this.activityNotifyEnabled = val;
-              this.updateBoolSetting('activityNotifyEnabled', val).catch((e: Error): void => {
-                Logger.w('SettingsPage', `updateBoolSetting activityNotifyEnabled rejected: ${String(e)}`);
-              });
-            },
-          })
+          // 活动通知（会员不弹活动弹窗，开关对会员隐藏）
+          if (!this.carModeIsVip) {
+            SettingSwitchRow({
+              label: t('settings.activityNotify'),
+              description: t('settings.activityNotifyDescription'),
+              value: this.activityNotifyEnabled,
+              onChange: (val: boolean): void => {
+                this.activityNotifyEnabled = val;
+                this.updateBoolSetting('activityNotifyEnabled', val).catch((e: Error): void => {
+                  Logger.w('SettingsPage', `updateBoolSetting activityNotifyEnabled rejected: ${String(e)}`);
+                });
+              },
+            })
+          }
 
           // 推荐偏好
           Column() {

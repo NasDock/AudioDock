@@ -2,7 +2,7 @@ import router from '@ohos.router';
 import { buildTheme } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
 import { kvStore } from 'features_storage';
-import { plusApi } from 'features_network';
+import { plusApi, setPlusAuthToken } from 'features_network';
 import type { VipCurrentLowestPriceData } from 'features_network';
 import { GlobalBottomBar } from '../components/GlobalBottomBar';
 import { PromotionDialog } from '../components/PromotionDialog';
@@ -92,6 +92,10 @@ struct RootShellPage {
       const notifyEnabled = await kvStore.get('activityNotifyEnabled');
       if (notifyEnabled === 'false') return;
 
+      // 会员用户不弹活动通知
+      const vip = await this.isPlusVip();
+      if (vip) return;
+
       const pricing = await plusApi.getVipCurrentLowestPrice();
       // 无活动（activityId 为 null）→ 不弹
       if (!pricing?.activityId) return;
@@ -104,6 +108,26 @@ struct RootShellPage {
       this.showPromotion = true;
     } catch (e) {
       // 接口异常静默失败，不弹窗
+    }
+  }
+
+  /** 查询当前用户是否 Plus 会员：无 plus_token 或接口异常均按非会员处理 */
+  private async isPlusVip(): Promise<boolean> {
+    try {
+      const plusToken = await kvStore.get('plus_token');
+      const plusUserId = await kvStore.get('plus_user_id');
+      if (!plusToken || !plusUserId) return false;
+      setPlusAuthToken(plusToken);
+      let id: string = plusUserId;
+      try {
+        const parsed = JSON.parse(plusUserId) as string;
+        if (parsed) id = parsed;
+      } catch { /* keep raw */ }
+      const profile = await plusApi.getMe(id);
+      const tier = profile?.vipTier;
+      return !!tier && tier !== 'NONE';
+    } catch (e) {
+      return false;
     }
   }
 

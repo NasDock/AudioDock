@@ -32,6 +32,7 @@ import { languages } from "../../i18n";
 import { trackEvent } from "../../services/tracking";
 import { useAuthStore } from "../../store/auth";
 import { useSettingsStore } from "../../store/settings";
+import { useLocalVipStatus } from "../../hooks/useUiTheme";
 import { isTauri } from "../../utils/platform";
 import AdminSettings from "./AdminSettings";
 import CarModeSettings from "./CarModeSettings";
@@ -115,6 +116,7 @@ const Settings: React.FC = () => {
     updateDesktopLyric,
     updateDownload,
   } = useSettingsStore();
+  const isVip = useLocalVipStatus();
 
   const [cacheSize, setCacheSize] = React.useState<string>(t("common.loading"));
   const [clearing, setClearing] = React.useState(false);
@@ -294,20 +296,23 @@ const Settings: React.FC = () => {
               </Space>
             </div>
           </div>
-          <div className={styles.settingItem}>
-            <div className={styles.label}>{t("settings.activityNotify")}</div>
-            <div className={styles.control}>
-              <Space>
-                <Switch
-                  checked={general.activityNotifyEnabled}
-                  onChange={(val) => updateGeneral("activityNotifyEnabled", val)}
-                />
-                <Text className={styles.description}>
-                  {t("settings.activityNotifyDescription")}
-                </Text>
-              </Space>
+          {/* 会员用户不展示「活动通知」开关（会员不弹活动弹窗） */}
+          {!isVip && (
+            <div className={styles.settingItem}>
+              <div className={styles.label}>{t("settings.activityNotify")}</div>
+              <div className={styles.control}>
+                <Space>
+                  <Switch
+                    checked={general.activityNotifyEnabled}
+                    onChange={(val) => updateGeneral("activityNotifyEnabled", val)}
+                  />
+                  <Text className={styles.description}>
+                    {t("settings.activityNotifyDescription")}
+                  </Text>
+                </Space>
+              </div>
             </div>
-          </div>
+          )}
           <div className={styles.settingItem}>
             <div className={styles.label}>{t("settings.recommendationPreference")}</div>
             <div className={styles.control}>

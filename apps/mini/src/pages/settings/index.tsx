@@ -300,7 +300,8 @@ export default function Settings() {
           </View>
           {renderSettingRow(t('settings.autoOrientation'), t('settings.autoOrientationDescription'), autoOrientation, (val) => updateSetting('autoOrientation', val))}
           {renderSettingRow(t('settings.voiceAssistant'), t('settings.voiceAssistantDescription'), voiceAssistantEnabled, handleToggleVoiceAssistant)}
-          {renderSettingRow(t('settings.activityNotify'), t('settings.activityNotifyDescription'), activityNotifyEnabled, (val) => updateSetting('activityNotifyEnabled', val))}
+          {/* 会员用户不展示「活动通知」开关（会员不弹活动弹窗） */}
+          {!isVip && renderSettingRow(t('settings.activityNotify'), t('settings.activityNotifyDescription'), activityNotifyEnabled, (val) => updateSetting('activityNotifyEnabled', val))}
 
           <View className='setting-row slider-row'>
             <View className='setting-info' style={{ width: '100%', marginRight: 0 }}>
