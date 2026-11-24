@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Slider } from "@miblanchard/react-native-slider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { plusDeleteMe, plusParticipateInternalTest } from "@soundx/services";
+import { plusDeleteMe, plusParticipateInternalTest, TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import { useRouter } from "expo-router";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -45,6 +45,13 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+
+  const openedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({ feature: TF.SETTINGS, eventName: TE.SETTINGS_OPEN });
+  }, []);
 
   React.useEffect(() => {
     const backHandler = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -773,12 +780,14 @@ export default function SettingsScreen() {
             (val) => handleToggleVoiceAssistant(val),
           )}
 
-          {renderSettingRow(
-            t("settings.activityNotify"),
-            t("settings.activityNotifyDescription"),
-            activityNotifyEnabled,
-            (val) => updateSetting("activityNotifyEnabled", val),
-          )}
+          {/* 会员用户不展示「活动通知」开关（会员不弹活动弹窗） */}
+          {!isVip &&
+            renderSettingRow(
+              t("settings.activityNotify"),
+              t("settings.activityNotifyDescription"),
+              activityNotifyEnabled,
+              (val) => updateSetting("activityNotifyEnabled", val),
+            )}
 
           <View
             style={[styles.settingRow, { borderBottomColor: colors.border }]}

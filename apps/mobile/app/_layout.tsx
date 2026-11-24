@@ -361,10 +361,18 @@ function RootLayoutNav() {
     const timer = setTimeout(() => {
       // 设置页「活动通知」关闭时不弹
       if (!activityNotifyEnabled) return;
-      void checkPromotion();
+      // 会员用户不弹活动通知（isVip 状态可能尚未就绪，兜底读本地缓存）
+      void (async () => {
+        if (isVip) return;
+        try {
+          const cachedVip = await AsyncStorage.getItem("plus_vip_status");
+          if (cachedVip === "true") return;
+        } catch {}
+        void checkPromotion();
+      })();
     }, 2000);
     return () => clearTimeout(timer);
-  }, [checkPromotion, activityNotifyEnabled]);
+  }, [checkPromotion, activityNotifyEnabled, isVip]);
 
   // ─── 底部栏显示/隐藏 ────────────────────────────────────────────────
   const rootSegment = segments[0] as string;
@@ -691,7 +699,7 @@ function RootLayoutNav() {
         onClose={cancelUpdate}
       />
       <PromotionDialog
-        visible={!!promotion}
+        visible={!!promotion && !isVip}
         promotion={promotion}
         onClose={dismissPromotion}
         onIgnore={ignorePromotion}

@@ -25,6 +25,7 @@ export * from "./search";
 export * from "./search-record";
 export * from "./taskCenter";
 export * from "./track";
+export * from "./tracking";
 export * from "./tts";
 export * from "./ttsConfig";
 export * from "./user";

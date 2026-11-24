@@ -1,7 +1,7 @@
-import { Album, AlbumTrackSortBy, Track, TrackSource, getAlbumById, getAlbumTracks, Mv, getMvsByAlbum, type MiDevice, playMiDevicePlaylist } from '@soundx/services';
+import { Album, AlbumTrackSortBy, Track, TrackSource, getAlbumById, getAlbumTracks, Mv, getMvsByAlbum, type MiDevice, playMiDevicePlaylist, TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services';
 import { Image, ScrollView, Text, View } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MiDeviceSelector from '../../components/MiDeviceSelector';
 import MiniPlayer from '../../components/MiniPlayer';
@@ -12,6 +12,7 @@ import { usePlayer } from '../../context/PlayerContext';
 import { getImageUrl as buildImageUrl } from '../../utils/image';
 import { isMvSupported } from '../../utils/mvSupport';
 import { getBaseURL } from '../../utils/request';
+import { trackEvent } from '../../utils/tracking';
 import './index.scss';
 import BottomTabBar from '../../components/BottomTabBar';
 
@@ -34,6 +35,17 @@ export default function AlbumDetail() {
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [isMiDeviceSelectorVisible, setIsMiDeviceSelectorVisible] = useState(false);
   const [isCastingToMi, setIsCastingToMi] = useState(false);
+  const albumOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (albumOpenedRef.current) return;
+    albumOpenedRef.current = true;
+    void trackEvent({
+      feature: TF.CONTENT,
+      eventName: TE.CONTENT_ALBUM_OPEN,
+      metadata: { id },
+    });
+  }, []);
 
   // 飞牛音乐没有 MV 能力：切源时若停在 MV tab 就退回曲目 tab
   useEffect(() => {
@@ -121,6 +133,11 @@ export default function AlbumDetail() {
         tracks: trackPayloads,
         start_index: 0,
       });
+      void trackEvent({
+        feature: TF.CAST,
+        eventName: TE.CAST_SUCCESS,
+        metadata: { trackCount: trackPayloads.length },
+      });
       Taro.showToast({
         title: t('playerPage.miCastPlaylistSuccess', { count: trackPayloads.length, device: device.name }),
         icon: 'success',
@@ -128,6 +145,7 @@ export default function AlbumDetail() {
       setIsMiDeviceSelectorVisible(false);
     } catch (e) {
       console.error('Failed to cast album to Mi device:', e);
+      void trackEvent({ feature: TF.CAST, eventName: TE.CAST_FAILED });
       Taro.showToast({ title: t('playerPage.miCastPlaylistFailed'), icon: 'none' });
     } finally {
       setIsCastingToMi(false);

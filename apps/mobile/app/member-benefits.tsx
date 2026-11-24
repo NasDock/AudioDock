@@ -7,11 +7,13 @@ import {
   type MyCouponItem,
   type VipCurrentLowestPriceData,
   type VipCurrentLowestPricePlan,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import { useRouter } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -44,6 +46,7 @@ import {
   verifyAppleIapReceipt,
   type PaymentPlan,
 } from "../src/services/payments";
+import { trackEvent } from "../src/services/tracking";
 
 const WECHAT_APP_ID = "wx1234567890abcdef";
 const WECHAT_UNIVERSAL_LINK = "https://mock.example.com/";
@@ -66,6 +69,13 @@ export default function MemberBenefitsScreen() {
   const [coupons, setCoupons] = useState<MyCouponItem[]>([]);
   const [selectedCouponCode, setSelectedCouponCode] = useState<string | null>(null);
   const [couponModalVisible, setCouponModalVisible] = useState(false);
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({ feature: TF.VIP, eventName: TE.VIP_BENEFITS_OPEN });
+  }, []);
 
   const maskPhone = (value?: string | null) => {
     const normalized = String(value || "").replace(/\D/g, "");
@@ -442,6 +452,11 @@ export default function MemberBenefitsScreen() {
       return;
     }
 
+    trackEvent({
+      feature: TF.VIP,
+      eventName: TE.VIP_PAY_SUBMIT,
+      metadata: { plan: selectedPlan, method },
+    });
     setLoading(true);
     try {
       const res = await createPlusPayment(
@@ -542,6 +557,11 @@ export default function MemberBenefitsScreen() {
     const userIdStr = await getUserId();
     if (!userIdStr) return;
 
+    trackEvent({
+      feature: TF.VIP,
+      eventName: TE.VIP_PAY_SUBMIT,
+      metadata: { plan: selectedPlan, method: "APPLE" },
+    });
     try {
       setLoading(true);
       await requestIapPurchase(IAP_PRODUCT_IDS[selectedPlan]);

@@ -13,6 +13,8 @@ import {
     getPlaylistById,
     playMiDevicePlaylist,
     updatePlaylist,
+    TrackingEvent as TE,
+    TrackingFeature as TF,
 } from "@soundx/services";
 import { Image as ExpoImage } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -155,10 +157,20 @@ export default function PlaylistDetailScreen() {
           text: t("common.confirm"),
           style: "destructive",
           onPress: async () => {
+            trackEvent({
+              feature: TF.DOWNLOAD,
+              eventName: TE.DOWNLOAD_START,
+              metadata: { id, count: selectedTracks.length },
+            });
             downloadTracks(
               selectedTracks,
               (completed: number, total: number) => {
                 if (completed === total) {
+                  trackEvent({
+                    feature: TF.DOWNLOAD,
+                    eventName: TE.DOWNLOAD_SUCCESS,
+                    metadata: { id, count: total },
+                  });
                   Alert.alert(
                     t("playlistPage.downloadComplete"),
                     t("playlistPage.downloadedTrackCount", { count: total }),

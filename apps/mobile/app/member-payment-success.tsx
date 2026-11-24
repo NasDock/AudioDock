@@ -1,11 +1,13 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../src/context/ThemeContext";
 import { useAuth } from "../src/context/AuthContext";
 import { refreshVipStatus } from "../src/utils/vipStatus";
+import { trackEvent } from "../src/services/tracking";
 
 export default function MemberPaymentSuccessScreen() {
   const { colors } = useTheme();
@@ -18,6 +20,17 @@ export default function MemberPaymentSuccessScreen() {
   const paidAtRaw = String(params.paidAt || "");
   const method = String(params.method || "ALIPAY").toUpperCase();
   const [refreshing, setRefreshing] = useState(true);
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({
+      feature: TF.VIP,
+      eventName: TE.VIP_PAY_SUCCESS,
+      metadata: { method },
+    });
+  }, [method]);
 
   const paidAt = useMemo(() => {
     if (!paidAtRaw) return "";

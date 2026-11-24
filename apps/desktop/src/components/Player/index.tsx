@@ -151,6 +151,11 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
   const coverUri = currentTrack
     ? resolveArtworkUri(currentTrack, { width: 300 }) ?? currentTrack.cover ?? null
     : null;
+  // 低档封面占位：与播放列表行（TrackList width:60 → w=96/q72/webp）同参数，
+  // 点击列表播放后该档位已在浏览器缓存中，mini/详情页首帧直接复用，避免高清图下载期间黑屏。
+  const coverPlaceholderUri = currentTrack
+    ? resolveArtworkUri(currentTrack, { width: 60, format: "webp" }) ?? undefined
+    : undefined;
   // 播放详情页背景渐变 + 进度条着色：从当前封面提取主题色（跨源取色失败时为 null，回退主题色）
   const coverColor = useCoverDominantColor(coverUri);
   const [hasMv, setHasMv] = useState(false);
@@ -1647,6 +1652,7 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
           {currentTrack && (
             <LazyImage
               src={resolveArtworkUri(currentTrack, { width: 240, format: "webp" })}
+              placeholderSrc={coverPlaceholderUri}
               alt="cover"
               width={"100%"}
               height={"100%"}
@@ -2844,6 +2850,7 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
                 >
                   <LazyImage
                     src={resolveArtworkUri(currentTrack, { width: 600, format: "webp", quality: 80 })}
+                    placeholderSrc={coverPlaceholderUri}
                     alt="Current Cover"
                     // 方形封面固定最大 220px；黑胶模式是 130px 圆形中央标签
                     // （LazyImage 的 className 落在外层 wrapper div 上，

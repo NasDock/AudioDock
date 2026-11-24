@@ -10,9 +10,11 @@ import {
   type MetadataPluginTrackType,
   type MetadataPluginType,
   type MetadataPriority,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -30,6 +32,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../src/context/ThemeContext";
 import { goBackOrReplace } from "../src/utils/navigation";
+import { trackEvent } from "../src/services/tracking";
 
 const TYPE_OPTIONS: MetadataPluginType[] = ["http"];
 const TRACK_TYPE_OPTIONS: MetadataPluginTrackType[] = [
@@ -84,6 +87,13 @@ export default function PluginCenterScreen() {
   const [plugins, setPlugins] = useState<MetadataPluginConfig[]>([]);
   const [priority, setPriority] = useState<MetadataPriority>("plugin");
   const [prioritySaving, setPrioritySaving] = useState(false);
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({ feature: TF.PLUGIN, eventName: TE.PLUGIN_CENTER_OPEN });
+  }, []);
 
   useEffect(() => {
     (async () => {

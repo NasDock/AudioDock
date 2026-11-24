@@ -2,7 +2,7 @@ import router from '@ohos.router';
 import promptAction from '@ohos.promptAction';
 import { kvStore } from 'features_storage';
 import { Logger } from 'audiodock_common';
-import { httpClient } from 'features_network';
+import { httpClient, trackEvent, TE } from 'features_network';
 import { authStore } from '../context/AuthStore';
 import { buildTheme, CommonNavBar } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
@@ -50,8 +50,13 @@ struct SourceManagePage {
   @State reportingKey: string = '';
   @State reportingId: string = '';
   @State reportSubmitting: boolean = false;
+  @State private sourceManageOpenTracked: boolean = false;
 
   aboutToAppear(): void {
+    if (!this.sourceManageOpenTracked) {
+      this.sourceManageOpenTracked = true;
+      trackEvent(TE.SOURCE_MANAGE_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.loadAllConfigs();
   }

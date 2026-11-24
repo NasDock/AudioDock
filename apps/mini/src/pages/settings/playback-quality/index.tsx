@@ -1,9 +1,12 @@
+import { TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import { Text, View } from "@tarojs/components";
 import Taro, { useLoad } from "@tarojs/taro";
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../context/SettingsContext";
 import { useTheme } from "../../../context/ThemeContext";
 import type { AudioQuality } from "../../../services/trackQuality";
+import { trackEvent } from "../../../utils/tracking";
 import "./index.scss";
 
 const QUALITY_OPTIONS: Array<{
@@ -32,8 +35,13 @@ export default function PlaybackQualitySettings() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const { externalPlaybackQuality, updateSetting } = useSettings();
+  const qualityPageOpenedRef = useRef(false);
 
   useLoad(() => {
+    if (!qualityPageOpenedRef.current) {
+      qualityPageOpenedRef.current = true;
+      void trackEvent({ feature: TF.QUALITY, eventName: TE.QUALITY_PAGE_OPEN });
+    }
     Taro.setNavigationBarTitle({
       title: t("settings.externalPlaybackQuality"),
     });
@@ -44,6 +52,11 @@ export default function PlaybackQualitySettings() {
   });
 
   const handleSelect = async (quality: AudioQuality) => {
+    void trackEvent({
+      feature: TF.QUALITY,
+      eventName: TE.QUALITY_CHANGE,
+      metadata: { quality },
+    });
     await updateSetting("externalPlaybackQuality", quality);
     Taro.navigateBack();
   };

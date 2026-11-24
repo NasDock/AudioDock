@@ -5,7 +5,7 @@ import { buildTheme, type Theme, type ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { kvStore } from 'features_storage';
 import { Logger } from 'audiodock_common';
-import { plusApi, setPlusAuthToken } from 'features_network';
+import { plusApi, setPlusAuthToken, trackEvent, TE } from 'features_network';
 import type { PlusUserProfile } from 'features_network';
 import { openEmail } from '../utils/emailUtils';
 import { widgetBridge } from '../services/WidgetBridge';
@@ -31,8 +31,13 @@ struct MemberDetailPage {
   // 沉浸式避让区高度（vp，services/systemBar publishAvoidArea 下发）
   @StorageProp('statusBarHeightVp') statusBarHeightVp: number = 0;
   @StorageProp('navBarHeightVp') navBarHeightVp: number = 0;
+  @State private vipPageOpenTracked: boolean = false;
 
   aboutToAppear(): void {
+    if (!this.vipPageOpenTracked) {
+      this.vipPageOpenTracked = true;
+      trackEvent(TE.VIP_PAGE_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.fetchVipStatus();
   }

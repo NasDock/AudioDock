@@ -5,8 +5,10 @@ import {
     deleteTtsTask,
     fetchAllTasks,
     isTaskActive,
-    pauseTtsTask,
-    resumeTtsTask,
+  pauseTtsTask,
+  resumeTtsTask,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import {
     Button,
@@ -20,6 +22,7 @@ import {
 } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { trackEvent } from "../../services/tracking";
 
 const { Title, Text } = Typography;
 
@@ -43,6 +46,7 @@ const TaskCenter: React.FC = () => {
   const [filter, setFilter] = useState<"all" | "active">("all");
   const tasksRef = useRef<UnifiedTask[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openReportedRef = useRef(false);
 
   const fetchTasks = async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -69,6 +73,10 @@ const TaskCenter: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({ feature: TF.TASK_CENTER, eventName: TE.TASK_CENTER_OPEN });
+    }
     fetchTasks().then(() => scheduleNext());
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);

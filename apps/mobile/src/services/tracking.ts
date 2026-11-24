@@ -68,7 +68,9 @@ export const trackEvent = async (
     await plusTrackEvent({
       platform: payload.platform ?? resolvePlatform(),
       ...payload,
-      userId: memberUserId ?? null,
+      // 调用方显式传入的 userId 优先（如登录成功事件带的是刚拿到的 id），
+      // 否则回退本地缓存的 plus_user_id。旧实现无条件覆盖，导致调用方传值全部丢失。
+      userId: payload.userId ?? memberUserId ?? null,
     });
   } catch (error) {
     console.warn("[Tracking] Failed to report event", error);

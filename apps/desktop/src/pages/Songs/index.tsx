@@ -10,7 +10,12 @@ import {
   PlayCircleOutlined,
   PlusOutlined
 } from "@ant-design/icons";
-import { loadMoreTrack, playMiDevicePlaylist } from "@soundx/services";
+import {
+  loadMoreTrack,
+  playMiDevicePlaylist,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
+} from "@soundx/services";
 import { useInfiniteScroll } from "ahooks";
 import {
   Button,
@@ -22,13 +27,14 @@ import {
   Tooltip,
   Typography
 } from "antd";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import { MiDeviceSelector, XiaoAiIcon } from "../../components/MiDeviceSelector";
 import TrackList from "../../components/TrackList";
 import { type Track } from "../../models";
 import { downloadTracks } from "../../services/downloadManager";
+import { trackEvent } from "../../services/tracking";
 import { useLibraryStore } from "../../store/library";
 import { usePlayerStore } from "../../store/player";
 import { usePlayMode } from "../../utils/playMode";
@@ -46,6 +52,7 @@ interface Result {
 const Songs: React.FC = () => {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const openReportedRef = useRef(false);
   const { token } = theme.useToken();
   const { play, setPlaylist, appendTracks, playlistSource, currentTrack } = usePlayerStore();
   const [messageApi, contextHolder] = message.useMessage();
@@ -63,6 +70,16 @@ const Songs: React.FC = () => {
 
   const { mode } = usePlayMode();
   const { heartbeatModeActive, toggleHeartbeatMode } = useLibraryStore();
+
+  useEffect(() => {
+    if (openReportedRef.current) return;
+    openReportedRef.current = true;
+    trackEvent({
+      feature: TF.CONTENT,
+      eventName: TE.HOME_OPEN,
+      metadata: { page: "songs" },
+    });
+  }, []);
 
   // 单曲列表的排序方式（心动模式），播放队列续载时必须与之一致
   const trackSortBy =

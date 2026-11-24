@@ -11,6 +11,8 @@ import {
   getRecommendedAlbums,
   toggleTrackLike,
   toggleTrackUnLike,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import * as Device from "expo-device";
 import { useRouter } from "expo-router";
@@ -38,6 +40,7 @@ import { useTheme } from "../../src/context/ThemeContext";
 import { cacheUtils } from "../../src/utils/cache";
 import { getImageSource } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
+import { trackEvent } from "../../src/services/tracking";
 
 interface Section {
   id: string;
@@ -68,6 +71,13 @@ export default function HomeScreen() {
 
   const radioAnim = React.useRef(new Animated.Value(0)).current;
   const swingAnim = React.useRef(new Animated.Value(0)).current;
+
+  const openedRef = React.useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({ feature: TF.CONTENT, eventName: TE.HOME_OPEN });
+  }, []);
 
   useEffect(() => {
     Animated.loop(
@@ -556,6 +566,11 @@ export default function HomeScreen() {
                               );
                               if (user) {
                                 if (isLiked) {
+                                  trackEvent({
+                                    feature: TF.FAVORITE,
+                                    eventName: TE.FAVORITE_REMOVE,
+                                    metadata: { id: track.id },
+                                  });
                                   toggleTrackUnLike(track.id, user.id).then(
                                     () => {
                                       // Update local state
@@ -584,6 +599,11 @@ export default function HomeScreen() {
                                     },
                                   );
                                 } else {
+                                  trackEvent({
+                                    feature: TF.FAVORITE,
+                                    eventName: TE.FAVORITE_ADD,
+                                    metadata: { id: track.id },
+                                  });
                                   toggleTrackLike(track.id, user.id).then(
                                     () => {
                                       // Update local state

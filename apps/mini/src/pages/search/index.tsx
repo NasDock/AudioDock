@@ -4,7 +4,8 @@ import {
   getSearchHistory,
   searchAlbums,
   searchArtists,
-  searchTracks, Track
+  searchTracks, Track,
+  TrackingEvent as TE, TrackingFeature as TF
 } from '@soundx/services';
 import { Image, Input, ScrollView, Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
@@ -14,6 +15,7 @@ import { speechToText } from '../../services/asr';
 import { usePlayer } from '../../context/PlayerContext';
 import { usePlayMode } from '../../utils/playMode';
 import { getImageUrl as buildImageUrl } from '../../utils/image';
+import { trackEvent } from '../../utils/tracking';
 import './index.scss';
 
 export default function Search() {
@@ -21,6 +23,13 @@ export default function Search() {
   const { mode } = usePlayMode();
   const { playTrack } = usePlayer();
   const recorderRef = useRef<Taro.RecorderManager | null>(null);
+  const searchOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (searchOpenedRef.current) return;
+    searchOpenedRef.current = true;
+    void trackEvent({ feature: TF.SEARCH, eventName: TE.SEARCH_OPEN });
+  }, []);
 
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -121,6 +130,12 @@ export default function Search() {
       return;
     }
 
+    void trackEvent({
+      feature: TF.SEARCH,
+      eventName: TE.SEARCH_SUBMIT,
+      metadata: { keyword: query },
+    });
+
     setLoading(true);
     try {
       const [tracksRes, artistsRes, albumsRes] = await Promise.all([
@@ -214,6 +229,11 @@ export default function Search() {
       <View
         className='result-item'
         onClick={() => {
+          void trackEvent({
+            feature: TF.SEARCH,
+            eventName: TE.SEARCH_RESULT_CLICK,
+            metadata: { resultType: type, id: item.id },
+          });
           if (type === 'track') {
             playTrack(item as any);
           } else if (type === 'artist') {

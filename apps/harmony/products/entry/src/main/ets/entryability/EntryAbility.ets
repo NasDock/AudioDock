@@ -7,7 +7,8 @@ import router from '@ohos.router';
 import { bundleManager, ConfigurationConstant, Configuration } from '@kit.AbilityKit';
 import { Logger, getSelfBundleInfo, getSelfAppVersion } from 'audiodock_common';
 import { kvStore, fileCache, rdbStore } from 'features_storage';
-import { httpClient, setPlusAuthToken } from 'features_network';
+import { httpClient, setPlusAuthToken, trackingService } from 'features_network';
+import { getOrCreateDeviceId } from '../utils/device';
 import { applySetting } from 'features_i18n';
 import { type ThemeMode } from 'features_ui';
 import { installPlaybackService } from '../services/playbackService';
@@ -286,6 +287,17 @@ export default class EntryAbility extends UIAbility {
     // syncVip 每次都失败，widget_vip 缓存永远停在旧值，VIP 用户的桌面小部件被误锁。
     const plusToken = await kvStore.get('plus_token');
     if (plusToken) setPlusAuthToken(plusToken);
+
+    // 初始化埋点服务：注入体验改进计划开关、会员 id、确定性 deviceId。
+    // 三者都在 kvStore / 设备指纹里，tracking(network 层) 不能反向依赖 entry 层，
+    // 故由这里统一注入（与 mobile 的 setTrackingEnabled/setMemberUserId 同一口径）。
+    const trackEnabledRaw = await kvStore.get('experienceProgramEnabled');
+    const trackEnabled = trackEnabledRaw === null ? true : trackEnabledRaw === 'true';
+    const memberUserId = await kvStore.get('plus_user_id');
+    const deviceId = await getOrCreateDeviceId();
+    trackingService.init(trackEnabled, memberUserId, deviceId);
+    // App 冷启动打开事件（此时身份与开关已就绪）
+    trackingService.track('app.open');
 
     Logger.i(TAG, 'initialize complete');
   }

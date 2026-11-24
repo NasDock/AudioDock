@@ -2,12 +2,18 @@ import { Spin, theme, Typography, Button, Drawer, List } from "antd";
 import { OrderedListOutlined, PauseCircleFilled, PlayCircleFilled, StepBackwardFilled, StepForwardFilled } from "@ant-design/icons";
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { getMvById, getMvByTrackId } from "@soundx/services";
+import {
+  getMvById,
+  getMvByTrackId,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
+} from "@soundx/services";
 import type { Mv } from "@soundx/services";
 import styles from "./index.module.less";
 import { usePlayerStore } from "../../store/player";
 import { useMvPlaylistStore } from "../../store/mvPlaylist";
 import { resolveArtworkUri } from "../../services/trackResolver";
+import { trackEvent } from "../../services/tracking";
 import { getBaseURL } from "../../https";
 
 const { Title, Text } = Typography;
@@ -27,10 +33,19 @@ const MvDetail: React.FC = () => {
   const { pause } = usePlayerStore();
   const { list, currentIndex, setPlaylist, next, prev, hasNext, hasPrev } = useMvPlaylistStore();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const openReportedRef = useRef(false);
 
   const inPlaylist = list.length > 1;
 
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({
+        feature: TF.CONTENT,
+        eventName: TE.CONTENT_MV_OPEN,
+        metadata: { mvId: id, page: "detail" },
+      });
+    }
     pause();
     
     const loadData = async () => {

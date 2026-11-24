@@ -1,8 +1,8 @@
-import { Album, Artist, Track, TrackSource, getAlbumsByArtist, getArtistById, getCollaborativeAlbumsByArtist, getTracksByArtist, Mv, getMvsByArtist, type MiDevice, playMiDevicePlaylist } from '@soundx/services';
+import { Album, Artist, Track, TrackSource, getAlbumsByArtist, getArtistById, getCollaborativeAlbumsByArtist, getTracksByArtist, Mv, getMvsByArtist, type MiDevice, playMiDevicePlaylist, TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services';
 import { mvPlaylistStore } from '../../store/mvPlaylist';
 import { Image, ScrollView, Text, View } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MiDeviceSelector from '../../components/MiDeviceSelector';
 import MiniPlayer from '../../components/MiniPlayer';
@@ -12,6 +12,7 @@ import { usePlayer } from '../../context/PlayerContext';
 import { getImageUrl as buildImageUrl } from '../../utils/image';
 import { isMvSupported } from '../../utils/mvSupport';
 import { getBaseURL } from '../../utils/request';
+import { trackEvent } from '../../utils/tracking';
 import './index.scss';
 import BottomTabBar from '../../components/BottomTabBar';
 
@@ -31,6 +32,17 @@ export default function ArtistDetail() {
   const [scrollIntoView, setScrollIntoView] = useState('');
   const [isMiDeviceSelectorVisible, setIsMiDeviceSelectorVisible] = useState(false);
   const [isCastingToMi, setIsCastingToMi] = useState(false);
+  const artistOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (artistOpenedRef.current) return;
+    artistOpenedRef.current = true;
+    void trackEvent({
+      feature: TF.CONTENT,
+      eventName: TE.CONTENT_ARTIST_OPEN,
+      metadata: { id },
+    });
+  }, []);
 
   useEffect(() => {
     if (id) {
@@ -109,6 +121,11 @@ export default function ArtistDetail() {
         tracks: trackPayloads,
         start_index: 0,
       });
+      void trackEvent({
+        feature: TF.CAST,
+        eventName: TE.CAST_SUCCESS,
+        metadata: { trackCount: trackPayloads.length },
+      });
       Taro.showToast({
         title: t('playerPage.miCastPlaylistSuccess', { count: trackPayloads.length, device: device.name }),
         icon: 'success',
@@ -116,6 +133,7 @@ export default function ArtistDetail() {
       setIsMiDeviceSelectorVisible(false);
     } catch (error) {
       console.error('Failed to cast tracks to Mi device:', error);
+      void trackEvent({ feature: TF.CAST, eventName: TE.CAST_FAILED });
       Taro.showToast({ title: t('playerPage.miCastPlaylistFailed'), icon: 'none' });
     } finally {
       setIsCastingToMi(false);

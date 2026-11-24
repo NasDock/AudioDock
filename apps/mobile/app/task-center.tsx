@@ -10,6 +10,8 @@ import {
   isTaskActive,
   pauseTtsTask,
   resumeTtsTask,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -26,6 +28,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../src/context/ThemeContext";
+import { trackEvent } from "../src/services/tracking";
 
 type Filter = "all" | "active";
 
@@ -52,6 +55,13 @@ export default function TaskCenterScreen() {
   const [filter, setFilter] = useState<Filter>("all");
   const tasksRef = useRef<UnifiedTask[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({ feature: TF.TASK_CENTER, eventName: TE.TASK_CENTER_OPEN });
+  }, []);
 
   const fetchTasks = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);

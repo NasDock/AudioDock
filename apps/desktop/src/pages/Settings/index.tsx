@@ -6,6 +6,10 @@ import {
   resolveLanguageSelection,
 } from "@soundx/i18e";
 import {
+  TrackingEvent as TE,
+  TrackingFeature as TF,
+} from "@soundx/services";
+import {
   Anchor,
   Button,
   ColorPicker,
@@ -25,8 +29,10 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { languages } from "../../i18n";
+import { trackEvent } from "../../services/tracking";
 import { useAuthStore } from "../../store/auth";
 import { useSettingsStore } from "../../store/settings";
+import { useLocalVipStatus } from "../../hooks/useUiTheme";
 import { isTauri } from "../../utils/platform";
 import AdminSettings from "./AdminSettings";
 import CarModeSettings from "./CarModeSettings";
@@ -110,9 +116,11 @@ const Settings: React.FC = () => {
     updateDesktopLyric,
     updateDownload,
   } = useSettingsStore();
+  const isVip = useLocalVipStatus();
 
   const [cacheSize, setCacheSize] = React.useState<string>(t("common.loading"));
   const [clearing, setClearing] = React.useState(false);
+  const openReportedRef = React.useRef(false);
 
   const fetchCacheSize = async () => {
     if (!isTauri()) {
@@ -139,6 +147,7 @@ const Settings: React.FC = () => {
   };
 
   const handleClearCache = async () => {
+    trackEvent({ feature: TF.SETTINGS, eventName: TE.SETTINGS_CACHE_CLEAR });
     setClearing(true);
     try {
       if (isTauri()) {
@@ -167,6 +176,10 @@ const Settings: React.FC = () => {
   };
 
   React.useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({ feature: TF.SETTINGS, eventName: TE.SETTINGS_OPEN });
+    }
     fetchCacheSize();
   }, []);
 
@@ -283,20 +296,23 @@ const Settings: React.FC = () => {
               </Space>
             </div>
           </div>
-          <div className={styles.settingItem}>
-            <div className={styles.label}>{t("settings.activityNotify")}</div>
-            <div className={styles.control}>
-              <Space>
-                <Switch
-                  checked={general.activityNotifyEnabled}
-                  onChange={(val) => updateGeneral("activityNotifyEnabled", val)}
-                />
-                <Text className={styles.description}>
-                  {t("settings.activityNotifyDescription")}
-                </Text>
-              </Space>
+          {/* 会员用户不展示「活动通知」开关（会员不弹活动弹窗） */}
+          {!isVip && (
+            <div className={styles.settingItem}>
+              <div className={styles.label}>{t("settings.activityNotify")}</div>
+              <div className={styles.control}>
+                <Space>
+                  <Switch
+                    checked={general.activityNotifyEnabled}
+                    onChange={(val) => updateGeneral("activityNotifyEnabled", val)}
+                  />
+                  <Text className={styles.description}>
+                    {t("settings.activityNotifyDescription")}
+                  </Text>
+                </Space>
+              </div>
             </div>
-          </div>
+          )}
           <div className={styles.settingItem}>
             <div className={styles.label}>{t("settings.recommendationPreference")}</div>
             <div className={styles.control}>
@@ -351,7 +367,14 @@ const Settings: React.FC = () => {
             <div className={styles.control}>
               <Select
                 value={general.internalPlaybackQuality}
-                onChange={(val) => updateGeneral("internalPlaybackQuality", val)}
+                onChange={(val) => {
+                  trackEvent({
+                    feature: TF.QUALITY,
+                    eventName: TE.QUALITY_CHANGE,
+                    metadata: { setting: "internalPlaybackQuality", value: val },
+                  });
+                  updateGeneral("internalPlaybackQuality", val);
+                }}
                 options={PLAYBACK_QUALITY_OPTIONS.map((option) => ({
                   label: t(option.labelKey),
                   value: option.value,

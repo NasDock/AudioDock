@@ -1,13 +1,23 @@
+import { TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services'
 import { Image, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SOURCEMAP, SOURCETIPSMAP, getSourceLogo } from '../../utils/sourceUtils'
+import { trackEvent } from '../../utils/tracking'
 import './index.scss'
 
 export default function Login() {
   const { t } = useTranslation();
   const params = Taro.getCurrentInstance().router?.params
   const adding = params?.adding === 'true'
+  const loginPageOpenedRef = useRef(false)
+
+  useEffect(() => {
+    if (loginPageOpenedRef.current) return
+    loginPageOpenedRef.current = true
+    void trackEvent({ feature: TF.LOGIN, eventName: TE.LOGIN_PAGE_OPEN })
+  }, [])
 
   const handleSelect = (type: string) => {
     const query = adding ? `?type=${type}&adding=true` : `?type=${type}`

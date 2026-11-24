@@ -9,7 +9,7 @@ import TitleBar from "./components/TitleBar/index";
 import { getThemeConfig } from "./config/themeConfig";
 import { MessageProvider } from "./context/MessageContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
-import { useUiTheme } from "./hooks/useUiTheme";
+import { useUiTheme, useLocalVipStatus } from "./hooks/useUiTheme";
 import CarMode, { type CarModeSeekBridge } from "./components/CarMode/index";
 import LyricWindow from "./pages/LyricWindow";
 import Recommended from "./pages/Recommended";
@@ -91,6 +91,7 @@ const AppContent = () => {
   const { checkUpdate, updateInfo, cancelUpdate, startDownload } = useCheckUpdate();
   const { promotion, checkPromotion, ignorePromotion, dismissPromotion } =
     useCheckPromotion();
+  const isVip = useLocalVipStatus();
 
   useEffect(() => {
     // Check update on startup
@@ -107,14 +108,16 @@ const AppContent = () => {
 
   useEffect(() => {
     // Check promotion on startup (delayed, once)
-    // 设置页「活动通知」关闭时不弹
-    if (!activityNotifyEnabled) return;
+    // 设置页「活动通知」关闭时不弹；会员用户不弹
+    if (!activityNotifyEnabled || isVip) return;
     const timer = setTimeout(() => {
+      // 再兜底读一次本地缓存，避免 isVip 尚未刷新完成
+      if (localStorage.getItem("plus_vip_status") === "true") return;
       checkPromotion();
     }, 6000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activityNotifyEnabled]);
+  }, [activityNotifyEnabled, isVip]);
 
   useEffect(() => {
     if (token && user) {
@@ -351,7 +354,7 @@ const AppContent = () => {
                           onDownload={startDownload}
                         />
                         <PromotionModal
-                          visible={!!promotion}
+                          visible={!!promotion && !isVip}
                           promotion={promotion}
                           onClose={dismissPromotion}
                           onIgnore={ignorePromotion}

@@ -4,7 +4,7 @@ import picker from '@ohos.file.picker';
 import { kvStore } from 'features_storage';
 import { t } from 'features_i18n';
 import { Logger } from 'audiodock_common';
-import { playlistApi, userDataApi, plusApi, setPlusAuthToken, userApi, taskApi, isFnosSource } from 'features_network';
+import { playlistApi, userDataApi, plusApi, setPlusAuthToken, userApi, taskApi, isFnosSource, trackEvent, TE } from 'features_network';
 import type { PlaylistDto, TrackDto, AlbumDto, ImportTask, ImportTaskMode } from 'features_network';
 import { AppIcon, AppIconName } from '../components/AppIcon';
 import { XiaoAiIcon } from '../components/XiaoAiIcon';
@@ -170,8 +170,13 @@ export struct PersonalTab {
   // 内部状态：定时器 id（不需要响应式）
   private pollTimerId: number | null = null;
   private tasksPollTimerId: number | null = null;
+  @State private personalOpenTracked: boolean = false;
 
   aboutToAppear() {
+    if (!this.personalOpenTracked) {
+      this.personalOpenTracked = true;
+      trackEvent(TE.PERSONAL_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.initData();
   }

@@ -1,9 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { plusGetMe } from "@soundx/services";
+import { plusGetMe, TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import { useRouter } from "expo-router";
 import * as Clipboard from "expo-clipboard";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
     ActivityIndicator,
@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
 import { syncWidgetMembership } from "../src/native/WidgetBridge";
+import { trackEvent } from "../src/services/tracking";
 
 export default function MemberDetailScreen() {
   const router = useRouter();
@@ -30,6 +31,13 @@ export default function MemberDetailScreen() {
   const { setPlusToken } = useAuth();
   const [loading, setLoading] = useState(true);
   const [vipData, setVipData] = useState<any>(null);
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({ feature: TF.VIP, eventName: TE.VIP_PAGE_OPEN });
+  }, []);
 
   const maskPhone = (value?: string | null) => {
     const normalized = String(value || "").replace(/\D/g, "");

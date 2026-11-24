@@ -5,7 +5,7 @@ import { MiDeviceSelector } from "@/src/components/MiDeviceSelector";
 import { XiaoAiIcon } from "@/src/components/XiaoAiIcon";
 import SkeletonBlock from "@/src/components/SkeletonBlock";
 import { Ionicons } from "@expo/vector-icons";
-import { getArtistList, getCollections, loadMoreAlbum, loadMoreTrack, getMvList, playMiDevicePlaylist } from "@soundx/services";
+import { getArtistList, getCollections, loadMoreAlbum, loadMoreTrack, getMvList, playMiDevicePlaylist, TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -154,8 +154,18 @@ const SongList = ({
       {
         text: t("common.confirm"),
         onPress: () => {
+          trackEvent({
+            feature: TF.DOWNLOAD,
+            eventName: TE.DOWNLOAD_START,
+            metadata: { count: selectedTracks.length },
+          });
           downloadTracks(selectedTracks, (completed: number, total: number) => {
             if (completed === total) {
+              trackEvent({
+                feature: TF.DOWNLOAD,
+                eventName: TE.DOWNLOAD_SUCCESS,
+                metadata: { count: total },
+              });
               Alert.alert(t("libraryPage.downloadComplete"), t("libraryPage.downloadedTrackCount", { count: total }));
               setIsSelectionMode(false);
               setSelectedTrackIds([]);
@@ -1006,6 +1016,13 @@ export default function LibraryScreen() {
   );
   const [heartbeatModeActive, setHeartbeatModeActive] = useState(false);
   const swingAnim = useRef(new Animated.Value(0)).current;
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({ feature: TF.LIBRARY, eventName: TE.LIBRARY_OPEN });
+  }, []);
 
   // Mi Speaker cast state (for SongList tab)
   const [isMiDeviceSelectorVisible, setIsMiDeviceSelectorVisible] = useState(false);

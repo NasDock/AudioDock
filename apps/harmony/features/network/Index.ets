@@ -1,5 +1,6 @@
 export { HarmonyHttpClient, httpClient } from './src/main/ets/HarmonyHttpClient';
 export { HttpError } from './src/main/ets/HttpError';
+export { TE, trackingService, trackEvent } from './src/main/ets/tracking';
 export { platformClient, setPlatformConfig, clearPlatformConfig, hasPlatformConfig } from './src/main/ets/platform';
 export {
   fnosClient, fnosAdapter, FnosApiError, resolveFnosServer,

@@ -2,13 +2,14 @@ import { View, Text, Video, Image, ScrollView } from '@tarojs/components'
 import Taro, { useLoad } from '@tarojs/taro'
 import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getMvById, getMvByTrackId, type Mv } from '@soundx/services'
+import { getMvById, getMvByTrackId, type Mv, TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services'
 import { usePlayer } from '../../context/PlayerContext'
 import { useTheme } from '../../context/ThemeContext'
 import { getImageUrl as buildImageUrl } from '../../utils/image';
 import { getBaseURL } from '../../utils/request';
 import { mvPlaylistStore } from '../../store/mvPlaylist'
 import { isMvSupported } from '../../utils/mvSupport'
+import { trackEvent } from '../../utils/tracking'
 import './index.scss'
 
 const MV_VIDEO_ID = 'mv-video-player'
@@ -21,6 +22,7 @@ export default function MvPlayer() {
   const [loading, setLoading] = useState(true)
   const [isPlaying, setIsPlaying] = useState(true)
   const videoContextRef = useRef<ReturnType<typeof Taro.createVideoContext> | null>(null)
+  const mvOpenedRef = useRef(false)
 
   const playlistState = useSyncExternalStore(
     mvPlaylistStore.subscribe,
@@ -43,6 +45,14 @@ export default function MvPlayer() {
     if (!isMvSupported()) {
       Taro.navigateBack()
       return
+    }
+    if (!mvOpenedRef.current) {
+      mvOpenedRef.current = true
+      void trackEvent({
+        feature: TF.CONTENT,
+        eventName: TE.CONTENT_MV_OPEN,
+        metadata: { id: options.id, trackId: options.trackId },
+      })
     }
     pause() // pause audio player when entering MV
     const id = options.id

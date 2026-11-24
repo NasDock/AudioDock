@@ -5,6 +5,10 @@ import {
   SyncOutlined,
 } from "@ant-design/icons";
 import {
+  TrackingEvent as TE,
+  TrackingFeature as TF,
+} from "@soundx/services";
+import {
   Button,
   Col,
   Empty,
@@ -19,6 +23,7 @@ import Cover from "../../components/Cover/index";
 import TrackList from "../../components/TrackList";
 import { type Album } from "../../models";
 import { usePlayerStore } from "../../store/player";
+import { trackEvent } from "../../services/tracking";
 import { useSettingsStore } from "../../store/settings";
 import { usePlayMode } from "../../utils/playMode";
 import { isTauri } from "../../utils/platform";
@@ -29,6 +34,7 @@ const { Title } = Typography;
 
 const Downloads: React.FC = () => {
   const { t } = useTranslation();
+  const openReportedRef = React.useRef(false);
   const [localItems, setLocalItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
@@ -55,6 +61,10 @@ const Downloads: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({ feature: TF.DOWNLOAD, eventName: TE.DOWNLOAD_PAGE_OPEN });
+    }
     fetchLocalItems();
     setSelectedAlbum(null); // Reset selection on mode change
   }, [mode, downloadPath]);

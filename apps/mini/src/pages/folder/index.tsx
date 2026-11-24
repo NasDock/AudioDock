@@ -4,15 +4,18 @@ import {
   getFolderContents,
   getFolderRoots,
   TrackType,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import { Image, ScrollView, Text, View } from "@tarojs/components";
 import Taro, { useDidShow, useRouter } from "@tarojs/taro";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import MiniPlayer from "../../components/MiniPlayer";
 import { usePlayer } from "../../context/PlayerContext";
 import { usePlayMode } from "../../utils/playMode";
 import { getImageUrl as buildImageUrl } from '../../utils/image';
+import { trackEvent } from '../../utils/tracking';
 import "./index.scss";
 import BottomTabBar from '../../components/BottomTabBar';
 
@@ -28,6 +31,17 @@ export default function FolderPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("roots");
   const [roots, setRoots] = useState<Folder[]>([]);
   const [detail, setDetail] = useState<FolderContents | null>(null);
+  const folderOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (folderOpenedRef.current) return;
+    folderOpenedRef.current = true;
+    void trackEvent({
+      feature: TF.CONTENT,
+      eventName: TE.CONTENT_FOLDER_OPEN,
+      metadata: { id: folderId },
+    });
+  }, []);
 
   const trackType = useMemo(
     () => (mode === "AUDIOBOOK" ? TrackType.AUDIOBOOK : TrackType.MUSIC),

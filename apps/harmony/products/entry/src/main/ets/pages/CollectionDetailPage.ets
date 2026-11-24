@@ -1,7 +1,7 @@
 import { buildTheme, CommonNavBar, CommonButton, EmptyView, SkeletonBlock } from 'features_ui';
 import type { ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
-import { collectionApi } from 'features_network';
+import { collectionApi, trackEvent, TE } from 'features_network';
 import type { CollectionDetailResp, CollectionAlbumItem } from 'features_network';
 import { likesHistory, EventPayloadId } from '../services/LikesHistoryService';
 import { miniPlayerHasContent } from '../components/MiniPlayer';
@@ -32,12 +32,17 @@ export struct CollectionDetailContent {
   @State private langAtBuild: string = getLang();
   private theme = buildTheme('light');
   private unsub: () => void = () => {};
+  @State private collectionDetailOpenTracked: boolean = false;
 
   onThemeModeChange(): void {
     this.theme = buildTheme(this.themeMode);
   }
 
   aboutToAppear(): void {
+    if (!this.collectionDetailOpenTracked) {
+      this.collectionDetailOpenTracked = true;
+      trackEvent(TE.CONTENT_COLLECTION_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.load();
     this.unsub = likesHistory.on('albumLike', (e) => {

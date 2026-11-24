@@ -3,10 +3,12 @@ import {
     batchDeleteItems,
     Folder,
     getFolderContents,
-    getFolderStats
+    getFolderStats,
+    TrackingEvent as TE,
+    TrackingFeature as TF,
 } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
     ActivityIndicator,
@@ -28,6 +30,7 @@ import { usePlayer } from "../../src/context/PlayerContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { Track } from "../../src/models";
 import { getImageSource } from "../../src/utils/image";
+import { trackEvent } from "../../src/services/tracking";
 
 export default function FolderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -37,6 +40,17 @@ export default function FolderDetailScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { playTrack, playTrackList } = usePlayer();
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({
+      feature: TF.CONTENT,
+      eventName: TE.CONTENT_FOLDER_OPEN,
+      metadata: { id },
+    });
+  }, [id]);
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{

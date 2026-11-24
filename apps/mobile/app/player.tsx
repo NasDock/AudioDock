@@ -1,6 +1,7 @@
 import MarqueeText from "@/src/components/MarqueeText";
 import PlayingIndicator from "@/src/components/PlayingIndicator";
 import VinylCover from "@/src/components/VinylCover";
+import ProgressiveImage from "@/src/components/ProgressiveImage";
 import { XiaoAiIcon } from "@/src/components/XiaoAiIcon";
 import { useAuth } from "@/src/context/AuthContext";
 import { PlayMode, usePlayer } from "@/src/context/PlayerContext";
@@ -30,7 +31,7 @@ import { Image as ExpoImage } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import { Slider } from "@miblanchard/react-native-slider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getMvByTrackId, plusGetMe, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
+import { getMvByTrackId, plusGetMe, toggleTrackLike, toggleTrackUnLike, TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -1028,8 +1029,18 @@ export function PlayerDetailView({
 
     try {
       if (previousLiked) {
+        trackEvent({
+          feature: TF.FAVORITE,
+          eventName: TE.FAVORITE_REMOVE,
+          metadata: { id: currentTrack.id },
+        });
         await toggleTrackUnLike(currentTrack.id, user.id);
       } else {
+        trackEvent({
+          feature: TF.FAVORITE,
+          eventName: TE.FAVORITE_ADD,
+          metadata: { id: currentTrack.id },
+        });
         await toggleTrackLike(currentTrack.id, user.id);
       }
     } catch (error) {
@@ -1483,6 +1494,7 @@ export function PlayerDetailView({
   }, [miModalVisible]);
 
   const handleOpenMiCast = async () => {
+    trackEvent({ feature: TF.CAST, eventName: TE.CAST_OPEN });
     setMiModalVisible(true);
     resetHideTimer();
     setMiLoading(true);
@@ -1532,10 +1544,20 @@ export function PlayerDetailView({
       if (isPlaying) {
         await pause();
       }
+      trackEvent({
+        feature: TF.CAST,
+        eventName: TE.CAST_SUCCESS,
+        metadata: { deviceId },
+      });
       Alert.alert(t("playerPage.miCastSuccess", { device: deviceName }));
       setMiModalVisible(false);
       stopMiPolling();
     } catch (e) {
+      trackEvent({
+        feature: TF.CAST,
+        eventName: TE.CAST_FAILED,
+        metadata: { deviceId },
+      });
       console.error("Failed to cast to Mi device:", e);
       Alert.alert(t("playerPage.miCastFailed"));
     } finally {
@@ -2311,6 +2333,7 @@ export function PlayerDetailView({
                       >
                         <VinylCover
                           uri={getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900)}
+                          placeholderUri={getImageUrl(currentTrack.cover, "https://picsum.photos/400", 96)}
                           headers={mediaHeaders}
                           size={landscapeVinylSize}
                           isPlaying={isPlaying}
@@ -2318,8 +2341,9 @@ export function PlayerDetailView({
                         />
                       </View>
                     ) : (
-                      <Image
+                      <ProgressiveImage
                         source={getImageSource(currentTrack.cover, "https://picsum.photos/400", 900)}
+                        placeholderSource={getImageSource(currentTrack.cover, "https://picsum.photos/400", 96)}
                         onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
                         style={[
                           styles.artwork,
@@ -2445,14 +2469,18 @@ export function PlayerDetailView({
                   {coverStyle === "vinyl" ? (
                     <VinylCover
                       uri={getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900)}
+                      placeholderUri={getImageUrl(currentTrack.cover, "https://picsum.photos/400", 96)}
                       headers={mediaHeaders}
                       size={vinylSize}
                       isPlaying={isPlaying}
                       tonearm={tonearm}
                     />
                   ) : (
-                    <Image
+                    <ProgressiveImage
                       source={getImageSource(currentTrack.cover, "https://picsum.photos/400", 900)}
+                      // 低档占位（96 档，与播放列表行同参数）：列表已加载→命中缓存秒开，
+                      // 高清 900 档后台预载完成后替换，避免黑屏
+                      placeholderSource={getImageSource(currentTrack.cover, "https://picsum.photos/400", 96)}
                       style={[
                         styles.artwork,
                         coverRadius !== undefined && { borderRadius: coverRadius },

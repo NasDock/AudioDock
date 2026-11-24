@@ -1,7 +1,7 @@
-import { plusDeleteMe, plusParticipateInternalTest } from '@soundx/services';
+import { plusDeleteMe, plusParticipateInternalTest, TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services';
 import { ScrollView, Slider, Switch, Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -35,6 +35,13 @@ export default function Settings() {
   const [showScreenInsetModal, setShowScreenInsetModal] = useState(false);
   const [redeemingInternalTestCode, setRedeemingInternalTestCode] = useState(false);
   const [isVip, setIsVip] = useState(false);
+  const settingsOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (settingsOpenedRef.current) return;
+    settingsOpenedRef.current = true;
+    void trackEvent({ feature: TF.SETTINGS, eventName: TE.SETTINGS_OPEN });
+  }, []);
 
   useEffect(() => {
     const isVipStr = Taro.getStorageSync('plus_vip_status');
@@ -119,6 +126,11 @@ export default function Settings() {
       Taro.showToast({ title: t('settings.loginFirst'), icon: 'none' });
       return;
     }
+
+    void trackEvent({
+      feature: TF.MEMBER,
+      eventName: TE.MEMBER_INTERNAL_TEST_SUBMIT,
+    });
 
     try {
       setRedeemingInternalTestCode(true);
@@ -288,7 +300,8 @@ export default function Settings() {
           </View>
           {renderSettingRow(t('settings.autoOrientation'), t('settings.autoOrientationDescription'), autoOrientation, (val) => updateSetting('autoOrientation', val))}
           {renderSettingRow(t('settings.voiceAssistant'), t('settings.voiceAssistantDescription'), voiceAssistantEnabled, handleToggleVoiceAssistant)}
-          {renderSettingRow(t('settings.activityNotify'), t('settings.activityNotifyDescription'), activityNotifyEnabled, (val) => updateSetting('activityNotifyEnabled', val))}
+          {/* 会员用户不展示「活动通知」开关（会员不弹活动弹窗） */}
+          {!isVip && renderSettingRow(t('settings.activityNotify'), t('settings.activityNotifyDescription'), activityNotifyEnabled, (val) => updateSetting('activityNotifyEnabled', val))}
 
           <View className='setting-row slider-row'>
             <View className='setting-info' style={{ width: '100%', marginRight: 0 }}>

@@ -3,7 +3,7 @@ import promptAction from '@ohos.promptAction';
 import { kvStore } from 'features_storage';
 import { t, getLang } from 'features_i18n';
 import { Logger } from 'audiodock_common';
-import { ttsApi, plusApi } from 'features_network';
+import { ttsApi, plusApi, trackEvent, TE } from 'features_network';
 import type { TtsTask } from 'features_network';
 import { buildTheme } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
@@ -45,8 +45,13 @@ struct TtsTaskListPage {
   @State filterStatus: string = 'all';
 
   private pollTimer: number = -1;
+  @State private ttsTaskListOpenTracked: boolean = false;
 
   aboutToAppear(): void {
+    if (!this.ttsTaskListOpenTracked) {
+      this.ttsTaskListOpenTracked = true;
+      trackEvent(TE.TTS_TASK_LIST_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.ensureVipAccess().then((ok: boolean) => {
       if (ok) {

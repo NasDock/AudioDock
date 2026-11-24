@@ -1,10 +1,11 @@
-import { plusCreatePayment, plusGetVipCurrentLowestPrice, plusWechatMpSession, setPlusToken, VipCurrentLowestPriceData, VipCurrentLowestPricePlan } from '@soundx/services';
+import { plusCreatePayment, plusGetVipCurrentLowestPrice, plusWechatMpSession, setPlusToken, VipCurrentLowestPriceData, VipCurrentLowestPricePlan, TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services';
 import { Image, Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MiniPlayer from '../../../components/MiniPlayer';
 import wechatIcon from '../../../assets/images/wechat.png';
+import { trackEvent } from '../../../utils/tracking';
 import './index.scss';
 
 type PaymentPlan = 'annual' | 'lifetime';
@@ -28,8 +29,13 @@ export default function MemberBenefits() {
   const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>('lifetime');
   const [loading, setLoading] = useState(false);
   const [pricing, setPricing] = useState<VipCurrentLowestPriceData | null>(null);
+  const benefitsOpenedRef = useRef(false);
 
   useEffect(() => {
+    if (!benefitsOpenedRef.current) {
+      benefitsOpenedRef.current = true;
+      void trackEvent({ feature: TF.VIP, eventName: TE.VIP_BENEFITS_OPEN });
+    }
     let mounted = true;
     const loadPricing = async () => {
       try {
@@ -100,6 +106,12 @@ export default function MemberBenefits() {
       });
       return;
     }
+
+    void trackEvent({
+      feature: TF.VIP,
+      eventName: TE.VIP_PAY_SUBMIT,
+      metadata: { plan: selectedPlan },
+    });
 
     setLoading(true);
     try {

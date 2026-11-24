@@ -1,15 +1,24 @@
-import { plusGetMe, setPlusToken } from '@soundx/services';
+import { plusGetMe, setPlusToken, TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services';
 import { Text, View } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MiniPlayer from '../../../components/MiniPlayer';
+import { trackEvent } from '../../../utils/tracking';
 import './index.scss';
 
 export default function MemberPaymentSuccess() {
   const { t } = useTranslation();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(true);
+
+  const paySuccessTrackedRef = useRef(false);
+
+  useEffect(() => {
+    if (paySuccessTrackedRef.current) return;
+    paySuccessTrackedRef.current = true;
+    void trackEvent({ feature: TF.VIP, eventName: TE.VIP_PAY_SUCCESS });
+  }, []);
 
   const tradeNo = router.params.tradeNo || '';
   const paidAtRaw = router.params.paidAt || '';

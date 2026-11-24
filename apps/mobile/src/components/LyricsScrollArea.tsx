@@ -16,6 +16,7 @@
  * 高度随歌词字号变化，因此手机 / Pad / 横屏 / 车机分栏都自动适配。
  */
 import { Ionicons } from "@expo/vector-icons";
+import { TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -28,6 +29,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { trackEvent } from "../services/tracking";
 
 /** 手动滚动停止后，多久没点播放就回到当前播放行 */
 const IDLE_TIMEOUT_MS = 2000;
@@ -321,7 +323,12 @@ export function LyricsScrollArea({
     interactingRef.current = true;
     setInteracting(true);
     updateCenteredIndex(offsetRef.current);
-  }, [clearIdleTimer, clearRetryTimer, updateCenteredIndex]);
+    trackEvent({
+      feature: TF.LYRIC,
+      eventName: TE.LYRIC_MANUAL_SCROLL,
+      metadata: { trackId },
+    });
+  }, [clearIdleTimer, clearRetryTimer, updateCenteredIndex, trackId]);
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -358,6 +365,12 @@ export function LyricsScrollArea({
     if (index < 0) return;
     const targetTime = lyricsRef.current[index]?.time ?? 0;
 
+    trackEvent({
+      feature: TF.LYRIC,
+      eventName: TE.LYRIC_CLICK_SEEK,
+      metadata: { trackId, lineTime: targetTime },
+    });
+
     clearIdleTimer();
     interactingRef.current = false;
     setInteracting(false);
@@ -379,6 +392,7 @@ export function LyricsScrollArea({
     makeAutoScrollKey,
     seekTo,
     resume,
+    trackId,
   ]);
 
   /** 切歌：复位接管状态与自动滚动节流键（不清 lineLayouts，新行 onLayout 会覆盖） */

@@ -1,4 +1,8 @@
-import { loadMoreAlbum } from "@soundx/services";
+import {
+  loadMoreAlbum,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
+} from "@soundx/services";
 import { useInfiniteScroll } from "ahooks";
 import { HeartFilled, HeartOutlined } from "@ant-design/icons";
 import { Button, Col, Row, Typography, theme } from "antd";
@@ -8,6 +12,7 @@ import Cover from "../../components/Cover/index";
 import { useAdaptiveCoverSize } from "../../hooks/useAdaptiveCoverSize";
 import type { Album } from "../../models";
 import { useAlbumListCache } from "../../store/category";
+import { trackEvent } from "../../services/tracking";
 import { useLibraryStore } from "../../store/library";
 import { usePlayMode } from "../../utils/playMode";
 import { onHomeRefresh } from "../../utils/refreshHome";
@@ -26,6 +31,7 @@ const Category: React.FC = () => {
   const { t } = useTranslation();
   // const [activeTab, setActiveTab] = useState<string>("1");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const openReportedRef = useRef(false);
   const { mode } = usePlayMode();
   const { heartbeatModeActive, toggleHeartbeatMode } = useLibraryStore();
   const { token } = theme.useToken();
@@ -119,6 +125,10 @@ const Category: React.FC = () => {
     setScroll(key, 0);
   };
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({ feature: TF.CONTENT, eventName: TE.CONTENT_CATEGORY_OPEN });
+    }
     return onHomeRefresh(() => refreshRef.current());
   }, []);
 

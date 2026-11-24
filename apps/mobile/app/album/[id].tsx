@@ -16,6 +16,7 @@ import { downloadTracks } from "@/src/services/downloadManager";
 import { getImageSource } from "@/src/utils/image";
 import { isMvSupported } from "@/src/utils/mvSupport";
 import { mvPlaylistStore } from "@/src/store/mvPlaylist";
+import { trackEvent } from "@/src/services/tracking";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import {
@@ -27,6 +28,8 @@ import {
   toggleAlbumUnLike,
   uploadAlbumCover,
   getMvsByAlbum,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -82,6 +85,17 @@ export default function AlbumDetailScreen() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedTrackIds, setSelectedTrackIds] = useState<(number | string)[]>([]);
   const flatListRef = useRef<FlatList<Track>>(null);
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({
+      feature: TF.CONTENT,
+      eventName: TE.CONTENT_ALBUM_OPEN,
+      metadata: { id },
+    });
+  }, [id]);
 
   // Mi Speaker cast state
   const [isMiDeviceSelectorVisible, setIsMiDeviceSelectorVisible] = useState(false);
@@ -195,6 +209,11 @@ export default function AlbumDetailScreen() {
   const handleToggleLike = async () => {
     if (!user || !album) return;
     try {
+      trackEvent({
+        feature: TF.FAVORITE,
+        eventName: isLiked ? TE.FAVORITE_REMOVE : TE.FAVORITE_ADD,
+        metadata: { id: album.id },
+      });
       const res = isLiked
         ? await toggleAlbumUnLike(album.id, user.id)
         : await toggleAlbumLike(album.id, user.id);
@@ -234,10 +253,20 @@ export default function AlbumDetailScreen() {
         {
           text: t("common.confirm"),
           onPress: () => {
+            trackEvent({
+              feature: TF.DOWNLOAD,
+              eventName: TE.DOWNLOAD_START,
+              metadata: { id, count: selectedTracks.length },
+            });
             downloadTracks(
               selectedTracks,
               (completed: number, total: number) => {
                 if (completed === total) {
+                  trackEvent({
+                    feature: TF.DOWNLOAD,
+                    eventName: TE.DOWNLOAD_SUCCESS,
+                    metadata: { id, count: total },
+                  });
                   Alert.alert(
                     t("albumPage.downloadComplete"),
                     t("albumPage.downloadedTrackCount", { count: total }),

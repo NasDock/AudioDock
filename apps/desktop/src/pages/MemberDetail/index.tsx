@@ -5,11 +5,16 @@ import {
   CrownFilled,
   LogoutOutlined,
 } from "@ant-design/icons";
-import { plusGetMe } from "@soundx/services";
+import {
+  plusGetMe,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
+} from "@soundx/services";
 import { Button, Card, Flex, Skeleton, Table, Typography, theme } from "antd";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
+import { trackEvent } from "../../services/tracking";
 import { useAuthStore } from "../../store/auth";
 import styles from "./index.module.less";
 
@@ -23,6 +28,7 @@ const MemberDetail: React.FC = () => {
   const setPlusToken = useAuthStore((state) => state.setPlusToken);
   const [loading, setLoading] = useState(true);
   const [vipData, setVipData] = useState<any>(null);
+  const openReportedRef = useRef(false);
 
   const maskPhone = (value?: string | null) => {
     const normalized = String(value || "").replace(/\D/g, "");
@@ -31,6 +37,11 @@ const MemberDetail: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({ feature: TF.VIP, eventName: TE.VIP_PAGE_OPEN });
+    }
+
     const fetchVipStatus = async () => {
       try {
         const plusUserId = localStorage.getItem("plus_user_id");

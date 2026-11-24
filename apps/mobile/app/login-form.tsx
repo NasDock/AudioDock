@@ -11,10 +11,12 @@ import {
   type ScanLoginSessionStatus,
   subscribeScanLoginSession,
   SOURCETIPSMAP,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -46,6 +48,7 @@ import {
   applyMobileScanLoginResult,
   collectMobileScanLoginPayload,
 } from "../src/utils/scanLogin";
+import { trackEvent } from "../src/services/tracking";
 
 export default function LoginFormScreen() {
   const { colors } = useTheme();
@@ -77,6 +80,17 @@ export default function LoginFormScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({
+      feature: TF.LOGIN,
+      eventName: TE.LOGIN_PAGE_OPEN,
+      metadata: { page: "login_form" },
+    });
+  }, []);
 
   useEffect(() => {
     loadSourceConfig(sourceType);
@@ -258,6 +272,12 @@ export default function LoginFormScreen() {
       return;
     }
 
+    trackEvent({
+      feature: TF.LOGIN,
+      eventName: TE.LOGIN_SUBMIT,
+      metadata: { mode: isLogin ? "login" : "register", sourceType },
+    });
+
     // 飞牛地址先归一化（补协议 / 默认端口 5666 / 去掉误粘的 /music 路径），
     // 否则「探测用的地址」和「适配器实际请求的地址」会对不上。
     const normalizedInternal = isFnos
@@ -346,8 +366,18 @@ export default function LoginFormScreen() {
         await register({ username, password });
       }
 
+      trackEvent({
+        feature: TF.LOGIN,
+        eventName: TE.LOGIN_SUCCESS,
+        metadata: { mode: isLogin ? "login" : "register", sourceType },
+      });
       router.replace("/(tabs)");
     } catch (error: any) {
+      trackEvent({
+        feature: TF.LOGIN,
+        eventName: TE.LOGIN_FAILED,
+        metadata: { mode: isLogin ? "login" : "register", sourceType },
+      });
       console.error(error);
       Alert.alert("错误", error.message || "Authentication failed");
     } finally {

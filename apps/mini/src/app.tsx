@@ -52,6 +52,8 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     if (isLoading || !token || !activityNotifyEnabled || hasCheckedRef.current) return;
     hasCheckedRef.current = true;
     const timer = setTimeout(() => {
+      // 会员用户不弹活动通知
+      if (Taro.getStorageSync('plus_vip_status') === 'true') return;
       void checkPromotion();
     }, 2000);
     return () => clearTimeout(timer);

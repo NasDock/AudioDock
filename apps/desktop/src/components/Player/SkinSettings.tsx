@@ -1,7 +1,12 @@
 import { FormatPainterOutlined } from "@ant-design/icons";
+import {
+  TrackingEvent as TE,
+  TrackingFeature as TF,
+} from "@soundx/services";
 import { Flex, Popover, Segmented, Slider, Typography } from "antd";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { trackEvent } from "../../services/tracking";
 import {
   usePlayerSkinStore,
   type CoverStyle,
@@ -36,7 +41,14 @@ const SkinSettings: React.FC<{ className?: string }> = ({ className }) => {
         <Segmented
           block
           value={coverStyle}
-          onChange={(v) => setCoverStyle(v as CoverStyle)}
+          onChange={(v) => {
+            trackEvent({
+              feature: TF.THEME,
+              eventName: TE.THEME_SKIN_CHANGE,
+              metadata: { setting: "coverStyle", value: v },
+            });
+            setCoverStyle(v as CoverStyle);
+          }}
           options={[
             { label: t("player.styleDefault"), value: "square" },
             { label: t("player.styleVinyl"), value: "vinyl" },

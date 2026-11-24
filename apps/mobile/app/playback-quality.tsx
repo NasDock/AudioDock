@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { BackHandler, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -8,6 +9,7 @@ import { useSettings } from "../src/context/SettingsContext";
 import { useTheme } from "../src/context/ThemeContext";
 import type { AudioQuality } from "../src/services/trackQuality";
 import { goBackOrReplace } from "../src/utils/navigation";
+import { trackEvent } from "../src/services/tracking";
 
 const QUALITY_OPTIONS: Array<{
   value: AudioQuality;
@@ -44,6 +46,13 @@ export default function PlaybackQualityScreen() {
     ? internalPlaybackQuality
     : externalPlaybackQuality;
 
+  const openedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({ feature: TF.QUALITY, eventName: TE.QUALITY_PAGE_OPEN });
+  }, []);
+
   React.useEffect(() => {
     const backHandler = BackHandler.addEventListener("hardwareBackPress", () => {
       goBackOrReplace(router, "/settings");
@@ -54,6 +63,11 @@ export default function PlaybackQualityScreen() {
   }, [router]);
 
   const handleSelect = async (quality: AudioQuality) => {
+    trackEvent({
+      feature: TF.QUALITY,
+      eventName: TE.QUALITY_CHANGE,
+      metadata: { quality, network },
+    });
     await updateSetting(
       isInternal ? "internalPlaybackQuality" : "externalPlaybackQuality",
       quality,

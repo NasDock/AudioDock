@@ -12,7 +12,8 @@
  * 仅在主题 coverStyle === "vinyl" 时由 player.tsx 使用。
  */
 import React, { useEffect } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import ProgressiveImage from "./ProgressiveImage";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -34,6 +35,8 @@ import Svg, {
 interface VinylCoverProps {
   /** 封面图 URL */
   uri: string;
+  /** 低档占位封面 URL（列表已加载、命中缓存秒开）；不传则用 uri 本身 */
+  placeholderUri?: string;
   /** 圆盘直径（px） */
   size: number;
   isPlaying: boolean;
@@ -49,7 +52,7 @@ const SPIN_DURATION = 8000;
 const ARM_DURATION = 600;
 const ARM_EASING = Easing.bezier(0.34, 1.4, 0.64, 1);
 
-const VinylCover: React.FC<VinylCoverProps> = ({ uri, size, isPlaying, tonearm = false, headers }) => {
+const VinylCover: React.FC<VinylCoverProps> = ({ uri, placeholderUri, size, isPlaying, tonearm = false, headers }) => {
   const k = size / 320; // desktop 参考系缩放系数
   const c = size / 2;
   const inset = 18 * k; // 沟纹离盘边的距离
@@ -153,8 +156,9 @@ const VinylCover: React.FC<VinylCoverProps> = ({ uri, size, isPlaying, tonearm =
           />
         </Svg>
         <View style={[StyleSheet.absoluteFill, styles.center]}>
-          <Image
+          <ProgressiveImage
             source={{ uri, headers }}
+            placeholderSource={{ uri: placeholderUri || uri, headers }}
             style={{
               width: imgSize,
               height: imgSize,

@@ -5,6 +5,7 @@ import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { getInternalQuality, getExternalQuality } from '../services/trackQuality';
 import type { Quality } from '../services/trackQuality';
+import { trackEvent, TE } from 'features_network';
 
 /**
  * AppStorage 中转参数类型：SettingsPage pushUrl 前写入，PlaybackQualityPage aboutToAppear 时读。
@@ -37,6 +38,7 @@ struct PlaybackQualityPage {
   @StorageProp('navBarHeightVp') navBarHeightVp: number = 0;
   @State isInternal: boolean = true;
   @State selectedQuality: string = 'high';
+  @State private qualityPageOpenTracked: boolean = false;
 
   private options: QualityOption[] = [
     new QualityOption('lossless', 'settings.playbackQualityLossless', 'settings.playbackQualityLosslessDescription'),
@@ -45,6 +47,10 @@ struct PlaybackQualityPage {
   ];
 
   aboutToAppear(): void {
+    if (!this.qualityPageOpenTracked) {
+      this.qualityPageOpenTracked = true;
+      trackEvent(TE.QUALITY_PAGE_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     // 历史 bug：aboutToAppear 阶段 router.getParams() 经常拿不到，导致 isInternal 一直是默认 true，
     // 用户点"外网播放品质"进去也会按内网读/写。
@@ -71,6 +77,10 @@ struct PlaybackQualityPage {
   }
 
   async handleSelect(quality: Quality) {
+    const qualityChangeMeta: Record<string, Object> = {};
+    qualityChangeMeta['quality'] = quality;
+    qualityChangeMeta['network'] = this.isInternal ? 'internal' : 'external';
+    trackEvent(TE.QUALITY_CHANGE, qualityChangeMeta).catch((): void => undefined);
     const key = this.isInternal ? 'internalPlaybackQuality' : 'externalPlaybackQuality';
     await kvStore.set(key, quality);
     // 通知 SettingsPage 在 onPageShow 时重新读 KV 刷新右侧标签（历史 bug：直接 router.back 不通知，回显永远是旧值）

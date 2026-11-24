@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { deleteTrack } from "@soundx/services";
+import { deleteTrack, TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import React from "react";
 import {
   Alert,
@@ -176,7 +176,17 @@ export const TrackMoreModal: React.FC<TrackMoreModalProps> = ({
             style={styles.menuItem}
             onPress={async () => {
               onClose();
+              trackEvent({
+                feature: TF.DOWNLOAD,
+                eventName: TE.DOWNLOAD_START,
+                metadata: { id: track.id, count: 1 },
+              });
               const success = await downloadTrack(track);
+              trackEvent({
+                feature: TF.DOWNLOAD,
+                eventName: success ? TE.DOWNLOAD_SUCCESS : TE.DOWNLOAD_FAILED,
+                metadata: { id: track.id, count: 1 },
+              });
               if (success) {
                 Alert.alert(t('trackMore.downloadSuccess'), t('trackMore.downloadSuccess'));
               } else {

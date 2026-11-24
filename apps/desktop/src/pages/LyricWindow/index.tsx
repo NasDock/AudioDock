@@ -8,9 +8,14 @@ import {
     StepBackwardOutlined,
     StepForwardOutlined
 } from "@ant-design/icons";
+import {
+  TrackingEvent as TE,
+  TrackingFeature as TF,
+} from "@soundx/services";
 import { Button, Space } from "antd";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { trackEvent } from "../../services/tracking";
 import { useSettingsStore } from "../../store/settings";
 import { isTauri } from "../../utils/platform";
 import styles from "./index.module.less";
@@ -24,8 +29,14 @@ const LyricWindow: React.FC = () => {
   const [config, setConfig] = useState(settings);
 
   const [trackInfo, setTrackInfo] = useState<{ name: string; artist: string } | null>(null);
+  const openReportedRef = useRef(false);
 
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({ feature: TF.LYRIC, eventName: TE.LYRIC_PAGE_OPEN });
+    }
+
     if (!isTauri()) return;
 
     let unlistenSettings: (() => void) | undefined;

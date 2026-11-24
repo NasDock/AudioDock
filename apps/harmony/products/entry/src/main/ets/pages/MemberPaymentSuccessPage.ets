@@ -3,7 +3,7 @@ import { buildTheme, type Theme, type ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { kvStore } from 'features_storage';
 import { Logger } from 'audiodock_common';
-import { plusApi, setPlusAuthToken } from 'features_network';
+import { plusApi, setPlusAuthToken, trackEvent, TE } from 'features_network';
 import { widgetBridge } from '../services/WidgetBridge';
 
 @Entry
@@ -20,8 +20,13 @@ struct MemberPaymentSuccessPage {
   // 沉浸式避让区高度（vp，services/systemBar publishAvoidArea 下发）
   @StorageProp('statusBarHeightVp') statusBarHeightVp: number = 0;
   @StorageProp('navBarHeightVp') navBarHeightVp: number = 0;
+  @State private vipPaySuccessTracked: boolean = false;
 
   aboutToAppear(): void {
+    if (!this.vipPaySuccessTracked) {
+      this.vipPaySuccessTracked = true;
+      trackEvent(TE.VIP_PAY_SUCCESS).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     const params = router.getParams() as Record<string, string> | undefined;
     this.orderId = params?.['orderId'] ?? '';

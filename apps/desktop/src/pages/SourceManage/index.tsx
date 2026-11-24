@@ -1,9 +1,11 @@
 import { RightOutlined } from "@ant-design/icons";
+import { TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import { useTranslation } from "react-i18next";
 import { FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP } from "../../constants/sources";
 import { Card, Flex, theme, Typography } from "antd";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { trackEvent } from "../../services/tracking";
 import emby from "../../assets/emby.png";
 import logo from "../../assets/logo.png";
 import subsonic from "../../assets/subsonic.png";
@@ -15,6 +17,13 @@ const SourceManage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { token: themeToken } = theme.useToken();
+  const openReportedRef = useRef(false);
+
+  useEffect(() => {
+    if (openReportedRef.current) return;
+    openReportedRef.current = true;
+    trackEvent({ feature: TF.SOURCE, eventName: TE.SOURCE_MANAGE_OPEN });
+  }, []);
 
   const getLogo = (key: string) => {
     switch (key) {

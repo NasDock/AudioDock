@@ -1,9 +1,10 @@
-import { plusGetMe } from '@soundx/services';
+import { plusGetMe, TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services';
 import { Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MiniPlayer from '../../../components/MiniPlayer';
+import { trackEvent } from '../../../utils/tracking';
 import './index.scss';
 
 interface VipData {
@@ -24,8 +25,13 @@ export default function MemberDetail() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [vipData, setVipData] = useState<VipData | null>(null);
+  const vipPageOpenedRef = useRef(false);
 
   useEffect(() => {
+    if (!vipPageOpenedRef.current) {
+      vipPageOpenedRef.current = true;
+      void trackEvent({ feature: TF.VIP, eventName: TE.VIP_PAGE_OPEN });
+    }
     fetchVipStatus();
   }, []);
 

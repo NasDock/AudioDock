@@ -1,4 +1,4 @@
-import { getFavoriteTracks, getMvByTrackId, toggleTrackLike, toggleTrackUnLike, transferSession, type Device as OnlineDevice, type MiDevice, playMiDeviceByUrl } from '@soundx/services';
+import { getFavoriteTracks, getMvByTrackId, toggleTrackLike, toggleTrackUnLike, transferSession, type Device as OnlineDevice, type MiDevice, playMiDeviceByUrl, TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services';
 import { Image, ScrollView, Slider, Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -569,6 +569,11 @@ const handleOpenMore = () => {
       const url = `${baseURL}/track/stream/${currentTrack.id}`;
       const title = `${currentTrack.name} - ${currentTrack.artist ?? ''}`;
       await playMiDeviceByUrl({ device_id: device.device_id, url, title });
+      void trackEvent({
+        feature: TF.CAST,
+        eventName: TE.CAST_SUCCESS,
+        metadata: { trackId: currentTrack.id },
+      });
       Taro.showToast({
         title: t('playerPage.miCastSuccess', { device: device.name }),
         icon: 'success',
@@ -579,6 +584,11 @@ const handleOpenMore = () => {
       }
     } catch (e) {
       console.error('Failed to cast to Mi device:', e);
+      void trackEvent({
+        feature: TF.CAST,
+        eventName: TE.CAST_FAILED,
+        metadata: { trackId: currentTrack.id },
+      });
       Taro.showToast({ title: t('playerPage.miCastFailed'), icon: 'none' });
     } finally {
       setIsCastingToMi(false);
@@ -948,7 +958,15 @@ const handleOpenMore = () => {
                     <View
                       key={minutes}
                       className='player-sleep-chip'
-                      onClick={() => { setSleepTimer(minutes); setShowSleepTimerModal(false); }}
+                      onClick={() => {
+                        void trackEvent({
+                          feature: TF.PLAYER,
+                          eventName: TE.PLAYER_SLEEP_TIMER_SET,
+                          metadata: { minutes },
+                        });
+                        setSleepTimer(minutes);
+                        setShowSleepTimerModal(false);
+                      }}
                     >
                       <Text className='player-sleep-chip-text'>{minutes} 分钟</Text>
                     </View>

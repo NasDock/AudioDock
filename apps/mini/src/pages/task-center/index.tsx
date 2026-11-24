@@ -9,6 +9,8 @@ import {
   isTaskActive,
   pauseTtsTask,
   resumeTtsTask,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from '@soundx/services';
 import { ScrollView, Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
@@ -16,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BottomTabBar from '../../components/BottomTabBar';
 import MiniPlayer from '../../components/MiniPlayer';
+import { trackEvent } from '../../utils/tracking';
 import './index.scss';
 
 type Filter = 'all' | 'active';
@@ -40,6 +43,13 @@ export default function TaskCenter() {
   const [filter, setFilter] = useState<Filter>('all');
   const tasksRef = useRef<UnifiedTask[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const taskCenterOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (taskCenterOpenedRef.current) return;
+    taskCenterOpenedRef.current = true;
+    void trackEvent({ feature: TF.TASK_CENTER, eventName: TE.TASK_CENTER_OPEN });
+  }, []);
 
   const fetchTasks = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
