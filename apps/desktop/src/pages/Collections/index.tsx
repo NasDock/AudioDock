@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import styles from "./index.module.less";
 import { resolveArtworkUri } from "../../services/trackResolver";
+import { onHomeRefresh } from "../../utils/refreshHome";
 
 const Collections: React.FC = () => {
   const { t } = useTranslation();
@@ -41,6 +42,17 @@ const Collections: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Header 刷新按钮：重新拉取合集列表。保持与初始加载一致的 AUDIOBOOK 模式守卫。
+  // 用 ref 持有最新回调，避免每次渲染重新订阅。
+  const refreshRef = useRef<() => void>(() => {});
+  refreshRef.current = () => {
+    if (mode !== TrackType.AUDIOBOOK) return;
+    loadCollections();
+  };
+  useEffect(() => {
+    return onHomeRefresh(() => refreshRef.current());
+  }, []);
 
   return (
     <div className={styles.container} ref={scrollRef}>
