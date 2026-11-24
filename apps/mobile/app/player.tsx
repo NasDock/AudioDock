@@ -1,6 +1,7 @@
 import MarqueeText from "@/src/components/MarqueeText";
 import PlayingIndicator from "@/src/components/PlayingIndicator";
 import VinylCover from "@/src/components/VinylCover";
+import ProgressiveImage from "@/src/components/ProgressiveImage";
 import { XiaoAiIcon } from "@/src/components/XiaoAiIcon";
 import { useAuth } from "@/src/context/AuthContext";
 import { PlayMode, usePlayer } from "@/src/context/PlayerContext";
@@ -2311,6 +2312,7 @@ export function PlayerDetailView({
                       >
                         <VinylCover
                           uri={getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900)}
+                          placeholderUri={getImageUrl(currentTrack.cover, "https://picsum.photos/400", 96)}
                           headers={mediaHeaders}
                           size={landscapeVinylSize}
                           isPlaying={isPlaying}
@@ -2318,8 +2320,9 @@ export function PlayerDetailView({
                         />
                       </View>
                     ) : (
-                      <Image
+                      <ProgressiveImage
                         source={getImageSource(currentTrack.cover, "https://picsum.photos/400", 900)}
+                        placeholderSource={getImageSource(currentTrack.cover, "https://picsum.photos/400", 96)}
                         onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
                         style={[
                           styles.artwork,
@@ -2445,14 +2448,18 @@ export function PlayerDetailView({
                   {coverStyle === "vinyl" ? (
                     <VinylCover
                       uri={getImageUrl(currentTrack.cover, "https://picsum.photos/400", 900)}
+                      placeholderUri={getImageUrl(currentTrack.cover, "https://picsum.photos/400", 96)}
                       headers={mediaHeaders}
                       size={vinylSize}
                       isPlaying={isPlaying}
                       tonearm={tonearm}
                     />
                   ) : (
-                    <Image
+                    <ProgressiveImage
                       source={getImageSource(currentTrack.cover, "https://picsum.photos/400", 900)}
+                      // 低档占位（96 档，与播放列表行同参数）：列表已加载→命中缓存秒开，
+                      // 高清 900 档后台预载完成后替换，避免黑屏
+                      placeholderSource={getImageSource(currentTrack.cover, "https://picsum.photos/400", 96)}
                       style={[
                         styles.artwork,
                         coverRadius !== undefined && { borderRadius: coverRadius },

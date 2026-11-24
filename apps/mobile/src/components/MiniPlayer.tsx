@@ -1,11 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { usePlayer } from "../context/PlayerContext";
 import { useTheme } from "../context/ThemeContext";
 import { TrackType } from "../models";
 import { getImageSource } from "../utils/image";
+import ProgressiveImage from "./ProgressiveImage";
 
 export const MINI_PLAYER_HEIGHT = 60;
 
@@ -49,8 +50,10 @@ export const MiniPlayer = () => {
       ]}
     >
       <View style={styles.infoContaer}>
-        <Image
-          source={getImageSource(currentTrack.cover, "https://picsum.photos/100", 96)}
+        <ProgressiveImage
+          source={getImageSource(currentTrack.cover, "https://picsum.photos/100", 128)}
+          // 占位用 96 档（与播放列表同参数）：切歌先显示已缓存小图，128 档后台升级
+          placeholderSource={getImageSource(currentTrack.cover, "https://picsum.photos/100", 96)}
           style={styles.artwork}
         />
         <View style={styles.info}>

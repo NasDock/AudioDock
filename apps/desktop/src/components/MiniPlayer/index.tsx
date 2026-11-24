@@ -319,6 +319,9 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {  const { toke
       <div className={styles.infoSection}>
         <LazyImage
           src={getCoverUrl(currentTrack, 128)}
+          // 低档占位（width 60 → w=96，与播放列表行同参数）：点击列表后该图已缓存，
+          // 首帧直接复用，避免 128 档下载期间黑屏；高清到达后无缝替换。
+          placeholderSrc={currentTrack ? getCoverUrl(currentTrack, 60) : undefined}
           alt={currentTrack?.name}
           width={48}
           height={48}
