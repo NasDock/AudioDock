@@ -31,7 +31,7 @@ import { Image as ExpoImage } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import { Slider } from "@miblanchard/react-native-slider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getMvByTrackId, plusGetMe, toggleTrackLike, toggleTrackUnLike } from "@soundx/services";
+import { getMvByTrackId, plusGetMe, toggleTrackLike, toggleTrackUnLike, TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -1029,8 +1029,18 @@ export function PlayerDetailView({
 
     try {
       if (previousLiked) {
+        trackEvent({
+          feature: TF.FAVORITE,
+          eventName: TE.FAVORITE_REMOVE,
+          metadata: { id: currentTrack.id },
+        });
         await toggleTrackUnLike(currentTrack.id, user.id);
       } else {
+        trackEvent({
+          feature: TF.FAVORITE,
+          eventName: TE.FAVORITE_ADD,
+          metadata: { id: currentTrack.id },
+        });
         await toggleTrackLike(currentTrack.id, user.id);
       }
     } catch (error) {
@@ -1484,6 +1494,7 @@ export function PlayerDetailView({
   }, [miModalVisible]);
 
   const handleOpenMiCast = async () => {
+    trackEvent({ feature: TF.CAST, eventName: TE.CAST_OPEN });
     setMiModalVisible(true);
     resetHideTimer();
     setMiLoading(true);
@@ -1533,10 +1544,20 @@ export function PlayerDetailView({
       if (isPlaying) {
         await pause();
       }
+      trackEvent({
+        feature: TF.CAST,
+        eventName: TE.CAST_SUCCESS,
+        metadata: { deviceId },
+      });
       Alert.alert(t("playerPage.miCastSuccess", { device: deviceName }));
       setMiModalVisible(false);
       stopMiPolling();
     } catch (e) {
+      trackEvent({
+        feature: TF.CAST,
+        eventName: TE.CAST_FAILED,
+        metadata: { deviceId },
+      });
       console.error("Failed to cast to Mi device:", e);
       Alert.alert(t("playerPage.miCastFailed"));
     } finally {

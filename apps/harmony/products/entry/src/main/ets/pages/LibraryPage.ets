@@ -5,7 +5,7 @@ import { kvStore } from 'features_storage';
 import { t } from 'features_i18n';
 import { Logger } from 'audiodock_common';
 import {
-  artistApi, albumApi, trackApi, collectionApi, mvApi, miApi, playlistApi, isMvSupported,
+  artistApi, albumApi, trackApi, collectionApi, mvApi, miApi, playlistApi, isMvSupported, trackEvent, TE,
 } from 'features_network';
 import type {
   ArtistDto, AlbumDto, TrackDto, CollectionDto, MVDto,
@@ -109,8 +109,13 @@ export struct LibraryTab {
   private albumScroller: Scroller = new Scroller();
   private collectionScroller: Scroller = new Scroller();
   private mvScroller: Scroller = new Scroller();
+  @State private libraryOpenTracked: boolean = false;
 
   aboutToAppear() {
+    if (!this.libraryOpenTracked) {
+      this.libraryOpenTracked = true;
+      trackEvent(TE.LIBRARY_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.computeGridLayout();
     // 修复 5：从 KV 恢复视窗模式

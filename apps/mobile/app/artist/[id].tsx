@@ -26,9 +26,12 @@ import {
     uploadArtistAvatar,
     getMvsByArtist,
     playMiDevicePlaylist,
+    TrackingEvent as TE,
+    TrackingFeature as TF,
 } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { trackEvent } from "@/src/services/tracking";
 import { useTranslation } from "react-i18next";
 import {
     Alert,
@@ -73,6 +76,17 @@ export default function ArtistDetailScreen() {
     [],
   );
   const [uploadingCover, setUploadingCover] = useState(false);
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({
+      feature: TF.CONTENT,
+      eventName: TE.CONTENT_ARTIST_OPEN,
+      metadata: { id },
+    });
+  }, [id]);
 
   // Mi Speaker cast state
   const [isMiDeviceSelectorVisible, setIsMiDeviceSelectorVisible] = useState(false);
@@ -238,8 +252,18 @@ export default function ArtistDetailScreen() {
       {
         text: t("common.confirm"),
         onPress: () => {
+          trackEvent({
+            feature: TF.DOWNLOAD,
+            eventName: TE.DOWNLOAD_START,
+            metadata: { id, count: selectedTracks.length },
+          });
           downloadTracks(selectedTracks, (completed: number, total: number) => {
             if (completed === total) {
+              trackEvent({
+                feature: TF.DOWNLOAD,
+                eventName: TE.DOWNLOAD_SUCCESS,
+                metadata: { id, count: total },
+              });
               Alert.alert(
                 t("artistPage.downloadComplete"),
                 t("artistPage.downloadedTrackCount", { count: total }),

@@ -18,11 +18,12 @@ import SkeletonBlock from "@/src/components/SkeletonBlock";
 import { useTheme } from "../../src/context/ThemeContext";
 import { useAuth } from "../../src/context/AuthContext";
 import { isMvSupported } from "../../src/utils/mvSupport";
-import { getMvById, getMvByTrackId, type Mv } from "@soundx/services";
+import { getMvById, getMvByTrackId, type Mv, TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import { getImageSource } from "../../src/utils/image";
 import { getBaseURL } from "../../src/https";
 import { usePlayer } from "../../src/context/PlayerContext";
 import { mvPlaylistStore } from "../../src/store/mvPlaylist";
+import { trackEvent } from "../../src/services/tracking";
 
 const formatTime = (seconds: number) => {
   if (!seconds || isNaN(seconds)) return "0:00";
@@ -56,6 +57,17 @@ export default function MvScreen() {
 
   const videoViewRef = useRef<VideoView>(null);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({
+      feature: TF.CONTENT,
+      eventName: TE.CONTENT_MV_OPEN,
+      metadata: { id: targetId },
+    });
+  }, [targetId]);
 
   const playlistState = useSyncExternalStore(
     mvPlaylistStore.subscribe,

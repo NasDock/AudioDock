@@ -16,6 +16,8 @@ import {
   getDeletionImpact,
   getPlaylists,
   type Playlist,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import { Checkbox, Dropdown, type MenuProps, Modal, Typography } from "antd";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -24,6 +26,7 @@ import { useMessage } from "../../context/MessageContext";
 import { type Track, TrackSource, TrackType } from "../../models";
 import { downloadTrack } from "../../services/downloadManager";
 import { resolveArtworkUri } from "../../services/trackResolver";
+import { trackEvent } from "../../services/tracking";
 import { useAuthStore } from "../../store/auth";
 import { type PlaylistSource, usePlayerStore } from "../../store/player";
 import { formatDuration } from "../../utils/formatDuration";
@@ -209,6 +212,11 @@ const TrackList: React.FC<TrackListProps> = ({
     actionType: "like" | "unlike",
   ) => {
     e.stopPropagation();
+    trackEvent({
+      feature: TF.FAVORITE,
+      eventName: actionType === "like" ? TE.FAVORITE_ADD : TE.FAVORITE_REMOVE,
+      metadata: { trackId: track.id },
+    });
     try {
       await toggleLike(track.id, actionType);
       if (onRefresh) onRefresh();
@@ -528,6 +536,11 @@ const TrackList: React.FC<TrackListProps> = ({
                     label: t("common.download"),
                     icon: <CloudDownloadOutlined />,
                     onClick: () => {
+                      trackEvent({
+                        feature: TF.DOWNLOAD,
+                        eventName: TE.DOWNLOAD_START,
+                        metadata: { trackId: track.id },
+                      });
                       message.info(
                         t("common.downloading", { name: track.name }),
                       );

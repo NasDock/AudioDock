@@ -2,7 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { resetPassword, verifyDevice } from "@soundx/services"; // verifyDevice and resetPassword need to be exported from services/index
 import * as Device from "expo-device";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../src/context/ThemeContext";
+import { trackEvent } from "../src/services/tracking";
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -33,6 +35,16 @@ export default function ForgotPasswordScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const deviceName = Device.modelName || "Mobile Device";
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({
+      feature: TF.LOGIN,
+      eventName: TE.LOGIN_FORGOT_PASSWORD_OPEN,
+    });
+  }, []);
 
   const handleVerify = async () => {
     if (!username) {

@@ -15,6 +15,8 @@ import {
     uploadArtistAvatar,
     getMvsByArtist,
     playMiDevicePlaylist,
+    TrackingEvent as TE,
+    TrackingFeature as TF,
 } from "@soundx/services";
 import type { Mv } from "@soundx/services";
 import {
@@ -42,6 +44,7 @@ import { useAdaptiveCoverSize } from "../../hooks/useAdaptiveCoverSize";
 import { useLoadMore } from "../../hooks/useLoadMore";
 import { type Album, type Artist, type Track, TrackType } from "../../models";
 import { downloadTracks } from "../../services/downloadManager";
+import { trackEvent } from "../../services/tracking";
 import { resolveArtworkUri } from "../../services/trackResolver";
 import { useAuthStore } from "../../store/auth";
 import { isMvSupported } from "../../utils";
@@ -117,8 +120,18 @@ const ArtistDetail: React.FC = () => {
   // Mi Speaker cast state
   const [isMiDeviceSelectorOpen, setIsMiDeviceSelectorOpen] = useState(false);
   const [isCastingToMi, setIsCastingToMi] = useState(false);
+  const openReportedRef = useRef(false);
 
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({
+        feature: TF.CONTENT,
+        eventName: TE.CONTENT_ARTIST_OPEN,
+        metadata: { artistId: id },
+      });
+    }
+
     const fetchData = async () => {
       if (!id) return;
       setLoading(true);

@@ -1,8 +1,8 @@
-import { Album, Artist, Track, getCollections, loadMoreAlbum, loadMoreArtist, loadMoreTrack, Mv, getMvList } from '@soundx/services';
+import { Album, Artist, Track, getCollections, loadMoreAlbum, loadMoreArtist, loadMoreTrack, Mv, getMvList, TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services';
 import { mvPlaylistStore } from '../../store/mvPlaylist';
 import { Image, ScrollView, Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MiniPlayer from '../../components/MiniPlayer';
 import QuickLocate from '../../components/QuickLocate';
@@ -12,6 +12,7 @@ import { usePlayer } from '../../context/PlayerContext';
 import { usePlayMode } from '../../utils/playMode';
 import { getImageUrl as buildImageUrl } from '../../utils/image';
 import { isMvSupported } from '../../utils/mvSupport';
+import { trackEvent } from '../../utils/tracking';
 import './index.scss';
 
 const SONG_SKELETON_COUNT = 9;
@@ -53,6 +54,13 @@ export default function Library() {
   const currentSourceType = Taro.getStorageSync('currentSourceType') || 'AudioDock';
   const canSwitchMode = currentSourceType !== 'Subsonic';
   const mvSupported = isMvSupported(currentSourceType);
+  const libraryOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (libraryOpenedRef.current) return;
+    libraryOpenedRef.current = true;
+    void trackEvent({ feature: TF.LIBRARY, eventName: TE.LIBRARY_OPEN });
+  }, []);
 
   const loadData = async (isLoadMore = false) => {
     if (!isLoadMore) {

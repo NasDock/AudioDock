@@ -12,6 +12,7 @@ import pasteboard from '@ohos.pasteboard';
 import { kvStore } from 'features_storage';
 import { Logger } from 'audiodock_common';
 import { buildTheme } from 'features_ui';
+import { trackEvent, TE } from 'features_network';
 import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { playerThemeStore } from '../theme/playerThemeStore';
@@ -42,11 +43,17 @@ struct PlayerThemePage {
 
   private unsubTheme: (() => void) | null = null;
 
+  @State private playerThemeOpenTracked: boolean = false;
+
   onThemeModeChange(): void {
     this.theme = buildTheme(this.themeMode);
   }
 
   aboutToAppear(): void {
+    if (!this.playerThemeOpenTracked) {
+      this.playerThemeOpenTracked = true;
+      trackEvent(TE.THEME_PLAYER_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.unsubTheme = playerThemeStore.subscribe((): void => this.refreshList());
     playerThemeStore.hydrate()

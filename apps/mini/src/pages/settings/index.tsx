@@ -1,7 +1,7 @@
-import { plusDeleteMe, plusParticipateInternalTest } from '@soundx/services';
+import { plusDeleteMe, plusParticipateInternalTest, TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services';
 import { ScrollView, Slider, Switch, Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -35,6 +35,13 @@ export default function Settings() {
   const [showScreenInsetModal, setShowScreenInsetModal] = useState(false);
   const [redeemingInternalTestCode, setRedeemingInternalTestCode] = useState(false);
   const [isVip, setIsVip] = useState(false);
+  const settingsOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (settingsOpenedRef.current) return;
+    settingsOpenedRef.current = true;
+    void trackEvent({ feature: TF.SETTINGS, eventName: TE.SETTINGS_OPEN });
+  }, []);
 
   useEffect(() => {
     const isVipStr = Taro.getStorageSync('plus_vip_status');
@@ -119,6 +126,11 @@ export default function Settings() {
       Taro.showToast({ title: t('settings.loginFirst'), icon: 'none' });
       return;
     }
+
+    void trackEvent({
+      feature: TF.MEMBER,
+      eventName: TE.MEMBER_INTERNAL_TEST_SUBMIT,
+    });
 
     try {
       setRedeemingInternalTestCode(true);

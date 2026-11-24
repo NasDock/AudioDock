@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { addTracksToPlaylist, createPlaylist } from "@soundx/services";
+import { addTracksToPlaylist, createPlaylist, TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import React, { useState } from "react";
 import {
     Alert,
@@ -16,6 +16,7 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { Album, Track, TrackType } from "../models";
 import { downloadTracks } from "../services/downloadManager";
+import { trackEvent } from "../services/tracking";
 
 interface AlbumMoreModalProps {
   visible: boolean;
@@ -144,8 +145,18 @@ export const AlbumMoreModal: React.FC<AlbumMoreModalProps> = ({
                 Alert.alert(t('albumMore.batchDownload'), t('albumMore.confirmBatchDownload', { albumName: album.name }), [
                   { text: t('common.cancel'), style: "cancel" },
                   { text: t('common.confirm'), onPress: () => {
+                    trackEvent({
+                      feature: TF.DOWNLOAD,
+                      eventName: TE.DOWNLOAD_START,
+                      metadata: { id: album.id, count: tracks.length },
+                    });
                     downloadTracks(tracks, (completed: number, total: number) => {
                       if (completed === total) {
+                        trackEvent({
+                          feature: TF.DOWNLOAD,
+                          eventName: TE.DOWNLOAD_SUCCESS,
+                          metadata: { id: album.id, count: total },
+                        });
                         Alert.alert(t('albumMore.batchDownloadComplete'), t('albumMore.batchDownloadComplete', { albumName: album.name }));
                       }
                     });

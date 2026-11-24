@@ -1,13 +1,14 @@
-import { getAlbumHistory, getAlbumTracks, getLatestArtists, getLatestTracks, getRecentAlbums, getRecommendedAlbums } from '@soundx/services'
+import { getAlbumHistory, getAlbumTracks, getLatestArtists, getLatestTracks, getRecentAlbums, getRecommendedAlbums, TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services'
 import { Image, ScrollView, Text, View } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import MiniPlayer from '../../components/MiniPlayer'
 import { useAuth } from '../../context/AuthContext'
 import { usePlayer } from '../../context/PlayerContext'
 import { usePlayMode } from '../../utils/playMode'
 import { getImageUrl as buildImageUrl } from '../../utils/image';
+import { trackEvent } from '../../utils/tracking'
 import './index.scss'
 
 export default function Index() {
@@ -17,6 +18,13 @@ export default function Index() {
   const { user } = useAuth()
   const [sections, setSections] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const homeOpenedRef = useRef(false)
+
+  useEffect(() => {
+    if (homeOpenedRef.current) return
+    homeOpenedRef.current = true
+    void trackEvent({ feature: TF.CONTENT, eventName: TE.HOME_OPEN })
+  }, [])
 
   const getLatestResumePoint = async (
     albumId: number | string,

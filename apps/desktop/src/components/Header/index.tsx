@@ -44,6 +44,8 @@ import {
   plusDeleteMe,
   plusGetMe,
   plusParticipateInternalTest,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
   searchAll,
   setPlusToken as setPlusServiceToken,
   setServiceConfig,
@@ -392,6 +394,7 @@ const Header: React.FC = () => {
   const searchTimerRef = useRef<number | null>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<any>(null);
+  const searchOpenReportedRef = useRef(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [hotSearches, setHotSearches] = useState<
     { keyword: string; count: number }[]
@@ -513,6 +516,11 @@ const Header: React.FC = () => {
   };
 
   const performSearch = async (value: string) => {
+    trackEvent({
+      feature: TF.SEARCH,
+      eventName: TE.SEARCH_SUBMIT,
+      metadata: { keyword: value.trim() },
+    });
     try {
       const type = playMode;
       const results = await searchAll(value.trim(), type);
@@ -987,6 +995,10 @@ const Header: React.FC = () => {
             }
           }}
           onFocus={() => {
+            if (!searchOpenReportedRef.current) {
+              searchOpenReportedRef.current = true;
+              trackEvent({ feature: TF.SEARCH, eventName: TE.SEARCH_OPEN });
+            }
             setShowResults(true);
             fetchSearchMeta();
           }}

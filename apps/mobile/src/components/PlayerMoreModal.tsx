@@ -6,6 +6,7 @@ import { trackEvent } from "@/src/services/tracking";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Slider } from "@miblanchard/react-native-slider";
 import { Router } from "expo-router";
+import { TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -173,8 +174,18 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
     if (!currentTrack || isDownloaded || isDownloading) return;
 
     setIsDownloading(true);
+    trackEvent({
+      feature: TF.DOWNLOAD,
+      eventName: TE.DOWNLOAD_START,
+      metadata: { id: currentTrack.id, count: 1 },
+    });
     try {
       const success = await downloadTrack(currentTrack);
+      trackEvent({
+        feature: TF.DOWNLOAD,
+        eventName: success ? TE.DOWNLOAD_SUCCESS : TE.DOWNLOAD_FAILED,
+        metadata: { id: currentTrack.id, count: 1 },
+      });
       if (success) {
         setIsDownloaded(true);
         Alert.alert(t('playerMore.downloadComplete'), t('playerMore.trackDownloaded', { trackName: currentTrack.name }));

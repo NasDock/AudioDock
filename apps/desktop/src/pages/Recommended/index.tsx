@@ -13,6 +13,8 @@ import {
   getRecommendedAlbums,
   toggleTrackLike,
   toggleTrackUnLike,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import { useDebounceFn } from "ahooks";
 import {
@@ -32,6 +34,7 @@ import { getBaseURL } from "../../https";
 import type { Album, Artist, Track } from "../../models";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
+import { trackEvent } from "../../services/tracking";
 import { useSettingsStore } from "../../store/settings";
 import { cacheUtils } from "../../utils/cache";
 import { usePlayMode } from "../../utils/playMode";
@@ -68,8 +71,18 @@ const Recommended: React.FC = () => {
   // 不能用 ref 在渲染期读——loading 切换会卸载/重挂容器，渲染时 ref 可能还是 null
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
+  const openReportedRef = React.useRef(false);
 
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({
+        feature: TF.CONTENT,
+        eventName: TE.HOME_OPEN,
+        metadata: { page: "recommended" },
+      });
+    }
+
     const el = containerRef.current;
     if (!el) return;
     const update = () => setContainerWidth(el.clientWidth);

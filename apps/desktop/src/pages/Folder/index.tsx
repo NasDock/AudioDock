@@ -19,6 +19,8 @@ import {
   getFolderRoots,
   getFolderStats,
   type Folder as FolderType,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import {
   Breadcrumb,
@@ -35,12 +37,13 @@ import {
   theme,
   Typography
 } from "antd";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { usePlaylistStore } from "../../store/playlist";
+import { trackEvent } from "../../services/tracking";
 import { getCoverUrl } from "../../utils";
 import { usePlayMode } from "../../utils/playMode";
 import { useTranslation } from "react-i18next";
@@ -50,6 +53,7 @@ const { Text } = Typography;
 
 const FolderPage: React.FC = () => {
   const { t } = useTranslation();
+  const reportedOpenRef = useRef(false);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { mode } = usePlayMode();
@@ -104,6 +108,14 @@ const FolderPage: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!reportedOpenRef.current) {
+      reportedOpenRef.current = true;
+      trackEvent({
+        feature: TF.CONTENT,
+        eventName: TE.CONTENT_FOLDER_OPEN,
+        metadata: { folderId: id ?? "root", page: id ? "detail" : "list" },
+      });
+    }
     fetchData();
   }, [id, mode]);
 

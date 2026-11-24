@@ -5,7 +5,7 @@ import { buildTheme } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { formatDuration, Logger } from 'audiodock_common';
-import { trackApi, playlistApi, artistApi, albumApi, miApi, plusApi, setPlusAuthToken, deviceApi, mvApi, isMvSupported } from 'features_network';
+import { trackApi, playlistApi, artistApi, albumApi, miApi, plusApi, setPlusAuthToken, deviceApi, mvApi, isMvSupported, trackEvent, TE } from 'features_network';
 import type { PlaylistDto, ArtistDto, AlbumDto, MiDevice, TrackDto, OnlineDevice, MVDto, PlaybackQualityOption, PlaybackQualityProfile } from 'features_network';
 import { kvStore } from 'features_storage';
 import type { LyricLine } from 'features_player';
@@ -807,8 +807,10 @@ struct PlayerPage {
     const cur = this.current();
     if (!cur) return;
     if (this.liked) {
+      trackEvent(TE.PLAYER_UNLIKE).catch((): void => undefined);
       likesHistory.unlikeTrack(cur.id).catch(() => undefined);
     } else {
+      trackEvent(TE.PLAYER_LIKE).catch((): void => undefined);
       likesHistory.likeTrack(cur.id).catch(() => undefined);
     }
   }
@@ -2804,6 +2806,9 @@ struct PlayerPage {
    * 页面关闭后继续计时，到点自动 pause。这里只负责下发指令 + toast。
    */
   private setSleepTimer(minutes: number): void {
+    const sleepTimerMeta: Record<string, Object> = {};
+    sleepTimerMeta['minutes'] = minutes;
+    trackEvent(TE.PLAYER_SLEEP_TIMER_SET, sleepTimerMeta).catch((): void => undefined);
     if (minutes <= 0) {
       playerStore.setSleepTimer(0);
       promptAction.showToast({ message: t('player.cancelTimer') });
@@ -2827,12 +2832,18 @@ struct PlayerPage {
 
   /** 后退 15s（对齐 mobile handleSkipBackward：seekTo(max(0, position-15))） */
   private skipBackward15(): void {
+    const seekMeta: Record<string, Object> = {};
+    seekMeta['direction'] = 'backward';
+    trackEvent(TE.PLAYER_SEEK, seekMeta).catch((): void => undefined);
     const targetMs: number = Math.max(0, this.view.currentMs - 15000);
     playerStore.seek(targetMs).catch(() => undefined);
   }
 
   /** 前进 15s（对齐 mobile handleSkipForward：seekTo(position+15)，不超出总时长） */
   private skipForward15(): void {
+    const seekMeta: Record<string, Object> = {};
+    seekMeta['direction'] = 'forward';
+    trackEvent(TE.PLAYER_SEEK, seekMeta).catch((): void => undefined);
     let targetMs: number = this.view.currentMs + 15000;
     if (this.view.durationMs > 0) targetMs = Math.min(targetMs, this.view.durationMs);
     playerStore.seek(targetMs).catch(() => undefined);

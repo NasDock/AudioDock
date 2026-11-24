@@ -3,7 +3,7 @@ import {
   SyncOutlined,
   UnorderedListOutlined,
 } from "@ant-design/icons";
-import { getFavoriteAlbums, getFavoriteTracks, type ILoadMoreData, toPagedResult } from "@soundx/services";
+import { getFavoriteAlbums, getFavoriteTracks, type ILoadMoreData, toPagedResult, TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import { useTranslation } from "react-i18next";
 import {
   Button,
@@ -17,7 +17,7 @@ import {
   Typography,
   theme,
 } from "antd";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Cover from "../../components/Cover/index";
 import TrackList from "../../components/TrackList";
 import type { TimelineItem } from "../../models";
@@ -25,6 +25,7 @@ import { type Album, type Track } from "../../models";
 import { useLoadMore } from "../../hooks/useLoadMore";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
+import { trackEvent } from "../../services/tracking";
 import { usePlayMode } from "../../utils/playMode";
 import { formatTimeLabel } from "../../utils/timeFormat";
 import { isFnosSource } from "../../utils";
@@ -34,6 +35,7 @@ const { Title } = Typography;
 
 const Favorites: React.FC = () => {
   const { t } = useTranslation();
+  const openReportedRef = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
   // 飞牛音乐只支持单曲收藏（专辑收藏接口返回空），因此只保留单曲视图
   const fnosSource = isFnosSource();
@@ -50,6 +52,12 @@ const Favorites: React.FC = () => {
   const type = mode;
 
   const PAGE_SIZE = 100;
+
+  useEffect(() => {
+    if (openReportedRef.current) return;
+    openReportedRef.current = true;
+    trackEvent({ feature: TF.LIBRARY, eventName: TE.LIBRARY_OPEN });
+  }, []);
 
   const { list: timelineList, hasMore, loading, loadingMore, sentinelRef, reload, error } = useLoadMore<{
     id: string;

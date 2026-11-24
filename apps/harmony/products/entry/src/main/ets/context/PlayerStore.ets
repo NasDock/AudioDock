@@ -3,7 +3,7 @@ import { kvStore, fileCache } from 'features_storage';
 import { audioBackend, findActiveLine, parseLRC } from 'features_player';
 import { socketService } from 'features_socket';
 import type { LyricLine } from 'features_player';
-import { isFnosSource, getFnosPlaybackHeaders, userDataApi } from 'features_network';
+import { isFnosSource, getFnosPlaybackHeaders, userDataApi, trackEvent, TE } from 'features_network';
 import type { TrackDto } from 'features_network';
 import { syncStore } from './SyncStore';
 import { authStore } from './AuthStore';
@@ -226,6 +226,9 @@ export class PlayerStore {
 
   async playTrackList(tracks: Track[], startIndex: number): Promise<void> {
     if (tracks.length === 0) return;
+    const playListMeta: Record<string, Object> = {};
+    playListMeta['count'] = tracks.length;
+    trackEvent(TE.PLAYER_PLAY_LIST, playListMeta).catch((): void => undefined);
     this.applyIncomingContentMode(tracks[Math.max(0, Math.min(startIndex, tracks.length - 1))]);
     this.queue = tracks.slice();
     this.currentIndex = Math.max(0, Math.min(startIndex, tracks.length - 1));
@@ -266,6 +269,7 @@ export class PlayerStore {
   }
 
   async playTrack(track: Track): Promise<void> {
+    trackEvent(TE.PLAYER_PLAY_TRACK).catch((): void => undefined);
     if (this.queue.length === 0 || this.queue[this.currentIndex]?.id !== track.id) {
       this.applyIncomingContentMode(track);
       this.queue = [track];
@@ -304,6 +308,7 @@ export class PlayerStore {
    * 调用方（MainPage.toggleRadioMode）负责跳路由与拿曲目。
    */
   async startRadioMode(track: Track): Promise<void> {
+    trackEvent(TE.RADIO_ENTER).catch((): void => undefined);
     this.radioMode = true;
     this.notify();
     await this.playTrack(track);
@@ -315,6 +320,7 @@ export class PlayerStore {
    */
   exitRadioPlaybackContext(): void {
     if (!this.radioMode) return;
+    trackEvent(TE.RADIO_EXIT).catch((): void => undefined);
     this.radioMode = false;
     this.notify();
   }
@@ -352,6 +358,7 @@ export class PlayerStore {
     if (this.queue.length === 0) return;
     const next = this.computeNextIndex();
     if (next < 0) return;
+    trackEvent(TE.PLAYER_NEXT).catch((): void => undefined);
     this.currentIndex = next;
     this.persistState();
     await this.loadCurrent();
@@ -364,6 +371,7 @@ export class PlayerStore {
     // 且该分支 seek 后未同步 this.currentMs，连点两次才切歌，用户感知为 bug。
     const prev = this.computePrevIndex();
     if (prev < 0) return;
+    trackEvent(TE.PLAYER_PREVIOUS).catch((): void => undefined);
     this.currentIndex = prev;
     this.persistState();
     await this.loadCurrent();
@@ -378,6 +386,9 @@ export class PlayerStore {
   }
 
   async togglePlay(): Promise<void> {
+    const toggleMeta: Record<string, Object> = {};
+    toggleMeta['playing'] = !this.isPlaying;
+    trackEvent(TE.PLAYER_TOGGLE, toggleMeta).catch((): void => undefined);
     const cur = this.queue[this.currentIndex];
     if (cur && this.loadedTrackId !== cur.id) {
       // 恢复态（冷启动/内容模式切换后）曲目尚未加载进后端：加载并从记录位置续播

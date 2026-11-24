@@ -4,7 +4,7 @@ import { buildTheme, type Theme, type ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { kvStore } from 'features_storage';
 import { Logger } from 'audiodock_common';
-import { plusApi, setPlusAuthToken } from 'features_network';
+import { plusApi, setPlusAuthToken, trackingService, TE } from 'features_network';
 import { widgetBridge } from '../services/WidgetBridge';
 import { openInBrowser } from '../utils/browserUtils';
 
@@ -135,6 +135,9 @@ struct MemberLoginPage {
       await kvStore.set('plus_token', res.token);
       await kvStore.set('plus_user_id', res.userId);
       setPlusAuthToken(res.token);
+      // 埋点身份同步 + 登录成功事件（userId 用刚拿到的值，不依赖缓存）
+      trackingService.setMemberUserId(res.userId);
+      trackingService.track(TE.LOGIN_SUCCESS, undefined, res.userId).catch((): void => undefined);
       // 登录成功立即同步小部件 VIP 状态（不等下次冷启动 refreshAll）
       widgetBridge.syncVip().catch((): void => undefined);
       promptAction.showToast({ message: t('memberLogin.loginSuccess') });

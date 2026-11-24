@@ -4,7 +4,7 @@ import media from '@ohos.multimedia.media';
 import { kvStore } from 'features_storage';
 import { t, getLang } from 'features_i18n';
 import { Logger } from 'audiodock_common';
-import { ttsApi, plusApi } from 'features_network';
+import { ttsApi, plusApi, trackEvent, TE } from 'features_network';
 import type { TtsProvider, TtsVoice, TtsFileItem, TtsReviewItem, TtsBatchCreateFile } from 'features_network';
 import { buildTheme } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
@@ -37,8 +37,13 @@ struct TtsCreateTaskPage {
   @State previewLoading: string = '';
 
   private previewPlayer: media.AVPlayer | null = null;
+  @State private ttsCreateEntryTracked: boolean = false;
 
   aboutToAppear(): void {
+    if (!this.ttsCreateEntryTracked) {
+      this.ttsCreateEntryTracked = true;
+      trackEvent(TE.TTS_CREATE_ENTRY_CLICK).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.ensureVipAccess().then((ok: boolean) => {
       if (ok) {

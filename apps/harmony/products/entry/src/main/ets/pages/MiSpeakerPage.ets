@@ -2,7 +2,7 @@ import router from '@ohos.router';
 import promptAction from '@ohos.promptAction';
 import { t, getLang } from 'features_i18n';
 import { Logger } from 'audiodock_common';
-import { miApi } from 'features_network';
+import { miApi, trackEvent, TE } from 'features_network';
 import type {
   MiAuthStatusResponse,
   MiKeyword,
@@ -127,8 +127,13 @@ struct MiSpeakerPage {
   @State castPage: number = 1;
   @State castLoading: boolean = true;
   @State castLoadingMore: boolean = false;
+  @State private castOpenTracked: boolean = false;
 
   aboutToAppear(): void {
+    if (!this.castOpenTracked) {
+      this.castOpenTracked = true;
+      trackEvent(TE.CAST_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.checkAuth();
   }

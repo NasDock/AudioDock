@@ -1,5 +1,6 @@
 import { useTheme } from "@/src/context/ThemeContext";
 import { Slider } from "@miblanchard/react-native-slider";
+import { TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import React, { useEffect, useState } from "react";
 import {
   Modal,
@@ -13,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import * as AudioEq from "../../modules/audio-eq";
 import { useSettings } from "../context/SettingsContext";
+import { trackEvent } from "../services/tracking";
 
 const BAND_KEYS = [
   { index: 0, label: "60Hz", key: "equalizer.subBass" },
@@ -139,6 +141,11 @@ export const EqualizerModal: React.FC<EqualizerModalProps> = ({
   };
 
   const handleSlidingComplete = (bandIndex: number, value: number) => {
+    trackEvent({
+      feature: TF.PLAYER,
+      eventName: TE.PLAYER_EQUALIZER_CHANGE,
+      metadata: { band: bandIndex, value },
+    });
     setGains((prev) => {
       const newGains = [...prev];
       newGains[bandIndex] = value;

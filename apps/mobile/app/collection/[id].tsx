@@ -9,10 +9,12 @@ import {
   reorderCollection,
   updateCollection,
   uploadCollectionCover,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import {
   Alert,
@@ -26,6 +28,7 @@ import {
 import Modal from "react-native-modal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getImageSource } from "@/src/utils/image";
+import { trackEvent } from "@/src/services/tracking";
 
 const COLLECTION_ITEM_COVER_SIZE = 56;
 
@@ -43,6 +46,17 @@ export default function CollectionDetailScreen() {
   const [nameInput, setNameInput] = useState("");
   const [reorderMode, setReorderMode] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({
+      feature: TF.CONTENT,
+      eventName: TE.CONTENT_COLLECTION_OPEN,
+      metadata: { id },
+    });
+  }, [id]);
 
   useEffect(() => {
     if (id) {

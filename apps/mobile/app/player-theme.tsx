@@ -2,7 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -20,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../src/context/ThemeContext";
 import { playerThemeStore, usePlayerThemeState } from "../src/store/playerTheme";
 import { goBackOrReplace } from "../src/utils/navigation";
+import { trackEvent } from "../src/services/tracking";
 
 /** 与 player.tsx / usePlayerTheme 同一口径的本地 VIP 判定 */
 const useLocalVipStatus = (): boolean => {
@@ -59,6 +61,13 @@ export default function PlayerThemeScreen() {
   /** 编辑态：editingId 非空时展示全屏编辑页，editText 为预填的主题 JSON */
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({ feature: TF.THEME, eventName: TE.THEME_PLAYER_OPEN });
+  }, []);
 
   const handleImport = () => {
     const text = jsonText.trim();
@@ -174,7 +183,14 @@ export default function PlayerThemeScreen() {
           >
             <TouchableOpacity
               style={styles.themeRow}
-              onPress={() => playerThemeStore.setActive(null)}
+              onPress={() => {
+                trackEvent({
+                  feature: TF.THEME,
+                  eventName: TE.THEME_PLAYER_SELECT,
+                  metadata: { id: "default" },
+                });
+                playerThemeStore.setActive(null);
+              }}
             >
               <Ionicons
                 name={activeId === null ? "radio-button-on" : "radio-button-off"}
@@ -208,7 +224,14 @@ export default function PlayerThemeScreen() {
                 >
                   <TouchableOpacity
                     style={styles.themeMain}
-                    onPress={() => playerThemeStore.setActive(id)}
+                    onPress={() => {
+                      trackEvent({
+                        feature: TF.THEME,
+                        eventName: TE.THEME_PLAYER_SELECT,
+                        metadata: { id },
+                      });
+                      playerThemeStore.setActive(id);
+                    }}
                   >
                     <Ionicons
                       name={active ? "radio-button-on" : "radio-button-off"}

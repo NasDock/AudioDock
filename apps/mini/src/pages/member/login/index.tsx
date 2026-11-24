@@ -1,10 +1,11 @@
-import { plusGetMe, plusLogin, plusSendCode, setPlusToken } from '@soundx/services';
+import { plusGetMe, plusLogin, plusSendCode, setPlusToken, TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services';
 import { Image, Input, Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import './index.scss';
 import logoImg from '../../../assets/images/logo.png';
+import { trackEvent } from '../../../utils/tracking';
 
 export default function MemberLogin() {
   const { t } = useTranslation();
@@ -13,6 +14,13 @@ export default function MemberLogin() {
   const [loading, setLoading] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const loginPageOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (loginPageOpenedRef.current) return;
+    loginPageOpenedRef.current = true;
+    void trackEvent({ feature: TF.LOGIN, eventName: TE.LOGIN_PAGE_OPEN });
+  }, []);
 
   const handleSendCode = async () => {
     if (!phone) {
@@ -48,11 +56,15 @@ export default function MemberLogin() {
       Taro.showToast({ title: t('member.enterPhoneAndCode'), icon: 'none' });
       return;
     }
+    void trackEvent({ feature: TF.LOGIN, eventName: TE.LOGIN_SUBMIT });
+
     setLoading(true);
     try {
       const res = await plusLogin({ phone, code });
       if (res.data.code === 201 || res.data.code === 200) {
         const { token: plusToken, userId } = res.data.data;
+
+        void trackEvent({ feature: TF.LOGIN, eventName: TE.LOGIN_SUCCESS });
 
         // 保存 Plus Token
         Taro.setStorageSync('plus_token', plusToken);
@@ -76,9 +88,11 @@ export default function MemberLogin() {
           Taro.navigateBack();
         }, 1500);
       } else {
+        void trackEvent({ feature: TF.LOGIN, eventName: TE.LOGIN_FAILED });
         Taro.showToast({ title: res.data.message || t('member.codeError'), icon: 'none' });
       }
     } catch (e: any) {
+      void trackEvent({ feature: TF.LOGIN, eventName: TE.LOGIN_FAILED });
       Taro.showToast({ title: e.response?.data?.message || t('member.loginFailedRetry'), icon: 'none' });
     } finally {
       setLoading(false);

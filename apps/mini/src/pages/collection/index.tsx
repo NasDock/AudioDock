@@ -1,10 +1,11 @@
-import { Album, getCollectionById } from '@soundx/services';
+import { Album, getCollectionById, TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services';
 import { Image, ScrollView, Text, View } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MiniPlayer from '../../components/MiniPlayer';
 import { getImageUrl as buildImageUrl } from '../../utils/image';
+import { trackEvent } from '../../utils/tracking';
 import './index.scss';
 import BottomTabBar from '../../components/BottomTabBar';
 
@@ -22,6 +23,17 @@ export default function CollectionPage() {
   const [collection, setCollection] = useState<CollectionDetail | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
+  const collectionOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (collectionOpenedRef.current) return;
+    collectionOpenedRef.current = true;
+    void trackEvent({
+      feature: TF.CONTENT,
+      eventName: TE.CONTENT_COLLECTION_OPEN,
+      metadata: { id },
+    });
+  }, []);
 
   useEffect(() => {
     if (!id) return;

@@ -1,11 +1,16 @@
 import { Col, Empty, Row, Spin, theme, Typography } from "antd";
 import React, { useEffect, useRef, useState } from "react";
-import { getMvList } from "@soundx/services";
+import {
+  getMvList,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
+} from "@soundx/services";
 import type { Mv } from "@soundx/services";
 import Cover from "../../components/Cover";
 import { useAdaptiveCoverSize } from "../../hooks/useAdaptiveCoverSize";
 import styles from "./index.module.less";
 import { useTranslation } from "react-i18next";
+import { trackEvent } from "../../services/tracking";
 import { useMvPlaylistStore } from "../../store/mvPlaylist";
 import { useNavigate } from "react-router-dom";
 
@@ -21,6 +26,7 @@ const Mvs: React.FC = () => {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const openReportedRef = useRef(false);
 
   const PAGE_SIZE = 50;
 
@@ -57,6 +63,14 @@ const Mvs: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({
+        feature: TF.CONTENT,
+        eventName: TE.CONTENT_MV_OPEN,
+        metadata: { page: "list" },
+      });
+    }
     setPage(1);
     setItems([]);
     setHasMore(true);

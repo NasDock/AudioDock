@@ -6,7 +6,7 @@ import { buildTheme, CommonNavBar, CommonButton, EmptyView, SkeletonBlock } from
 import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { Logger } from 'audiodock_common';
-import { albumApi, mvApi, miApi, trackApi, playlistApi, collectionApi, isMvSupported } from 'features_network';
+import { albumApi, mvApi, miApi, trackApi, playlistApi, collectionApi, isMvSupported, trackEvent, TE } from 'features_network';
 import type { AlbumDto, TrackDto, MVDto, AlbumTracksResp, MiDevice, MiTrackPayload, CollectionDto } from 'features_network';
 import { DetailHero } from '../components/DetailHero';
 import { TrackRow } from '../components/TrackRow';
@@ -75,12 +75,17 @@ export struct AlbumDetailContent {
   @State theme: Theme = buildTheme('light');
   private unsubLike: () => void = () => {};
   private unsubPlayer: () => void = () => {};
+  @State private albumDetailOpenTracked: boolean = false;
 
   onThemeModeChange(): void {
     this.theme = buildTheme(this.themeMode);
   }
 
   aboutToAppear(): void {
+    if (!this.albumDetailOpenTracked) {
+      this.albumDetailOpenTracked = true;
+      trackEvent(TE.CONTENT_ALBUM_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.load();
     this.unsubLike = likesHistory.on('albumLike', (e) => {

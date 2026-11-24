@@ -1,6 +1,7 @@
+import { TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services';
 import { Radio, RadioGroup, Switch, Text, Textarea, View } from '@tarojs/components';
 import Taro, { useLoad } from '@tarojs/taro';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import {
@@ -14,6 +15,7 @@ import {
   type MetadataPluginType,
   type MetadataPriority,
 } from '../../services/metadata-plugins';
+import { trackEvent } from '../../utils/tracking';
 import './index.scss';
 
 const TYPE_OPTIONS: MetadataPluginType[] = ['http'];
@@ -66,8 +68,13 @@ export default function PluginCenter() {
   const [saving, setSaving] = useState(false);
   const [priority, setPriority] = useState<MetadataPriority>('plugin');
   const [prioritySaving, setPrioritySaving] = useState(false);
+  const pluginCenterOpenedRef = useRef(false);
 
   useLoad(() => {
+    if (!pluginCenterOpenedRef.current) {
+      pluginCenterOpenedRef.current = true;
+      void trackEvent({ feature: TF.PLUGIN, eventName: TE.PLUGIN_CENTER_OPEN });
+    }
     Taro.setNavigationBarTitle({ title: t('settings.pluginCenter') });
     Taro.setNavigationBarColor({
       frontColor: colors.text === '#11181C' ? '#000000' : '#ffffff',

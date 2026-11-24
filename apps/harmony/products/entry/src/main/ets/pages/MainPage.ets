@@ -5,7 +5,7 @@ import { kvStore } from 'features_storage';
 import { t, getLang } from 'features_i18n';
 import { Logger } from 'audiodock_common';
 import {
-  artistApi, albumApi, trackApi, userDataApi, plusApi, setPlusAuthToken,
+  artistApi, albumApi, trackApi, userDataApi, plusApi, setPlusAuthToken, trackEvent, TE,
 } from 'features_network';
 import type { ArtistDto, AlbumDto, TrackDto } from 'features_network';
 import { MiniPlayer, miniPlayerHasContent } from '../components/MiniPlayer';
@@ -731,8 +731,13 @@ export struct MainPageContent {
   // 左侧播放器面板的尺寸（onAreaChange 测量，用于布局计算 / 调试）
   @State carLayoutWidth: number = 0;
   @State carLayoutHeight: number = 0;
+  @State private homeOpenTracked: boolean = false;
 
   aboutToAppear(): void {
+    if (!this.homeOpenTracked) {
+      this.homeOpenTracked = true;
+      trackEvent(TE.HOME_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.loadVoiceAssistantGate();
     this.loadAcceptSync();

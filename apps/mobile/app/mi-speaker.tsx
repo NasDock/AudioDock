@@ -14,6 +14,8 @@ import {
   type MiConversation,
   type MiCastRecord,
   type MiPagedResponse,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import { initBaseURL } from "../src/https";
 import { useRouter } from "expo-router";
@@ -35,6 +37,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../src/context/ThemeContext";
 import { goBackOrReplace } from "../src/utils/navigation";
+import { trackEvent } from "../src/services/tracking";
 
 const PAGE_SIZE = 20;
 
@@ -498,6 +501,13 @@ const MiSpeakerScreen: React.FC = () => {
   // 未登录时整个页面只展示 LoginTab（不显示 tabBar）；登录后展示 keywords/conversations/casts 三个 tab。
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<MiTab>("keywords");
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({ feature: TF.CAST, eventName: TE.CAST_OPEN });
+  }, []);
 
   // 父组件主动发起首次登录态检查 —— 否则 loggedIn 永远停留在 null，
   // LoginTab 不会挂载（它只在 loggedIn === false 时渲染），页面一直 loading。

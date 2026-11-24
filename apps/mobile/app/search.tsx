@@ -13,11 +13,13 @@ import {
     toggleTrackLike,
     toggleTrackUnLike,
     UserAlbumLike,
-    UserTrackLike
+    UserTrackLike,
+    TrackingEvent as TE,
+    TrackingFeature as TF,
 } from "@soundx/services";
 import { Audio } from "expo-av";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -39,6 +41,7 @@ import { useTheme } from "../src/context/ThemeContext";
 import { Album, Artist, Track } from "../src/models";
 import { getImageSource } from "../src/utils/image";
 import { usePlayMode } from "../src/utils/playMode";
+import { trackEvent } from "../src/services/tracking";
 
 export default function SearchScreen() {
   const { colors } = useTheme();
@@ -70,6 +73,13 @@ export default function SearchScreen() {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({ feature: TF.SEARCH, eventName: TE.SEARCH_OPEN });
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -197,6 +207,11 @@ export default function SearchScreen() {
   useEffect(() => {
     if (keyword.trim().length > 0) {
       const timer = setTimeout(() => {
+        trackEvent({
+          feature: TF.SEARCH,
+          eventName: TE.SEARCH_SUBMIT,
+          metadata: { keyword },
+        });
         handleSearch();
       }, 500);
       return () => clearTimeout(timer);
@@ -248,6 +263,11 @@ export default function SearchScreen() {
         return i;
       });
 
+      trackEvent({
+        feature: TF.FAVORITE,
+        eventName: isLiked ? TE.FAVORITE_REMOVE : TE.FAVORITE_ADD,
+        metadata: { id: item.id, type },
+      });
       if (type === 'track') {
           setResults(prev => ({ ...prev, tracks: updateList(prev.tracks) }));
           await (isLiked ? toggleTrackUnLike(item.id, user.id) : toggleTrackLike(item.id, user.id));
@@ -282,6 +302,11 @@ export default function SearchScreen() {
       <TouchableOpacity
         style={[styles.item, { borderBottomColor: colors.border }]}
         onPress={() => {
+          trackEvent({
+            feature: TF.SEARCH,
+            eventName: TE.SEARCH_RESULT_CLICK,
+            metadata: { id: item.id, type },
+          });
           if (type === "track") {
             playTrack(item);
           } else if (type === "artist") {

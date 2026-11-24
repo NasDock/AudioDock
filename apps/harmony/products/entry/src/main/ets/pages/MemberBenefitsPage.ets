@@ -5,7 +5,7 @@ import { buildTheme, type Theme, type ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { kvStore } from 'features_storage';
 import { Logger } from 'audiodock_common';
-import { plusApi, setPlusAuthToken } from 'features_network';
+import { plusApi, setPlusAuthToken, trackEvent, TE } from 'features_network';
 import type { VipCurrentLowestPriceData, VipPlanPrice, CouponItem, WechatPayPayload } from 'features_network';
 import { openInBrowser } from '../utils/browserUtils';
 import { openEmail } from '../utils/emailUtils';
@@ -39,8 +39,13 @@ struct MemberBenefitsPage {
   // 沉浸式避让区高度（vp，services/systemBar publishAvoidArea 下发）
   @StorageProp('statusBarHeightVp') statusBarHeightVp: number = 0;
   @StorageProp('navBarHeightVp') navBarHeightVp: number = 0;
+  @State private vipBenefitsOpenTracked: boolean = false;
 
   aboutToAppear(): void {
+    if (!this.vipBenefitsOpenTracked) {
+      this.vipBenefitsOpenTracked = true;
+      trackEvent(TE.VIP_BENEFITS_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.loadMemberPhone();
     this.loadPricing();
@@ -117,6 +122,9 @@ struct MemberBenefitsPage {
       return;
     }
     this.loading = true;
+    const paySubmitMeta: Record<string, Object> = {};
+    paySubmitMeta['plan'] = this.selectedPlan;
+    trackEvent(TE.VIP_PAY_SUBMIT, paySubmitMeta).catch((): void => undefined);
     try {
       const res = await plusApi.createPayment(
         userId, this.selectedPlan, 'WECHAT', price,

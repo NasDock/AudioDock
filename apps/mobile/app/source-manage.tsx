@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SOURCEMAP, SOURCETIPSMAP } from "@soundx/services";
+import { SOURCEMAP, SOURCETIPSMAP, TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import * as Network from 'expo-network';
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +30,7 @@ import {
   SOURCE_LABELS,
 } from "../src/constants/sources";
 import { selectBestServer } from "../src/utils/networkUtils";
+import { trackEvent } from "../src/services/tracking";
 
 export default function SourceManageScreen() {
   const { colors } = useTheme();
@@ -56,6 +57,13 @@ export default function SourceManageScreen() {
     key: string;
     id: string;
   } | null>(null);
+
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent({ feature: TF.SOURCE, eventName: TE.SOURCE_MANAGE_OPEN });
+  }, []);
 
   useEffect(() => {
     loadAllConfigs();

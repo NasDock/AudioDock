@@ -6,6 +6,10 @@ import {
   resolveLanguageSelection,
 } from "@soundx/i18e";
 import {
+  TrackingEvent as TE,
+  TrackingFeature as TF,
+} from "@soundx/services";
+import {
   Anchor,
   Button,
   ColorPicker,
@@ -25,6 +29,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { languages } from "../../i18n";
+import { trackEvent } from "../../services/tracking";
 import { useAuthStore } from "../../store/auth";
 import { useSettingsStore } from "../../store/settings";
 import { isTauri } from "../../utils/platform";
@@ -113,6 +118,7 @@ const Settings: React.FC = () => {
 
   const [cacheSize, setCacheSize] = React.useState<string>(t("common.loading"));
   const [clearing, setClearing] = React.useState(false);
+  const openReportedRef = React.useRef(false);
 
   const fetchCacheSize = async () => {
     if (!isTauri()) {
@@ -139,6 +145,7 @@ const Settings: React.FC = () => {
   };
 
   const handleClearCache = async () => {
+    trackEvent({ feature: TF.SETTINGS, eventName: TE.SETTINGS_CACHE_CLEAR });
     setClearing(true);
     try {
       if (isTauri()) {
@@ -167,6 +174,10 @@ const Settings: React.FC = () => {
   };
 
   React.useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({ feature: TF.SETTINGS, eventName: TE.SETTINGS_OPEN });
+    }
     fetchCacheSize();
   }, []);
 
@@ -351,7 +362,14 @@ const Settings: React.FC = () => {
             <div className={styles.control}>
               <Select
                 value={general.internalPlaybackQuality}
-                onChange={(val) => updateGeneral("internalPlaybackQuality", val)}
+                onChange={(val) => {
+                  trackEvent({
+                    feature: TF.QUALITY,
+                    eventName: TE.QUALITY_CHANGE,
+                    metadata: { setting: "internalPlaybackQuality", value: val },
+                  });
+                  updateGeneral("internalPlaybackQuality", val);
+                }}
                 options={PLAYBACK_QUALITY_OPTIONS.map((option) => ({
                   label: t(option.labelKey),
                   value: option.value,

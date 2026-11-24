@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services'
+import { useEffect, useRef, useState } from 'react'
 import { View, Text, Image, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useTranslation } from 'react-i18next'
 import './index.scss'
 import { SOURCEMAP, SOURCETIPSMAP, SourceConfig, selectBestServer, getSourceLogo } from '../../utils/sourceUtils'
 import { useAuth } from '../../context/AuthContext'
+import { trackEvent } from '../../utils/tracking'
 
 export default function SourceManage() {
   const { t } = useTranslation();
@@ -13,6 +15,13 @@ export default function SourceManage() {
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [networkType, setNetworkType] = useState<string>('unknown')
+  const sourceManageOpenedRef = useRef(false)
+
+  useEffect(() => {
+    if (sourceManageOpenedRef.current) return
+    sourceManageOpenedRef.current = true
+    void trackEvent({ feature: TF.SOURCE, eventName: TE.SOURCE_MANAGE_OPEN })
+  }, [])
 
   useEffect(() => {
     loadAllConfigs()

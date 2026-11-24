@@ -1,10 +1,12 @@
+import { TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services'
 import { Button, Image, Input, ScrollView, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext'
 import { setBaseURL } from '../../utils/request'
 import { SOURCEMAP, SOURCETIPSMAP, SourceConfig, getSourceLogo, selectBestServer } from '../../utils/sourceUtils'
+import { trackEvent } from '../../utils/tracking'
 import './index.scss'
 
 // H5 同源部署时默认指向 nginx 代理的 /api；小程序端用 localhost:3000 由用户填写
@@ -19,6 +21,13 @@ export default function LoginForm() {
   const params = Taro.getCurrentInstance().router?.params
   const sourceType = params?.type || 'AudioDock'
   const isAddingSource = params?.adding === 'true'
+  const loginPageOpenedRef = useRef(false)
+
+  useEffect(() => {
+    if (loginPageOpenedRef.current) return
+    loginPageOpenedRef.current = true
+    void trackEvent({ feature: TF.LOGIN, eventName: TE.LOGIN_PAGE_OPEN })
+  }, [])
 
   const [isLogin, setIsLogin] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -165,6 +174,12 @@ export default function LoginForm() {
       return
     }
 
+    void trackEvent({
+      feature: TF.LOGIN,
+      eventName: TE.LOGIN_SUBMIT,
+      metadata: { sourceType, mode: isLogin ? 'login' : 'register' },
+    });
+
     try {
       setLoading(true)
 
@@ -195,6 +210,12 @@ export default function LoginForm() {
         await register({ username, password })
       }
 
+      void trackEvent({
+        feature: TF.LOGIN,
+        eventName: TE.LOGIN_SUCCESS,
+        metadata: { sourceType, mode: isLogin ? 'login' : 'register' },
+      });
+
       if (isAddingSource) {
         Taro.showToast({ title: t('login.dataSourceAddedSuccess'), icon: 'success' })
         setTimeout(() => {
@@ -205,6 +226,11 @@ export default function LoginForm() {
 
       Taro.switchTab({ url: '/pages/personal/index' })
     } catch (error: any) {
+      void trackEvent({
+        feature: TF.LOGIN,
+        eventName: TE.LOGIN_FAILED,
+        metadata: { sourceType, mode: isLogin ? 'login' : 'register' },
+      });
       Taro.showToast({ title: error.message || t('login.authFailed'), icon: 'none' })
     } finally {
       setLoading(false)

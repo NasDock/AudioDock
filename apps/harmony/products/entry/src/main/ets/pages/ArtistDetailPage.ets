@@ -5,7 +5,7 @@ import { buildTheme, CommonNavBar, CommonButton, EmptyView, SkeletonBlock } from
 import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { Logger } from 'audiodock_common';
-import { albumApi, artistApi, trackApi, collectionApi, mvApi, miApi, isMvSupported } from 'features_network';
+import { albumApi, artistApi, trackApi, collectionApi, mvApi, miApi, isMvSupported, trackEvent, TE } from 'features_network';
 import type { AlbumDto, ArtistDto, TrackDto, MVDto, CollectionDto, CollectionAlbumItem, MiDevice, MiTrackPayload } from 'features_network';
 import { DetailHero } from '../components/DetailHero';
 import { SectionHeader } from '../components/SectionHeader';
@@ -75,12 +75,17 @@ export struct ArtistDetailContent {
   @StorageProp('statusBarHeightVp') statusBarHeightVp: number = 0;
   @StorageProp('navBarHeightVp') navBarHeightVp: number = 0;
   private unsubPlayer: () => void = () => {};
+  @State private artistDetailOpenTracked: boolean = false;
 
   onThemeModeChange(): void {
     this.theme = buildTheme(this.themeMode);
   }
 
   aboutToAppear(): void {
+    if (!this.artistDetailOpenTracked) {
+      this.artistDetailOpenTracked = true;
+      trackEvent(TE.CONTENT_ARTIST_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.load();
     this.unsubPlayer = playerStore.subscribe(() => {

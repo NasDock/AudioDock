@@ -8,6 +8,8 @@ import {
   getPlaylists,
   toggleTrackLike,
   toggleTrackUnLike,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import { Avatar, Empty, List, message, Modal, theme } from "antd";
 import React, { useState } from "react";
@@ -17,6 +19,7 @@ import { useTheme } from "../../context/ThemeContext";
 import LazyImage from "../LazyImage";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
+import { trackEvent } from "../../services/tracking";
 import { getCoverUrl } from "../../utils";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
@@ -130,7 +133,17 @@ const SearchResults: React.FC<SearchResultsProps> = ({
     };
 
     return (
-      <div className={styles.resultItem} onClick={onClick}>
+      <div
+        className={styles.resultItem}
+        onClick={() => {
+          trackEvent({
+            feature: TF.SEARCH,
+            eventName: TE.SEARCH_RESULT_CLICK,
+            metadata: { type, id: data?.id },
+          });
+          onClick?.();
+        }}
+      >
         {isArtist ? (
           <Avatar
             src={cover}

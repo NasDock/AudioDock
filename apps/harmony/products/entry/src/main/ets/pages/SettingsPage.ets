@@ -14,7 +14,7 @@ import { getInternalQuality, getExternalQuality } from '../services/trackQuality
 import { applySystemBar } from '../services/systemBar';
 import { isDesktopLyricSupported, setDesktopLyricEnabled } from '../services/avSessionService';
 import { openInBrowser, jumpToAppMarket } from '../utils/browserUtils';
-import { plusApi, setPlusAuthToken } from 'features_network';
+import { plusApi, setPlusAuthToken, trackingService, TE, trackEvent } from 'features_network';
 import { widgetBridge } from '../services/WidgetBridge';
 import { getLatestVersion, fetchReleaseBody, compareVersions, classifyRelease } from '../services/updateService';
 
@@ -152,8 +152,13 @@ struct SettingsPage {
   @State deleteMemberConfirmVisible: boolean = false;
   // 注销请求进行中：禁用弹窗内的确认按钮，避免重复点击
   @State deleteMemberPending: boolean = false;
+  @State private settingsOpenTracked: boolean = false;
 
   aboutToAppear() {
+    if (!this.settingsOpenTracked) {
+      this.settingsOpenTracked = true;
+      trackEvent(TE.SETTINGS_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.loadSettings();
     // 车机模式 VIP 门控（提前预热，避免开关切换时同步等待拉接口）
@@ -529,6 +534,8 @@ struct SettingsPage {
       // 修正：plus 用户 ID 的 key 是 plus_user_id（之前误删 plus_userId，残留脏数据）
       await kvStore.delete('plus_user_id');
       await kvStore.delete('plus_userId');
+      // 埋点身份同步：退出会员后清空 userId
+      trackingService.setMemberUserId(null);
       // 清掉小部件 VIP 缓存（对齐未登录语义：不锁定，走实时查询兜底）
       widgetBridge.clearVipSnapshot().catch((): void => undefined);
       this.deleteMemberConfirmVisible = false;
@@ -1055,6 +1062,13 @@ struct SettingsPage {
             onChange: (val: boolean): void => {
               this.experienceProgramEnabled = val;
               this.updateBoolSetting('experienceProgramEnabled', val);
+              // 埋点开关实时生效（对齐 mobile/mini 的 setTrackingEnabled）
+              trackingService.setTrackingEnabled(val);
+              // ArkTS 禁内联对象字面量，显式构造 Record
+              const expMeta: Record<string, Object> = {};
+              expMeta['enabled'] = val;
+              trackingService.track(TE.SETTINGS_EXPERIENCE_PROGRAM_CHANGE, expMeta)
+                .catch((): void => undefined);
             },
           })
 
@@ -1312,6 +1326,9 @@ struct SettingsPage {
   }
 
   private async clearCache(category: 'covers' | 'music' | 'audiobooks'): Promise<void> {
+    const cacheClearMeta: Record<string, Object> = {};
+    cacheClearMeta['category'] = category;
+    trackEvent(TE.SETTINGS_CACHE_CLEAR, cacheClearMeta).catch((): void => undefined);
     try {
       await fileCache.clearCategory(category);
       await this.loadCacheSizes();
@@ -1414,6 +1431,7 @@ struct SettingsPage {
       }
 
       this.joiningBeta = true;
+      trackEvent(TE.MEMBER_INTERNAL_TEST_SUBMIT).catch((): void => undefined);
       const startsAt: Date = new Date();
       const endsAt: Date = new Date(startsAt);
       endsAt.setMonth(endsAt.getMonth() + 1);

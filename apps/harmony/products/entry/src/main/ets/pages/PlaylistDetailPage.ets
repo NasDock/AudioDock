@@ -3,7 +3,7 @@ import { buildTheme } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { formatDuration } from 'audiodock_common';
-import { playlistApi } from 'features_network';
+import { playlistApi, trackEvent, TE } from 'features_network';
 import type { PlaylistDto, TrackDto } from 'features_network';
 import { resolveTrackToPlayer, playQueueFast } from '../services/trackResolver';
 import { playerStore } from '../context/PlayerStore';
@@ -40,12 +40,17 @@ export struct PlaylistDetailContent {
   @StorageProp('appLang') appLang: string = 'zh-CN';
   @State private langAtBuild: string = getLang();
   @State theme: Theme = buildTheme('light');
+  @State private playlistDetailOpenTracked: boolean = false;
 
   onThemeModeChange(): void {
     this.theme = buildTheme(this.themeMode);
   }
 
   aboutToAppear(): void {
+    if (!this.playlistDetailOpenTracked) {
+      this.playlistDetailOpenTracked = true;
+      trackEvent(TE.CONTENT_PLAYLIST_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.load();
   }

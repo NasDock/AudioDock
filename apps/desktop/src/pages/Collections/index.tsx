@@ -1,7 +1,13 @@
-import { getCollections, TrackType } from "@soundx/services";
+import {
+  getCollections,
+  TrackType,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
+} from "@soundx/services";
 import { usePlayMode } from "../../utils/playMode";
 import { useAuthStore } from "../../store/auth";
 import { useMessage } from "../../context/MessageContext";
+import { trackEvent } from "../../services/tracking";
 import React, { useEffect, useRef, useState } from "react";
 import { Col, Row, Typography, theme } from "antd";
 import { useTranslation } from "react-i18next";
@@ -17,11 +23,20 @@ const Collections: React.FC = () => {
   const message = useMessage();
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const openReportedRef = useRef(false);
   const { token } = theme.useToken();
   const [collections, setCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({
+        feature: TF.CONTENT,
+        eventName: TE.CONTENT_COLLECTION_OPEN,
+        metadata: { page: "list" },
+      });
+    }
     if (mode !== TrackType.AUDIOBOOK || !user?.id) return;
     loadCollections();
   }, [mode, user?.id]);

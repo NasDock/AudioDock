@@ -15,6 +15,8 @@ import {
   type MyCouponItem,
   type VipCurrentLowestPriceData,
   type VipCurrentLowestPricePlan,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import {
   Alert,
@@ -35,6 +37,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
+import { trackEvent } from "../../services/tracking";
 import { useAuthStore } from "../../store/auth";
 import styles from "./index.module.less";
 
@@ -65,6 +68,7 @@ const MemberBenefits: React.FC = () => {
     typeof window !== "undefined" && !!(window as any).ipcRenderer;
   const paymentWindowRef = useRef<Window | null>(null);
   const stopPollingRef = useRef(false);
+  const openReportedRef = useRef(false);
 
   const maskPhone = (value?: string | null) => {
     const normalized = String(value || "").replace(/\D/g, "");
@@ -106,6 +110,10 @@ const MemberBenefits: React.FC = () => {
   );
 
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({ feature: TF.VIP, eventName: TE.VIP_BENEFITS_OPEN });
+    }
     return () => {
       stopPollingRef.current = true;
       try {
@@ -298,6 +306,7 @@ const MemberBenefits: React.FC = () => {
       paymentWindowRef.current?.close();
     } catch {}
     paymentWindowRef.current = null;
+    trackEvent({ feature: TF.VIP, eventName: TE.VIP_PAY_SUCCESS });
     message.success(t("memberBenefits.paymentSuccess"));
     navigate("/member-detail", { replace: true });
   };
@@ -399,6 +408,11 @@ const MemberBenefits: React.FC = () => {
       userId = JSON.parse(userIdStr);
     } catch (e) {}
 
+    trackEvent({
+      feature: TF.VIP,
+      eventName: TE.VIP_PAY_SUBMIT,
+      metadata: { plan: selectedPlan, method },
+    });
     setLoading(true);
     const hideLoading = message.loading(
       method === "WECHAT"
@@ -585,7 +599,14 @@ const MemberBenefits: React.FC = () => {
               <Card
                 className={`${styles.priceCard} ${selectedPlan === "annual" ? styles.selectedCard : ""}`}
                 hoverable
-                onClick={() => setSelectedPlan("annual")}
+                onClick={() => {
+                  trackEvent({
+                    feature: TF.VIP,
+                    eventName: TE.VIP_PLAN_SELECT,
+                    metadata: { plan: "annual" },
+                  });
+                  setSelectedPlan("annual");
+                }}
                 style={{
                   borderColor:
                     selectedPlan === "annual" ? token.colorPrimary : undefined,
@@ -635,7 +656,14 @@ const MemberBenefits: React.FC = () => {
                   borderWidth: selectedPlan === "lifetime" ? 2 : 1,
                 }}
                 hoverable
-                onClick={() => setSelectedPlan("lifetime")}
+                onClick={() => {
+                  trackEvent({
+                    feature: TF.VIP,
+                    eventName: TE.VIP_PLAN_SELECT,
+                    metadata: { plan: "lifetime" },
+                  });
+                  setSelectedPlan("lifetime");
+                }}
               >
                 <div className={styles.proBadge}>{t("memberBenefits.recommended")}</div>
                 <Title level={5}>{t("memberBenefits.lifetime")}</Title>

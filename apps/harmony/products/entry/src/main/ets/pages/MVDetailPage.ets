@@ -4,7 +4,7 @@ import { buildTheme, CommonNavBar, EmptyView, SkeletonBlock, CommonButton } from
 import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
 import { formatDuration, Logger } from 'audiodock_common';
-import { httpClient, mvApi, isMvSupported } from 'features_network';
+import { httpClient, mvApi, isMvSupported, trackEvent, TE } from 'features_network';
 import type { MVDto } from 'features_network';
 import { MvVideoPlayer } from '../components/MvVideoPlayer';
 import { mvPlaylistStore } from '../store/MvPlaylistStore';
@@ -39,12 +39,17 @@ struct MVDetailPage {
   // 沉浸式避让区高度（vp，services/systemBar publishAvoidArea 下发）
   @StorageProp('statusBarHeightVp') statusBarHeightVp: number = 0;
   @StorageProp('navBarHeightVp') navBarHeightVp: number = 0;
+  @State private mvDetailOpenTracked: boolean = false;
 
   private onThemeModeChange(): void {
     this.theme = buildTheme(this.themeMode);
   }
 
   aboutToAppear(): void {
+    if (!this.mvDetailOpenTracked) {
+      this.mvDetailOpenTracked = true;
+      trackEvent(TE.CONTENT_MV_OPEN).catch((): void => undefined);
+    }
     // 飞牛音乐没有 MV 能力：入口已隐藏，深链/历史栈进来直接退回，也不要暂停正在播放的音频
     if (!isMvSupported()) {
       router.back();

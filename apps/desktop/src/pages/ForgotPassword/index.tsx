@@ -1,9 +1,15 @@
 import { LockOutlined, UserOutlined } from "@ant-design/icons";
-import { resetPassword, verifyDevice } from "@soundx/services";
+import {
+  resetPassword,
+  verifyDevice,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
+} from "@soundx/services";
 import { Button, Form, Input, message, Steps, Typography } from "antd";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { trackEvent } from "../../services/tracking";
 import { tauriGetDeviceName } from "../../utils/platform";
 
 import styles from "./index.module.less";
@@ -20,8 +26,16 @@ const ForgotPassword: React.FC = () => {
   const [messageApi, contextHolder] = message.useMessage();
 
   const [deviceName, setDeviceName] = useState("");
+  const openReportedRef = useRef(false);
 
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({
+        feature: TF.LOGIN,
+        eventName: TE.LOGIN_FORGOT_PASSWORD_OPEN,
+      });
+    }
     getDeviceName().then((res) => {
       console.log(res);
       setDeviceName(res);

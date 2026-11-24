@@ -27,10 +27,13 @@ import {
   type MetadataPluginTrackType,
   type MetadataPluginType,
   type MetadataPriority,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMessage } from "../../context/MessageContext";
+import { trackEvent } from "../../services/tracking";
 import styles from "./index.module.less";
 
 const { Text, Paragraph } = Typography;
@@ -85,8 +88,16 @@ const PluginCenterSettings: React.FC = () => {
   const [activeKey, setActiveKey] = useState<string[]>([]);
   const [priority, setPriority] = useState<MetadataPriority>("plugin");
   const [prioritySaving, setPrioritySaving] = useState(false);
+  const openReportedRef = useRef(false);
 
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({
+        feature: TF.PLUGIN,
+        eventName: TE.PLUGIN_CENTER_OPEN,
+      });
+    }
     void load();
     void loadPriority();
     // eslint-disable-next-line react-hooks/exhaustive-deps

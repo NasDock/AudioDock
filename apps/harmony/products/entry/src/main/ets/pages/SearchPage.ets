@@ -4,7 +4,7 @@ import type { common } from '@kit.AbilityKit';
 import { buildTheme } from 'features_ui';
 import type { Theme, ThemeMode } from 'features_ui';
 import { t, getLang } from 'features_i18n';
-import { trackApi, albumApi, artistApi, httpClient } from 'features_network';
+import { trackApi, albumApi, artistApi, httpClient, trackEvent, TE } from 'features_network';
 import type { TrackDto, AlbumDto, ArtistDto } from 'features_network';
 import { rdbStore } from 'features_storage';
 import { Logger } from 'audiodock_common';
@@ -60,8 +60,13 @@ export struct SearchContent {
   @State theme: Theme = buildTheme('light');
   private debounceTimer: number | null = null;
   private reqSeq: number = 0;
+  @State private searchOpenTracked: boolean = false;
 
   aboutToAppear(): void {
+    if (!this.searchOpenTracked) {
+      this.searchOpenTracked = true;
+      trackEvent(TE.SEARCH_OPEN).catch((): void => undefined);
+    }
     this.theme = buildTheme(this.themeMode);
     this.loadMeta();
   }
@@ -95,6 +100,9 @@ export struct SearchContent {
       this.tracks = []; this.albums = []; this.artists = [];
       return;
     }
+    const searchSubmitMeta: Record<string, Object> = {};
+    searchSubmitMeta['keyword'] = trimmed;
+    trackEvent(TE.SEARCH_SUBMIT, searchSubmitMeta).catch((): void => undefined);
     const seq = ++this.reqSeq;
     this.searching = true;
     await rdbStore.upsertSearchKeyword(trimmed);

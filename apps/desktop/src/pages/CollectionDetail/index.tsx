@@ -14,6 +14,8 @@ import {
   reorderCollection,
   updateCollection,
   uploadCollectionCover,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
 } from "@soundx/services";
 import {
   Button,
@@ -27,11 +29,12 @@ import {
   theme,
   Typography,
 } from "antd";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import Cover from "../../components/Cover";
 import type { Album } from "../../models";
+import { trackEvent } from "../../services/tracking";
 import { resolveArtworkUri } from "../../services/trackResolver";
 import styles from "./index.module.less";
 
@@ -48,8 +51,17 @@ const CollectionDetail: React.FC = () => {
   const [manageOpen, setManageOpen] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [uploadingCover, setUploadingCover] = useState(false);
+  const openReportedRef = useRef(false);
 
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({
+        feature: TF.CONTENT,
+        eventName: TE.CONTENT_COLLECTION_OPEN,
+        metadata: { collectionId: id },
+      });
+    }
     if (id) loadDetail(id);
   }, [id]);
 

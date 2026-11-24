@@ -1,7 +1,7 @@
-import { getPlaylistById, Track, type MiDevice, playMiDevicePlaylist } from "@soundx/services";
+import { getPlaylistById, Track, type MiDevice, playMiDevicePlaylist, TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import { Image, ScrollView, Text, View } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import MiDeviceSelector from "../../components/MiDeviceSelector";
 import MiniPlayer from "../../components/MiniPlayer";
@@ -9,6 +9,7 @@ import XiaoAiIcon from "../../components/XiaoAiIcon";
 import { usePlayer } from "../../context/PlayerContext";
 import { getImageUrl as buildImageUrl } from '../../utils/image';
 import { getBaseURL } from '../../utils/request';
+import { trackEvent } from '../../utils/tracking';
 import "./index.scss";
 import BottomTabBar from '../../components/BottomTabBar';
 
@@ -23,6 +24,17 @@ export default function PlaylistDetail() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [isMiDeviceSelectorVisible, setIsMiDeviceSelectorVisible] = useState(false);
   const [isCastingToMi, setIsCastingToMi] = useState(false);
+  const playlistOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (playlistOpenedRef.current) return;
+    playlistOpenedRef.current = true;
+    void trackEvent({
+      feature: TF.CONTENT,
+      eventName: TE.CONTENT_PLAYLIST_OPEN,
+      metadata: { id: router.params.id },
+    });
+  }, []);
 
   useEffect(() => {
     if (!playlistId) return;
@@ -90,6 +102,11 @@ export default function PlaylistDetail() {
         tracks: trackPayloads,
         start_index: 0,
       });
+      void trackEvent({
+        feature: TF.CAST,
+        eventName: TE.CAST_SUCCESS,
+        metadata: { trackCount: trackPayloads.length },
+      });
       Taro.showToast({
         title: t('playerPage.miCastPlaylistSuccess', { count: trackPayloads.length, device: device.name }),
         icon: 'success',
@@ -97,6 +114,7 @@ export default function PlaylistDetail() {
       setIsMiDeviceSelectorVisible(false);
     } catch (e) {
       console.error('Failed to cast playlist to Mi device:', e);
+      void trackEvent({ feature: TF.CAST, eventName: TE.CAST_FAILED });
       Taro.showToast({ title: t('playerPage.miCastPlaylistFailed'), icon: 'none' });
     } finally {
       setIsCastingToMi(false);

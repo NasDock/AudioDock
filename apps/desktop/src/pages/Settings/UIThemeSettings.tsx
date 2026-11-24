@@ -10,10 +10,15 @@ import {
   message as antdMessage,
 } from "antd";
 import { CloudUploadOutlined, DownloadOutlined } from "@ant-design/icons";
-import { plusGetMe } from "@soundx/services";
-import React, { useEffect, useMemo, useState } from "react";
+import {
+  plusGetMe,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
+} from "@soundx/services";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { trackEvent } from "../../services/tracking";
 import { useUiThemeStore } from "../../store/uiTheme";
 
 const { Paragraph, Text } = Typography;
@@ -117,6 +122,7 @@ const UIThemeSettings: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { themes, order, activeId, importTheme, removeTheme, setActive } = useUiThemeStore();
+  const openReportedRef = useRef(false);
 
   // VIP 校验：参考 Header/index.tsx 里的同名 useEffect。
   // 本地有缓存先信任缓存以避免首屏抖动；之后再用 plusGetMe 校正一次。
@@ -125,6 +131,13 @@ const UIThemeSettings: React.FC = () => {
     return localStorage.getItem("plus_vip_status") === "true";
   });
   useEffect(() => {
+    if (!openReportedRef.current) {
+      openReportedRef.current = true;
+      trackEvent({
+        feature: TF.THEME,
+        eventName: TE.THEME_UI_PLUGIN_OPEN,
+      });
+    }
     let cancelled = false;
     const refresh = async () => {
       const plusToken = localStorage.getItem("plus_token");
@@ -275,7 +288,14 @@ const UIThemeSettings: React.FC = () => {
                     <Space>
                       {isActive ? (
                         <Button
-                          onClick={() => setActive(null)}
+                          onClick={() => {
+                            trackEvent({
+                              feature: TF.THEME,
+                              eventName: TE.THEME_UI_PLUGIN_APPLY,
+                              metadata: { themeId: null },
+                            });
+                            setActive(null);
+                          }}
                           disabled={!isPlusVip}
                         >
                           {t("uiPlugin.deactivate")}
@@ -283,7 +303,14 @@ const UIThemeSettings: React.FC = () => {
                       ) : (
                         <Button
                           type="primary"
-                          onClick={() => setActive(id)}
+                          onClick={() => {
+                            trackEvent({
+                              feature: TF.THEME,
+                              eventName: TE.THEME_UI_PLUGIN_APPLY,
+                              metadata: { themeId: id },
+                            });
+                            setActive(id);
+                          }}
                           disabled={!isPlusVip}
                         >
                           {t("uiPlugin.active")}
