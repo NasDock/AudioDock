@@ -326,6 +326,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const skipIntroDurationRef = React.useRef(skipIntroDuration);
   const skipOutroDurationRef = React.useRef(skipOutroDuration);
   const radioNextTrackRef = React.useRef<Track | null>(null);
+  // 电台续播串行锁：PlaybackQueueEnded / PlaybackError / 用户点 next 可能
+  // 同时触发 playNext，并发的 playTrack 交错会破坏原生队列导致卡 Loading。
+  const radioAdvanceInFlightRef = useRef(false);
+  // Loading 看门狗：PlaybackState 停在 Buffering/Loading 且迟迟不来下一条
+  // 事件时（原生队列错位的典型症状），自愈重建，避免永久"加载中"。
+  const loadingWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const knownTrackByIdRef = React.useRef<Map<string, Track>>(new Map());
   // 音质设置快照 ref：playTrack/playTrackList 可能被 widget/同步事件等
   // 旧闭包调用，用 ref 保证起播时总能拿到最新的内/外网音质设置。
@@ -471,6 +477,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     radioPlayModeRef.current = playModeRef.current;
     isRadioModeRef.current = false;
     setIsRadioMode(false);
+    // 退出电台：丢弃陈旧预载，避免下次进入电台时拿到上一段时间的曲目
+    radioNextTrackRef.current = null;
+    setIsLoading(false);
+    if (loadingWatchdogRef.current) {
+      clearTimeout(loadingWatchdogRef.current);
+      loadingWatchdogRef.current = null;
+    }
     setActivePlayMode(normalPlayModeRef.current);
   };
 
@@ -1134,9 +1147,33 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         if (event.state === State.Playing) {
           playbackErrorCountRef.current = {};
         }
-        setIsLoading(
-          event.state === State.Buffering || event.state === State.Loading
-        );
+        const isBuffering =
+          event.state === State.Buffering || event.state === State.Loading;
+        setIsLoading(isBuffering);
+
+        // 电台 Loading 看门狗：若原生状态长时间停在 Buffering/Loading 不再变化
+        // （队列错位/active track 丢失的典型症状），主动自愈——清 loading 并
+        // 用 setQueue 单曲重建当前曲目，避免永久卡在"加载中"要重进 app。
+        // 只在电台模式启用，普通模式不动。
+        if (loadingWatchdogRef.current) {
+          clearTimeout(loadingWatchdogRef.current);
+          loadingWatchdogRef.current = null;
+        }
+        if (isRadioModeRef.current && isBuffering) {
+          loadingWatchdogRef.current = setTimeout(() => {
+            loadingWatchdogRef.current = null;
+            if (!isRadioModeRef.current || !isBuffering) return;
+            console.warn("[Radio] Loading watchdog fired, recovering current track");
+            setIsLoading(false);
+            // 用当前曲目重建单曲队列；没有当前曲目则直接续播下一首随机曲
+            const stuck = currentTrackRef.current;
+            if (stuck) {
+              void playTrack(stuck, undefined, true, true);
+            } else if (!radioAdvanceInFlightRef.current) {
+              void playNext();
+            }
+          }, 12000);
+        }
         await syncMediaControlCenterState();
 
         // ✨ 切歌/连播兜底：加载结束后若原生状态停在 Stopped/Ready（而非 Playing/Paused），
@@ -1461,6 +1498,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const playNext = async () => {
     if (isRadioModeRef.current) {
+      // 串行锁：QueueEnded / PlaybackError / 用户点 next 可能同时进入，
+      // 并发 playTrack 交错是队列错位、卡 Loading 的根因之一，直接丢弃重入。
+      if (radioAdvanceInFlightRef.current) return;
+      radioAdvanceInFlightRef.current = true;
       try {
         let nextTrack = radioNextTrackRef.current;
         if (!nextTrack || nextTrack.id === currentTrackRef.current?.id) {
@@ -1473,11 +1514,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           preloadNextRadioTrack();
         } else {
           console.error("Radio playNext failed: no track available after retries");
+          setIsLoading(false);
           await TrackPlayer.pause();
         }
       } catch (e) {
         console.error("Radio playNext failed", e);
+        setIsLoading(false);
         await TrackPlayer.pause();
+      } finally {
+        radioAdvanceInFlightRef.current = false;
       }
       return;
     }
@@ -1949,20 +1994,35 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       };
       knownTrackByIdRef.current.set(String(track.id), track);
 
-      // ✨ 优化：使用“先加后跳再删”逻辑，防止 reset 导致音频焦点丢失和通知栏闪烁
-      const queue = await TrackPlayer.getQueue();
-      if (!isLatestRequest()) return;
-
-      if (queue.length > 0) {
-        await TrackPlayer.add(trackData);
+      // ✨ 电台模式：直接 setQueue 重建为单曲队列，彻底绕开“先加后跳再删”。
+      // 原 add→skip→fire-and-forget remove 用旧队列长度算索引、且吞掉失败，
+      // 电台连续切歌+并发时索引越界被原生整体拒绝或删到刚 add 的 active track，
+      // 队列残留旧歌 → 原生停在 Buffering/Loading → UI 永久“加载中”，需重进 app。
+      // 电台每首都是全新随机曲目、无连续队列收益，setQueue 单曲最稳（同
+      // loadPlaybackState 恢复路径，已被验证可靠）；普通模式不受影响。
+      // queue 快照：电台模式由 setQueue 重建，无需它；普通模式用于“加后删旧”
+      let queue: any[] = [];
+      if (fromRadio) {
+        await TrackPlayer.setQueue([trackData]);
         if (!isLatestRequest()) return;
-        await TrackPlayer.skip(queue.length);
-        // 旧歌曲延迟到 play() 之后移除（见下方），避免 fire-and-forget remove
-        // 与 play 竞争导致原生队列索引位移、把刚发出的 play 意图吞掉。
+        await TrackPlayer.skip(0);
+        if (!isLatestRequest()) return;
       } else {
-        await TrackPlayer.add(trackData);
+        // 普通模式：保留“先加后跳再删”，防止 reset 导致音频焦点丢失和通知栏闪烁
+        queue = await TrackPlayer.getQueue();
+        if (!isLatestRequest()) return;
+
+        if (queue.length > 0) {
+          await TrackPlayer.add(trackData);
+          if (!isLatestRequest()) return;
+          await TrackPlayer.skip(queue.length);
+          // 旧歌曲延迟到 play() 之后移除（见下方），避免 fire-and-forget remove
+          // 与 play 竞争导致原生队列索引位移、把刚发出的 play 意图吞掉。
+        } else {
+          await TrackPlayer.add(trackData);
+        }
+        if (!isLatestRequest()) return;
       }
-      if (!isLatestRequest()) return;
 
       await updatePlayerCapabilities(track);
       if (!isLatestRequest()) return;
@@ -1991,7 +2051,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // play() 已发出后再清理旧队列：此时 remove 即使触发索引位移，
       // 也只会影响后续队列顺序，不会吞掉本次起播意图。
-      if (queue.length > 0) {
+      // 电台模式队列已由 setQueue 重建为单曲，无需清理。
+      if (!fromRadio && queue.length > 0) {
         TrackPlayer.remove(Array.from({ length: queue.length }, (_, i) => i)).catch(() => {});
       }
 
