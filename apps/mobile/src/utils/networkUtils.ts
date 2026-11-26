@@ -20,6 +20,27 @@ export async function checkServerConnectivity(address: string, sourceType: strin
     return false;
   }
 
+  // Audiobookshelf 的 /api/authorize 需要 token，未登录时返回 401；
+  // 401 说明服务可达。部署可能在根路径或 /audiobookshelf 子路径，两个都试。
+  if (mappedType === "audiobookshelf") {
+    const clean = target.replace(/\/+$/, "");
+    for (const path of ["/api/authorize", "/audiobookshelf/api/authorize"]) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const response = await fetch(`${clean}${path}`, {
+          signal: controller.signal as any,
+          credentials: "omit",
+        });
+        clearTimeout(timeoutId);
+        if (response.ok || response.status === 401) return true;
+      } catch {
+        // 试下一个候选路径
+      }
+    }
+    return false;
+  }
+
   const headers: Record<string, string> = {};
   if (mappedType === "fnos" && isFnosRelayAddress(target)) {
     // FN Connect 中继（*.fnos.net / *.5ddd.com）不带 `Cookie: mode=relay`

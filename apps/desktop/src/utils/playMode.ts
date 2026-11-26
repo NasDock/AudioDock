@@ -25,6 +25,9 @@ export const setPlayMode = (mode: PlayMode) => {
  * 若本地残留 `playMode=audiobook`（上次在官方源听的），进飞牛后列表会按
  * AUDIOBOOK 过滤成空 —— 所以进入该源时强制切回音乐模式。
  *
+ * Audiobookshelf 相反：所有书都是 AUDIOBOOK，进入时强制切到有声书模式，
+ * 否则列表会按 MUSIC 过滤成空。
+ *
  * 传 `sourceType` 表示「刚刚切到这个源」，不传则读当前已选的源（启动时用）。
  */
 export const enforceSourcePlayMode = (sourceType?: string | null) => {
@@ -33,6 +36,10 @@ export const enforceSourcePlayMode = (sourceType?: string | null) => {
     sourceType !== undefined
       ? sourceType
       : localStorage.getItem("selectedSourceType");
+  if (type === "Audiobookshelf") {
+    if (getPlayMode() !== TrackType.AUDIOBOOK) setPlayMode(TrackType.AUDIOBOOK);
+    return;
+  }
   if (type !== "Feiniu") return;
   if (getPlayMode() === TrackType.MUSIC) return;
   setPlayMode(TrackType.MUSIC);

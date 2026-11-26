@@ -8,6 +8,7 @@ import {
   useNativeAdapter,
   useSubsonicAdapter,
 } from "@soundx/services";
+import { useAudiobookshelfAdapter } from "@soundx/services";
 import { create } from "zustand";
 import { SOURCEMAP } from "../constants/sources";
 import type { User } from "../models";
@@ -59,6 +60,7 @@ const initService = (address: string, type: string) => {
   const mappedType =
     SOURCEMAP[type as keyof typeof SOURCEMAP] || "audiodock";
   if (mappedType === "subsonic") useSubsonicAdapter();
+  else if (mappedType === "audiobookshelf") useAudiobookshelfAdapter({ token: token || undefined });
   else if (mappedType === "emby") useEmbyAdapter();
   else if (mappedType === "fnos") useFnosAdapter({ baseUrl: address, username, password });
   else useNativeAdapter();

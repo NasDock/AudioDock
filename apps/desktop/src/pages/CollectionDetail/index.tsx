@@ -36,6 +36,7 @@ import Cover from "../../components/Cover";
 import type { Album } from "../../models";
 import { trackEvent } from "../../services/tracking";
 import { resolveArtworkUri } from "../../services/trackResolver";
+import { isAudiobookshelfSource } from "../../utils";
 import styles from "./index.module.less";
 
 const CollectionDetail: React.FC = () => {
@@ -237,11 +238,14 @@ const CollectionDetail: React.FC = () => {
       <div className={styles.header}>
         <div className={styles.coverWrap}>
           <img className={styles.cover} src={resolveArtworkUri(cover, { width: 600 })} />
-          <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
-            <button className={styles.moreBtn}>
-              <MoreOutlined />
-            </button>
-          </Dropdown>
+          {/* Audiobookshelf 的系列只读：没有重命名/换封面/管理/解散 */}
+          {!isAudiobookshelfSource() && (
+            <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
+              <button className={styles.moreBtn}>
+                <MoreOutlined />
+              </button>
+            </Dropdown>
+          )}
         </div>
         <div>
           <Typography.Title level={2} className={styles.title}>

@@ -320,7 +320,8 @@ export default function Settings() {
             </View>
           </View>
 
-          {renderSettingRow(t('settings.audiobookMode'), t('settings.audiobookModeDescription'), mode === 'AUDIOBOOK', (val) => setMode(val ? 'AUDIOBOOK' : 'MUSIC'))}
+          {Taro.getStorageSync('currentSourceType') !== 'Audiobookshelf' &&
+            renderSettingRow(t('settings.audiobookMode'), t('settings.audiobookModeDescription'), mode === 'AUDIOBOOK', (val) => setMode(val ? 'AUDIOBOOK' : 'MUSIC'))}
           {renderSettingRow(t('settings.relayPlay'), t('settings.relayPlayDescription'), acceptRelay, (val) => updateSetting('acceptRelay', val))}
           {renderSettingRow(t('settings.syncControl'), t('settings.syncControlDescription'), acceptSync, (val) => updateSetting('acceptSync', val))}
           {renderSettingRow(t('settings.cacheWhilePlaying'), t('settings.cacheWhilePlayingDescription'), cacheEnabled, (val) => updateSetting('cacheEnabled', val))}

@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import styles from "./index.module.less";
 import { resolveArtworkUri } from "../../services/trackResolver";
 import { onHomeRefresh } from "../../utils/refreshHome";
+import { isAudiobookshelfSource } from "../../utils";
 
 const Collections: React.FC = () => {
   const { t } = useTranslation();
@@ -73,7 +74,7 @@ const Collections: React.FC = () => {
     <div className={styles.container} ref={scrollRef}>
       <div className={styles.pageHeader}>
         <Typography.Title level={2} className={styles.title}>
-          {t('collections.title')}
+          {isAudiobookshelfSource() ? t('collections.seriesTitle') : t('collections.title')}
         </Typography.Title>
       </div>
 
@@ -106,7 +107,7 @@ const Collections: React.FC = () => {
           })}
           {!loading && collections.length === 0 && (
             <div className={styles.noMore} style={{ color: token.colorTextSecondary }}>
-              {t('collections.noData')}
+              {isAudiobookshelfSource() ? t('collections.seriesNoData') : t('collections.noData')}
             </div>
           )}
         </Row>

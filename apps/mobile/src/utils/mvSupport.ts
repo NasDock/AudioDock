@@ -13,6 +13,9 @@ export const FNOS_SOURCE_TYPE = "Feiniu";
 export const isFnosSource = (sourceType?: string | null): boolean =>
   sourceType === FNOS_SOURCE_TYPE;
 
+export const isAudiobookshelfSource = (sourceType?: string | null): boolean =>
+  sourceType === "Audiobookshelf";
+
 /** 当前数据源是否支持 MV（其它端同名同语义） */
 export const isMvSupported = (sourceType?: string | null): boolean =>
-  !isFnosSource(sourceType);
+  !isFnosSource(sourceType) && !isAudiobookshelfSource(sourceType);

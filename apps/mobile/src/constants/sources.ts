@@ -1,6 +1,7 @@
 import { resolveFnosServer, SOURCEMAP } from "@soundx/services";
 
 const logo = require("../../assets/images/logo.webp");
+const audiobookshelfLogo = require("../../assets/images/audiobookshelf.webp");
 const subsonicLogo = require("../../assets/images/subsonic.webp");
 const embyLogo = require("../../assets/images/emby.webp");
 const fnosLogo = require("../../assets/images/fnos.png");
@@ -15,6 +16,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   Subsonic: "Subsonic",
   Emby: "Emby",
   Feiniu: "飞牛",
+  Audiobookshelf: "Audiobookshelf",
 };
 
 /** 飞牛音乐 logo（128×128 官方图标：深底 + 红色圆 + 白色音符） */
@@ -29,6 +31,8 @@ export const getSourceLogo = (key: string) => {
       return subsonicLogo;
     case "Feiniu":
       return fnosLogo;
+    case "Audiobookshelf":
+      return audiobookshelfLogo;
     default:
       return logo;
   }
@@ -41,6 +45,10 @@ export const getMappedSourceType = (sourceType: string): string =>
 /** 是否飞牛数据源（媒体接口只认 Authorization 头，播放/封面都要单独带） */
 export const isFnosSource = (sourceType: string): boolean =>
   getMappedSourceType(sourceType) === "fnos";
+
+/** Audiobookshelf：内容固定为有声书 */
+export const isAudiobookshelfSource = (sourceType: string): boolean =>
+  getMappedSourceType(sourceType) === "audiobookshelf";
 
 /**
  * 是否 FN Connect 中继地址（`*.fnos.net` / `*.5ddd.com`）。

@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { isAudiobookshelfSource } from "../constants/sources";
 import { Album, Track, TrackType } from "../models";
 import { downloadTracks } from "../services/downloadManager";
 import { trackEvent } from "../services/tracking";
@@ -43,7 +44,7 @@ export const AlbumMoreModal: React.FC<AlbumMoreModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { user, sourceType } = useAuth();
   const insets = useSafeAreaInsets();
   const [pendingCallback, setPendingCallback] = useState<(() => void) | null>(null);
 
@@ -115,7 +116,9 @@ export const AlbumMoreModal: React.FC<AlbumMoreModalProps> = ({
               <Text style={[styles.optionText, { color: colors.text }]}>{t('albumMore.addToPlaylist')}</Text>
             </TouchableOpacity>
 
-            {(album.type === TrackType.AUDIOBOOK) && (
+            {(album.type === TrackType.AUDIOBOOK) &&
+              // Audiobookshelf 的系列是服务端元数据生成的，只读，不支持新建/添加
+              !isAudiobookshelfSource(sourceType) && (
               <TouchableOpacity
                 style={styles.option}
                 onPress={() => handleOptionPress(() => onManageCollections?.())}

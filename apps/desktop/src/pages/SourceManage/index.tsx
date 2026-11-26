@@ -1,7 +1,7 @@
 import { RightOutlined } from "@ant-design/icons";
 import { TrackingEvent as TE, TrackingFeature as TF } from "@soundx/services";
 import { useTranslation } from "react-i18next";
-import { FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP } from "../../constants/sources";
+import { AUDIOBOOKSHELF_LOGO, FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP } from "../../constants/sources";
 import { Card, Flex, theme, Typography } from "antd";
 import React, { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -33,6 +33,8 @@ const SourceManage: React.FC = () => {
         return subsonic;
       case "Feiniu":
         return FNOS_LOGO;
+      case "Audiobookshelf":
+        return AUDIOBOOKSHELF_LOGO;
       default:
         return logo;
     }

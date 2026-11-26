@@ -391,7 +391,12 @@ export default function Library() {
                 className={`tab-item ${activeTab === 'collections' ? 'active' : ''}`}
                 onClick={() => setActiveTab('collections')}
               >
-                {renderTabLabel(t('library.collectionTab'), tabCounts.collections, activeTab === 'collections')}
+                {renderTabLabel(
+                  // Audiobookshelf 的合集是服务端生成的系列（Series），只读
+                  currentSourceType === 'Audiobookshelf' ? t('collections.seriesTitle') : t('library.collectionTab'),
+                  tabCounts.collections,
+                  activeTab === 'collections',
+                )}
               </View>
             )}
          </View>

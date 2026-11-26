@@ -1,4 +1,5 @@
 import { SOURCEMAP as BASE_SOURCEMAP, SOURCETIPSMAP as BASE_TIPSMAP } from "@soundx/services";
+import audiobookshelfLogo from "../assets/audiobookshelf.png";
 import fnosLogo from "../assets/fnos.png";
 
 /**
@@ -23,6 +24,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   Subsonic: "Subsonic",
   Emby: "Emby",
   Feiniu: "飞牛",
+  Audiobookshelf: "Audiobookshelf",
 };
 
 /**
@@ -31,4 +33,7 @@ export const SOURCE_LABELS: Record<string, string> = {
  * `<img src>` 与「按字符串返回 logo」两种用法都能复用同一个值。
  */
 export const FNOS_LOGO = fnosLogo;
+
+/** Audiobookshelf 有声书源 logo */
+export const AUDIOBOOKSHELF_LOGO = audiobookshelfLogo;
 

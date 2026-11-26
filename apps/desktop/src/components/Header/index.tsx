@@ -77,7 +77,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
-import { SOURCEMAP, SOURCE_LABELS } from "../../constants/sources";
+import { AUDIOBOOKSHELF_LOGO, SOURCEMAP, SOURCE_LABELS } from "../../constants/sources";
 import { useTheme } from "../../context/ThemeContext";
 import { TrackType } from "../../models";
 import { trackEvent } from "../../services/tracking";
@@ -86,7 +86,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { useSettingsStore } from "../../store/settings";
-import { isEmbySource, isFnosSource, isSubsonicSource, isThirdPartySource } from "../../utils";
+import { isAudiobookshelfSource, isEmbySource, isFnosSource, isSubsonicSource, isThirdPartySource } from "../../utils";
 // isWindows/tauriMinimizeWindow/tauriMaximizeWindow/tauriCloseWindow 已随 winControls 迁移到 TitleBar
 import { isTauri, isWeb, tauriOpenExternal } from "../../utils/platform";
 import { enforceSourcePlayMode, usePlayMode } from "../../utils/playMode";
@@ -229,8 +229,10 @@ const ServerSwitcherModal: React.FC<{
                 ? emby
                 : type === "Subsonic"
                   ? subsonic
-                  : type === "Feiniu"
-                    ? fnos
+                : type === "Feiniu"
+                  ? fnos
+                  : type === "Audiobookshelf"
+                    ? AUDIOBOOKSHELF_LOGO
                     : logo;
             const displayName = `${SOURCE_LABELS[type] || type}${t("header.dataSource")}[${index + 1}]`;
 
@@ -502,9 +504,9 @@ const Header: React.FC = () => {
     try {
       await clearSearchHistory();
       setSearchHistory([]);
-      // 飞牛 / Subsonic 没有服务端热榜，热搜是用本地历史累计次数算出来的，
+      // 飞牛 / Subsonic / Audiobookshelf 没有服务端热榜，热搜是用本地历史累计次数算出来的，
       // 历史清空后热词必须一起清，否则会残留刚被清掉的关键词。
-      if (isFnosSource() || isSubsonicSource()) setHotSearches([]);
+      if (isFnosSource() || isSubsonicSource() || isAudiobookshelfSource() || isEmbySource()) setHotSearches([]);
     } catch (e) {
       message.error(t("header.clearHistoryFailed"));
     }
@@ -1061,7 +1063,7 @@ const Header: React.FC = () => {
             </div>
           </Tooltip>
         )}
-        {!isSubsonicSource() && !isFnosSource() && (
+        {!isSubsonicSource() && !isFnosSource() && !isAudiobookshelfSource() && (
           <Tooltip
             title={
               playMode === TrackType.MUSIC
@@ -1097,7 +1099,7 @@ const Header: React.FC = () => {
           </Tooltip>
         )}
 
-        {!isSubsonicSource() && !isFnosSource() && (
+        {!isSubsonicSource() && !isFnosSource() && !isAudiobookshelfSource() && (
           <Tooltip title={t("header.folder")}>
             <div
               className={styles.actionIcon}

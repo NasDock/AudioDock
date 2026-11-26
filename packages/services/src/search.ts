@@ -13,8 +13,9 @@ export interface SearchResults {
 /**
  * 取当前数据源的搜索实现。
  *
- * native / emby 没做搜索，`getAdapter().search` 是 undefined，这些源继续走官方
- * 服务端的 request；飞牛走 `/search/*`，Subsonic（Navidrome）走 `search3`。
+ * native 没做搜索，`getAdapter().search` 是 undefined，继续走官方服务端的 request；
+ * 飞牛走 `/search/*`，Subsonic（Navidrome）走 `search3`，Audiobookshelf 走
+ * `/api/libraries/{id}/search`，Emby 走 `Users/{userId}/Items?SearchTerm=`。
  */
 const searchImpl = () => getAdapter().search;
 

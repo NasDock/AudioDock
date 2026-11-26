@@ -11,6 +11,7 @@ import {
   login,
   register,
   setServiceConfig,
+  useAudiobookshelfAdapter,
   useEmbyAdapter,
   useFnosAdapter,
   useNativeAdapter,
@@ -32,7 +33,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import emby from "../../assets/emby.png";
 import logo from "../../assets/logo.png";
-import { FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP } from "../../constants/sources";
+import { AUDIOBOOKSHELF_LOGO, FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP } from "../../constants/sources";
 import subsonic from "../../assets/subsonic.png";
 import { useMessage } from "../../context/MessageContext";
 import { useAuthStore } from "../../store/auth";
@@ -185,6 +186,8 @@ const LoginModal: React.FC = () => {
 
     if (mappedType === "subsonic") {
       useSubsonicAdapter();
+    } else if (mappedType === "audiobookshelf") {
+      useAudiobookshelfAdapter({ baseUrl: address, username, password });
     } else if (mappedType === "emby") {
       useEmbyAdapter();
     } else if (mappedType === "fnos") {
@@ -286,6 +289,7 @@ const LoginModal: React.FC = () => {
     if (key === "Emby") return <img style={{ width: 24 }} src={emby} />;
     if (key === "Subsonic") return <img style={{ width: 24 }} src={subsonic} />;
     if (key === "Feiniu") return <img style={{ width: 24 }} src={FNOS_LOGO} />;
+    if (key === "Audiobookshelf") return <img style={{ width: 24 }} src={AUDIOBOOKSHELF_LOGO} />;
     return <img style={{ width: 24 }} src={logo} />;
   };
 
