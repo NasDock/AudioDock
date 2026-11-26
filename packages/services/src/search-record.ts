@@ -5,9 +5,9 @@ import request from "./request";
 /**
  * 搜索历史。
  *
- * 官方服务端有 `/search-record/*` 三件套；飞牛没有这类接口（官方前端的搜索历史
- * 存在本地），所以飞牛适配器用端侧存储实现了同样的签名 —— 这里按适配器分发，
- * 没实现搜索历史的源（native / subsonic / emby）保持原行为直接走 request。
+ * 官方服务端有 `/search-record/*` 三件套；飞牛和 Subsonic（Navidrome）没有这类接口
+ * （官方前端把历史存在本地），所以这两个适配器用端侧存储实现了同样的签名 —— 这里
+ * 按适配器分发，没实现搜索历史的源（native / emby）保持原行为直接走 request。
  */
 const recordImpl = () => getAdapter().searchRecord;
 

@@ -7,6 +7,8 @@ import { SubsonicPlaylistAdapter } from "./playlist";
 import { SubsonicTrackAdapter } from "./track";
 import { SubsonicAuthAdapter, SubsonicUserAdapter } from "./user-auth";
 import { SubsonicMvAdapter } from "./mv";
+import { SubsonicSearchAdapter } from "./search";
+import { SubsonicSearchRecordAdapter } from "./search-record";
 
 export class SubsonicMusicAdapter implements IMusicAdapter {
   track: SubsonicTrackAdapter;
@@ -17,6 +19,8 @@ export class SubsonicMusicAdapter implements IMusicAdapter {
   user: SubsonicUserAdapter;
   auth: SubsonicAuthAdapter;
   mv: SubsonicMvAdapter;
+  search: SubsonicSearchAdapter;
+  searchRecord: SubsonicSearchRecordAdapter;
   client: SubsonicClient;
 
   constructor(config?: SubsonicConfig) {
@@ -29,5 +33,11 @@ export class SubsonicMusicAdapter implements IMusicAdapter {
       this.user = new SubsonicUserAdapter(this.client);
       this.auth = new SubsonicAuthAdapter(this.client);
       this.mv = new SubsonicMvAdapter();
+      // Navidrome 等 Subsonic 服务端的搜索走 search3；历史走端侧本地存储
+      this.search = new SubsonicSearchAdapter(this.client);
+      this.searchRecord = new SubsonicSearchRecordAdapter();
   }
 }
+
+export { SubsonicSearchAdapter } from "./search";
+export { SubsonicSearchRecordAdapter } from "./search-record";

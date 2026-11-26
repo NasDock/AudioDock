@@ -6,15 +6,15 @@ export interface SearchResults {
   tracks: Track[];
   artists: Artist[];
   albums: Album[];
-  /** 只有实现了搜索能力的适配器（当前是飞牛）才会返回歌单结果 */
+  /** 只有实现了搜索能力的适配器（飞牛 / Subsonic）才会返回歌单结果 */
   playlists?: Playlist[];
 }
 
 /**
  * 取当前数据源的搜索实现。
  *
- * native / subsonic / emby 在对接时都没做搜索，`getAdapter().search` 是 undefined，
- * 这些源继续走官方服务端的 request；飞牛则走自己的 `/search/*`。
+ * native / emby 没做搜索，`getAdapter().search` 是 undefined，这些源继续走官方
+ * 服务端的 request；飞牛走 `/search/*`，Subsonic（Navidrome）走 `search3`。
  */
 const searchImpl = () => getAdapter().search;
 

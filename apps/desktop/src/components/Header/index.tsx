@@ -502,9 +502,9 @@ const Header: React.FC = () => {
     try {
       await clearSearchHistory();
       setSearchHistory([]);
-      // 飞牛没有服务端热榜，热搜是用本地历史累计次数算出来的，
+      // 飞牛 / Subsonic 没有服务端热榜，热搜是用本地历史累计次数算出来的，
       // 历史清空后热词必须一起清，否则会残留刚被清掉的关键词。
-      if (isFnosSource()) setHotSearches([]);
+      if (isFnosSource() || isSubsonicSource()) setHotSearches([]);
     } catch (e) {
       message.error(t("header.clearHistoryFailed"));
     }

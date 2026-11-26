@@ -101,7 +101,7 @@ export interface IAudioCollectionAdapter {
 /**
  * 搜索能力（可选）。
  *
- * 目前只有飞牛音乐实现了它：native / subsonic / emby 在对接时都没有做搜索，
+ * 目前飞牛音乐和 Subsonic（Navidrome / Gonic 等）实现了它；native / emby 没有做搜索，
  * 调用方（`services/search.ts`）拿不到实现时会回退到官方服务端的 request，
  * 所以这里是**可选成员**，不要求每个适配器都实现。
  */
