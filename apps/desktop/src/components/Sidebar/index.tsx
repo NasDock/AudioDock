@@ -22,7 +22,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
 import { useAuthStore } from "../../store/auth";
 import { usePlaylistStore } from "../../store/playlist";
-import { isEmbySource, isMvSupported, isSubsonicSource } from "../../utils";
+import { isAudiobookshelfSource, isEmbySource, isMvSupported, isSubsonicSource } from "../../utils";
 import { isWeb } from "../../utils/platform";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
@@ -138,7 +138,10 @@ const Sidebar: React.FC = () => {
         {mode === TrackType.AUDIOBOOK && (
           <MenuItem
             icon={<AppstoreAddOutlined />}
-            text={t("nav.collections")}
+            text={
+              // Audiobookshelf 的「合集」是由元数据生成的系列（Series），只读
+              isAudiobookshelfSource() ? t("collections.seriesTitle") : t("nav.collections")
+            }
             onClick={() => navigate("/collections")}
             active={isActive("/collections")}
             collapsed={collapsed}

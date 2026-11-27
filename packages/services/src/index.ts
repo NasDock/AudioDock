@@ -40,6 +40,8 @@ export const SOURCEMAP = {
     // desktop / mobile / mini 都用这份清单渲染数据源列表，mini 侧有自己的本地
     // 清单（apps/mini/src/utils/sourceUtils.ts）不含飞牛，所以放这里是安全的。
     Feiniu: "fnos",
+    // Audiobookshelf：自有 REST API（/api + Bearer token），内容固定为有声书
+    Audiobookshelf: "audiobookshelf",
 }
 
 export const SOURCETIPSMAP = {
@@ -47,4 +49,5 @@ export const SOURCETIPSMAP = {
     Subsonic: "所有支持 Subsonic 协议的服务端，例如：Navidrome、Gonic 等",
     Emby: "所有支持 Emby 协议的服务端",
     Feiniu: "飞牛 fnOS 自带的音乐应用（trim.music），地址填 NAS，如 http://192.168.1.10:5666",
+    Audiobookshelf: "Audiobookshelf 有声书服务，地址填服务域名（支持 /audiobookshelf 子路径）",
 }

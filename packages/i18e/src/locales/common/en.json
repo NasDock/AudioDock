@@ -281,7 +281,6 @@
     "testConnection": "Test Connection",
     "testConnectionSuccess": "Connection successful",
     "testConnectionFailed": "Connection failed",
-    "carMode": "Car Mode",
     "carModeDescription": "Player on left, content on right",
     "carModeVipOnly": "Car mode is a VIP-only feature. Go to the membership page to enable it.",
     "goToMemberPage": "Go to Membership",
@@ -959,7 +958,9 @@
     "title": "Collections",
     "albumCount": "{{count}} albums",
     "noData": "No collections yet",
-    "loadFailed": "Failed to load collections"
+    "loadFailed": "Failed to load collections",
+    "seriesTitle": "Series",
+    "seriesNoData": "No series yet"
   },
   "downloads": {
     "title": "Downloads",

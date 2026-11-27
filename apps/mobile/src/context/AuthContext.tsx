@@ -8,6 +8,7 @@ import {
     setPlusUnauthorizedHandler,
     setServiceConfig,
     SOURCEMAP,
+    useAudiobookshelfAdapter as activateAudiobookshelfAdapter,
     useEmbyAdapter as activateEmbyAdapter,
     useFnosAdapter as activateFnosAdapter,
     useNativeAdapter as activateNativeAdapter,
@@ -246,6 +247,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (mappedType === "subsonic") {
         activateSubsonicAdapter();
+      } else if (mappedType === "audiobookshelf") {
+        activateAudiobookshelfAdapter({ baseUrl: savedAddress, token: savedToken || undefined });
       } else if (mappedType === "emby") {
         activateEmbyAdapter();
       } else if (mappedType === "fnos") {
@@ -400,6 +403,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       });
       if (mappedType === "subsonic") {
         activateSubsonicAdapter();
+      } else if (mappedType === "audiobookshelf") {
+        activateAudiobookshelfAdapter({ baseUrl: url });
       } else if (mappedType === "emby") {
         activateEmbyAdapter();
       } else if (mappedType === "fnos") {

@@ -1,3 +1,4 @@
+import { AudiobookshelfConfig, AudiobookshelfMusicAdapter } from "./audiobookshelf";
 import { EmbyConfig, EmbyMusicAdapter } from "./emby";
 import { FnosMusicAdapter } from "./fnos";
 import type { FnosConfig } from "./fnos";
@@ -50,6 +51,11 @@ export const useSubsonicAdapter = (config?: SubsonicConfig) => {
 export const useEmbyAdapter = (config?: EmbyConfig) => {
   console.log("[Adapter Manager] Switching to Emby Adapter");
   currentAdapter = new EmbyMusicAdapter(config);
+};
+
+export const useAudiobookshelfAdapter = (config?: AudiobookshelfConfig) => {
+  console.log("[Adapter Manager] Switching to Audiobookshelf Adapter");
+  currentAdapter = new AudiobookshelfMusicAdapter(config);
 };
 
 export const useFnosAdapter = (config?: FnosConfig) => {

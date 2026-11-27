@@ -95,12 +95,15 @@ export const buildTrackPlaybackUrl = (
   track: { id: number | string; path: string },
   quality?: AudioQuality,
 ): string => {
-  // 外部数据源（Subsonic / Emby / 飞牛）的 path 已经是可直接播放的完整地址，
+  // 外部数据源（Subsonic / Emby / 飞牛 / Audiobookshelf）的 path 已经是可直接播放的完整地址，
   // AudioDock 服务端的 /track/stream/:id 不认识它们的 id，套上去必然 404。
   // 注意不能加 ?quality= —— 这些地址自己带 query，再拼会破坏参数。
   const sourceName = localStorage.getItem("selectedSourceType");
   const isThirdParty =
-    sourceName === "Subsonic" || sourceName === "Emby" || sourceName === "Feiniu";
+    sourceName === "Subsonic" ||
+    sourceName === "Emby" ||
+    sourceName === "Feiniu" ||
+    sourceName === "Audiobookshelf";
   if (isThirdParty && /^https?:\/\//i.test(track.path || "")) {
     return track.path;
   }

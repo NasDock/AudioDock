@@ -289,7 +289,6 @@
     "testConnection": "测试连接",
     "testConnectionSuccess": "连接成功",
     "testConnectionFailed": "连接失败",
-    "carMode": "车机模式",
     "carModeDescription": "左侧播放器，右侧内容区",
     "carModeVipOnly": "车机模式是会员专属功能，请前往会员页面开启。",
     "goToMemberPage": "前往会员页面",
@@ -967,7 +966,9 @@
     "title": "合集",
     "albumCount": "{{count}} 张专辑",
     "noData": "暂无合集",
-    "loadFailed": "加载合集失败"
+    "loadFailed": "加载合集失败",
+    "seriesTitle": "系列",
+    "seriesNoData": "暂无系列"
   },
   "downloads": {
     "title": "下载",

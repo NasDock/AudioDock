@@ -1,4 +1,4 @@
-import { login as loginApi, register as registerApi, setPlusToken, setServiceConfig, SOURCEMAP, useEmbyAdapter, useNativeAdapter, useSubsonicAdapter } from '@soundx/services'
+import { login as loginApi, register as registerApi, setPlusToken, setServiceConfig, SOURCEMAP, useAudiobookshelfAdapter, useEmbyAdapter, useNativeAdapter, useSubsonicAdapter } from '@soundx/services'
 import Taro from '@tarojs/taro'
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -123,6 +123,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setServiceConfig({ username, password, baseUrl: serverAddress || undefined, clientName: 'SoundX Mini' })
       if (mappedType === 'subsonic') {
         useSubsonicAdapter()
+      } else if (mappedType === 'audiobookshelf') {
+        useAudiobookshelfAdapter({ baseUrl: serverAddress || undefined, token: Taro.getStorageSync('token') || undefined })
       } else if (mappedType === 'emby') {
         useEmbyAdapter()
       } else {
@@ -265,6 +267,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setServiceConfig({ username, password, baseUrl: address, clientName: 'SoundX Mini' })
       if (mappedType === 'subsonic') {
         useSubsonicAdapter()
+      } else if (mappedType === 'audiobookshelf') {
+        useAudiobookshelfAdapter({ baseUrl: address })
       } else if (mappedType === 'emby') {
         useEmbyAdapter()
       } else {

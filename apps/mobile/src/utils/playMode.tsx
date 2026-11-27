@@ -33,6 +33,10 @@ export const PlayModeProvider: React.FC<{ children: React.ReactNode }> = ({
     if (sourceType === "Subsonic" || sourceType === "Feiniu") {
       setModeState("MUSIC");
       setModeLoaded(true);
+    } else if (sourceType === "Audiobookshelf") {
+      // Audiobookshelf 全部是有声书，强制切到有声书模式
+      setModeState("AUDIOBOOK");
+      setModeLoaded(true);
     } else {
       // 等持久化的 contentMode 读完再放行，保证 PlayerContext 的初始恢复
       // 直接落在最终模式上，不会先按默认 MUSIC 恢复一轮再切换（双重恢复竞态）。

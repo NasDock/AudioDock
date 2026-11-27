@@ -37,7 +37,7 @@ import { TrackType, type Album, type Track, type Mv } from "../../models";
 import { resolveArtworkUri } from "../../services/trackResolver";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
-import { isMvSupported, isThirdPartySource } from "../../utils";
+import { isAudiobookshelfSource, isMvSupported, isThirdPartySource } from "../../utils";
 import styles from "./index.module.less";
 
 const { Title } = Typography;
@@ -352,7 +352,9 @@ const Cover: CoverComponent = ({
       disabled: uploadingCover || !isAudioDockSource,
     },
     !isTrack &&
-      (item as Album).type === TrackType.AUDIOBOOK && {
+      (item as Album).type === TrackType.AUDIOBOOK &&
+      // Audiobookshelf 的系列是服务端元数据生成的，只读，不支持新建/添加
+      !isAudiobookshelfSource() && {
         key: "collection",
         label: t('cover.addToCollection'),
         icon: <AppstoreAddOutlined />,

@@ -7,6 +7,7 @@ import {
 } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import {
+  useAudiobookshelfAdapter as activateAudiobookshelfAdapter,
   useEmbyAdapter as activateEmbyAdapter,
   useFnosAdapter as activateFnosAdapter,
   useNativeAdapter as activateNativeAdapter,
@@ -40,7 +41,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import emby from "../../assets/emby.png";
 import logo from "../../assets/logo.png";
 import subsonic from "../../assets/subsonic.png";
-import { FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP } from "../../constants/sources";
+import { AUDIOBOOKSHELF_LOGO, FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP } from "../../constants/sources";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuthStore } from "../../store/auth";
 import { trackEvent } from "../../services/tracking";
@@ -96,6 +97,7 @@ const Login: React.FC = () => {
   // 飞牛音乐：没有扫码登录、也不能自助注册（账号在 fnOS 里建）
   const mappedSourceType = SOURCEMAP[sourceType as keyof typeof SOURCEMAP] || "audiodock";
   const isFnos = mappedSourceType === "fnos";
+  const isAudiobookshelf = mappedSourceType === "audiobookshelf";
   const supportsScanLogin = mappedSourceType === "audiodock";
 
   const normalizeLoginUser = (payload: Record<string, unknown> | null | undefined) => {
@@ -131,6 +133,8 @@ const Login: React.FC = () => {
         return subsonic;
       case "Feiniu":
         return FNOS_LOGO;
+      case "Audiobookshelf":
+        return AUDIOBOOKSHELF_LOGO;
       default:
         return logo;
     }
@@ -391,6 +395,7 @@ const Login: React.FC = () => {
       baseUrl: address,
     });
     if (mappedType === "subsonic") activateSubsonicAdapter();
+    else if (mappedType === "audiobookshelf") activateAudiobookshelfAdapter();
     else if (mappedType === "emby") activateEmbyAdapter();
     else if (mappedType === "fnos") activateFnosAdapter({ baseUrl: address, username, password });
     else activateNativeAdapter();
@@ -699,11 +704,13 @@ const Login: React.FC = () => {
                 <Input
                   prefix={<HddOutlined />}
                   placeholder={
-                    isFnos
-                      ? "http://192.168.1.10:5666"
-                      : isWeb()
-                        ? "/api"
-                        : "http://192.168.x.x"
+                    isAudiobookshelf
+                      ? "https://your-audiobookshelf.example.com"
+                      : isFnos
+                        ? "http://192.168.1.10:5666"
+                        : isWeb()
+                          ? "/api"
+                          : "http://192.168.x.x"
                   }
                   autoCapitalize="off"
                 />
@@ -790,7 +797,7 @@ const Login: React.FC = () => {
               </Button>
             )}
 
-            {!isFnos && (
+            {!isFnos && !isAudiobookshelf && (
               <Button
                 type="link"
                 block

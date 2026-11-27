@@ -67,7 +67,8 @@ export default function LoginFormScreen() {
   const sourceType = (params.type as string) || "AudioDock";
   /** 飞牛：账号在 fnOS 里创建，不能自助注册；也没有扫码登录（那是 AudioDock 服务端的能力） */
   const isFnos = isFnosSource(sourceType);
-  const supportsScanLogin = !isFnos;
+  const isAudiobookshelf = getMappedSourceType(sourceType) === "audiobookshelf";
+  const supportsScanLogin = !isFnos && !isAudiobookshelf;
 
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -360,6 +361,9 @@ export default function LoginFormScreen() {
         if (mappedType === "subsonic") {
           throw new Error("Subsonic 数据源不支持注册");
         }
+        if (mappedType === "audiobookshelf") {
+          throw new Error("Audiobookshelf 账号请在服务端创建，不能在这里注册");
+        }
         if (mappedType === "fnos") {
           throw new Error("飞牛音乐账号请在 fnOS 系统里创建，不能在这里注册");
         }
@@ -512,7 +516,7 @@ export default function LoginFormScreen() {
         )}
       </TouchableOpacity>
 
-      {!isFnos ? (
+      {!isFnos && !isAudiobookshelf ? (
         <TouchableOpacity onPress={() => setIsLogin((prev) => !prev)}>
           <Text style={[styles.switchText, { color: colors.primary }]}>
             {isLogin ? "没有账号？去注册" : "已有账号？去登录"}

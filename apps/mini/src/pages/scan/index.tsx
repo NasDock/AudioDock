@@ -36,6 +36,7 @@ async function collectMiniScanLoginPayload(): Promise<any> {
     AudioDock: 'audiodock',
     Subsonic: 'subsonic',
     Emby: 'emby',
+    Audiobookshelf: 'audiobookshelf',
   }).map((type) => {
     const raw = Taro.getStorageSync(`sourceConfig_${type}`)
     const parsed = raw ? JSON.parse(raw) : []

@@ -1,4 +1,9 @@
-import { TrackingEvent as TE, TrackingFeature as TF } from '@soundx/services'
+import {
+  setServiceConfig,
+  TrackingEvent as TE,
+  TrackingFeature as TF,
+  useAudiobookshelfAdapter,
+} from '@soundx/services'
 import { Button, Image, Input, ScrollView, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -201,11 +206,20 @@ export default function LoginForm() {
       setBaseURL(bestAddress)
 
       const mappedType = SOURCEMAP[sourceType as keyof typeof SOURCEMAP] || 'audiodock'
+      // 小程序启动时的适配器还是上一次的源，登录新源前必须切过去，
+      // 否则 login() 会打到上个源的接口。
+      if (mappedType === 'audiobookshelf') {
+        setServiceConfig({ username, password, baseUrl: bestAddress, clientName: 'SoundX Mini' })
+        useAudiobookshelfAdapter({ baseUrl: bestAddress, username, password })
+      }
       if (isLogin) {
         await login({ username, password })
       } else {
         if (mappedType === 'subsonic') {
           throw new Error(t('login.subsonicNoRegisterSupport') || 'Subsonic data source does not support registration')
+        }
+        if (mappedType === 'audiobookshelf') {
+          throw new Error(t('login.subsonicNoRegisterSupport') || 'Audiobookshelf 账号请在服务端创建，不能在这里注册')
         }
         await register({ username, password })
       }

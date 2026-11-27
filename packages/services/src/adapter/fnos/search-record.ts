@@ -46,13 +46,13 @@ const resolveStorage = (): SearchRecordStorage => {
   return memoryStorage;
 };
 
-/** 存储槽按数据源隔离：换服务器不会串历史 */
-const bucketKey = (): string => {
+/** 存储槽按「协议 + 服务器地址」隔离：换服务器或换音乐源都不会串历史 */
+const bucketKey = (prefix: string): string => {
   const base = String(getServiceConfig().baseUrl || "")
     .trim()
     .toLowerCase()
     .replace(/\/+$/, "");
-  return `soundx_search_history::${base || "default"}`;
+  return `${prefix}_search_history::${base || "default"}`;
 };
 
 interface SearchHistoryEntry {
@@ -72,9 +72,9 @@ const isEntry = (value: unknown): value is SearchHistoryEntry =>
 /**
  * 读取历史。兼容早期直接存 `string[]` 的格式（当作 count=1 的条目）。
  */
-const readEntries = (): SearchHistoryEntry[] => {
+const readEntries = (prefix: string): SearchHistoryEntry[] => {
   try {
-    const raw = resolveStorage().getItem(bucketKey());
+    const raw = resolveStorage().getItem(bucketKey(prefix));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -99,12 +99,12 @@ const readEntries = (): SearchHistoryEntry[] => {
   }
 };
 
-const writeEntries = (entries: SearchHistoryEntry[]): void => {
+const writeEntries = (prefix: string, entries: SearchHistoryEntry[]): void => {
   try {
-    resolveStorage().setItem(bucketKey(), JSON.stringify(entries));
+    resolveStorage().setItem(bucketKey(prefix), JSON.stringify(entries));
   } catch (error) {
     // 配额满 / 隐私模式：历史丢一次不影响搜索结果本身
-    console.warn("[Fnos] 搜索历史写入失败", error);
+    console.warn("[SearchRecord] 搜索历史写入失败", error);
   }
 };
 
@@ -116,6 +116,12 @@ const writeEntries = (entries: SearchHistoryEntry[]): void => {
  * UI 不需要区分数据源。热门搜索同理：用本地累计次数统计，没有服务端热榜。
  */
 export class FnosSearchRecordAdapter implements ISearchRecordAdapter {
+  /**
+   * @param bucketPrefix 存储桶前缀。飞牛沿用历史值 `soundx`；其它没有搜索历史接口的源
+   * （如 Subsonic）传自己的前缀，避免与飞牛共用一个 baseUrl 时串历史。
+   */
+  constructor(private bucketPrefix: string = "soundx") {}
+
   private response<T>(data: T): ISuccessResponse<T> {
     return { code: 200, message: "success", data };
   }
@@ -124,7 +130,7 @@ export class FnosSearchRecordAdapter implements ISearchRecordAdapter {
     const text = String(keyword ?? "").trim();
     if (!text) return this.response(null);
 
-    const entries = readEntries();
+    const entries = readEntries(this.bucketPrefix);
     const existing = entries.find((item) => item.keyword === text);
     if (existing) {
       existing.count += 1;
@@ -135,12 +141,12 @@ export class FnosSearchRecordAdapter implements ISearchRecordAdapter {
 
     // 按最近使用排序后截断，顺便保证「刚搜的排最前」
     entries.sort((a, b) => b.lastUsedAt - a.lastUsedAt);
-    writeEntries(entries.slice(0, MAX_HISTORY));
+    writeEntries(this.bucketPrefix, entries.slice(0, MAX_HISTORY));
     return this.response(null);
   }
 
   async getSearchHistory(): Promise<ISuccessResponse<string[]>> {
-    const entries = readEntries().sort((a, b) => b.lastUsedAt - a.lastUsedAt);
+    const entries = readEntries(this.bucketPrefix).sort((a, b) => b.lastUsedAt - a.lastUsedAt);
     return this.response(entries.map((item) => item.keyword));
   }
 
@@ -151,7 +157,7 @@ export class FnosSearchRecordAdapter implements ISearchRecordAdapter {
    * 所以新用户看到的是空热榜，而不是一条莫名其妙的关键词。
    */
   async getHotSearches(): Promise<ISuccessResponse<{ keyword: string; count: number }[]>> {
-    const hot = readEntries()
+    const hot = readEntries(this.bucketPrefix)
       .filter((item) => item.count >= HOT_MIN_COUNT)
       .sort((a, b) => b.count - a.count || b.lastUsedAt - a.lastUsedAt)
       .slice(0, HOT_LIMIT)
@@ -160,7 +166,7 @@ export class FnosSearchRecordAdapter implements ISearchRecordAdapter {
   }
 
   async clearSearchHistory(): Promise<ISuccessResponse<any>> {
-    writeEntries([]);
+    writeEntries(this.bucketPrefix, []);
     return this.response(null);
   }
 }

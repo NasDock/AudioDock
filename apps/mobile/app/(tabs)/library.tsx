@@ -29,6 +29,7 @@ import { Album, Artist, Track, TrackSource } from "../../src/models";
 import { downloadTracks } from "../../src/services/downloadManager";
 import { getImageSource } from "../../src/utils/image";
 import { isMvSupported } from "../../src/utils/mvSupport";
+import { isAudiobookshelfSource } from "../../src/constants/sources";
 import { usePlayMode } from "../../src/utils/playMode";
 import { trackEvent } from "../../src/services/tracking";
 import { mvPlaylistStore } from "../../src/store/mvPlaylist";
@@ -1423,7 +1424,12 @@ export default function LibraryScreen() {
               ]}
               onPress={() => setActiveTab("collections")}
             >
-              {renderTabLabel(t("collections.title"), tabCounts.collections, activeTab === "collections")}
+              {renderTabLabel(
+                // Audiobookshelf 的合集是服务端生成的系列（Series），只读
+                isAudiobookshelfSource(sourceType) ? t("collections.seriesTitle") : t("collections.title"),
+                tabCounts.collections,
+                activeTab === "collections",
+              )}
             </TouchableOpacity>
           )}
         </View>

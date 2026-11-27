@@ -15,6 +15,12 @@ export const usePlayMode = () => {
 
   const loadMode = () => {
     try {
+      // Audiobookshelf 全部是有声书，强制 AUDIOBOOK，否则书单会按 MUSIC 过滤成空
+      const sourceType = Taro.getStorageSync('currentSourceType');
+      if (sourceType === 'Audiobookshelf') {
+        setModeState('AUDIOBOOK');
+        return;
+      }
       const saved = Taro.getStorageSync(CONTENT_MODE_KEY);
       if (saved === 'MUSIC' || saved === 'AUDIOBOOK') {
         setModeState(saved);

@@ -7,6 +7,8 @@ import { EmbyPlaylistAdapter } from "./playlist";
 import { EmbyTrackAdapter } from "./track";
 import { EmbyAuthAdapter, EmbyUserAdapter } from "./user-auth";
 import { EmbyMvAdapter } from "./mv";
+import { EmbySearchAdapter } from "./search";
+import { EmbySearchRecordAdapter } from "./search-record";
 
 export class EmbyMusicAdapter implements IMusicAdapter {
   track: EmbyTrackAdapter;
@@ -17,6 +19,8 @@ export class EmbyMusicAdapter implements IMusicAdapter {
   user: EmbyUserAdapter;
   auth: EmbyAuthAdapter;
   mv: EmbyMvAdapter;
+  search: EmbySearchAdapter;
+  searchRecord: EmbySearchRecordAdapter;
   client: EmbyClient;
 
   constructor(config?: EmbyConfig) {
@@ -29,6 +33,8 @@ export class EmbyMusicAdapter implements IMusicAdapter {
     this.user = new EmbyUserAdapter(this.client);
     this.auth = new EmbyAuthAdapter(this.client);
     this.mv = new EmbyMvAdapter();
+    this.search = new EmbySearchAdapter(this.client);
+    this.searchRecord = new EmbySearchRecordAdapter();
   }
 }
 

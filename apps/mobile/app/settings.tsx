@@ -822,6 +822,7 @@ export default function SettingsScreen() {
           </View>
 
           {sourceType !== "Subsonic" &&
+            sourceType !== "Audiobookshelf" &&
             renderSettingRow(
               t("settings.audiobookMode"),
               t("settings.audiobookModeDescription"),

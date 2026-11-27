@@ -101,9 +101,9 @@ export interface IAudioCollectionAdapter {
 /**
  * 搜索能力（可选）。
  *
- * 目前只有飞牛音乐实现了它：native / subsonic / emby 在对接时都没有做搜索，
- * 调用方（`services/search.ts`）拿不到实现时会回退到官方服务端的 request，
- * 所以这里是**可选成员**，不要求每个适配器都实现。
+ * 目前飞牛、Subsonic（Navidrome / Gonic 等）、Audiobookshelf 和 Emby 实现了它；
+ * native 没有实现，调用方（`services/search.ts`）拿不到实现时会回退到官方服务端的
+ * request，所以这里是**可选成员**，不要求每个适配器都实现。
  */
 export interface ISearchAdapter {
   /** 曲目搜索。`limit` 是期望条数（不是翻页步长），`type` 用于 MUSIC/AUDIOBOOK 分流，非官方源可忽略 */

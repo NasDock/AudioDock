@@ -98,3 +98,34 @@ export interface SubsonicArtistInfo {
 export interface SubsonicAlbumInfo {
     album: SubsonicAlbum & { song: SubsonicChild[] };
 }
+
+/**
+ * Subsonic search3 响应（Navidrome 支持）。
+ *
+ * 一次请求同时返回 artist / album / song 三组结果，老服务端可能只有 search2，
+ * 两个结构一致，这里一起声明以便回退。
+ */
+export interface SubsonicSearchResult {
+  searchResult3?: {
+    artist?: SubsonicArtist[];
+    album?: SubsonicAlbum[];
+    song?: SubsonicChild[];
+  };
+  searchResult2?: {
+    artist?: SubsonicArtist[];
+    album?: SubsonicAlbum[];
+    song?: SubsonicChild[];
+  };
+}
+
+export interface SubsonicPlaylistList {
+  playlists?: {
+    playlist?: Array<{
+      id: string;
+      name: string;
+      created?: string;
+      changed?: string;
+      songCount?: number;
+    }>;
+  };
+}
