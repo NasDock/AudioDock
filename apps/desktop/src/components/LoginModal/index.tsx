@@ -16,6 +16,7 @@ import {
   useFnosAdapter,
   useNativeAdapter,
   useSubsonicAdapter,
+  useUgreenAdapter,
 } from "@soundx/services";
 import {
   AutoComplete,
@@ -33,7 +34,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import emby from "../../assets/emby.png";
 import logo from "../../assets/logo.png";
-import { AUDIOBOOKSHELF_LOGO, FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP } from "../../constants/sources";
+import { AUDIOBOOKSHELF_LOGO, FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP, UGREEN_LOGO } from "../../constants/sources";
 import subsonic from "../../assets/subsonic.png";
 import { useMessage } from "../../context/MessageContext";
 import { useAuthStore } from "../../store/auth";
@@ -192,6 +193,8 @@ const LoginModal: React.FC = () => {
       useEmbyAdapter();
     } else if (mappedType === "fnos") {
       useFnosAdapter({ baseUrl: address, username, password });
+    } else if (mappedType === "ugreen") {
+      useUgreenAdapter({ baseUrl: address, username, password });
     } else {
       useNativeAdapter();
     }
@@ -289,6 +292,7 @@ const LoginModal: React.FC = () => {
     if (key === "Emby") return <img style={{ width: 24 }} src={emby} />;
     if (key === "Subsonic") return <img style={{ width: 24 }} src={subsonic} />;
     if (key === "Feiniu") return <img style={{ width: 24 }} src={FNOS_LOGO} />;
+    if (key === "UGreen") return <img style={{ width: 24 }} src={UGREEN_LOGO} />;
     if (key === "Audiobookshelf") return <img style={{ width: 24 }} src={AUDIOBOOKSHELF_LOGO} />;
     return <img style={{ width: 24 }} src={logo} />;
   };

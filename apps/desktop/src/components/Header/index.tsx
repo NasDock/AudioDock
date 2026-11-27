@@ -55,6 +55,7 @@ import {
   useFnosAdapter,
   useNativeAdapter,
   useSubsonicAdapter,
+  useUgreenAdapter,
   type ImportTask,
   type SearchResults as SearchResultsType,
 } from "@soundx/services";
@@ -86,7 +87,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { useSettingsStore } from "../../store/settings";
-import { isAudiobookshelfSource, isEmbySource, isFnosSource, isSubsonicSource, isThirdPartySource } from "../../utils";
+import { isAudiobookshelfSource, isEmbySource, isFnosSource, isSubsonicSource, isThirdPartySource, isUgreenSource } from "../../utils";
 // isWindows/tauriMinimizeWindow/tauriMaximizeWindow/tauriCloseWindow 已随 winControls 迁移到 TitleBar
 import { isTauri, isWeb, tauriOpenExternal } from "../../utils/platform";
 import { enforceSourcePlayMode, usePlayMode } from "../../utils/playMode";
@@ -96,6 +97,7 @@ import styles from "./index.module.less";
 
 import emby from "../../assets/emby.png";
 import fnos from "../../assets/fnos.png";
+import ugreen from "../../assets/ugreen.png";
 import logo from "../../assets/logo.png";
 import subsonic from "../../assets/subsonic.png";
 
@@ -231,6 +233,8 @@ const ServerSwitcherModal: React.FC<{
                   ? subsonic
                 : type === "Feiniu"
                   ? fnos
+                  : type === "UGreen"
+                    ? ugreen
                   : type === "Audiobookshelf"
                     ? AUDIOBOOKSHELF_LOGO
                     : logo;
@@ -506,7 +510,7 @@ const Header: React.FC = () => {
       setSearchHistory([]);
       // 飞牛 / Subsonic / Audiobookshelf 没有服务端热榜，热搜是用本地历史累计次数算出来的，
       // 历史清空后热词必须一起清，否则会残留刚被清掉的关键词。
-      if (isFnosSource() || isSubsonicSource() || isAudiobookshelfSource() || isEmbySource()) setHotSearches([]);
+      if (isFnosSource() || isUgreenSource() || isSubsonicSource() || isAudiobookshelfSource() || isEmbySource()) setHotSearches([]);
     } catch (e) {
       message.error(t("header.clearHistoryFailed"));
     }
@@ -1063,7 +1067,7 @@ const Header: React.FC = () => {
             </div>
           </Tooltip>
         )}
-        {!isSubsonicSource() && !isFnosSource() && !isAudiobookshelfSource() && (
+        {!isSubsonicSource() && !isFnosSource() && !isUgreenSource() && !isAudiobookshelfSource() && (
           <Tooltip
             title={
               playMode === TrackType.MUSIC
@@ -1099,7 +1103,7 @@ const Header: React.FC = () => {
           </Tooltip>
         )}
 
-        {!isSubsonicSource() && !isFnosSource() && !isAudiobookshelfSource() && (
+        {!isSubsonicSource() && !isFnosSource() && !isUgreenSource() && !isAudiobookshelfSource() && (
           <Tooltip title={t("header.folder")}>
             <div
               className={styles.actionIcon}
@@ -1157,6 +1161,8 @@ const Header: React.FC = () => {
                   useSubsonicAdapter();
                 } else if (mappedType === "fnos") {
                   useFnosAdapter({ baseUrl: url, username, password });
+                } else if (mappedType === "ugreen") {
+                  useUgreenAdapter({ baseUrl: url, username, password });
                 } else {
                   useNativeAdapter();
                 }

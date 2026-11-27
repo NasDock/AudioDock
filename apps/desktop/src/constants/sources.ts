@@ -1,6 +1,7 @@
 import { SOURCEMAP as BASE_SOURCEMAP, SOURCETIPSMAP as BASE_TIPSMAP } from "@soundx/services";
 import audiobookshelfLogo from "../assets/audiobookshelf.png";
 import fnosLogo from "../assets/fnos.png";
+import ugreenLogo from "../assets/ugreen.png";
 
 /**
  * desktop 支持的数据源清单。
@@ -24,6 +25,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   Subsonic: "Subsonic",
   Emby: "Emby",
   Feiniu: "飞牛",
+  UGreen: "绿联",
   Audiobookshelf: "Audiobookshelf",
 };
 
@@ -33,6 +35,9 @@ export const SOURCE_LABELS: Record<string, string> = {
  * `<img src>` 与「按字符串返回 logo」两种用法都能复用同一个值。
  */
 export const FNOS_LOGO = fnosLogo;
+
+/** 绿联音乐 logo（UGOS 音乐应用官方图标，红色圆角方块 + 白色音符） */
+export const UGREEN_LOGO = ugreenLogo;
 
 /** Audiobookshelf 有声书源 logo */
 export const AUDIOBOOKSHELF_LOGO = audiobookshelfLogo;

@@ -31,7 +31,7 @@ import { usePlayerStore } from "../../store/player";
 import { usePlayMode } from "../../utils/playMode";
 import { useTranslation } from "react-i18next";
 import { formatTimeLabel } from "../../utils/timeFormat";
-import { isFnosSource } from "../../utils";
+import { isFnosSource, isUgreenSource } from "../../utils";
 import styles from "./index.module.less";
 
 const { Title } = Typography;
@@ -39,8 +39,8 @@ const { Title } = Typography;
 const Listened: React.FC = () => {
   const { t } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
-  // 飞牛音乐只有单曲维度的播放历史（专辑历史接口返回空），因此只保留单曲视图
-  const fnosSource = isFnosSource();
+  // 飞牛/绿联音乐只有单曲维度的播放历史（专辑历史接口返回空），因此只保留单曲视图
+  const fnosSource = isFnosSource() || isUgreenSource();
   const [viewMode, setViewMode] = useState<"album" | "track">(
     fnosSource ? "track" : "album",
   );

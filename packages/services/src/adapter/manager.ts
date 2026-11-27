@@ -6,6 +6,8 @@ import { IMusicAdapter } from "./interface";
 import { NativeMusicAdapter } from "./native";
 import { SubsonicMusicAdapter } from "./subsonic";
 import { SubsonicConfig } from "./subsonic/client";
+import { UgreenMusicAdapter } from "./ugreen";
+import type { UgreenConfig } from "./ugreen";
 
 // 飞牛音乐的签名器/传输层注入点（第三方签名模块、Tauri 传输层挂这里）
 export { getFnosSigner, setFnosSigner, setFnosAuthKeys, getFnosAuthKeys, hasFnosAuthKeys } from "./fnos";
@@ -30,6 +32,16 @@ export type {
   FnosErrorKind,
   FnosSystemConfig,
 } from "./fnos";
+
+// 绿联音乐（UGOS Pro com.ugreen.music）注入点
+export {
+  UgreenApiError,
+  UGREEN_CODES,
+  UGREEN_SORT,
+  resolveUgreenServer,
+  rsaEncryptBase64,
+} from "./ugreen";
+export type { UgreenResolvedServer, UgreenRawResponse, UgreenErrorKind } from "./ugreen";
 
 let currentAdapter: IMusicAdapter = new NativeMusicAdapter();
 
@@ -61,4 +73,9 @@ export const useAudiobookshelfAdapter = (config?: AudiobookshelfConfig) => {
 export const useFnosAdapter = (config?: FnosConfig) => {
   console.log("[Adapter Manager] Switching to Fnos (fnOS Music) Adapter");
   currentAdapter = new FnosMusicAdapter(config);
+};
+
+export const useUgreenAdapter = (config?: UgreenConfig) => {
+  console.log("[Adapter Manager] Switching to Ugreen (UGOS Music) Adapter");
+  currentAdapter = new UgreenMusicAdapter(config);
 };

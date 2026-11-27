@@ -28,7 +28,7 @@ import { usePlayerStore } from "../../store/player";
 import { trackEvent } from "../../services/tracking";
 import { usePlayMode } from "../../utils/playMode";
 import { formatTimeLabel } from "../../utils/timeFormat";
-import { isFnosSource } from "../../utils";
+import { isFnosSource, isUgreenSource } from "../../utils";
 import styles from "./index.module.less";
 
 const { Title } = Typography;
@@ -37,8 +37,8 @@ const Favorites: React.FC = () => {
   const { t } = useTranslation();
   const openReportedRef = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
-  // 飞牛音乐只支持单曲收藏（专辑收藏接口返回空），因此只保留单曲视图
-  const fnosSource = isFnosSource();
+  // 飞牛/绿联音乐只支持单曲收藏（专辑收藏接口返回空），因此只保留单曲视图
+  const fnosSource = isFnosSource() || isUgreenSource();
   const [viewMode, setViewMode] = useState<"album" | "track">(
     fnosSource ? "track" : "album",
   );

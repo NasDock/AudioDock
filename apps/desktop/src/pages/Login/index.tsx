@@ -12,6 +12,7 @@ import {
   useFnosAdapter as activateFnosAdapter,
   useNativeAdapter as activateNativeAdapter,
   useSubsonicAdapter as activateSubsonicAdapter,
+  useUgreenAdapter as activateUgreenAdapter,
   check,
   consumeScanLoginSession,
   createScanLoginSession,
@@ -41,7 +42,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import emby from "../../assets/emby.png";
 import logo from "../../assets/logo.png";
 import subsonic from "../../assets/subsonic.png";
-import { AUDIOBOOKSHELF_LOGO, FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP } from "../../constants/sources";
+import { AUDIOBOOKSHELF_LOGO, FNOS_LOGO, SOURCE_LABELS, SOURCEMAP, SOURCETIPSMAP, UGREEN_LOGO } from "../../constants/sources";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuthStore } from "../../store/auth";
 import { trackEvent } from "../../services/tracking";
@@ -97,6 +98,8 @@ const Login: React.FC = () => {
   // 飞牛音乐：没有扫码登录、也不能自助注册（账号在 fnOS 里建）
   const mappedSourceType = SOURCEMAP[sourceType as keyof typeof SOURCEMAP] || "audiodock";
   const isFnos = mappedSourceType === "fnos";
+  // 绿联音乐：同样没有扫码登录、账号在 UGOS 系统里创建
+  const isUgreen = mappedSourceType === "ugreen";
   const isAudiobookshelf = mappedSourceType === "audiobookshelf";
   const supportsScanLogin = mappedSourceType === "audiodock";
 
@@ -133,6 +136,8 @@ const Login: React.FC = () => {
         return subsonic;
       case "Feiniu":
         return FNOS_LOGO;
+      case "UGreen":
+        return UGREEN_LOGO;
       case "Audiobookshelf":
         return AUDIOBOOKSHELF_LOGO;
       default:
@@ -398,6 +403,7 @@ const Login: React.FC = () => {
     else if (mappedType === "audiobookshelf") activateAudiobookshelfAdapter();
     else if (mappedType === "emby") activateEmbyAdapter();
     else if (mappedType === "fnos") activateFnosAdapter({ baseUrl: address, username, password });
+    else if (mappedType === "ugreen") activateUgreenAdapter({ baseUrl: address, username, password });
     else activateNativeAdapter();
   };
 
@@ -708,9 +714,11 @@ const Login: React.FC = () => {
                       ? "https://your-audiobookshelf.example.com"
                       : isFnos
                         ? "http://192.168.1.10:5666"
-                        : isWeb()
-                          ? "/api"
-                          : "http://192.168.x.x"
+                        : isUgreen
+                          ? "http://192.168.1.10:9999"
+                          : isWeb()
+                            ? "/api"
+                            : "http://192.168.x.x"
                   }
                   autoCapitalize="off"
                 />
@@ -797,7 +805,7 @@ const Login: React.FC = () => {
               </Button>
             )}
 
-            {!isFnos && !isAudiobookshelf && (
+            {!isFnos && !isUgreen && !isAudiobookshelf && (
               <Button
                 type="link"
                 block

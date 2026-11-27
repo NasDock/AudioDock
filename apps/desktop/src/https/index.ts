@@ -1,4 +1,4 @@
-import { setRequestInstance, setServiceConfig, useAudiobookshelfAdapter, useEmbyAdapter, useFnosAdapter, useNativeAdapter, useSubsonicAdapter } from "@soundx/services";
+import { setRequestInstance, setServiceConfig, useAudiobookshelfAdapter, useEmbyAdapter, useFnosAdapter, useNativeAdapter, useSubsonicAdapter, useUgreenAdapter } from "@soundx/services";
 import axios, { AxiosError, type AxiosResponse } from "axios";
 import { SOURCEMAP } from "../constants/sources";
 import { registerFnosTransport } from "../services/fnosTransport";
@@ -143,17 +143,21 @@ const initAdapter = () => {
       useEmbyAdapter();
     } else if (mappedType === "fnos") {
       useFnosAdapter();
+    } else if (mappedType === "ugreen") {
+      useUgreenAdapter();
     } else {
       useNativeAdapter();
     }
 
-    // 飞牛只有音乐：把上次残留的「有声书」模式纠正回来
+    // 飞牛/绿联只有音乐：把上次残留的「有声书」模式纠正回来
     enforceSourcePlayMode(
       mappedType === "fnos"
         ? "Feiniu"
-        : mappedType === "audiobookshelf"
-          ? "Audiobookshelf"
-          : sourceType,
+        : mappedType === "ugreen"
+          ? "UGreen"
+          : mappedType === "audiobookshelf"
+            ? "Audiobookshelf"
+            : sourceType,
     );
 
     // 第三方音乐源下，设备列表/播放流转走 AudioDock 平台服务（最近一次 AudioDock 源登录态）

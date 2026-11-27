@@ -99,7 +99,7 @@ import { useSettingsStore } from "../../store/settings";
 import LazyImage from "../LazyImage";
 import { useSyncStore } from "../../store/sync";
 import { formatDuration } from "../../utils/formatDuration";
-import { isFnosSource, isMvSupported } from "../../utils";
+import { isFnosSource, isMvSupported, isUgreenSource } from "../../utils";
 import { isTauri, tauriGetDeviceName, getOrCreateDeviceId, computeStableDeviceId, tauriMaximizeWindow } from "../../utils/platform";
 import { getCurrentPlaybackQualityPreference } from "../../utils/playbackQuality";
 import { getPlayMode, setPlayMode, usePlayMode } from "../../utils/playMode";
@@ -1314,7 +1314,8 @@ const Player: React.FC<PlayerProps> = ({ hideMiniPlayer, seekBridge }) => {
   } | null>(null);
 
   useEffect(() => {
-    if (!currentTrack || currentTrack.lyrics || !isFnosSource()) return;
+    // 飞牛/绿联的歌词都是单曲懒加载接口，切歌时按需拉取
+    if (!currentTrack || currentTrack.lyrics || (!isFnosSource() && !isUgreenSource())) return;
     let cancelled = false;
     const id = String(currentTrack.id);
     getTrackLyrics(currentTrack.id)

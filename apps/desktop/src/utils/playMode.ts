@@ -21,7 +21,8 @@ export const setPlayMode = (mode: PlayMode) => {
 /**
  * 按数据源校正播放模式。
  *
- * 飞牛音乐（fnOS trim.music）只有音乐：曲目 type 恒为 MUSIC、没有有声书分类。
+ * 飞牛音乐（fnOS trim.music）/ 绿联音乐（UGOS com.ugreen.music）只有音乐：
+ * 曲目 type 恒为 MUSIC、没有有声书分类。
  * 若本地残留 `playMode=audiobook`（上次在官方源听的），进飞牛后列表会按
  * AUDIOBOOK 过滤成空 —— 所以进入该源时强制切回音乐模式。
  *
@@ -40,7 +41,7 @@ export const enforceSourcePlayMode = (sourceType?: string | null) => {
     if (getPlayMode() !== TrackType.AUDIOBOOK) setPlayMode(TrackType.AUDIOBOOK);
     return;
   }
-  if (type !== "Feiniu") return;
+  if (type !== "Feiniu" && type !== "UGreen") return;
   if (getPlayMode() === TrackType.MUSIC) return;
   setPlayMode(TrackType.MUSIC);
 };

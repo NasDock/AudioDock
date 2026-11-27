@@ -2,6 +2,13 @@
 
 > 精简版。细节查 `docs/` 与每日日志。
 
+## 绿联音乐（UGOS Pro com.ugreen.music，2026-11-27 packages+desktop 接入）
+- 网关 `/ugreen/v1`，信封 code=200 成功；**CORS 全开放**，鉴权是 query `?token=`（api_token），媒体 `get_file?file_path=` 自带凭据+Range → **无 transport/媒体代理**（比飞牛简单得多）。
+- 登录：`verify/check` 响应头 `X-Rsa-Token`（公钥，每次轮换）→ RSA PKCS#1 v1.5 加密密码（adapter/ugreen/rsa.ts 纯 BigInt 实现）→ `verify/login` 得 token。
+- 坑：AI 搜索 `search/by_type/ai` 只认 sort_type=0；`singer` 详情 page_size 上限 200 且 sort_type 只能 0；`collect/v2`、`songlist/by_id/v2` 禁 sort_type=0；歌单 add/modify 嵌套 `{songlist:{...}}`；歌词 song/info.lyric_url 单曲懒加载；歌手曲目=逐专辑聚合。文档 `docs/ugreen-music-api.md`。
+- 无有声书/MV/推荐/注册/搜索历史（端侧 FnosSearchRecordAdapter("ugreen")）；SOURCEMAP 加 `UGreen:"ugreen"`；mobile/harmony 未接线（按飞牛落点表平移）。
+- Bash cwd 每次调用重置到仓库根 → 删 dist/构建一律绝对路径；father 清 dist 被沙箱 shim 拦截，先手动 rm 再 build；node 冒烟要 `env -u *_PROXY`；BSD grep 不支持 `{n,m}`。
+
 ## 仓库与协作约定
 - 远程 `git@github.com:NasDock/AudioDock.git`，分支 `feat/test`；`.workbuddy/memory/` 日志随代码提交。
 - bash `grep` 静默无输出 → 一律用 Grep 工具；`eslint .` 多目录撞 EPIPE，分目录跑。

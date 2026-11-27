@@ -39,6 +39,11 @@ export const isFnosSource = () => {
   return localStorage.getItem("selectedSourceType") === "Feiniu";
 };
 
+/** 绿联音乐（UGOS Pro com.ugreen.music）：只有音乐，没有有声书/MV */
+export const isUgreenSource = () => {
+  return localStorage.getItem("selectedSourceType") === "UGreen";
+};
+
 /** Audiobookshelf：内容固定为有声书，没有 MV / 音乐模式 */
 export const isAudiobookshelfSource = () => {
   return localStorage.getItem("selectedSourceType") === "Audiobookshelf";
@@ -49,8 +54,13 @@ export const isAudiobookshelfSource = () => {
  * 飞牛音乐（fnOS trim.music）没有 MV 能力，适配器全部返回空实现，
  * 因此飞行模式下所有 MV 入口（tab / 卡片 / 播放按钮 / 路由）都要隐藏。
  */
-export const isMvSupported = () => !isFnosSource() && !isAudiobookshelfSource();
+export const isMvSupported = () =>
+  !isFnosSource() && !isUgreenSource() && !isAudiobookshelfSource();
 
 /** 外部数据源（非 AudioDock 官方服务端）：扫描/整理/文件夹/有声书等能力都不可用 */
 export const isThirdPartySource = () =>
-  isSubsonicSource() || isEmbySource() || isFnosSource() || isAudiobookshelfSource();
+  isSubsonicSource() ||
+  isEmbySource() ||
+  isFnosSource() ||
+  isUgreenSource() ||
+  isAudiobookshelfSource();

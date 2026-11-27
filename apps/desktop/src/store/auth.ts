@@ -7,6 +7,7 @@ import {
   useFnosAdapter,
   useNativeAdapter,
   useSubsonicAdapter,
+  useUgreenAdapter,
 } from "@soundx/services";
 import { useAudiobookshelfAdapter } from "@soundx/services";
 import { create } from "zustand";
@@ -63,6 +64,7 @@ const initService = (address: string, type: string) => {
   else if (mappedType === "audiobookshelf") useAudiobookshelfAdapter({ token: token || undefined });
   else if (mappedType === "emby") useEmbyAdapter();
   else if (mappedType === "fnos") useFnosAdapter({ baseUrl: address, username, password });
+  else if (mappedType === "ugreen") useUgreenAdapter({ baseUrl: address, username, password });
   else useNativeAdapter();
 
   // 第三方音乐源下，设备列表/播放流转走 AudioDock 平台服务（最近一次 AudioDock 源登录态）
